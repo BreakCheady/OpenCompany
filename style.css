@@ -290,6 +290,22 @@ select {
 .status.error { color: var(--danger); }
 .status.success { color: var(--success); }
 
+.presence-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-weight: 800;
+}
+.presence-status::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: currentColor;
+}
+.presence-status.online { color: var(--success); }
+.presence-status.offline { color: var(--danger); }
+
 .stack {
   display: grid;
   gap: 6px;

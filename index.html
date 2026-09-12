@@ -17,13 +17,11 @@
     <nav>
       <button class="nav-item active" data-view="dashboard">Dashboard</button>
       <button class="nav-item" data-view="company">Unternehmen</button>
-      <button class="nav-item" data-view="employees">Mitarbeiter</button>
       <button class="nav-item" data-view="production">Produktion</button>
       <button class="nav-item" data-view="buildings">Gebäude</button>
       <button class="nav-item" data-view="market">Markt</button>
       <button class="nav-item" data-view="contracts">Verträge</button>
       <button class="nav-item" data-view="finance">Finanzen</button>
-      <button class="nav-item" data-view="stocks">Aktien</button>
     </nav>
     <div class="sidebar-footer">
       <span id="sessionLabel">Nicht angemeldet</span>
@@ -61,7 +59,7 @@
         <div class="stats-grid">
           <article class="stat-card"><span>Unternehmen</span><strong id="statCompany">–</strong></article>
           <article class="stat-card"><span>Kontostand</span><strong id="statCash">–</strong></article>
-          <article class="stat-card"><span>Mitarbeiter</span><strong id="statEmployees">–</strong></article>
+          <article class="stat-card"><span>Belegschaft (automatisch)</span><strong id="statEmployees">–</strong></article>
           <article class="stat-card"><span>Unternehmenswert</span><strong id="statValue">–</strong></article>
         </div>
         <div class="grid two">
@@ -71,8 +69,6 @@
       </div>
 
       <div id="company" class="view"><article class="panel"><h2>Unternehmen</h2><div id="companyDetails"></div></article></div>
-
-      <div id="employees" class="view"><article class="panel"><div class="panel-head"><h2>Mitarbeiter</h2><button id="hireBtn">Mitarbeiter einstellen</button></div><div id="employeesTable" class="table-wrap"></div></article></div>
 
       <div id="production" class="view">
         <div class="grid two">
@@ -95,7 +91,7 @@
       <div id="buildings" class="view">
         <article class="panel">
           <h2>Gebäude</h2>
-          <p class="muted">Bestimmte Produkte können nur produziert werden, wenn das passende Gebäude vorhanden ist.</p>
+          <p class="muted">Bestimmte Produkte benötigen passende Gebäude. Jedes aktive Gebäude stellt seine Belegschaft automatisch ein; die Personalkosten fließen direkt in die Produktionskosten ein.</p>
           <div id="buildingsTable" class="table-wrap"></div>
         </article>
       </div>
@@ -150,15 +146,13 @@
       </div>
 
       <div id="finance" class="view"><article class="panel"><h2>Finanzen</h2><div id="financeTable" class="table-wrap"></div></article></div>
-      <div id="stocks" class="view"><article class="panel"><h2>Aktien</h2><div id="stockInfo"></div></article></div>
     </section>
 
     <section id="bootstrapView" class="panel hidden">
       <h2>Erstes Unternehmen gründen</h2>
       <p class="muted">Startkapital: 50.000 OC$. Rohstoffe und Gebäude müssen selbst beschafft bzw. gebaut werden.</p>
-      <form id="companyForm" class="grid two">
+      <form id="companyForm">
         <label>Firmenname<input id="companyName" required maxlength="80" value="OpenTech GmbH"></label>
-        <label>Ticker<input id="companyTicker" maxlength="8" value="OPNT"></label>
         <button type="submit">Unternehmen gründen</button>
       </form>
       <p id="companyMessage" class="status"></p>

@@ -17,16 +17,16 @@ const state = {
   recipes: [],
   buildingTypes: [],
   buildings: [],
-  employees: [],
   transactions: [],
   marketOrders: [],
   marketOrderHistory: [],
   marketOrderHistoryFilter: 'all',
   contracts: [],
   companyDirectory: [],
-  shareClass: null,
   recoveringPassword: false
 };
+
+let presenceTimer = null;
 
 const money = n => new Intl.NumberFormat('de-DE', { style:'currency', currency:'EUR', maximumFractionDigits:2 })
   .format(Number(n || 0)).replace('€','OC$');
@@ -86,6 +86,42 @@ function showGameDataError(errors) {
   box.classList.remove('hidden');
 }
 
+
+async function touchPresence() {
+  if (!sb || !state.company?.id || document.visibilityState === 'hidden') return;
+  const { data, error } = await sb.rpc('touch_company_presence', { p_company_id: state.company.id });
+  if (error) {
+    console.warn('Präsenz konnte nicht aktualisiert werden:', error.message);
+    return;
+  }
+  state.company.last_seen_at = data;
+  renderCompanyStatus();
+}
+
+function startPresenceHeartbeat() {
+  if (presenceTimer) clearInterval(presenceTimer);
+  touchPresence();
+  presenceTimer = setInterval(touchPresence, 60000);
+}
+
+function stopPresenceHeartbeat() {
+  if (presenceTimer) clearInterval(presenceTimer);
+  presenceTimer = null;
+}
+
+function isCompanyOnline() {
+  if (!state.company?.last_seen_at) return false;
+  return Date.now() - new Date(state.company.last_seen_at).getTime() < 120000;
+}
+
+function renderCompanyStatus() {
+  const statusEl = document.getElementById('companyOnlineStatus');
+  if (!statusEl) return;
+  const online = isCompanyOnline();
+  statusEl.textContent = online ? 'Online' : 'Offline';
+  statusEl.className = `presence-status ${online ? 'online' : 'offline'}`;
+}
+
 function bindNavigation() {
   document.querySelectorAll('.nav-item').forEach(btn => btn.addEventListener('click', () => {
     document.querySelectorAll('.nav-item').forEach(b=>b.classList.remove('active'));
@@ -137,6 +173,7 @@ async function handleSession(session) {
   document.getElementById('sessionLabel').textContent = loggedIn ? session.user.email : 'Nicht angemeldet';
 
   if (!loggedIn) {
+    stopPresenceHeartbeat();
     document.getElementById('gameView').classList.add('hidden');
     document.getElementById('bootstrapView').classList.add('hidden');
     clearCompanyLoadError();
@@ -158,6 +195,7 @@ async function loadCompany() {
   document.getElementById('gameView').classList.toggle('hidden', !data);
 
   if (data) {
+    startPresenceHeartbeat();
     // NPCs may buy suitable player orders at most once every five minutes.
     const npcTick = await sb.rpc('run_npc_market_tick');
     if (npcTick.error) console.warn('NPC-Markt-Tick:', npcTick.error.message);
@@ -176,16 +214,14 @@ async function loadGameData() {
     sb.from('production_recipe_inputs').select('*'),
     sb.from('building_types').select('*').order('construction_cost'),
     sb.from('company_buildings').select('*').eq('company_id', cid),
-    sb.from('employees').select('*').eq('company_id', cid).order('hired_at', {ascending:false}),
     sb.from('financial_transactions').select('*').eq('company_id', cid).order('created_at', {ascending:false}).limit(30),
     sb.from('market_orders').select('*, products(name), materials(name)').in('status',['open','partially_filled']).order('created_at',{ascending:false}).limit(100),
     sb.from('market_orders').select('*, products(name), materials(name)').in('status',['filled','cancelled']).order('created_at',{ascending:false}).limit(100),
     sb.from('contracts').select('*').or(`seller_company_id.eq.${cid},buyer_company_id.eq.${cid}`).order('created_at',{ascending:false}),
-    sb.rpc('list_companies'),
-    sb.from('share_classes').select('*').eq('company_id', cid).maybeSingle()
+    sb.rpc('list_companies')
   ]);
 
-  const labels = ['Produkte','Alle Produkte','Produktlager','Materialien','Materiallager','Rezepte','Gebäudetypen','Gebäude','Mitarbeiter','Finanzen','Marktorders','Order-Historie','Verträge','Firmenverzeichnis','Aktienklasse'];
+  const labels = ['Produkte','Alle Produkte','Produktlager','Materialien','Materiallager','Rezepte','Gebäudetypen','Gebäude','Finanzen','Marktorders','Order-Historie','Verträge','Firmenverzeichnis'];
   const errors = results.map((r,i)=>r.error ? { label: labels[i], error:r.error } : null).filter(Boolean);
   if (errors.length) {
     console.error(errors);
@@ -194,7 +230,7 @@ async function loadGameData() {
   }
   clearGameDataError();
 
-  const [products, allProducts, inventory, materials, materialInventory, recipes, buildingTypes, buildings, employees, tx, orders, history, contracts, directory, shareClass] = results;
+  const [products, allProducts, inventory, materials, materialInventory, recipes, buildingTypes, buildings, tx, orders, history, contracts, directory] = results;
   state.products = products.data;
   state.allProducts = allProducts.data;
   state.inventory = inventory.data;
@@ -203,13 +239,11 @@ async function loadGameData() {
   state.recipes = recipes.data.filter(r => state.products.some(p => p.id === r.product_id));
   state.buildingTypes = buildingTypes.data;
   state.buildings = buildings.data;
-  state.employees = employees.data;
   state.transactions = tx.data;
   state.marketOrders = orders.data;
   state.marketOrderHistory = history.data;
   state.contracts = contracts.data;
   state.companyDirectory = directory.data || [];
-  state.shareClass = shareClass.data;
   renderAll();
 }
 
@@ -221,7 +255,11 @@ function renderProductionRecipe() {
   const hasBuilding = !building || state.buildings.some(cb => cb.building_type_id === building.id && cb.status === 'active');
 
   document.getElementById('productionRequirement').innerHTML = building
-    ? `<div class="kv"><span>Benötigtes Gebäude</span><strong>${building.name} ${hasBuilding ? '✓' : '✗'}</strong></div>`
+    ? [
+        `<div class="kv"><span>Benötigtes Gebäude</span><strong>${building.name} ${hasBuilding ? '✓' : '✗'}</strong></div>`,
+        `<div class="kv"><span>Automatische Belegschaft</span><strong>${num(building.employees_per_building)} Mitarbeiter je Gebäude</strong></div>`,
+        `<div class="kv"><span>Personalkosten</span><strong>${money(building.labor_cost_per_unit)} je produzierter Einheit</strong></div>`
+      ].join('')
     : '<div class="kv"><span>Benötigtes Gebäude</span><strong>Keines</strong></div>';
 
   const rows = recipe.map(r => {
@@ -239,10 +277,11 @@ function renderProductionRecipe() {
 
 function renderBuildings() {
   document.getElementById('buildingsTable').innerHTML = renderTable(
-    ['Gebäude','Beschreibung','Kosten','Vorhanden','Aktion'],
+    ['Gebäude','Beschreibung','Baukosten','Vorhanden','Mitarbeiter','Personalkosten / Einheit','Aktion'],
     state.buildingTypes.map(bt => {
       const count = state.buildings.filter(b => b.building_type_id === bt.id && b.status === 'active').length;
-      return `<tr><td>${bt.name}</td><td>${bt.description || ''}</td><td>${money(bt.construction_cost)}</td><td>${count}</td><td><button onclick="buildBuilding('${bt.id}')">Bauen</button></td></tr>`;
+      const staff = count * Number(bt.employees_per_building || 0);
+      return `<tr><td>${bt.name}</td><td>${bt.description || ''}</td><td>${money(bt.construction_cost)}</td><td>${count}</td><td>${num(staff)} (${num(bt.employees_per_building)} je Gebäude)</td><td>${money(bt.labor_cost_per_unit)}</td><td><button onclick="buildBuilding('${bt.id}')">Bauen</button></td></tr>`;
     })
   );
 }
@@ -297,7 +336,7 @@ function renderContracts() {
   );
 
   const others = state.companyDirectory.filter(c => c.company_type === 'player' && c.id !== cid);
-  document.getElementById('contractPartner').innerHTML = others.map(c => `<option value="${c.id}">${c.name}${c.ticker ? ` (${c.ticker})` : ''}</option>`).join('');
+  document.getElementById('contractPartner').innerHTML = others.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
   updateContractGoods();
 }
 
@@ -320,17 +359,27 @@ function renderAll() {
   const c = state.company;
   document.getElementById('statCompany').textContent = c.name;
   document.getElementById('statCash').textContent = money(c.cash_balance);
-  document.getElementById('statEmployees').textContent = num(state.employees.length);
+  const automaticEmployees = state.buildings
+    .filter(b => b.status === 'active')
+    .reduce((sum, b) => {
+      const type = state.buildingTypes.find(bt => bt.id === b.building_type_id);
+      return sum + Number(type?.employees_per_building || 0);
+    }, 0);
+  document.getElementById('statEmployees').textContent = num(automaticEmployees);
   document.getElementById('statValue').textContent = money(c.company_value);
 
-  document.getElementById('companySummary').innerHTML = [
-    ['Name',c.name],['Ticker',c.ticker || '–'],['Status',c.status],['Startmodell','Keine Gratisbestände'],['Reputation',num(c.brand_reputation)],['Level',num(c.company_level)]
-  ].map(([k,v])=>`<div class="kv"><span>${k}</span><strong>${v}</strong></div>`).join('');
-  document.getElementById('companyDetails').innerHTML = document.getElementById('companySummary').innerHTML;
+  const companyRows = [
+    `<div class="kv"><span>Name</span><strong>${c.name}</strong></div>`,
+    `<div class="kv"><span>Status</span><strong id="companyOnlineStatus" class="presence-status"></strong></div>`,
+    `<div class="kv"><span>Startmodell</span><strong>Keine Gratisbestände</strong></div>`,
+    `<div class="kv"><span>Level</span><strong>${num(c.company_level)}</strong></div>`
+  ].join('');
+  document.getElementById('companySummary').innerHTML = companyRows;
+  document.getElementById('companyDetails').innerHTML = companyRows;
+  renderCompanyStatus();
 
   document.getElementById('recentTransactions').innerHTML = renderTable(['Typ','Betrag','Beschreibung','Zeit'], state.transactions.slice(0,8).map(t=>`<tr><td><span class="badge">${t.transaction_type}</span></td><td>${money(t.amount)}</td><td>${t.description || ''}</td><td>${new Date(t.created_at).toLocaleString('de-DE')}</td></tr>`));
   document.getElementById('financeTable').innerHTML = renderTable(['Typ','Betrag','Beschreibung','Zeit'], state.transactions.map(t=>`<tr><td>${t.transaction_type}</td><td>${money(t.amount)}</td><td>${t.description || ''}</td><td>${new Date(t.created_at).toLocaleString('de-DE')}</td></tr>`));
-  document.getElementById('employeesTable').innerHTML = renderTable(['Name','Beruf','Gehalt','Produktivität'], state.employees.map(e=>`<tr><td>${e.first_name} ${e.last_name}</td><td>${e.profession}</td><td>${money(e.salary)}</td><td>${e.productivity}%</td></tr>`));
   document.getElementById('inventoryTable').innerHTML = renderTable(['Produkt','Menge','Ø Kosten'], state.inventory.map(i=>`<tr><td>${i.products?.name || '–'}</td><td>${num(i.quantity)}</td><td>${money(i.average_unit_cost)}</td></tr>`));
   document.getElementById('materialInventoryTable').innerHTML = renderTable(['Material','Menge','Einheit','Ø Kosten'], state.materials.map(m => {
     const i = state.materialInventory.find(x => x.material_id === m.id);
@@ -346,9 +395,6 @@ function renderAll() {
   renderMarketOrderHistory();
   renderContracts();
 
-  document.getElementById('stockInfo').innerHTML = state.shareClass
-    ? `<div class="kv"><span>Symbol</span><strong>${state.shareClass.symbol}</strong></div><div class="kv"><span>Ausgegebene Aktien</span><strong>${num(state.shareClass.issued_shares)}</strong></div>`
-    : '<p class="muted">Keine Aktienklasse gefunden.</p>';
 }
 
 // Auth
@@ -388,26 +434,24 @@ document.getElementById('recoveryForm').addEventListener('submit', async e => {
   await handleSession(session);
   window.history.replaceState({},document.title,APP_URL);
 });
-document.getElementById('logoutBtn').addEventListener('click',()=>sb?.auth.signOut());
+document.getElementById('logoutBtn').addEventListener('click', async () => {
+  if (state.company?.id) {
+    await sb.rpc('set_company_offline', { p_company_id: state.company.id });
+  }
+  stopPresenceHeartbeat();
+  await sb?.auth.signOut();
+});
 
 // Company
 document.getElementById('companyForm').addEventListener('submit', async e => {
   e.preventDefault();
   const { error } = await sb.rpc('bootstrap_company',{
-    p_name:document.getElementById('companyName').value.trim(),
-    p_ticker:document.getElementById('companyTicker').value.trim().toUpperCase()
+    p_name:document.getElementById('companyName').value.trim()
   });
   msg(document.getElementById('companyMessage'), error ? error.message : 'Unternehmen gegründet.', error ? 'error' : 'success');
   if (!error) await loadCompany();
 });
 
-// Employees
-document.getElementById('hireBtn').addEventListener('click', async () => {
-  const names=[['Lena','Hoffmann'],['Jonas','Weber'],['Mia','Schulz'],['Noah','Fischer'],['Emma','Koch']];
-  const pick=names[Math.floor(Math.random()*names.length)];
-  const { error }=await sb.rpc('hire_employee',{p_company_id:state.company.id,p_first_name:pick[0],p_last_name:pick[1],p_profession:'Produktionsmitarbeiter',p_salary:3200});
-  if(error) alert(error.message); else await loadCompany();
-});
 
 // Production
 document.getElementById('productionProduct').addEventListener('change',renderProductionRecipe);
@@ -479,5 +523,9 @@ document.getElementById('contractForm').addEventListener('submit',async e=>{
 window.acceptContract=async id=>{ const {error}=await sb.rpc('accept_contract',{p_contract_id:id}); if(error) alert(error.message); else await loadCompany(); };
 window.fulfillContract=async id=>{ const {error}=await sb.rpc('fulfill_contract',{p_contract_id:id}); if(error) alert(error.message); else await loadCompany(); };
 window.cancelContract=async id=>{ const {error}=await sb.rpc('cancel_contract',{p_contract_id:id}); if(error) alert(error.message); else await loadCompany(); };
+
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') touchPresence();
+});
 
 init();
