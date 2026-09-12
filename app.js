@@ -126,23 +126,44 @@ function renderAll() {
 
 // Auth
 document.getElementById('loginForm').addEventListener('submit', async e => {
-  e.preventDefault(); if (!sb) return;
-  const { error } = await sb.auth.signInWithPassword({ email: loginEmail.value, password: loginPassword.value });
+  e.preventDefault();
+  if (!sb) return;
+
+  const email = document.getElementById('loginEmail').value.trim();
+  const password = document.getElementById('loginPassword').value;
+
+  const { error } = await sb.auth.signInWithPassword({ email, password });
   msg(document.getElementById('authMessage'), error ? error.message : 'Angemeldet.', error ? 'error' : 'success');
 });
+
 document.getElementById('signupForm').addEventListener('submit', async e => {
-  e.preventDefault(); if (!sb) return;
-  const { error } = await sb.auth.signUp({ email: signupEmail.value.trim(), password: signupPassword.value, options: { emailRedirectTo: APP_URL } });
+  e.preventDefault();
+  if (!sb) return;
+
+  const email = document.getElementById('signupEmail').value.trim();
+  const password = document.getElementById('signupPassword').value;
+
+  const { error } = await sb.auth.signUp({
+    email,
+    password,
+    options: { emailRedirectTo: APP_URL }
+  });
+
   msg(document.getElementById('authMessage'), error ? error.message : 'Account erstellt. Falls E-Mail-Bestätigung aktiv ist, bitte Postfach prüfen.', error ? 'error' : 'success');
 });
+
 document.getElementById('forgotPasswordBtn').addEventListener('click', async () => {
   if (!sb) return;
-  const email = loginEmail.value.trim();
+
+  const loginEmailInput = document.getElementById('loginEmail');
+  const email = loginEmailInput.value.trim();
+
   if (!email) {
     msg(document.getElementById('authMessage'), 'Bitte gib zuerst deine E-Mail-Adresse im Login-Feld ein.', 'error');
-    loginEmail.focus();
+    loginEmailInput.focus();
     return;
   }
+
   const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: APP_URL });
   msg(document.getElementById('authMessage'), error ? error.message : 'Passwort-Link wurde versendet. Bitte prüfe dein E-Mail-Postfach.', error ? 'error' : 'success');
 });
@@ -150,17 +171,22 @@ document.getElementById('forgotPasswordBtn').addEventListener('click', async () 
 document.getElementById('recoveryForm').addEventListener('submit', async e => {
   e.preventDefault();
   if (!sb) return;
-  const password = newPassword.value;
-  const confirmation = newPasswordConfirm.value;
+
+  const password = document.getElementById('newPassword').value;
+  const confirmation = document.getElementById('newPasswordConfirm').value;
+
   if (password !== confirmation) {
     msg(document.getElementById('recoveryMessage'), 'Die Passwörter stimmen nicht überein.', 'error');
     return;
   }
+
   const { error } = await sb.auth.updateUser({ password });
+
   if (error) {
     msg(document.getElementById('recoveryMessage'), error.message, 'error');
     return;
   }
+
   state.recoveringPassword = false;
   msg(document.getElementById('recoveryMessage'), 'Passwort erfolgreich geändert.', 'success');
   const { data: { session } } = await sb.auth.getSession();
@@ -173,7 +199,15 @@ document.getElementById('logoutBtn').addEventListener('click', ()=>sb?.auth.sign
 // Company bootstrap
 document.getElementById('companyForm').addEventListener('submit', async e => {
   e.preventDefault();
-  const { data, error } = await sb.rpc('bootstrap_company', { p_name: companyName.value.trim(), p_ticker: companyTicker.value.trim().toUpperCase() });
+
+  const name = document.getElementById('companyName').value.trim();
+  const ticker = document.getElementById('companyTicker').value.trim().toUpperCase();
+
+  const { error } = await sb.rpc('bootstrap_company', {
+    p_name: name,
+    p_ticker: ticker
+  });
+
   msg(document.getElementById('companyMessage'), error ? error.message : 'Unternehmen gegründet.', error ? 'error' : 'success');
   if (!error) await loadCompany();
 });
@@ -189,22 +223,48 @@ document.getElementById('hireBtn').addEventListener('click', async () => {
 // Production
 document.getElementById('productionForm').addEventListener('submit', async e => {
   e.preventDefault();
-  const { error } = await sb.rpc('produce_product', { p_company_id: state.company.id, p_product_id: productionProduct.value, p_quantity: Number(productionQty.value) });
+
+  const productId = document.getElementById('productionProduct').value;
+  const quantity = Number(document.getElementById('productionQty').value);
+
+  const { error } = await sb.rpc('produce_product', {
+    p_company_id: state.company.id,
+    p_product_id: productId,
+    p_quantity: quantity
+  });
+
   if (error) alert(error.message); else await loadGameData();
 });
 
 // Sell order
 document.getElementById('sellOrderForm').addEventListener('submit', async e => {
   e.preventDefault();
-  const { error } = await sb.rpc('place_sell_order', { p_company_id: state.company.id, p_product_id: sellProduct.value, p_quantity: Number(sellQty.value), p_price: Number(sellPrice.value) });
+
+  const productId = document.getElementById('sellProduct').value;
+  const quantity = Number(document.getElementById('sellQty').value);
+  const price = Number(document.getElementById('sellPrice').value);
+
+  const { error } = await sb.rpc('place_sell_order', {
+    p_company_id: state.company.id,
+    p_product_id: productId,
+    p_quantity: quantity,
+    p_price: price
+  });
+
   if (error) alert(error.message); else await loadGameData();
 });
 
 window.buyOrder = async function(orderId) {
   const qty = Number(prompt('Wie viele Einheiten möchtest du kaufen?', '1'));
   if (!Number.isFinite(qty) || qty <= 0) return;
-  const { error } = await sb.rpc('buy_market_order', { p_buyer_company_id: state.company.id, p_order_id: orderId, p_quantity: qty });
+
+  const { error } = await sb.rpc('buy_market_order', {
+    p_buyer_company_id: state.company.id,
+    p_order_id: orderId,
+    p_quantity: qty
+  });
+
   if (error) alert(error.message); else await loadGameData();
-}
+};
 
 init();
