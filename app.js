@@ -5,7 +5,7 @@ if (!configured) setupNotice.classList.remove('hidden');
 
 const APP_URL = 'https://breakcheady.github.io/OpenCompany/';
 const sb = configured ? window.supabase.createClient(config.SUPABASE_URL, config.SUPABASE_ANON_KEY) : null;
-const state = { session: null, company: null, products: [], inventory: [], employees: [], transactions: [], marketOrders: [], recoveringPassword: false };
+const state = { session: null, company: null, products: [], inventory: [], employees: [], transactions: [], marketOrders: [], marketOrderHistory: [], recoveringPassword: false };
 
 const money = n => new Intl.NumberFormat('de-DE', { style:'currency', currency:'EUR', maximumFractionDigits:2 }).format(Number(n || 0)).replace('€','OC$');
 const num = n => new Intl.NumberFormat('de-DE').format(Number(n || 0));
@@ -149,11 +149,12 @@ async function loadGameData() {
     sb.from('inventories').select('*, products(name)').eq('company_id', cid),
     sb.from('employees').select('*').eq('company_id', cid).order('hired_at', {ascending:false}),
     sb.from('financial_transactions').select('*').eq('company_id', cid).order('created_at', {ascending:false}).limit(20),
-    sb.from('market_orders').select('*, products(name), companies(name)').eq('status','open').order('created_at',{ascending:false}).limit(50),
+    sb.from('market_orders').select('*, products(name), companies(name)').in('status',['open','partially_filled']).order('created_at',{ascending:false}).limit(50),
+    sb.from('market_orders').select('*, products(name), companies(name)').in('status',['filled','cancelled']).order('created_at',{ascending:false}).limit(50),
     sb.from('share_classes').select('*').eq('company_id', cid).maybeSingle()
   ]);
 
-  const labels = ['Produkte', 'Lager', 'Mitarbeiter', 'Finanzen', 'Marktorders', 'Aktienklasse'];
+  const labels = ['Produkte', 'Lager', 'Mitarbeiter', 'Finanzen', 'Marktorders', 'Order-Historie', 'Aktienklasse'];
   const errors = results
     .map((result, index) => result.error ? { label: labels[index], error: result.error } : null)
     .filter(Boolean);
@@ -166,13 +167,14 @@ async function loadGameData() {
 
   clearGameDataError();
 
-  const [products, inventory, employees, tx, orders, shareClass] = results;
+  const [products, inventory, employees, tx, orders, orderHistory, shareClass] = results;
 
   state.products = products.data;
   state.inventory = inventory.data;
   state.employees = employees.data;
   state.transactions = tx.data;
   state.marketOrders = orders.data;
+  state.marketOrderHistory = orderHistory.data;
   state.shareClass = shareClass.data;
 
   renderAll();
@@ -194,6 +196,14 @@ function renderAll() {
   document.getElementById('employeesTable').innerHTML = renderTable(['Name','Beruf','Gehalt','Produktivität'], state.employees.map(e=>`<tr><td>${e.first_name} ${e.last_name}</td><td>${e.profession}</td><td>${money(e.salary)}</td><td>${e.productivity}%</td></tr>`));
   document.getElementById('inventoryTable').innerHTML = renderTable(['Produkt','Menge','Ø Kosten'], state.inventory.map(i=>`<tr><td>${i.products?.name || '–'}</td><td>${num(i.quantity)}</td><td>${money(i.average_unit_cost)}</td></tr>`));
   document.getElementById('marketOrders').innerHTML = renderTable(['Firma','Produkt','Menge','Preis','Aktion'], state.marketOrders.map(o=>`<tr><td>${o.companies?.name || '–'}</td><td>${o.products?.name || '–'}</td><td>${num(o.remaining_quantity)}</td><td>${money(o.price_per_unit)}</td><td>${o.company_id === c.id ? `<button onclick="cancelOrder('${o.id}')">Stornieren</button>` : `<button onclick="buyOrder('${o.id}')">Kaufen</button>`}</td></tr>`));
+
+  document.getElementById('marketOrderHistory').innerHTML = renderTable(
+    ['Firma','Produkt','Gesamtmenge','Restmenge','Preis','Status','Erstellt'],
+    state.marketOrderHistory.map(o => {
+      const statusLabel = o.status === 'filled' ? 'Abgeschlossen' : 'Storniert';
+      return `<tr><td>${o.companies?.name || '–'}</td><td>${o.products?.name || '–'}</td><td>${num(o.quantity)}</td><td>${num(o.remaining_quantity)}</td><td>${money(o.price_per_unit)}</td><td><span class="badge">${statusLabel}</span></td><td>${new Date(o.created_at).toLocaleString('de-DE')}</td></tr>`;
+    })
+  );
 
   const opts = state.products.map(p=>`<option value="${p.id}">${p.name}</option>`).join('');
   document.getElementById('productionProduct').innerHTML = opts;
