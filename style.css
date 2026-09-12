@@ -771,3 +771,17 @@ button:disabled {
 .building-upgrade-btn:hover {
   background: #116b4a;
 }
+
+
+#market #marketOrders button.market-buy-btn,
+#buildings #buildingsTable button.building-upgrade-btn {
+  background: var(--success) !important;
+  color: #fff !important;
+  border-color: var(--success) !important;
+}
+
+#market #marketOrders button.market-buy-btn:hover,
+#buildings #buildingsTable button.building-upgrade-btn:hover {
+  background: #116b4a !important;
+  color: #fff !important;
+}
