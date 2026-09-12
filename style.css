@@ -1057,3 +1057,51 @@ td button {
     font-size: 10px;
   }
 }
+
+
+/* Unternehmensverwaltung – an globale Typografie angepasst */
+.company-danger-zone h2 {
+  font-size: 18px;
+  line-height: 1.25;
+  font-weight: var(--font-weight-bold);
+  letter-spacing: -.15px;
+}
+
+.company-danger-zone > .muted {
+  font-size: var(--font-size-base);
+  line-height: 1.45;
+  font-weight: var(--font-weight-normal);
+}
+
+.company-management-actions button {
+  font-family: var(--font-ui);
+  font-size: var(--font-size-button);
+  line-height: 1.25;
+  font-weight: var(--font-weight-bold);
+}
+
+.company-management-note {
+  font-family: var(--font-ui);
+  font-size: 11px;
+  line-height: 1.45;
+  font-weight: var(--font-weight-normal);
+  color: var(--muted);
+}
+
+@media (max-width: 480px) {
+  .company-danger-zone h2 {
+    font-size: 17px;
+  }
+
+  .company-danger-zone > .muted {
+    font-size: 13px;
+  }
+
+  .company-management-actions button {
+    font-size: 13px;
+  }
+
+  .company-management-note {
+    font-size: 11px;
+  }
+}
