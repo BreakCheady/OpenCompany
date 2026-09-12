@@ -613,3 +613,70 @@ td button {
 #productionForm button[type="submit"]:hover {
   background: #116b4a;
 }
+
+
+.production-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 10px;
+}
+.production-actions .ghost {
+  color: var(--accent);
+  border-color: #b8cae2;
+}
+#productionStartBtn {
+  margin-left: auto;
+  background: #aeb8c5;
+  cursor: not-allowed;
+}
+#productionStartBtn.production-ready:not(:disabled) {
+  background: var(--success);
+  cursor: pointer;
+}
+#productionStartBtn.production-ready:not(:disabled):hover {
+  background: #116b4a;
+}
+.material-amount {
+  color: var(--text);
+  font-weight: 700;
+}
+.material-amount.missing {
+  color: var(--danger);
+}
+.production-running {
+  display: grid;
+  gap: 4px;
+  padding: 10px 12px;
+  margin-top: 6px;
+  border: 1px solid #cfe0f5;
+  border-radius: 8px;
+  background: #f4f8fd;
+}
+.production-running span {
+  color: var(--muted);
+  font-size: 12px;
+}
+button:disabled {
+  opacity: .7;
+  cursor: not-allowed;
+}
+@media (max-width: 480px) {
+  .production-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+  #productionStartBtn {
+    grid-column: 1 / -1;
+    margin-left: 0;
+  }
+}
+
+
+#productionStartBtn.production-cancel:not(:disabled) {
+  background: var(--danger);
+  cursor: pointer;
+}
+#productionStartBtn.production-cancel:not(:disabled):hover {
+  background: #a92b24;
+}

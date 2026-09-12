@@ -76,8 +76,13 @@
             <h2>Produktion starten</h2>
             <form id="productionForm">
               <label>Produkt<select id="productionProduct"></select></label>
-              <label>Menge<input type="number" id="productionQty" value="1" min="1" step="1"></label>
-              <button type="submit">Produzieren</button>
+              <label>Produktionsdauer in Stunden<input type="number" id="productionHours" value="1" min="0.01" max="24" step="0.01"></label>
+              <div class="production-actions">
+                <button type="button" id="productionMaxBtn" class="ghost">MAX</button>
+                <button type="button" id="production24Btn" class="ghost">24H</button>
+                <button type="submit" id="productionStartBtn" disabled>Produktion starten</button>
+              </div>
+              <p id="productionCheck" class="muted"></p>
             </form>
             <div id="productionRequirement" class="stack"></div>
             <h3>Produktionsrezept</h3>
@@ -91,7 +96,7 @@
       <div id="buildings" class="view">
         <article class="panel">
           <h2>Gebäude</h2>
-          <p class="muted">Bestimmte Produkte benötigen passende Gebäude. Jedes aktive Gebäude stellt seine Belegschaft automatisch ein; die Personalkosten fließen direkt in die Produktionskosten ein.</p>
+          <p class="muted">Bestimmte Produkte benötigen passende Gebäude. Mit jedem Ausbau steigen stündliche Produktionskapazität, Belegschaft und Ausbaukosten nach derselben Prozentkurve.</p>
           <div id="buildingsTable" class="table-wrap"></div>
         </article>
       </div>

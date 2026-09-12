@@ -17,6 +17,7 @@ const state = {
   recipes: [],
   buildingTypes: [],
   buildings: [],
+  productionJobs: [],
   transactions: [],
   marketOrders: [],
   marketOrderHistory: [],
@@ -27,6 +28,7 @@ const state = {
 };
 
 let presenceTimer = null;
+let productionRefreshTimer = null;
 
 const money = n => new Intl.NumberFormat('de-DE', { style:'currency', currency:'EUR', maximumFractionDigits:2 })
   .format(Number(n || 0)).replace('€','OC$');
@@ -42,12 +44,34 @@ function transactionLabel(type) {
     market_fee: 'Gebühr',
     market_buy: 'Kauf',
     production: 'Produktion',
+    production_refund: 'Erstattung Produktion',
     construction: 'Baukosten'
   })[type] || type;
 }
 
 function transactionAmountClass(type) {
   return ['market_fee', 'market_buy', 'production', 'construction'].includes(type) ? 'transaction-amount fee' : 'transaction-amount';
+}
+
+
+function buildingLevelMultiplier(level) {
+  const lvl = Math.max(1, Number(level || 1));
+  let factor = 1;
+  if (lvl >= 2) factor *= 2;
+  if (lvl >= 3) factor *= 1.95;
+  if (lvl >= 4) factor *= 1.90;
+  if (lvl >= 5) factor *= 1.85;
+  if (lvl >= 6) factor *= Math.pow(1.0366, lvl - 5);
+  return factor;
+}
+
+function buildingUpgradePercent(nextLevel) {
+  if (nextLevel === 2) return 100;
+  if (nextLevel === 3) return 95;
+  if (nextLevel === 4) return 90;
+  if (nextLevel === 5) return 85;
+  if (nextLevel >= 6) return 3.66;
+  return 0;
 }
 
 function renderTable(headers, rows) {
@@ -213,6 +237,8 @@ async function loadCompany() {
 
   if (data) {
     startPresenceHeartbeat();
+    const completedJobs = await sb.rpc('complete_due_production_jobs', { p_company_id: data.id });
+    if (completedJobs.error) console.warn('Produktionsabschluss:', completedJobs.error.message);
     // NPCs may buy suitable player orders at most once every five minutes.
     const npcTick = await sb.rpc('run_npc_market_tick');
     if (npcTick.error) console.warn('NPC-Markt-Tick:', npcTick.error.message);
@@ -231,6 +257,7 @@ async function loadGameData() {
     sb.from('production_recipe_inputs').select('*'),
     sb.from('building_types').select('*').order('construction_cost'),
     sb.from('company_buildings').select('*').eq('company_id', cid),
+    sb.from('production_jobs').select('*').eq('company_id', cid).order('started_at', {ascending:false}).limit(20),
     sb.from('financial_transactions').select('*').eq('company_id', cid).order('created_at', {ascending:false}).limit(30),
     sb.from('market_orders').select('*, products(name), materials(name)').in('status',['open','partially_filled']).order('created_at',{ascending:false}).limit(100),
     sb.from('market_orders').select('*, products(name), materials(name)').in('status',['filled','cancelled']).order('created_at',{ascending:false}).limit(100),
@@ -238,7 +265,7 @@ async function loadGameData() {
     sb.rpc('list_companies')
   ]);
 
-  const labels = ['Produkte','Alle Produkte','Produktlager','Materialien','Materiallager','Rezepte','Gebäudetypen','Gebäude','Finanzen','Marktorders','Order-Historie','Verträge','Firmenverzeichnis'];
+  const labels = ['Produkte','Alle Produkte','Produktlager','Materialien','Materiallager','Rezepte','Gebäudetypen','Gebäude','Produktionen','Finanzen','Marktorders','Order-Historie','Verträge','Firmenverzeichnis'];
   const errors = results.map((r,i)=>r.error ? { label: labels[i], error:r.error } : null).filter(Boolean);
   if (errors.length) {
     console.error(errors);
@@ -247,7 +274,7 @@ async function loadGameData() {
   }
   clearGameDataError();
 
-  const [products, allProducts, inventory, materials, materialInventory, recipes, buildingTypes, buildings, tx, orders, history, contracts, directory] = results;
+  const [products, allProducts, inventory, materials, materialInventory, recipes, buildingTypes, buildings, productionJobs, tx, orders, history, contracts, directory] = results;
   state.products = products.data;
   state.allProducts = allProducts.data;
   state.inventory = inventory.data;
@@ -256,6 +283,7 @@ async function loadGameData() {
   state.recipes = recipes.data.filter(r => state.products.some(p => p.id === r.product_id));
   state.buildingTypes = buildingTypes.data;
   state.buildings = buildings.data;
+  state.productionJobs = productionJobs.data;
   state.transactions = tx.data;
   state.marketOrders = orders.data;
   state.marketOrderHistory = history.data;
@@ -264,41 +292,185 @@ async function loadGameData() {
   renderAll();
 }
 
-function renderProductionRecipe() {
+function currentProductionContext() {
   const productId = document.getElementById('productionProduct').value;
   const product = state.products.find(p => p.id === productId);
-  const recipe = state.recipes.filter(r => r.product_id === productId);
-  const building = state.buildingTypes.find(b => b.id === product?.required_building_type_id);
-  const hasBuilding = !building || state.buildings.some(cb => cb.building_type_id === building.id && cb.status === 'active');
+  const buildingType = state.buildingTypes.find(b => b.id === product?.required_building_type_id);
+  const building = buildingType
+    ? state.buildings.find(cb => cb.building_type_id === buildingType.id && cb.status === 'active')
+    : null;
+  const multiplier = building ? buildingLevelMultiplier(building.level) : 1;
+  const unitsPerHour = buildingType && building
+    ? Number(buildingType.base_units_per_hour || 0) * multiplier
+    : 0;
+  const runningJob = building
+    ? state.productionJobs.find(j => j.building_id === building.id && j.status === 'running')
+    : null;
+  return { productId, product, buildingType, building, multiplier, unitsPerHour, runningJob };
+}
 
-  document.getElementById('productionRequirement').innerHTML = building
-    ? [
-        `<div class="kv"><span>Benötigtes Gebäude</span><strong>${building.name} ${hasBuilding ? '✓' : '✗'}</strong></div>`,
-        `<div class="kv"><span>Automatische Belegschaft</span><strong>${num(building.employees_per_building)} Mitarbeiter je Gebäude</strong></div>`,
-        `<div class="kv"><span>Personalkosten</span><strong>${money(building.labor_cost_per_unit)} je produzierter Einheit</strong></div>`
-      ].join('')
-    : '<div class="kv"><span>Benötigtes Gebäude</span><strong>Keines</strong></div>';
-
-  const rows = recipe.map(r => {
+function productionPlan(hoursOverride = null) {
+  const ctx = currentProductionContext();
+  const hoursInput = document.getElementById('productionHours');
+  let hours = hoursOverride === null ? Number(hoursInput?.value || 0) : Number(hoursOverride || 0);
+  hours = Math.max(0, Math.min(24, hours));
+  const outputQty = ctx.unitsPerHour * hours;
+  const recipe = state.recipes.filter(r => r.product_id === ctx.productId);
+  const inputs = recipe.map(r => {
+    let name = '–';
+    let unit = '';
+    let available = 0;
     if (r.material_id) {
       const m = state.materials.find(x => x.id === r.material_id);
       const inv = state.materialInventory.find(x => x.material_id === r.material_id);
-      return `<tr><td>Material</td><td>${m?.name || '–'}</td><td>${num(r.quantity_per_unit)} ${m?.unit || ''}</td><td>${num(inv?.quantity || 0)}</td></tr>`;
+      name = m?.name || '–';
+      unit = m?.unit || '';
+      available = Number(inv?.quantity || 0);
+    } else {
+      const p = state.products.find(x => x.id === r.component_product_id);
+      const inv = state.inventory.find(x => x.product_id === r.component_product_id);
+      name = p?.name || '–';
+      available = Number(inv?.quantity || 0);
     }
-    const p = state.products.find(x => x.id === r.component_product_id);
-    const inv = state.inventory.find(x => x.product_id === r.component_product_id);
-    return `<tr><td>Vorprodukt</td><td>${p?.name || '–'}</td><td>${num(r.quantity_per_unit)}</td><td>${num(inv?.quantity || 0)}</td></tr>`;
+    const required = Number(r.quantity_per_unit || 0) * outputQty;
+    return { ...r, name, unit, available, required, enough: available + 1e-9 >= required };
   });
-  document.getElementById('productionRecipe').innerHTML = renderTable(['Typ','Input','Bedarf je Einheit','Bestand'], rows);
+
+  let maxHours = 24;
+  if (!ctx.building || ctx.unitsPerHour <= 0) maxHours = 0;
+  for (const input of inputs) {
+    const perHour = Number(input.quantity_per_unit || 0) * ctx.unitsPerHour;
+    if (perHour > 0) maxHours = Math.min(maxHours, input.available / perHour);
+  }
+  maxHours = Math.max(0, Math.min(24, Math.floor(maxHours * 10000) / 10000));
+
+  const productionCost = ctx.product && ctx.buildingType
+    ? (Number(ctx.product.production_cost || 0) + Number(ctx.buildingType.labor_cost_per_unit || 0)) * outputQty
+    : 0;
+  const materialsOk = inputs.every(i => i.enough);
+  const runnable = !!ctx.building && !ctx.runningJob && hours > 0 && hours <= 24 && materialsOk;
+
+  return { ...ctx, hours, outputQty, inputs, maxHours, productionCost, materialsOk, runnable };
+}
+
+function setProductionHours(hours) {
+  const input = document.getElementById('productionHours');
+  input.value = Number(hours || 0).toFixed(hours > 0 && hours < 0.01 ? 4 : 2);
+  renderProductionRecipe();
+}
+
+function renderProductionRecipe() {
+  const plan = productionPlan();
+  const { buildingType, building, multiplier, unitsPerHour, runningJob } = plan;
+  const staff = buildingType && building
+    ? Math.round(Number(buildingType.employees_per_building || 0) * multiplier)
+    : 0;
+
+  const statusRows = buildingType ? [
+    `<div class="kv"><span>Benötigtes Gebäude</span><strong>${buildingType.name} ${building ? '✓' : '✗'}</strong></div>`,
+    `<div class="kv"><span>Gebäudelevel</span><strong>${building ? `Level ${building.level}` : 'Nicht gebaut'}</strong></div>`,
+    `<div class="kv"><span>Kapazität</span><strong>${building ? `${num(unitsPerHour)} Einheiten / Std.` : '–'}</strong></div>`,
+    `<div class="kv"><span>Produktionsdauer</span><strong>${num(plan.hours)} Std.</strong></div>`,
+    `<div class="kv"><span>Produktionsmenge</span><strong>${num(plan.outputQty)} Einheiten</strong></div>`,
+    `<div class="kv"><span>Produktionskosten</span><strong>${money(plan.productionCost)}</strong></div>`,
+    `<div class="kv"><span>Belegschaft</span><strong>${building ? `${num(staff)} Mitarbeiter` : '–'}</strong></div>`
+  ] : ['<div class="kv"><span>Benötigtes Gebäude</span><strong>Keines</strong></div>'];
+
+  if (runningJob) {
+    const finish = new Date(runningJob.finishes_at);
+    statusRows.push(`<div class="production-running"><strong>Produktion läuft</strong><span>${num(runningJob.output_quantity)} Einheiten – fertig am ${finish.toLocaleString('de-DE')}</span></div>`);
+  }
+
+  document.getElementById('productionRequirement').innerHTML = statusRows.join('');
+
+  const rows = plan.inputs.map(input => `
+    <tr>
+      <td>${input.material_id ? 'Material' : 'Vorprodukt'}</td>
+      <td>${input.name}</td>
+      <td>${num(input.quantity_per_unit)} ${input.unit}</td>
+      <td class="material-amount ${input.enough ? '' : 'missing'}">${num(input.required)} ${input.unit}</td>
+      <td class="material-amount ${input.enough ? '' : 'missing'}">${num(input.available)} ${input.unit}</td>
+    </tr>`);
+
+  document.getElementById('productionRecipe').innerHTML = renderTable(
+    ['Typ','Input','Bedarf je Einheit','Benötigt','Bestand'],
+    rows
+  );
+
+  const button = document.getElementById('productionStartBtn');
+  button.classList.remove('production-ready', 'production-cancel');
+
+  if (runningJob) {
+    button.disabled = false;
+    button.textContent = 'Produktion abbrechen';
+    button.classList.add('production-cancel');
+  } else {
+    button.disabled = !plan.runnable;
+    button.textContent = 'Produktion starten';
+    button.classList.toggle('production-ready', plan.runnable);
+  }
+
+  const hint = document.getElementById('productionCheck');
+  if (!building) {
+    hint.textContent = 'Benötigtes Gebäude fehlt.';
+  } else if (runningJob) {
+    const refundCash = Number(runningJob.production_cash_cost || 0) * 0.95;
+    hint.textContent = `Abbruch möglich: 95% der Produktionskosten (${money(refundCash)}) und 95% der Materialien werden erstattet.`;
+  } else if (plan.hours <= 0) {
+    hint.textContent = 'Wähle MAX, 24H oder eine Produktionsdauer.';
+  } else if (!plan.materialsOk) {
+    hint.textContent = 'Nicht genügend Material für diese Produktionsdauer.';
+  } else {
+    hint.textContent = `Bereit: ${num(plan.outputQty)} Einheiten in ${num(plan.hours)} Std. für ${money(plan.productionCost)}.`;
+  }
+
+  scheduleProductionRefresh();
+}
+
+function scheduleProductionRefresh() {
+  if (productionRefreshTimer) clearTimeout(productionRefreshTimer);
+  const running = state.productionJobs.filter(j => j.status === 'running');
+  if (!running.length) return;
+  const nextFinish = Math.min(...running.map(j => new Date(j.finishes_at).getTime()));
+  const delay = Math.max(1000, Math.min(2147480000, nextFinish - Date.now() + 1000));
+  productionRefreshTimer = setTimeout(() => loadCompany(), delay);
 }
 
 function renderBuildings() {
   document.getElementById('buildingsTable').innerHTML = renderTable(
-    ['Gebäude','Beschreibung','Baukosten','Vorhanden','Mitarbeiter','Personalkosten / Einheit','Aktion'],
+    ['Gebäude','Level','Kapazität / Std.','Mitarbeiter','Nächster Ausbau','Ausbaukosten','Aktion'],
     state.buildingTypes.map(bt => {
-      const count = state.buildings.filter(b => b.building_type_id === bt.id && b.status === 'active').length;
-      const staff = count * Number(bt.employees_per_building || 0);
-      return `<tr><td>${bt.name}</td><td>${bt.description || ''}</td><td>${money(bt.construction_cost)}</td><td>${count}</td><td>${num(staff)} (${num(bt.employees_per_building)} je Gebäude)</td><td>${money(bt.labor_cost_per_unit)}</td><td><button onclick="buildBuilding('${bt.id}')">Bauen</button></td></tr>`;
+      const building = state.buildings.find(b => b.building_type_id === bt.id && b.status === 'active');
+      if (!building) {
+        return `<tr>
+          <td>${bt.name}</td>
+          <td>–</td>
+          <td>${num(bt.base_units_per_hour)} Einheiten</td>
+          <td>${num(bt.employees_per_building)}</td>
+          <td>Level 1</td>
+          <td>${money(bt.construction_cost)}</td>
+          <td><button onclick="buildBuilding('${bt.id}')">Bauen</button></td>
+        </tr>`;
+      }
+
+      const level = Number(building.level || 1);
+      const multiplier = buildingLevelMultiplier(level);
+      const staff = Math.round(Number(bt.employees_per_building || 0) * multiplier);
+      const capacity = Number(bt.base_units_per_hour || 0) * multiplier;
+      const nextLevel = level + 1;
+      const nextPercent = buildingUpgradePercent(nextLevel);
+      const nextCost = Number(bt.construction_cost || 0) * buildingLevelMultiplier(nextLevel);
+      const running = state.productionJobs.some(j => j.building_id === building.id && j.status === 'running');
+
+      return `<tr>
+        <td>${bt.name}</td>
+        <td>Level ${level}</td>
+        <td>${num(capacity)} Einheiten</td>
+        <td>${num(staff)}</td>
+        <td>Level ${nextLevel}: +${num(nextPercent)}%</td>
+        <td>${money(nextCost)}</td>
+        <td><button ${running ? 'disabled' : ''} onclick="upgradeBuilding('${building.id}','${bt.id}')">${running ? 'Produktion läuft' : 'Ausbauen'}</button></td>
+      </tr>`;
     })
   );
 }
@@ -383,7 +555,8 @@ function renderAll() {
     .filter(b => b.status === 'active')
     .reduce((sum, b) => {
       const type = state.buildingTypes.find(bt => bt.id === b.building_type_id);
-      return sum + Number(type?.employees_per_building || 0);
+      const multiplier = buildingLevelMultiplier(b.level);
+      return sum + Math.round(Number(type?.employees_per_building || 0) * multiplier);
     }, 0);
   document.getElementById('statEmployees').textContent = num(automaticEmployees);
   document.getElementById('statValue').textContent = money(c.company_value);
@@ -473,13 +646,37 @@ document.getElementById('companyForm').addEventListener('submit', async e => {
 
 
 // Production
-document.getElementById('productionProduct').addEventListener('change',renderProductionRecipe);
+document.getElementById('productionProduct').addEventListener('change', renderProductionRecipe);
+document.getElementById('productionHours').addEventListener('input', renderProductionRecipe);
+document.getElementById('productionMaxBtn').addEventListener('click', () => {
+  const plan = productionPlan(0);
+  setProductionHours(plan.maxHours);
+});
+document.getElementById('production24Btn').addEventListener('click', () => setProductionHours(24));
+
 document.getElementById('productionForm').addEventListener('submit', async e => {
   e.preventDefault();
-  const { error } = await sb.rpc('produce_product',{
+  const plan = productionPlan();
+
+  if (plan.runningJob) {
+    if (!confirm('Produktion wirklich abbrechen? 95% der Produktionskosten und 95% der Materialien werden erstattet.')) return;
+    const { error } = await sb.rpc('cancel_production', {
+      p_company_id: state.company.id,
+      p_job_id: plan.runningJob.id
+    });
+    if (error) alert(error.message); else await loadCompany();
+    return;
+  }
+
+  if (!plan.runnable) {
+    renderProductionRecipe();
+    return;
+  }
+
+  const { error } = await sb.rpc('start_production',{
     p_company_id:state.company.id,
     p_product_id:document.getElementById('productionProduct').value,
-    p_quantity:Number(document.getElementById('productionQty').value)
+    p_hours:plan.hours
   });
   if(error) alert(error.message); else await loadCompany();
 });
@@ -488,6 +685,19 @@ window.buildBuilding = async function(buildingTypeId) {
   if(!confirm(`${bt?.name || 'Gebäude'} für ${money(bt?.construction_cost)} bauen?`)) return;
   const { error }=await sb.rpc('build_building',{p_company_id:state.company.id,p_building_type_id:buildingTypeId});
   if(error) alert(error.message); else await loadCompany();
+};
+window.upgradeBuilding = async function(buildingId, buildingTypeId) {
+  const bt = state.buildingTypes.find(b => b.id === buildingTypeId);
+  const building = state.buildings.find(b => b.id === buildingId);
+  const nextLevel = Number(building?.level || 1) + 1;
+  const increase = buildingUpgradePercent(nextLevel);
+  const nextCost = Number(bt?.construction_cost || 0) * buildingLevelMultiplier(nextLevel);
+  if (!confirm(`${bt?.name || 'Gebäude'} auf Level ${nextLevel} ausbauen? Kosten: ${money(nextCost)}. Kapazität und Mitarbeiter: +${num(increase)}%.`)) return;
+  const { error } = await sb.rpc('upgrade_building', {
+    p_company_id: state.company.id,
+    p_building_id: buildingId
+  });
+  if (error) alert(error.message); else await loadCompany();
 };
 
 // Market
