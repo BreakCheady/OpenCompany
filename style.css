@@ -738,3 +738,12 @@ button:disabled {
   background: #fdeeee;
   color: var(--danger);
 }
+
+
+.sell-order-submit {
+  background: var(--success);
+}
+
+.sell-order-submit:hover {
+  background: #116b4a;
+}

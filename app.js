@@ -559,11 +559,11 @@ function renderMarketOrderHistory() {
     : state.marketOrderHistory.filter(o => o.status === state.marketOrderHistoryFilter);
 
   document.getElementById('marketOrderHistory').innerHTML = renderTable(
-    ['Firma','Gut','Menge','Rest','Preis','Status','Erstellt'],
+    ['Firma','Gut','Menge','Preis','Status','Erstellt'],
     rows.map(o => {
       const status = o.status === 'filled' ? 'Abgeschlossen' : 'Storniert';
       const statusClass = o.status === 'filled' ? 'order-status-filled' : 'order-status-cancelled';
-      return `<tr><td>${companyName(o.company_id)}</td><td>${itemName(o)}</td><td>${num(o.quantity)}</td><td>${num(o.remaining_quantity)}</td><td>${money(o.price_per_unit)}</td><td><span class="badge ${statusClass}">${status}</span></td><td>${new Date(o.created_at).toLocaleString('de-DE')}</td></tr>`;
+      return `<tr><td>${companyName(o.company_id)}</td><td>${itemName(o)}</td><td>${num(o.quantity)}</td><td>${money(o.price_per_unit)}</td><td><span class="badge ${statusClass}">${status}</span></td><td>${new Date(o.created_at).toLocaleString('de-DE')}</td></tr>`;
     })
   );
 }
