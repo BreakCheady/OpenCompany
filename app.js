@@ -562,7 +562,8 @@ function renderMarketOrderHistory() {
     ['Firma','Gut','Menge','Rest','Preis','Status','Erstellt'],
     rows.map(o => {
       const status = o.status === 'filled' ? 'Abgeschlossen' : 'Storniert';
-      return `<tr><td>${companyName(o.company_id)}</td><td>${itemName(o)}</td><td>${num(o.quantity)}</td><td>${num(o.remaining_quantity)}</td><td>${money(o.price_per_unit)}</td><td><span class="badge">${status}</span></td><td>${new Date(o.created_at).toLocaleString('de-DE')}</td></tr>`;
+      const statusClass = o.status === 'filled' ? 'order-status-filled' : 'order-status-cancelled';
+      return `<tr><td>${companyName(o.company_id)}</td><td>${itemName(o)}</td><td>${num(o.quantity)}</td><td>${num(o.remaining_quantity)}</td><td>${money(o.price_per_unit)}</td><td><span class="badge ${statusClass}">${status}</span></td><td>${new Date(o.created_at).toLocaleString('de-DE')}</td></tr>`;
     })
   );
 }

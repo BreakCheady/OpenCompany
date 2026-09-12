@@ -722,3 +722,19 @@ button:disabled {
     display: grid;
   }
 }
+
+
+.market-fee-note {
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.badge.order-status-filled {
+  background: #e9f7ef;
+  color: var(--success);
+}
+
+.badge.order-status-cancelled {
+  background: #fdeeee;
+  color: var(--danger);
+}
