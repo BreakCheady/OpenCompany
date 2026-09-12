@@ -31,8 +31,23 @@ let presenceTimer = null;
 const money = n => new Intl.NumberFormat('de-DE', { style:'currency', currency:'EUR', maximumFractionDigits:2 })
   .format(Number(n || 0)).replace('€','OC$');
 const num = n => new Intl.NumberFormat('de-DE', { maximumFractionDigits: 2 }).format(Number(n || 0));
+const balanceMoney = n => `${new Intl.NumberFormat('de-DE', { maximumFractionDigits: 0 }).format(Number(n || 0))} OC$`;
 
 function msg(el, text, type='') { el.textContent = text; el.className = `status ${type}`; }
+
+function transactionLabel(type) {
+  return ({
+    founding_capital: 'Startkapital',
+    market_sale: 'Verkauf',
+    market_fee: 'Gebühr',
+    market_buy: 'Kauf'
+  })[type] || type;
+}
+
+function transactionAmountClass(type) {
+  return ['market_fee', 'market_buy'].includes(type) ? 'transaction-amount fee' : 'transaction-amount';
+}
+
 function renderTable(headers, rows) {
   if (!rows.length) return '<p class="muted">Noch keine Daten.</p>';
   return `<table><thead><tr>${headers.map(h=>`<th>${h}</th>`).join('')}</tr></thead><tbody>${rows.join('')}</tbody></table>`;
@@ -358,7 +373,10 @@ function updateContractGoods() {
 function renderAll() {
   const c = state.company;
   document.getElementById('statCompany').textContent = c.name;
-  document.getElementById('statCash').textContent = money(c.cash_balance);
+  const cashValue = Number(c.cash_balance || 0);
+  const statCash = document.getElementById('statCash');
+  statCash.textContent = balanceMoney(cashValue);
+  statCash.classList.toggle('negative-balance', cashValue < 0);
   const automaticEmployees = state.buildings
     .filter(b => b.status === 'active')
     .reduce((sum, b) => {
@@ -371,15 +389,14 @@ function renderAll() {
   const companyRows = [
     `<div class="kv"><span>Name</span><strong>${c.name}</strong></div>`,
     `<div class="kv"><span>Status</span><strong id="companyOnlineStatus" class="presence-status"></strong></div>`,
-    `<div class="kv"><span>Startmodell</span><strong>Keine Gratisbestände</strong></div>`,
     `<div class="kv"><span>Level</span><strong>${num(c.company_level)}</strong></div>`
   ].join('');
   document.getElementById('companySummary').innerHTML = companyRows;
   document.getElementById('companyDetails').innerHTML = companyRows;
   renderCompanyStatus();
 
-  document.getElementById('recentTransactions').innerHTML = renderTable(['Typ','Betrag','Beschreibung','Zeit'], state.transactions.slice(0,8).map(t=>`<tr><td><span class="badge">${t.transaction_type}</span></td><td>${money(t.amount)}</td><td>${t.description || ''}</td><td>${new Date(t.created_at).toLocaleString('de-DE')}</td></tr>`));
-  document.getElementById('financeTable').innerHTML = renderTable(['Typ','Betrag','Beschreibung','Zeit'], state.transactions.map(t=>`<tr><td>${t.transaction_type}</td><td>${money(t.amount)}</td><td>${t.description || ''}</td><td>${new Date(t.created_at).toLocaleString('de-DE')}</td></tr>`));
+  document.getElementById('recentTransactions').innerHTML = renderTable(['Typ','Betrag','Beschreibung','Zeit'], state.transactions.slice(0,8).map(t=>`<tr><td><span class="badge">${transactionLabel(t.transaction_type)}</span></td><td class="${transactionAmountClass(t.transaction_type)}">${money(t.amount)}</td><td>${t.description || ''}</td><td>${new Date(t.created_at).toLocaleString('de-DE')}</td></tr>`));
+  document.getElementById('financeTable').innerHTML = renderTable(['Typ','Betrag','Beschreibung','Zeit'], state.transactions.map(t=>`<tr><td>${transactionLabel(t.transaction_type)}</td><td class="${transactionAmountClass(t.transaction_type)}">${money(t.amount)}</td><td>${t.description || ''}</td><td>${new Date(t.created_at).toLocaleString('de-DE')}</td></tr>`));
   document.getElementById('inventoryTable').innerHTML = renderTable(['Produkt','Menge','Ø Kosten'], state.inventory.map(i=>`<tr><td>${i.products?.name || '–'}</td><td>${num(i.quantity)}</td><td>${money(i.average_unit_cost)}</td></tr>`));
   document.getElementById('materialInventoryTable').innerHTML = renderTable(['Material','Menge','Einheit','Ø Kosten'], state.materials.map(m => {
     const i = state.materialInventory.find(x => x.material_id === m.id);

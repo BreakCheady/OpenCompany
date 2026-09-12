@@ -590,3 +590,17 @@ td button {
     font-size: 9px;
   }
 }
+
+
+.transaction-amount {
+  color: var(--text);
+  font-weight: 700;
+}
+.transaction-amount.fee {
+  color: var(--danger);
+}
+
+
+.stat-card strong.negative-balance {
+  color: var(--danger);
+}
