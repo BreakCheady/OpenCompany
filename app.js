@@ -193,7 +193,7 @@ function renderAll() {
   document.getElementById('financeTable').innerHTML = renderTable(['Typ','Betrag','Beschreibung','Zeit'], state.transactions.map(t=>`<tr><td>${t.transaction_type}</td><td>${money(t.amount)}</td><td>${t.description || ''}</td><td>${new Date(t.created_at).toLocaleString('de-DE')}</td></tr>`));
   document.getElementById('employeesTable').innerHTML = renderTable(['Name','Beruf','Gehalt','Produktivität'], state.employees.map(e=>`<tr><td>${e.first_name} ${e.last_name}</td><td>${e.profession}</td><td>${money(e.salary)}</td><td>${e.productivity}%</td></tr>`));
   document.getElementById('inventoryTable').innerHTML = renderTable(['Produkt','Menge','Ø Kosten'], state.inventory.map(i=>`<tr><td>${i.products?.name || '–'}</td><td>${num(i.quantity)}</td><td>${money(i.average_unit_cost)}</td></tr>`));
-  document.getElementById('marketOrders').innerHTML = renderTable(['Firma','Produkt','Menge','Preis','Aktion'], state.marketOrders.map(o=>`<tr><td>${o.companies?.name || '–'}</td><td>${o.products?.name || '–'}</td><td>${num(o.remaining_quantity)}</td><td>${money(o.price_per_unit)}</td><td>${o.company_id === c.id ? 'Eigene Order' : `<button onclick="buyOrder('${o.id}')">Kaufen</button>`}</td></tr>`));
+  document.getElementById('marketOrders').innerHTML = renderTable(['Firma','Produkt','Menge','Preis','Aktion'], state.marketOrders.map(o=>`<tr><td>${o.companies?.name || '–'}</td><td>${o.products?.name || '–'}</td><td>${num(o.remaining_quantity)}</td><td>${money(o.price_per_unit)}</td><td>${o.company_id === c.id ? `<button onclick="cancelOrder('${o.id}')">Stornieren</button>` : `<button onclick="buyOrder('${o.id}')">Kaufen</button>`}</td></tr>`));
 
   const opts = state.products.map(p=>`<option value="${p.id}">${p.name}</option>`).join('');
   document.getElementById('productionProduct').innerHTML = opts;
@@ -342,6 +342,22 @@ window.buyOrder = async function(orderId) {
   });
 
   if (error) alert(error.message); else await loadGameData();
+};
+
+window.cancelOrder = async function(orderId) {
+  const confirmed = confirm('Möchtest du diese Verkaufsorder wirklich stornieren? Die noch offene Menge wird zurück ins Lager gebucht.');
+  if (!confirmed) return;
+
+  const { error } = await sb.rpc('cancel_market_order', {
+    p_order_id: orderId
+  });
+
+  if (error) {
+    alert(error.message);
+    return;
+  }
+
+  await loadGameData();
 };
 
 init();
