@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OpenCompany MVP</title>
+  <link rel="stylesheet" href="css/style.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand">OpenCompany</div>
+      <nav>
+        <button class="nav-item active" data-view="dashboard">Dashboard</button>
+        <button class="nav-item" data-view="company">Unternehmen</button>
+        <button class="nav-item" data-view="employees">Mitarbeiter</button>
+        <button class="nav-item" data-view="production">Produktion</button>
+        <button class="nav-item" data-view="market">Markt</button>
+        <button class="nav-item" data-view="finance">Finanzen</button>
+        <button class="nav-item" data-view="stocks">Aktien</button>
+      </nav>
+      <div class="sidebar-footer">
+        <span id="sessionLabel">Nicht angemeldet</span>
+        <button id="logoutBtn" class="ghost hidden">Abmelden</button>
+      </div>
+    </aside>
+
+    <main class="main-content">
+      <header class="topbar">
+        <div>
+          <h1 id="pageTitle">Dashboard</h1>
+          <p class="muted">Spielbarer OpenCompany-MVP mit Supabase/PostgreSQL</p>
+        </div>
+      </header>
+
+      <section id="setupNotice" class="panel warning hidden">
+        <strong>Supabase noch nicht konfiguriert.</strong>
+        Trage URL und Anon Key in <code>js/config.js</code> ein und führe <code>supabase/schema.sql</code> aus.
+      </section>
+
+      <section id="authView" class="panel auth-panel">
+        <h2>Login / Registrierung</h2>
+        <div class="grid two">
+          <form id="loginForm">
+            <h3>Anmelden</h3>
+            <label>E-Mail<input type="email" id="loginEmail" required></label>
+            <label>Passwort<input type="password" id="loginPassword" minlength="6" required></label>
+            <button type="submit">Anmelden</button>
+          </form>
+          <form id="signupForm">
+            <h3>Registrieren</h3>
+            <label>E-Mail<input type="email" id="signupEmail" required></label>
+            <label>Passwort<input type="password" id="signupPassword" minlength="6" required></label>
+            <button type="submit">Account erstellen</button>
+          </form>
+        </div>
+        <p id="authMessage" class="status"></p>
+      </section>
+
+      <section id="gameView" class="hidden">
+        <div id="dashboard" class="view active-view">
+          <div class="stats-grid">
+            <article class="stat-card"><span>Unternehmen</span><strong id="statCompany">–</strong></article>
+            <article class="stat-card"><span>Kontostand</span><strong id="statCash">–</strong></article>
+            <article class="stat-card"><span>Mitarbeiter</span><strong id="statEmployees">–</strong></article>
+            <article class="stat-card"><span>Unternehmenswert</span><strong id="statValue">–</strong></article>
+          </div>
+          <div class="grid two">
+            <article class="panel">
+              <h2>Firmenstatus</h2>
+              <div id="companySummary" class="stack"></div>
+            </article>
+            <article class="panel">
+              <h2>Letzte Finanzbewegungen</h2>
+              <div id="recentTransactions" class="table-wrap"></div>
+            </article>
+          </div>
+        </div>
+
+        <div id="company" class="view">
+          <article class="panel">
+            <h2>Unternehmen</h2>
+            <div id="companyDetails"></div>
+          </article>
+        </div>
+
+        <div id="employees" class="view">
+          <article class="panel">
+            <div class="panel-head"><h2>Mitarbeiter</h2><button id="hireBtn">Mitarbeiter einstellen</button></div>
+            <div id="employeesTable" class="table-wrap"></div>
+          </article>
+        </div>
+
+        <div id="production" class="view">
+          <div class="grid two">
+            <article class="panel">
+              <h2>Produktion starten</h2>
+              <form id="productionForm">
+                <label>Produkt<select id="productionProduct"></select></label>
+                <label>Menge<input type="number" id="productionQty" value="10" min="1" step="1"></label>
+                <button type="submit">Produzieren</button>
+              </form>
+              <p class="muted">Der MVP verbucht Produktionskosten direkt und legt fertige Ware ins Lager.</p>
+            </article>
+            <article class="panel">
+              <h2>Lager</h2>
+              <div id="inventoryTable" class="table-wrap"></div>
+            </article>
+          </div>
+        </div>
+
+        <div id="market" class="view">
+          <div class="grid two">
+            <article class="panel">
+              <h2>Verkaufsorder</h2>
+              <form id="sellOrderForm">
+                <label>Produkt<select id="sellProduct"></select></label>
+                <label>Menge<input type="number" id="sellQty" min="1" value="5"></label>
+                <label>Preis je Einheit<input type="number" id="sellPrice" min="0.01" step="0.01" value="800"></label>
+                <button type="submit">Order einstellen</button>
+              </form>
+            </article>
+            <article class="panel">
+              <h2>Offene Marktorders</h2>
+              <div id="marketOrders" class="table-wrap"></div>
+            </article>
+          </div>
+        </div>
+
+        <div id="finance" class="view">
+          <article class="panel">
+            <h2>Finanzen</h2>
+            <div id="financeTable" class="table-wrap"></div>
+          </article>
+        </div>
+
+        <div id="stocks" class="view">
+          <article class="panel">
+            <h2>Aktien</h2>
+            <p class="muted">Das Schema für Aktien und Beteiligungen ist vorbereitet. Der MVP zeigt zunächst die eigene Aktienklasse.</p>
+            <div id="stockInfo"></div>
+          </article>
+        </div>
+      </section>
+
+      <section id="bootstrapView" class="panel hidden">
+        <h2>Erstes Unternehmen gründen</h2>
+        <form id="companyForm" class="grid two">
+          <label>Firmenname<input id="companyName" required maxlength="80" value="OpenTech GmbH"></label>
+          <label>Ticker<input id="companyTicker" maxlength="8" value="OPNT"></label>
+          <button type="submit">Unternehmen gründen</button>
+        </form>
+        <p id="companyMessage" class="status"></p>
+      </section>
+    </main>
+  </div>
+
+  <script src="js/config.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
