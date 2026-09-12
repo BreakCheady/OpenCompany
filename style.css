@@ -785,3 +785,20 @@ button:disabled {
   background: #116b4a !important;
   color: #fff !important;
 }
+
+
+/* Force Markt-Kaufen und Gebäude-Ausbau grün */
+#marketOrders button[onclick^="buyOrder"],
+#buildingsTable button[onclick^="upgradeBuilding"]:not(:disabled) {
+  background-color: var(--success) !important;
+  background: var(--success) !important;
+  color: #fff !important;
+  border-color: var(--success) !important;
+}
+
+#marketOrders button[onclick^="buyOrder"]:hover,
+#buildingsTable button[onclick^="upgradeBuilding"]:not(:disabled):hover {
+  background-color: #116b4a !important;
+  background: #116b4a !important;
+  color: #fff !important;
+}
