@@ -309,13 +309,16 @@ function currentProductionContext() {
   return { productId, product, buildingType, building, multiplier, unitsPerHour, runningJob };
 }
 
-function productionPlan(hoursOverride = null) {
+function productionPlan(unitsOverride = null) {
   const ctx = currentProductionContext();
-  const hoursInput = document.getElementById('productionHours');
-  let hours = hoursOverride === null ? Number(hoursInput?.value || 0) : Number(hoursOverride || 0);
-  hours = Math.max(0, Math.min(24, hours));
-  const outputQty = ctx.unitsPerHour * hours;
+  const unitsInput = document.getElementById('productionUnits');
+  let requestedUnits = unitsOverride === null ? Number(unitsInput?.value || 0) : Number(unitsOverride || 0);
+  requestedUnits = Math.max(0, requestedUnits);
+
+  const hours = ctx.unitsPerHour > 0 ? requestedUnits / ctx.unitsPerHour : 0;
+  const outputQty = requestedUnits;
   const recipe = state.recipes.filter(r => r.product_id === ctx.productId);
+
   const inputs = recipe.map(r => {
     let name = '–';
     let unit = '';
@@ -332,30 +335,48 @@ function productionPlan(hoursOverride = null) {
       name = p?.name || '–';
       available = Number(inv?.quantity || 0);
     }
+
     const required = Number(r.quantity_per_unit || 0) * outputQty;
     return { ...r, name, unit, available, required, enough: available + 1e-9 >= required };
   });
 
-  let maxHours = 24;
-  if (!ctx.building || ctx.unitsPerHour <= 0) maxHours = 0;
+  let maxUnitsByMaterial = Infinity;
   for (const input of inputs) {
-    const perHour = Number(input.quantity_per_unit || 0) * ctx.unitsPerHour;
-    if (perHour > 0) maxHours = Math.min(maxHours, input.available / perHour);
+    const perUnit = Number(input.quantity_per_unit || 0);
+    if (perUnit > 0) maxUnitsByMaterial = Math.min(maxUnitsByMaterial, input.available / perUnit);
   }
-  maxHours = Math.max(0, Math.min(24, Math.floor(maxHours * 10000) / 10000));
+  if (!Number.isFinite(maxUnitsByMaterial)) maxUnitsByMaterial = 0;
+
+  const maxUnitsByTime = ctx.unitsPerHour * 24;
+  const maxUnits = Math.max(0, Math.floor(Math.min(maxUnitsByMaterial, maxUnitsByTime) * 10000) / 10000);
 
   const productionCost = ctx.product && ctx.buildingType
     ? (Number(ctx.product.production_cost || 0) + Number(ctx.buildingType.labor_cost_per_unit || 0)) * outputQty
     : 0;
-  const materialsOk = inputs.every(i => i.enough);
-  const runnable = !!ctx.building && !ctx.runningJob && hours > 0 && hours <= 24 && materialsOk;
 
-  return { ...ctx, hours, outputQty, inputs, maxHours, productionCost, materialsOk, runnable };
+  const materialsOk = inputs.every(i => i.enough);
+  const within24h = hours > 0 && hours <= 24;
+  const atLeastOne = outputQty >= 1;
+  const runnable = !!ctx.building && !ctx.runningJob && atLeastOne && within24h && materialsOk;
+
+  return {
+    ...ctx,
+    requestedUnits,
+    outputQty,
+    hours,
+    inputs,
+    maxUnits,
+    productionCost,
+    materialsOk,
+    within24h,
+    atLeastOne,
+    runnable
+  };
 }
 
-function setProductionHours(hours) {
-  const input = document.getElementById('productionHours');
-  input.value = Number(hours || 0).toFixed(hours > 0 && hours < 0.01 ? 4 : 2);
+function setProductionUnits(units) {
+  const input = document.getElementById('productionUnits');
+  input.value = Number(units || 0).toFixed(units > 0 && units < 0.01 ? 4 : 2);
   renderProductionRecipe();
 }
 
@@ -370,9 +391,9 @@ function renderProductionRecipe() {
     `<div class="kv"><span>Benötigtes Gebäude</span><strong>${buildingType.name} ${building ? '✓' : '✗'}</strong></div>`,
     `<div class="kv"><span>Gebäudelevel</span><strong>${building ? `Level ${building.level}` : 'Nicht gebaut'}</strong></div>`,
     `<div class="kv"><span>Kapazität</span><strong>${building ? `${num(unitsPerHour)} Einheiten / Std.` : '–'}</strong></div>`,
-    `<div class="kv"><span>Produktionsdauer</span><strong>${num(plan.hours)} Std.</strong></div>`,
     `<div class="kv"><span>Produktionsmenge</span><strong>${num(plan.outputQty)} Einheiten</strong></div>`,
-    `<div class="kv"><span>Produktionskosten</span><strong>${money(plan.productionCost)}</strong></div>`,
+    `<div class="kv"><span>Produktionsdauer</span><strong>${num(plan.hours)} Std.</strong></div>`,
+    `<div class="kv"><span>Produktionskosten</span><strong class="production-cost-negative">-${money(Math.abs(plan.productionCost))}</strong></div>`,
     `<div class="kv"><span>Belegschaft</span><strong>${building ? `${num(staff)} Mitarbeiter` : '–'}</strong></div>`
   ] : ['<div class="kv"><span>Benötigtes Gebäude</span><strong>Keines</strong></div>'];
 
@@ -416,10 +437,12 @@ function renderProductionRecipe() {
   } else if (runningJob) {
     const refundCash = Number(runningJob.production_cash_cost || 0) * 0.95;
     hint.textContent = `Abbruch möglich: 95% der Produktionskosten (${money(refundCash)}) und 95% der Materialien werden erstattet.`;
-  } else if (plan.hours <= 0) {
-    hint.textContent = 'Wähle MAX, 24H oder eine Produktionsdauer.';
+  } else if (!plan.atLeastOne) {
+    hint.textContent = 'Es muss mindestens 1 Einheit produziert werden können.';
+  } else if (!plan.within24h) {
+    hint.textContent = 'Die gewählte Menge überschreitet die maximale Produktionsdauer von 24 Stunden.';
   } else if (!plan.materialsOk) {
-    hint.textContent = 'Nicht genügend Material für diese Produktionsdauer.';
+    hint.textContent = 'Nicht genügend Material für diese Produktionsmenge.';
   } else {
     hint.textContent = `Bereit: ${num(plan.outputQty)} Einheiten in ${num(plan.hours)} Std. für ${money(plan.productionCost)}.`;
   }
@@ -570,8 +593,8 @@ function renderAll() {
   document.getElementById('companyDetails').innerHTML = companyRows;
   renderCompanyStatus();
 
-  document.getElementById('recentTransactions').innerHTML = renderTable(['Typ','Betrag','Beschreibung','Zeit'], state.transactions.slice(0,8).map(t=>`<tr><td><span class="badge">${transactionLabel(t.transaction_type)}</span></td><td class="${transactionAmountClass(t.transaction_type)}">${money(t.amount)}</td><td>${t.description || ''}</td><td>${new Date(t.created_at).toLocaleString('de-DE')}</td></tr>`));
-  document.getElementById('financeTable').innerHTML = renderTable(['Typ','Betrag','Beschreibung','Zeit'], state.transactions.map(t=>`<tr><td>${transactionLabel(t.transaction_type)}</td><td class="${transactionAmountClass(t.transaction_type)}">${money(t.amount)}</td><td>${t.description || ''}</td><td>${new Date(t.created_at).toLocaleString('de-DE')}</td></tr>`));
+  document.getElementById('recentTransactions').innerHTML = renderTable(['Betrag','Beschreibung','Zeit'], state.transactions.slice(0,8).map(t=>`<tr><td class="${transactionAmountClass(t.transaction_type)}">${money(t.amount)}</td><td>${t.description || transactionLabel(t.transaction_type)}</td><td>${new Date(t.created_at).toLocaleString('de-DE')}</td></tr>`));
+  document.getElementById('financeTable').innerHTML = renderTable(['Betrag','Beschreibung','Zeit'], state.transactions.map(t=>`<tr><td class="${transactionAmountClass(t.transaction_type)}">${money(t.amount)}</td><td>${t.description || transactionLabel(t.transaction_type)}</td><td>${new Date(t.created_at).toLocaleString('de-DE')}</td></tr>`));
   document.getElementById('inventoryTable').innerHTML = renderTable(['Produkt','Menge','Ø Kosten'], state.inventory.map(i=>`<tr><td>${i.products?.name || '–'}</td><td>${num(i.quantity)}</td><td>${money(i.average_unit_cost)}</td></tr>`));
   document.getElementById('materialInventoryTable').innerHTML = renderTable(['Material','Menge','Einheit','Ø Kosten'], state.materials.map(m => {
     const i = state.materialInventory.find(x => x.material_id === m.id);
@@ -647,12 +670,15 @@ document.getElementById('companyForm').addEventListener('submit', async e => {
 
 // Production
 document.getElementById('productionProduct').addEventListener('change', renderProductionRecipe);
-document.getElementById('productionHours').addEventListener('input', renderProductionRecipe);
+document.getElementById('productionUnits').addEventListener('input', renderProductionRecipe);
 document.getElementById('productionMaxBtn').addEventListener('click', () => {
   const plan = productionPlan(0);
-  setProductionHours(plan.maxHours);
+  setProductionUnits(plan.maxUnits);
 });
-document.getElementById('production24Btn').addEventListener('click', () => setProductionHours(24));
+document.getElementById('production24Btn').addEventListener('click', () => {
+  const ctx = currentProductionContext();
+  setProductionUnits(ctx.unitsPerHour * 24);
+});
 
 document.getElementById('productionForm').addEventListener('submit', async e => {
   e.preventDefault();

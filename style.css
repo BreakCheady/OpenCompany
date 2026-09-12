@@ -680,3 +680,8 @@ button:disabled {
 #productionStartBtn.production-cancel:not(:disabled):hover {
   background: #a92b24;
 }
+
+
+.production-cost-negative {
+  color: var(--danger);
+}
