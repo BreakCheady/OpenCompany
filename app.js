@@ -5,7 +5,7 @@ if (!configured) setupNotice.classList.remove('hidden');
 
 const APP_URL = 'https://breakcheady.github.io/OpenCompany/';
 const sb = configured ? window.supabase.createClient(config.SUPABASE_URL, config.SUPABASE_ANON_KEY) : null;
-const state = { session: null, company: null, products: [], inventory: [], employees: [], transactions: [], marketOrders: [], marketOrderHistory: [], recoveringPassword: false };
+const state = { session: null, company: null, products: [], inventory: [], employees: [], transactions: [], marketOrders: [], marketOrderHistory: [], marketOrderHistoryFilter: 'all', recoveringPassword: false };
 
 const money = n => new Intl.NumberFormat('de-DE', { style:'currency', currency:'EUR', maximumFractionDigits:2 }).format(Number(n || 0)).replace('€','OC$');
 const num = n => new Intl.NumberFormat('de-DE').format(Number(n || 0));
@@ -180,6 +180,20 @@ async function loadGameData() {
   renderAll();
 }
 
+function renderMarketOrderHistory() {
+  const filteredOrders = state.marketOrderHistoryFilter === 'all'
+    ? state.marketOrderHistory
+    : state.marketOrderHistory.filter(o => o.status === state.marketOrderHistoryFilter);
+
+  document.getElementById('marketOrderHistory').innerHTML = renderTable(
+    ['Firma','Produkt','Gesamtmenge','Restmenge','Preis','Status','Erstellt'],
+    filteredOrders.map(o => {
+      const statusLabel = o.status === 'filled' ? 'Abgeschlossen' : 'Storniert';
+      return `<tr><td>${o.companies?.name || '–'}</td><td>${o.products?.name || '–'}</td><td>${num(o.quantity)}</td><td>${num(o.remaining_quantity)}</td><td>${money(o.price_per_unit)}</td><td><span class="badge">${statusLabel}</span></td><td>${new Date(o.created_at).toLocaleString('de-DE')}</td></tr>`;
+    })
+  );
+}
+
 function renderAll() {
   const c = state.company;
   document.getElementById('statCompany').textContent = c.name;
@@ -197,13 +211,7 @@ function renderAll() {
   document.getElementById('inventoryTable').innerHTML = renderTable(['Produkt','Menge','Ø Kosten'], state.inventory.map(i=>`<tr><td>${i.products?.name || '–'}</td><td>${num(i.quantity)}</td><td>${money(i.average_unit_cost)}</td></tr>`));
   document.getElementById('marketOrders').innerHTML = renderTable(['Firma','Produkt','Menge','Preis','Aktion'], state.marketOrders.map(o=>`<tr><td>${o.companies?.name || '–'}</td><td>${o.products?.name || '–'}</td><td>${num(o.remaining_quantity)}</td><td>${money(o.price_per_unit)}</td><td>${o.company_id === c.id ? `<button onclick="cancelOrder('${o.id}')">Stornieren</button>` : `<button onclick="buyOrder('${o.id}')">Kaufen</button>`}</td></tr>`));
 
-  document.getElementById('marketOrderHistory').innerHTML = renderTable(
-    ['Firma','Produkt','Gesamtmenge','Restmenge','Preis','Status','Erstellt'],
-    state.marketOrderHistory.map(o => {
-      const statusLabel = o.status === 'filled' ? 'Abgeschlossen' : 'Storniert';
-      return `<tr><td>${o.companies?.name || '–'}</td><td>${o.products?.name || '–'}</td><td>${num(o.quantity)}</td><td>${num(o.remaining_quantity)}</td><td>${money(o.price_per_unit)}</td><td><span class="badge">${statusLabel}</span></td><td>${new Date(o.created_at).toLocaleString('de-DE')}</td></tr>`;
-    })
-  );
+  renderMarketOrderHistory();
 
   const opts = state.products.map(p=>`<option value="${p.id}">${p.name}</option>`).join('');
   document.getElementById('productionProduct').innerHTML = opts;
@@ -369,5 +377,11 @@ window.cancelOrder = async function(orderId) {
 
   await loadGameData();
 };
+
+
+document.getElementById('marketOrderHistoryFilter').addEventListener('change', e => {
+  state.marketOrderHistoryFilter = e.target.value;
+  renderMarketOrderHistory();
+});
 
 init();

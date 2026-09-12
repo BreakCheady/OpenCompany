@@ -139,8 +139,20 @@
             </article>
           </div>
           <article class="panel">
-            <h2>Order-Historie</h2>
-            <p class="muted">Abgeschlossene und stornierte Marktorders.</p>
+            <div class="panel-head">
+              <div>
+                <h2>Order-Historie</h2>
+                <p class="muted">Abgeschlossene und stornierte Marktorders.</p>
+              </div>
+              <label>
+                Status
+                <select id="marketOrderHistoryFilter">
+                  <option value="all">Alle</option>
+                  <option value="filled">Abgeschlossen</option>
+                  <option value="cancelled">Storniert</option>
+                </select>
+              </label>
+            </div>
             <div id="marketOrderHistory" class="table-wrap"></div>
           </article>
         </div>
