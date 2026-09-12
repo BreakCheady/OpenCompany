@@ -747,3 +747,9 @@ button:disabled {
 .sell-order-submit:hover {
   background: #116b4a;
 }
+
+
+.building-upgrade-cost {
+  color: var(--danger);
+  font-weight: 700;
+}

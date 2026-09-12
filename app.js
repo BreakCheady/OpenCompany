@@ -531,7 +531,7 @@ function renderBuildings() {
         <td>${num(capacity)} Einheiten</td>
         <td>${num(staff)}</td>
         <td>Level ${nextLevel}: +${num(nextPercent)}%</td>
-        <td>${money(nextCost)}</td>
+        <td><span class="building-upgrade-cost">-${money(Math.abs(nextCost))}</span></td>
         <td><button ${running ? 'disabled' : ''} onclick="upgradeBuilding('${building.id}','${bt.id}')">${running ? 'Produktion läuft' : 'Ausbauen'}</button></td>
       </tr>`;
     })
@@ -559,11 +559,11 @@ function renderMarketOrderHistory() {
     : state.marketOrderHistory.filter(o => o.status === state.marketOrderHistoryFilter);
 
   document.getElementById('marketOrderHistory').innerHTML = renderTable(
-    ['Firma','Gut','Menge','Preis','Status','Erstellt'],
+    ['Gut','Menge','Preis','Status','Erstellt'],
     rows.map(o => {
       const status = o.status === 'filled' ? 'Abgeschlossen' : 'Storniert';
       const statusClass = o.status === 'filled' ? 'order-status-filled' : 'order-status-cancelled';
-      return `<tr><td>${companyName(o.company_id)}</td><td>${itemName(o)}</td><td>${num(o.quantity)}</td><td>${money(o.price_per_unit)}</td><td><span class="badge ${statusClass}">${status}</span></td><td>${new Date(o.created_at).toLocaleString('de-DE')}</td></tr>`;
+      return `<tr><td>${itemName(o)}</td><td>${num(o.quantity)}</td><td>${money(o.price_per_unit)}</td><td><span class="badge ${statusClass}">${status}</span></td><td>${new Date(o.created_at).toLocaleString('de-DE')}</td></tr>`;
     })
   );
 }
