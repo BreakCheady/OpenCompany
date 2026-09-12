@@ -604,3 +604,12 @@ td button {
 .stat-card strong.negative-balance {
   color: var(--danger);
 }
+
+
+#productionForm button[type="submit"] {
+  background: var(--success);
+}
+
+#productionForm button[type="submit"]:hover {
+  background: #116b4a;
+}

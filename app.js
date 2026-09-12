@@ -40,12 +40,14 @@ function transactionLabel(type) {
     founding_capital: 'Startkapital',
     market_sale: 'Verkauf',
     market_fee: 'Gebühr',
-    market_buy: 'Kauf'
+    market_buy: 'Kauf',
+    production: 'Produktion',
+    construction: 'Baukosten'
   })[type] || type;
 }
 
 function transactionAmountClass(type) {
-  return ['market_fee', 'market_buy'].includes(type) ? 'transaction-amount fee' : 'transaction-amount';
+  return ['market_fee', 'market_buy', 'production', 'construction'].includes(type) ? 'transaction-amount fee' : 'transaction-amount';
 }
 
 function renderTable(headers, rows) {
@@ -130,11 +132,11 @@ function isCompanyOnline() {
 }
 
 function renderCompanyStatus() {
-  const statusEl = document.getElementById('companyOnlineStatus');
-  if (!statusEl) return;
   const online = isCompanyOnline();
-  statusEl.textContent = online ? 'Online' : 'Offline';
-  statusEl.className = `presence-status ${online ? 'online' : 'offline'}`;
+  document.querySelectorAll('.company-online-status').forEach(statusEl => {
+    statusEl.textContent = online ? 'Online' : 'Offline';
+    statusEl.className = `company-online-status presence-status ${online ? 'online' : 'offline'}`;
+  });
 }
 
 function bindNavigation() {
@@ -388,7 +390,7 @@ function renderAll() {
 
   const companyRows = [
     `<div class="kv"><span>Name</span><strong>${c.name}</strong></div>`,
-    `<div class="kv"><span>Status</span><strong id="companyOnlineStatus" class="presence-status"></strong></div>`,
+    `<div class="kv"><span>Status</span><strong class="company-online-status presence-status"></strong></div>`,
     `<div class="kv"><span>Level</span><strong>${num(c.company_level)}</strong></div>`
   ].join('');
   document.getElementById('companySummary').innerHTML = companyRows;
