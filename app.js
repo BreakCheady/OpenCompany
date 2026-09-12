@@ -16,6 +16,29 @@ function renderTable(headers, rows) {
   return `<table><thead><tr>${headers.map(h=>`<th>${h}</th>`).join('')}</tr></thead><tbody>${rows.join('')}</tbody></table>`;
 }
 
+function getCompanyLoadErrorBox() {
+  let errorBox = document.getElementById('companyLoadError');
+  if (!errorBox) {
+    errorBox = document.createElement('section');
+    errorBox.id = 'companyLoadError';
+    errorBox.className = 'panel warning hidden';
+    document.querySelector('.main-content').insertBefore(errorBox, document.getElementById('authView'));
+  }
+  return errorBox;
+}
+
+function clearCompanyLoadError() {
+  const errorBox = getCompanyLoadErrorBox();
+  errorBox.textContent = '';
+  errorBox.classList.add('hidden');
+}
+
+function showCompanyLoadError(error) {
+  const errorBox = getCompanyLoadErrorBox();
+  errorBox.textContent = `Unternehmensdaten konnten nicht geladen werden. ${error.message || 'Unbekannter Fehler'}`;
+  errorBox.classList.remove('hidden');
+}
+
 function getGameDataErrorBox() {
   let errorBox = document.getElementById('gameDataError');
   if (!errorBox) {
@@ -95,6 +118,7 @@ async function handleSession(session) {
   if (!loggedIn) {
     document.getElementById('gameView').classList.add('hidden');
     document.getElementById('bootstrapView').classList.add('hidden');
+    clearCompanyLoadError();
     return;
   }
   await loadCompany();
@@ -102,7 +126,15 @@ async function handleSession(session) {
 
 async function loadCompany() {
   const { data, error } = await sb.from('companies').select('*').eq('owner_user_id', state.session.user.id).maybeSingle();
-  if (error) return console.error(error);
+
+  if (error) {
+    console.error('Fehler beim Laden der Unternehmensdaten:', error);
+    showCompanyLoadError(error);
+    return;
+  }
+
+  clearCompanyLoadError();
+
   state.company = data;
   document.getElementById('bootstrapView').classList.toggle('hidden', !!data);
   document.getElementById('gameView').classList.toggle('hidden', !data);
