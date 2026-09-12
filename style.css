@@ -75,36 +75,21 @@ button:focus-visible, input:focus-visible, select:focus-visible {
   box-shadow: 10px 0 30px rgba(11,43,78,.12);
 }
 .brand {
-  font-weight: 850;
-  font-size: 24px;
-  letter-spacing: -.6px;
-  padding: 4px 10px 14px 50px;
-  min-height: 44px;
-  position: relative;
+  padding: 8px 8px 14px;
+  min-height: 76px;
   display: flex;
   align-items: center;
+  justify-content: center;
 }
-.brand::before {
-  content: "";
-  position: absolute;
-  left: 9px;
-  top: 0;
-  width: 30px;
-  height: 42px;
-  border-radius: 7px;
-  background:
-    linear-gradient(90deg, rgba(255,255,255,.26) 0 28%, transparent 28% 40%, rgba(255,255,255,.18) 40% 66%, transparent 66%),
-    linear-gradient(180deg,#45b8ff,#0874ee);
-  clip-path: polygon(50% 0,100% 18%,100% 82%,50% 100%,0 82%,0 18%);
-}
-.brand::after {
-  content: "Wirtschaft. Gemeinsam. Größer.";
-  position: absolute;
-  left: 50px;
-  bottom: -2px;
-  font-size: 9px;
-  font-weight: 500;
-  color: #a9c6e5;
+.brand img {
+  display: block;
+  width: 100%;
+  max-width: 205px;
+  height: auto;
+  background: rgba(255,255,255,.98);
+  border-radius: 14px;
+  padding: 8px 10px;
+  box-shadow: 0 8px 22px rgba(0,0,0,.12);
 }
 .sidebar nav { display: grid; gap: 6px; }
 .nav-item {
@@ -113,29 +98,25 @@ button:focus-visible, input:focus-visible, select:focus-visible {
   background: transparent;
   color: var(--sidebar-text);
   box-shadow: none;
-  padding: 12px 12px 12px 44px;
+  padding: 12px 12px;
   border-radius: 10px;
   font-weight: 650;
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
-.nav-item::before {
-  position: absolute;
-  left: 14px;
-  top: 50%;
-  transform: translateY(-50%);
+.nav-icon {
   width: 20px;
-  text-align: center;
-  opacity: .94;
-  font-size: 18px;
+  height: 20px;
+  flex: 0 0 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.9;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  opacity: .96;
 }
-.nav-item[data-view="dashboard"]::before { content: "⌂"; }
-.nav-item[data-view="company"]::before { content: "▦"; }
-.nav-item[data-view="employees"]::before { content: "♟"; }
-.nav-item[data-view="production"]::before { content: "⚙"; }
-.nav-item[data-view="buildings"]::before { content: "▥"; }
-.nav-item[data-view="market"]::before { content: "▤"; }
-.nav-item[data-view="contracts"]::before { content: "▧"; }
-.nav-item[data-view="finance"]::before { content: "◉"; }
-.nav-item[data-view="stocks"]::before { content: "↗"; }
+.nav-label { min-width: 0; }
 .nav-item.active, .nav-item:hover {
   background: linear-gradient(180deg,#2286ff,#0d72ee);
   color: white;
@@ -190,15 +171,20 @@ button:focus-visible, input:focus-visible, select:focus-visible {
   background: rgba(255,255,255,.93);
   box-shadow: var(--shadow-sm);
 }
-.topbar-search::before {
-  content: "⌕";
+.search-icon {
   position: absolute;
   z-index: 1;
-  left: 15px;
+  left: 14px;
   top: 50%;
-  transform: translateY(-53%);
-  color: #6b7c9f;
-  font-size: 22px;
+  transform: translateY(-50%);
+  width: 19px;
+  height: 19px;
+  fill: none;
+  stroke: #6b7c9f;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  pointer-events: none;
 }
 .profile-chip {
   display: flex;
@@ -259,18 +245,29 @@ h3 { font-size: 15px; margin-top: 20px; margin-bottom: 9px; }
   min-height: 105px;
   box-shadow: var(--shadow-sm);
 }
-.stat-card::before {
-  content: "";
+.stat-icon {
   position: absolute;
   left: 16px;
   top: 18px;
   width: 34px;
   height: 34px;
   border-radius: 10px;
+  display: grid;
+  place-items: center;
   background: var(--accent-soft);
+  color: var(--accent);
 }
-.stat-card:nth-child(2)::before { background: #e4f8ee; }
-.stat-card:nth-child(4)::before { background: #f1eaff; }
+.stat-card:nth-child(2) .stat-icon { background: #e4f8ee; color: #0b9f61; }
+.stat-card:nth-child(4) .stat-icon { background: #f1eaff; color: #7a42d8; }
+.stat-icon svg {
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.9;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
 .stat-card span { color: var(--muted); display: block; margin-bottom: 7px; font-size: 12px; }
 .stat-card strong { font-size: clamp(18px,2vw,24px); color:#10234b; letter-spacing:-.5px; }
 
@@ -354,7 +351,8 @@ td button { padding:7px 10px; border-radius:8px; font-size:12px; }
 }
 @media (max-width: 1100px) {
   .app-shell { grid-template-columns: 210px minmax(0,1fr); }
-  .brand { font-size:20px; padding-left:46px; }
+  .brand { padding: 7px 6px 12px; }
+  .brand img { max-width: 176px; }
   .main-content { padding:20px 18px 28px; }
   .stats-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
   .topbar-search { width:260px; min-width:210px; }
@@ -389,17 +387,21 @@ td button { padding:7px 10px; border-radius:8px; font-size:12px; }
     flex:0 0 78px;
     min-width:78px;
     height:54px;
-    padding:30px 5px 5px;
+    padding:6px 5px 5px;
     text-align:center;
     font-size:10px;
     border-radius:9px;
     white-space:nowrap;
+    display:flex;
+    flex-direction:column;
+    justify-content:center;
+    align-items:center;
+    gap:3px;
   }
-  .nav-item::before {
-    left:50%;
-    top:7px;
-    transform:translateX(-50%);
-    font-size:17px;
+  .nav-icon {
+    width:19px;
+    height:19px;
+    flex-basis:19px;
   }
   .main-content { padding:14px 12px 24px; }
   .topbar {
@@ -416,7 +418,8 @@ td button { padding:7px 10px; border-radius:8px; font-size:12px; }
   .profile-avatar { width:34px; height:34px; font-size:12px; }
   .stats-grid { grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; margin-bottom:12px; }
   .stat-card { min-height:88px; padding:13px 12px 13px 50px; border-radius:14px; }
-  .stat-card::before { left:11px; top:14px; width:29px; height:29px; }
+  .stat-icon { left:11px; top:14px; width:29px; height:29px; }
+  .stat-icon svg { width:17px; height:17px; }
   .stat-card span { font-size:10px; margin-bottom:4px; }
   .stat-card strong { font-size:17px; }
   .grid.two { grid-template-columns:1fr; }
@@ -434,7 +437,7 @@ td button { padding:7px 10px; border-radius:8px; font-size:12px; }
   .topbar .muted { display:none; }
   .stats-grid { grid-template-columns:1fr 1fr; gap:8px; }
   .stat-card { padding-left:12px; padding-top:46px; min-height:102px; }
-  .stat-card::before { top:11px; left:12px; }
+  .stat-icon { top:11px; left:12px; }
   .stat-card strong { font-size:16px; }
   .panel { padding:12px; }
   button { min-height:42px; }
