@@ -309,11 +309,51 @@ function currentProductionContext() {
   return { productId, product, buildingType, building, multiplier, unitsPerHour, runningJob };
 }
 
+function productionUnitsFromInput(rawValue) {
+  const raw = String(rawValue ?? '').trim().toLowerCase();
+
+  const hoursMatch = raw.match(/^(\d{1,2})\s*hrs$/i);
+  if (hoursMatch) {
+    const hours = Number(hoursMatch[1]);
+    if (hours >= 1 && hours <= 24) {
+      const ctx = currentProductionContext();
+      return {
+        matchedHours: true,
+        hours,
+        units: ctx.unitsPerHour * hours
+      };
+    }
+  }
+
+  const numeric = Number(raw.replace(',', '.'));
+  return {
+    matchedHours: false,
+    hours: null,
+    units: Number.isFinite(numeric) ? numeric : 0
+  };
+}
+
+function formatProductionUnitsInput(units) {
+  const value = Math.round(Number(units || 0) * 10000) / 10000;
+  return String(value);
+}
+
+function handleProductionUnitsInput(event) {
+  const parsed = productionUnitsFromInput(event.target.value);
+
+  if (parsed.matchedHours) {
+    event.target.value = formatProductionUnitsInput(parsed.units);
+  }
+
+  renderProductionRecipe();
+}
+
 function productionPlan(unitsOverride = null) {
   const ctx = currentProductionContext();
   const unitsInput = document.getElementById('productionUnits');
-  let requestedUnits = unitsOverride === null ? Number(unitsInput?.value || 0) : Number(unitsOverride || 0);
-  requestedUnits = Math.max(0, requestedUnits);
+  const inputParsed = productionUnitsFromInput(unitsInput?.value || 0);
+  let requestedUnits = unitsOverride === null ? inputParsed.units : Number(unitsOverride || 0);
+  requestedUnits = Number.isFinite(requestedUnits) ? Math.max(0, requestedUnits) : 0;
 
   const hours = ctx.unitsPerHour > 0 ? requestedUnits / ctx.unitsPerHour : 0;
   const outputQty = requestedUnits;
@@ -376,7 +416,7 @@ function productionPlan(unitsOverride = null) {
 
 function setProductionUnits(units) {
   const input = document.getElementById('productionUnits');
-  input.value = Number(units || 0).toFixed(units > 0 && units < 0.01 ? 4 : 2);
+  input.value = formatProductionUnitsInput(units);
   renderProductionRecipe();
 }
 
@@ -670,7 +710,7 @@ document.getElementById('companyForm').addEventListener('submit', async e => {
 
 // Production
 document.getElementById('productionProduct').addEventListener('change', renderProductionRecipe);
-document.getElementById('productionUnits').addEventListener('input', renderProductionRecipe);
+document.getElementById('productionUnits').addEventListener('input', handleProductionUnitsInput);
 document.getElementById('productionMaxBtn').addEventListener('click', () => {
   const plan = productionPlan(0);
   setProductionUnits(plan.maxUnits);

@@ -76,7 +76,7 @@
             <h2>Produktion starten</h2>
             <form id="productionForm">
               <label>Produkt<select id="productionProduct"></select></label>
-              <label>Anzahl Einheiten<input type="number" id="productionUnits" value="1" min="1" step="1"></label>
+              <label>Anzahl Einheiten<input type="text" inputmode="decimal" id="productionUnits" value="1" autocomplete="off" placeholder="z. B. 120 oder 6hrs"></label>
               <div class="production-actions">
                 <button type="button" id="productionMaxBtn" class="ghost">MAX</button>
                 <button type="button" id="production24Btn" class="ghost">24H</button>
