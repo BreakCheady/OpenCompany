@@ -685,3 +685,40 @@ button:disabled {
 .production-cost-negative {
   color: var(--danger);
 }
+
+
+.company-danger-zone {
+  border-color: #e7d9d7;
+}
+
+.company-management-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 14px 0 10px;
+}
+
+.company-reset-btn {
+  background: #a96b16;
+}
+.company-reset-btn:hover {
+  background: #8d5810;
+}
+
+.company-delete-btn {
+  background: var(--danger);
+}
+.company-delete-btn:hover {
+  background: #a92b24;
+}
+
+.company-management-note {
+  margin-bottom: 0;
+  font-size: 12px;
+}
+
+@media (max-width: 480px) {
+  .company-management-actions {
+    display: grid;
+  }
+}

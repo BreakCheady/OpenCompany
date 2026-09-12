@@ -68,7 +68,21 @@
         </div>
       </div>
 
-      <div id="company" class="view"><article class="panel"><h2>Unternehmen</h2><div id="companyDetails"></div></article></div>
+      <div id="company" class="view">
+        <article class="panel">
+          <h2>Unternehmen</h2>
+          <div id="companyDetails"></div>
+        </article>
+        <article class="panel company-danger-zone">
+          <h2>Unternehmensverwaltung</h2>
+          <p class="muted">Diese Aktionen können nicht rückgängig gemacht werden.</p>
+          <div class="company-management-actions">
+            <button type="button" id="resetCompanyBtn" class="company-reset-btn">Unternehmen zurücksetzen</button>
+            <button type="button" id="deleteCompanyBtn" class="company-delete-btn">Unternehmen löschen</button>
+          </div>
+          <p class="muted company-management-note">Zurücksetzen behält Account und Firmenname, löscht aber den Spielfortschritt und setzt das Startkapital auf 50.000 OC$. Löschen entfernt zusätzlich den Account.</p>
+        </article>
+      </div>
 
       <div id="production" class="view">
         <div class="grid two">

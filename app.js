@@ -708,6 +708,55 @@ document.getElementById('companyForm').addEventListener('submit', async e => {
 });
 
 
+document.getElementById('resetCompanyBtn').addEventListener('click', async () => {
+  if (!state.company?.id) return;
+
+  const confirmed = confirm(
+    'Unternehmen wirklich zurücksetzen? Alle Gebäude, Lagerbestände, laufenden Produktionen, Marktaktivitäten und Finanzdaten werden gelöscht. Firmenname und Account bleiben erhalten. Startkapital danach: 50.000 OC$.'
+  );
+  if (!confirmed) return;
+
+  const secondConfirmed = confirm('Letzte Bestätigung: Unternehmensfortschritt jetzt vollständig zurücksetzen?');
+  if (!secondConfirmed) return;
+
+  const { error } = await sb.rpc('reset_company', { p_company_id: state.company.id });
+  if (error) {
+    alert(error.message);
+    return;
+  }
+
+  await loadCompany();
+  alert('Unternehmen wurde zurückgesetzt. Du startest wieder mit 50.000 OC$.');
+});
+
+document.getElementById('deleteCompanyBtn').addEventListener('click', async () => {
+  if (!state.session) return;
+
+  const confirmed = confirm(
+    'Account wirklich löschen? Dein Unternehmen, der komplette Spielfortschritt und dein Login-Account werden dauerhaft gelöscht. Danach musst du dich neu registrieren.'
+  );
+  if (!confirmed) return;
+
+  const typed = prompt('Zur Bestätigung bitte LÖSCHEN eingeben:');
+  if (typed !== 'LÖSCHEN') {
+    alert('Löschen abgebrochen. Bestätigung war nicht korrekt.');
+    return;
+  }
+
+  stopPresenceHeartbeat();
+  const { error } = await sb.rpc('delete_account');
+  if (error) {
+    alert(error.message);
+    return;
+  }
+
+  state.session = null;
+  state.company = null;
+  try { await sb.auth.signOut(); } catch (_) {}
+  window.location.reload();
+});
+
+
 // Production
 document.getElementById('productionProduct').addEventListener('change', renderProductionRecipe);
 document.getElementById('productionUnits').addEventListener('input', handleProductionUnitsInput);
