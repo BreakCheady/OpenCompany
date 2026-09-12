@@ -532,7 +532,7 @@ function renderBuildings() {
         <td>${num(staff)}</td>
         <td>Level ${nextLevel}: +${num(nextPercent)}%</td>
         <td><span class="building-upgrade-cost">-${money(Math.abs(nextCost))}</span></td>
-        <td><button ${running ? 'disabled' : ''} onclick="upgradeBuilding('${building.id}','${bt.id}')">${running ? 'Produktion läuft' : 'Ausbauen'}</button></td>
+        <td><button class="${running ? '' : 'building-upgrade-btn'}" ${running ? 'disabled' : ''} onclick="upgradeBuilding('${building.id}','${bt.id}')">${running ? 'Produktion läuft' : 'Ausbauen'}</button></td>
       </tr>`;
     })
   );
@@ -548,7 +548,7 @@ function renderMarket() {
       <td>${num(o.remaining_quantity)}</td>
       <td>${money(o.price_per_unit)}</td>
       <td>5%</td>
-      <td>${o.company_id === state.company.id ? `<button onclick="cancelOrder('${o.id}')">Stornieren</button>` : `<button onclick="buyOrder('${o.id}')">Kaufen</button>`}</td>
+      <td>${o.company_id === state.company.id ? `<button onclick="cancelOrder('${o.id}')">Stornieren</button>` : `<button class="market-buy-btn" onclick="buyOrder('${o.id}')">Kaufen</button>`}</td>
     </tr>`)
   );
 }
@@ -559,7 +559,7 @@ function renderMarketOrderHistory() {
     : state.marketOrderHistory.filter(o => o.status === state.marketOrderHistoryFilter);
 
   document.getElementById('marketOrderHistory').innerHTML = renderTable(
-    ['Gut','Menge','Preis','Status','Erstellt'],
+    ['Produkt','Menge','Preis','Status','Erstellt'],
     rows.map(o => {
       const status = o.status === 'filled' ? 'Abgeschlossen' : 'Storniert';
       const statusClass = o.status === 'filled' ? 'order-status-filled' : 'order-status-cancelled';

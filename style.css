@@ -753,3 +753,21 @@ button:disabled {
   color: var(--danger);
   font-weight: 700;
 }
+
+
+#buildingsTable .building-upgrade-cost {
+  color: var(--danger) !important;
+  font-weight: 700;
+}
+
+.sell-order-submit,
+.market-buy-btn,
+.building-upgrade-btn {
+  background: var(--success);
+}
+
+.sell-order-submit:hover,
+.market-buy-btn:hover,
+.building-upgrade-btn:hover {
+  background: #116b4a;
+}
