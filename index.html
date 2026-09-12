@@ -2,7 +2,8 @@
 <html lang="de">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#0d2d55">
   <title>OpenCompany MVP</title>
   <link rel="stylesheet" href="style.css">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -29,7 +30,25 @@
   </aside>
 
   <main class="main-content">
-    <header class="topbar"><div><h1 id="pageTitle">Dashboard</h1><p class="muted">OpenCompany – spielbare Unternehmenssimulation</p></div></header>
+    <header class="topbar">
+      <div>
+        <h1 id="pageTitle">Dashboard</h1>
+        <p class="muted">OpenCompany – spielbare Unternehmenssimulation</p>
+      </div>
+      <div class="topbar-actions">
+        <label class="topbar-search" aria-label="Suche">
+          <input type="search" placeholder="Spieler, Unternehmen oder Markt durchsuchen …">
+        </label>
+        <div class="profile-chip" aria-label="Profil">
+          <div class="profile-avatar">OC</div>
+          <div class="profile-copy">
+            <strong>OpenCompany</strong>
+            <span>Unternehmensleitung</span>
+          </div>
+        </div>
+      </div>
+    </header>
+
     <section id="setupNotice" class="panel warning hidden"><strong>Supabase noch nicht konfiguriert.</strong> Prüfe <code>config.js</code>.</section>
 
     <section id="authView" class="panel auth-panel">
