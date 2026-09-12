@@ -1119,3 +1119,10 @@ td button {
   font-size: 8px !important;
   line-height: 1.4;
 }
+
+
+.company-danger-zone > .muted,
+.company-management-note {
+  font-size: 10px !important;
+  line-height: 1.4;
+}
