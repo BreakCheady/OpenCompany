@@ -16,6 +16,33 @@ function renderTable(headers, rows) {
   return `<table><thead><tr>${headers.map(h=>`<th>${h}</th>`).join('')}</tr></thead><tbody>${rows.join('')}</tbody></table>`;
 }
 
+function getGameDataErrorBox() {
+  let errorBox = document.getElementById('gameDataError');
+  if (!errorBox) {
+    errorBox = document.createElement('section');
+    errorBox.id = 'gameDataError';
+    errorBox.className = 'panel warning hidden';
+    document.getElementById('gameView').prepend(errorBox);
+  }
+  return errorBox;
+}
+
+function clearGameDataError() {
+  const errorBox = getGameDataErrorBox();
+  errorBox.textContent = '';
+  errorBox.classList.add('hidden');
+}
+
+function showGameDataError(errors) {
+  const errorBox = getGameDataErrorBox();
+  const details = errors
+    .map(({ label, error }) => `${label}: ${error.message || 'Unbekannter Fehler'}`)
+    .join(' | ');
+
+  errorBox.textContent = `Spieldaten konnten nicht vollständig geladen werden. ${details}`;
+  errorBox.classList.remove('hidden');
+}
+
 function bindNavigation() {
   document.querySelectorAll('.nav-item').forEach(btn => btn.addEventListener('click', () => {
     document.querySelectorAll('.nav-item').forEach(b=>b.classList.remove('active'));
@@ -84,7 +111,8 @@ async function loadCompany() {
 
 async function loadGameData() {
   const cid = state.company.id;
-  const [products, inventory, employees, tx, orders, shareClass] = await Promise.all([
+
+  const results = await Promise.all([
     sb.from('products').select('*').eq('company_id', cid).order('name'),
     sb.from('inventories').select('*, products(name)').eq('company_id', cid),
     sb.from('employees').select('*').eq('company_id', cid).order('hired_at', {ascending:false}),
@@ -92,12 +120,29 @@ async function loadGameData() {
     sb.from('market_orders').select('*, products(name), companies(name)').eq('status','open').order('created_at',{ascending:false}).limit(50),
     sb.from('share_classes').select('*').eq('company_id', cid).maybeSingle()
   ]);
-  state.products = products.data || [];
-  state.inventory = inventory.data || [];
-  state.employees = employees.data || [];
-  state.transactions = tx.data || [];
-  state.marketOrders = orders.data || [];
-  state.shareClass = shareClass.data || null;
+
+  const labels = ['Produkte', 'Lager', 'Mitarbeiter', 'Finanzen', 'Marktorders', 'Aktienklasse'];
+  const errors = results
+    .map((result, index) => result.error ? { label: labels[index], error: result.error } : null)
+    .filter(Boolean);
+
+  if (errors.length) {
+    console.error('Fehler beim Laden der Spieldaten:', errors);
+    showGameDataError(errors);
+    return;
+  }
+
+  clearGameDataError();
+
+  const [products, inventory, employees, tx, orders, shareClass] = results;
+
+  state.products = products.data;
+  state.inventory = inventory.data;
+  state.employees = employees.data;
+  state.transactions = tx.data;
+  state.marketOrders = orders.data;
+  state.shareClass = shareClass.data;
+
   renderAll();
 }
 
