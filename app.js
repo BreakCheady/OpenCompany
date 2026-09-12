@@ -3,8 +3,9 @@ const configured = config.SUPABASE_URL && config.SUPABASE_ANON_KEY && !config.SU
 const setupNotice = document.getElementById('setupNotice');
 if (!configured) setupNotice.classList.remove('hidden');
 
+const APP_URL = 'https://breakcheady.github.io/OpenCompany/';
 const sb = configured ? window.supabase.createClient(config.SUPABASE_URL, config.SUPABASE_ANON_KEY) : null;
-const state = { session: null, company: null, products: [], inventory: [], employees: [], transactions: [], marketOrders: [] };
+const state = { session: null, company: null, products: [], inventory: [], employees: [], transactions: [], marketOrders: [], recoveringPassword: false };
 
 const money = n => new Intl.NumberFormat('de-DE', { style:'currency', currency:'EUR', maximumFractionDigits:2 }).format(Number(n || 0)).replace('€','OC$');
 const num = n => new Intl.NumberFormat('de-DE').format(Number(n || 0));
@@ -29,15 +30,39 @@ bindNavigation();
 
 async function init() {
   if (!sb) return;
-  const { data: { session } } = await sb.auth.getSession();
+
+  sb.auth.onAuthStateChange(async (event, session) => {
+    if (event === 'PASSWORD_RECOVERY') {
+      state.recoveringPassword = true;
+      state.session = session;
+      document.getElementById('authView').classList.add('hidden');
+      document.getElementById('gameView').classList.add('hidden');
+      document.getElementById('bootstrapView').classList.add('hidden');
+      document.getElementById('recoveryView').classList.remove('hidden');
+      document.getElementById('logoutBtn').classList.add('hidden');
+      document.getElementById('sessionLabel').textContent = 'Passwort zurücksetzen';
+      document.getElementById('pageTitle').textContent = 'Passwort zurücksetzen';
+      return;
+    }
+    if (state.recoveringPassword && event !== 'SIGNED_OUT') return;
+    await handleSession(session);
+  });
+
+  const { data: { session }, error } = await sb.auth.getSession();
+  if (error) {
+    console.error('Session konnte nicht geladen werden:', error);
+    msg(document.getElementById('authMessage'), error.message, 'error');
+    return;
+  }
   await handleSession(session);
-  sb.auth.onAuthStateChange((_event, session) => handleSession(session));
 }
 
 async function handleSession(session) {
+  if (state.recoveringPassword) return;
   state.session = session;
   const loggedIn = !!session;
   document.getElementById('authView').classList.toggle('hidden', loggedIn);
+  document.getElementById('recoveryView').classList.add('hidden');
   document.getElementById('logoutBtn').classList.toggle('hidden', !loggedIn);
   document.getElementById('sessionLabel').textContent = loggedIn ? session.user.email : 'Nicht angemeldet';
   if (!loggedIn) {
@@ -107,9 +132,42 @@ document.getElementById('loginForm').addEventListener('submit', async e => {
 });
 document.getElementById('signupForm').addEventListener('submit', async e => {
   e.preventDefault(); if (!sb) return;
-  const { error } = await sb.auth.signUp({ email: signupEmail.value, password: signupPassword.value });
+  const { error } = await sb.auth.signUp({ email: signupEmail.value.trim(), password: signupPassword.value, options: { emailRedirectTo: APP_URL } });
   msg(document.getElementById('authMessage'), error ? error.message : 'Account erstellt. Falls E-Mail-Bestätigung aktiv ist, bitte Postfach prüfen.', error ? 'error' : 'success');
 });
+document.getElementById('forgotPasswordBtn').addEventListener('click', async () => {
+  if (!sb) return;
+  const email = loginEmail.value.trim();
+  if (!email) {
+    msg(document.getElementById('authMessage'), 'Bitte gib zuerst deine E-Mail-Adresse im Login-Feld ein.', 'error');
+    loginEmail.focus();
+    return;
+  }
+  const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: APP_URL });
+  msg(document.getElementById('authMessage'), error ? error.message : 'Passwort-Link wurde versendet. Bitte prüfe dein E-Mail-Postfach.', error ? 'error' : 'success');
+});
+
+document.getElementById('recoveryForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  if (!sb) return;
+  const password = newPassword.value;
+  const confirmation = newPasswordConfirm.value;
+  if (password !== confirmation) {
+    msg(document.getElementById('recoveryMessage'), 'Die Passwörter stimmen nicht überein.', 'error');
+    return;
+  }
+  const { error } = await sb.auth.updateUser({ password });
+  if (error) {
+    msg(document.getElementById('recoveryMessage'), error.message, 'error');
+    return;
+  }
+  state.recoveringPassword = false;
+  msg(document.getElementById('recoveryMessage'), 'Passwort erfolgreich geändert.', 'success');
+  const { data: { session } } = await sb.auth.getSession();
+  await handleSession(session);
+  window.history.replaceState({}, document.title, APP_URL);
+});
+
 document.getElementById('logoutBtn').addEventListener('click', ()=>sb?.auth.signOut());
 
 // Company bootstrap

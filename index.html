@@ -36,7 +36,7 @@
 
       <section id="setupNotice" class="panel warning hidden">
         <strong>Supabase noch nicht konfiguriert.</strong>
-        Trage URL und Anon Key in <code>js/config.js</code> ein und führe <code>supabase/schema.sql</code> aus.
+        Prüfe <code>config.js</code> und die Supabase-Konfiguration.
       </section>
 
       <section id="authView" class="panel auth-panel">
@@ -47,6 +47,7 @@
             <label>E-Mail<input type="email" id="loginEmail" required></label>
             <label>Passwort<input type="password" id="loginPassword" minlength="6" required></label>
             <button type="submit">Anmelden</button>
+            <button type="button" id="forgotPasswordBtn" class="ghost">Passwort vergessen?</button>
           </form>
           <form id="signupForm">
             <h3>Registrieren</h3>
@@ -56,6 +57,17 @@
           </form>
         </div>
         <p id="authMessage" class="status"></p>
+      </section>
+
+      <section id="recoveryView" class="panel auth-panel hidden">
+        <h2>Neues Passwort festlegen</h2>
+        <p class="muted">Vergib ein neues Passwort für deinen OpenCompany-Account.</p>
+        <form id="recoveryForm">
+          <label>Neues Passwort<input type="password" id="newPassword" minlength="6" required></label>
+          <label>Passwort wiederholen<input type="password" id="newPasswordConfirm" minlength="6" required></label>
+          <button type="submit">Passwort speichern</button>
+        </form>
+        <p id="recoveryMessage" class="status"></p>
       </section>
 
       <section id="gameView" class="hidden">
