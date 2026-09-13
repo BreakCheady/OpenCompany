@@ -420,6 +420,28 @@ function setProductionUnits(units) {
   renderProductionRecipe();
 }
 
+function formatProductionDuration(hours) {
+  const totalMinutes = Math.max(0, Math.round(Number(hours || 0) * 60));
+  const wholeHours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  return `${wholeHours} Std. ${minutes} Min.`;
+}
+
+function formatProductionFinish(hours) {
+  const durationHours = Number(hours || 0);
+  if (!Number.isFinite(durationHours) || durationHours <= 0) return '–';
+
+  const finish = new Date(Date.now() + durationHours * 60 * 60 * 1000);
+  return finish.toLocaleString('de-DE', {
+    weekday: 'short',
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  }) + ' Uhr';
+}
+
 function renderProductionRecipe() {
   const plan = productionPlan();
   const { buildingType, building, multiplier, unitsPerHour, runningJob } = plan;
@@ -432,14 +454,15 @@ function renderProductionRecipe() {
     `<div class="kv"><span>Gebäudelevel</span><strong>${building ? `Level ${building.level}` : 'Nicht gebaut'}</strong></div>`,
     `<div class="kv"><span>Kapazität</span><strong>${building ? `${num(unitsPerHour)} Einheiten / Std.` : '–'}</strong></div>`,
     `<div class="kv"><span>Produktionsmenge</span><strong>${num(plan.outputQty)} Einheiten</strong></div>`,
-    `<div class="kv"><span>Produktionsdauer</span><strong>${num(plan.hours)} Std.</strong></div>`,
+    `<div class="kv"><span>Produktionsdauer</span><strong>${formatProductionDuration(plan.hours)}</strong></div>`,
+    `<div class="kv"><span>Voraussichtliches Ende</span><strong>${building && plan.hours > 0 ? formatProductionFinish(plan.hours) : '–'}</strong></div>`,
     `<div class="kv"><span>Produktionskosten</span><strong class="production-cost-negative">-${money(Math.abs(plan.productionCost))}</strong></div>`,
     `<div class="kv"><span>Belegschaft</span><strong>${building ? `${num(staff)} Mitarbeiter` : '–'}</strong></div>`
   ] : ['<div class="kv"><span>Benötigtes Gebäude</span><strong>Keines</strong></div>'];
 
   if (runningJob) {
     const finish = new Date(runningJob.finishes_at);
-    statusRows.push(`<div class="production-running"><strong>Produktion läuft</strong><span>${num(runningJob.output_quantity)} Einheiten – fertig am ${finish.toLocaleString('de-DE')}</span></div>`);
+    statusRows.push(`<div class="production-running"><strong>Produktion läuft</strong><span>${num(runningJob.output_quantity)} Einheiten – fertig am ${finish.toLocaleString('de-DE', { weekday:'short', day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' })} Uhr</span></div>`);
   }
 
   document.getElementById('productionRequirement').innerHTML = statusRows.join('');
