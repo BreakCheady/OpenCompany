@@ -1192,17 +1192,22 @@ window.upgradeBuilding = async function(buildingId, buildingTypeId) {
 window.downgradeBuilding = async function(buildingId, buildingTypeId) {
   const bt = state.buildingTypes.find(b => b.id === buildingTypeId);
   const building = state.buildings.find(b => b.id === buildingId);
-  if (!building) return;
+  if (!building || !bt) return;
 
   const level = Number(building.level || 1);
   const isDemolition = level <= 1;
   const action = isDemolition ? 'abreißen' : `auf Level ${level - 1} abstufen`;
 
-  const warning = isDemolition
-    ? 'Das Gebäude wird vollständig entfernt. Es gibt keine Kostenerstattung.'
-    : 'Die Aufstufung wird zurückgenommen. Es gibt keine Kostenerstattung.';
+  const refundableCost = isDemolition
+    ? Number(bt.construction_cost || 0)
+    : Number(bt.construction_cost || 0) * buildingLevelMultiplier(level);
+  const refund = refundableCost * 0.95;
 
-  if (!confirm(`${bt?.name || 'Gebäude'} ${action}? ${warning}`)) return;
+  const warning = isDemolition
+    ? `Das Gebäude wird vollständig entfernt. Erstattung: ${money(refund)} (95% der Baukosten).`
+    : `Die letzte Aufstufung wird zurückgenommen. Erstattung: ${money(refund)} (95% der Kosten dieser Stufe).`;
+
+  if (!confirm(`${bt.name} ${action}? ${warning}`)) return;
 
   const { error } = await sb.rpc('downgrade_building', {
     p_company_id: state.company.id,
