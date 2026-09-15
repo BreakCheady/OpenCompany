@@ -1339,3 +1339,40 @@ td button {
   line-height: 1.3;
   font-weight: 500;
 }
+
+
+/* v0.1.52 – Markt & Handel */
+.retail-sale-details {
+  display: grid;
+  gap: 8px;
+  margin: 2px 0 4px;
+  padding: 12px 14px;
+  border: 1px solid #dfe7ee;
+  border-radius: 10px;
+  background: #f8fafc;
+}
+
+.retail-sale-submit:not(:disabled) {
+  background: var(--success);
+  color: #fff;
+  border-color: var(--success);
+}
+
+.retail-sale-submit:not(:disabled):hover {
+  background: #116b4a;
+  border-color: #116b4a;
+}
+
+.retail-ready {
+  color: var(--success);
+}
+
+.retail-missing {
+  color: var(--danger);
+}
+
+.retail-sale-note {
+  font-size: 11px;
+  line-height: 1.4;
+  margin-top: 10px;
+}

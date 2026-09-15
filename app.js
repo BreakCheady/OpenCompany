@@ -42,7 +42,8 @@ function msg(el, text, type='') { el.textContent = text; el.className = `status 
 function transactionLabel(type) {
   return ({
     founding_capital: 'Startkapital',
-    market_sale: 'Verkauf',
+    market_sale: 'Marktverkauf',
+    retail_sale: 'Handelsverkauf',
     market_fee: 'Gebühr',
     market_buy: 'Kauf',
     production: 'Produktion',
@@ -593,13 +594,15 @@ function renderBuildings() {
     ['Gebäude','Level','Kapazität / Std.','Mitarbeiter','Nächster Ausbau','Ausbaukosten','Aktion'],
     state.buildingTypes.map(bt => {
       const building = state.buildings.find(b => b.building_type_id === bt.id && b.status === 'active');
+      const isRetail = bt.building_category === 'retail';
+
       if (!building) {
         return `<tr>
           <td>${bt.name}</td>
           <td>–</td>
-          <td>${num(bt.base_units_per_hour)} Einheiten</td>
+          <td>${isRetail ? 'Verkaufsgebäude' : `${num(bt.base_units_per_hour)} Einheiten`}</td>
           <td>${num(bt.employees_per_building)}</td>
-          <td>Level 1</td>
+          <td>${isRetail ? '–' : 'Level 1'}</td>
           <td>${money(bt.construction_cost)}</td>
           <td><button onclick="buildBuilding('${bt.id}')">Bauen</button></td>
         </tr>`;
@@ -608,6 +611,19 @@ function renderBuildings() {
       const level = Number(building.level || 1);
       const multiplier = buildingLevelMultiplier(level);
       const staff = Math.round(Number(bt.employees_per_building || 0) * multiplier);
+
+      if (isRetail) {
+        return `<tr>
+          <td>${bt.name}</td>
+          <td>Level ${level}</td>
+          <td>Verkaufsgebäude</td>
+          <td>${num(staff)}</td>
+          <td>–</td>
+          <td>–</td>
+          <td><button disabled>Gebaut</button></td>
+        </tr>`;
+      }
+
       const capacity = Number(bt.base_units_per_hour || 0) * multiplier;
       const nextLevel = level + 1;
       const nextPercent = buildingUpgradePercent(nextLevel);
@@ -625,6 +641,71 @@ function renderBuildings() {
       </tr>`;
     })
   );
+}
+
+function retailSaleContext() {
+  const productId = document.getElementById('retailProduct')?.value;
+  const product = state.products.find(p => p.id === productId);
+  const inventory = state.inventory.find(i => i.product_id === productId);
+  const buildingType = state.buildingTypes.find(
+    bt => bt.id === product?.required_retail_building_type_id
+  );
+  const building = buildingType
+    ? state.buildings.find(
+        b => b.building_type_id === buildingType.id && b.status === 'active'
+      )
+    : null;
+
+  return {
+    product,
+    inventory,
+    buildingType,
+    building,
+    available: Number(inventory?.quantity || 0),
+    price: Number(product?.suggested_retail_price || 0)
+  };
+}
+
+function renderRetailSale() {
+  const select = document.getElementById('retailProduct');
+  const details = document.getElementById('retailSaleDetails');
+  const button = document.getElementById('retailSaleBtn');
+  const qtyInput = document.getElementById('retailQty');
+  if (!select || !details || !button || !qtyInput) return;
+
+  const retailProducts = state.products.filter(p => p.required_retail_building_type_id);
+  const previous = select.value;
+
+  select.innerHTML = retailProducts.length
+    ? retailProducts.map(p => `<option value="${p.id}">${p.name}</option>`).join('')
+    : '<option value="">Keine Handelsprodukte verfügbar</option>';
+
+  if (retailProducts.some(p => p.id === previous)) select.value = previous;
+
+  const ctx = retailSaleContext();
+  const qty = Number(qtyInput.value || 0);
+  const hasStock = ctx.product && qty > 0 && ctx.available + 1e-9 >= qty;
+  const ready = !!ctx.product && !!ctx.building && hasStock;
+
+  details.innerHTML = ctx.product ? [
+    `<div class="kv"><span>Verkaufsgebäude</span><strong>${ctx.buildingType?.name || '–'}</strong></div>`,
+    `<div class="kv"><span>Gebäudestatus</span><strong class="${ctx.building ? 'retail-ready' : 'retail-missing'}">${ctx.building ? 'Vorhanden' : 'Fehlt'}</strong></div>`,
+    `<div class="kv"><span>Bestand</span><strong>${num(ctx.available)} Einheiten</strong></div>`,
+    `<div class="kv"><span>Verkaufspreis</span><strong>${money(ctx.price)} / Einheit</strong></div>`,
+    `<div class="kv"><span>Erwarteter Erlös</span><strong>${money(ctx.price * Math.max(0, qty))}</strong></div>`
+  ].join('') : '<p class="muted">Für dieses Unternehmen sind noch keine Handelsprodukte vorhanden.</p>';
+
+  button.disabled = !ready;
+
+  if (!ctx.product) {
+    button.textContent = 'Kein Handelsprodukt';
+  } else if (!ctx.building) {
+    button.textContent = `${ctx.buildingType?.name || 'Verkaufsgebäude'} fehlt`;
+  } else if (!hasStock) {
+    button.textContent = 'Nicht genügend Bestand';
+  } else {
+    button.textContent = 'Im Handel verkaufen';
+  }
 }
 
 function renderMarket() {
@@ -776,11 +857,15 @@ function renderFinanceSummary() {
     .filter(t => t.transaction_type === 'market_sale')
     .reduce((sum, t) => sum + Number(t.amount || 0), 0);
 
+  const retailSales = transactions
+    .filter(t => t.transaction_type === 'retail_sale')
+    .reduce((sum, t) => sum + Number(t.amount || 0), 0);
+
   const fees = Math.abs(transactions
     .filter(t => t.transaction_type === 'market_fee')
     .reduce((sum, t) => sum + Number(t.amount || 0), 0));
 
-  const revenue = netSales + fees;
+  const revenue = netSales + fees + retailSales;
 
   // Produktionskosten = tatsächlich verbrauchte Beschaffungskosten + Personalkosten.
   const productionCosts = jobs.reduce(
@@ -864,6 +949,7 @@ function renderAll() {
   document.getElementById('sellProduct').innerHTML = opts;
   renderProductionRecipe();
   renderBuildings();
+  renderRetailSale();
   renderMarket();
   renderMarketOrderHistory();
   renderContracts();
@@ -1045,6 +1131,31 @@ document.getElementById('sellOrderForm').addEventListener('submit', async e => {
     p_price:Number(document.getElementById('sellPrice').value)
   });
   if(error) alert(error.message); else await loadCompany();
+});
+
+document.getElementById('retailProduct').addEventListener('change', renderRetailSale);
+document.getElementById('retailQty').addEventListener('input', renderRetailSale);
+document.getElementById('retailSaleForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  const ctx = retailSaleContext();
+  const quantity = Number(document.getElementById('retailQty').value);
+
+  if (!ctx.product || !ctx.building || !Number.isFinite(quantity) || quantity <= 0) {
+    renderRetailSale();
+    return;
+  }
+
+  const { error } = await sb.rpc('sell_retail_product', {
+    p_company_id: state.company.id,
+    p_product_id: ctx.product.id,
+    p_quantity: quantity
+  });
+
+  if (error) {
+    alert(error.message);
+  } else {
+    await loadCompany();
+  }
 });
 window.buyOrder = async function(orderId) {
   const qty=Number(prompt('Wie viele Einheiten möchtest du kaufen?','1'));

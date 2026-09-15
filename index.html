@@ -7,7 +7,7 @@
   <title>OpenCompany</title>
   <link rel="icon" type="image/png" href="favicon.png">
   <link rel="shortcut icon" href="favicon.ico">
-  <link rel="stylesheet" href="style.css?v=0.1.51">
+  <link rel="stylesheet" href="style.css?v=0.1.52">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
@@ -20,7 +20,7 @@
       <button class="nav-item" data-view="production">Produktion</button>
       <button class="nav-item" data-view="storage">Lager</button>
       <button class="nav-item" data-view="buildings">Gebäude</button>
-      <button class="nav-item" data-view="market">Markt</button>
+      <button class="nav-item" data-view="market">Markt &amp; Handel</button>
       <button class="nav-item" data-view="contracts">Verträge</button>
       <button class="nav-item" data-view="finance">Finanzen</button>
     </nav>
@@ -28,7 +28,7 @@
       <span id="sessionLabel">Nicht angemeldet</span>
       <button id="logoutBtn" class="ghost hidden">Abmelden</button>
       <div class="sidebar-version">
-        <span class="sidebar-version-number">Version 0.1.51</span>
+        <span class="sidebar-version-number">Version 0.1.52</span>
         <span class="sidebar-credit">Made by BreakCheady</span>
       </div>
     </div>
@@ -129,7 +129,7 @@
 
       <div id="market" class="view">
         <article class="panel">
-          <h2>Produkt verkaufen</h2>
+          <h2>Produkt am Markt verkaufen</h2>
           <form id="sellOrderForm">
             <label>Produkt<select id="sellProduct"></select></label>
             <label>Menge<input type="number" id="sellQty" min="1" value="5"></label>
@@ -137,6 +137,17 @@
             <button type="submit" class="sell-order-submit">Order erstellen</button>
           </form>
           <p class="muted market-fee-note">Bei erfolgreichen Marktverkäufen werden 5% Marktgebühr vom Verkaufserlös abgezogen.</p>
+        </article>
+
+        <article class="panel">
+          <h2>Produkt im Handel verkaufen</h2>
+          <form id="retailSaleForm">
+            <label>Produkt<select id="retailProduct"></select></label>
+            <label>Menge<input type="number" id="retailQty" min="1" step="1" value="1"></label>
+            <div id="retailSaleDetails" class="retail-sale-details"></div>
+            <button type="submit" id="retailSaleBtn" class="retail-sale-submit">Im Handel verkaufen</button>
+          </form>
+          <p class="muted retail-sale-note">Für den Handelsverkauf wird das passende Verkaufsgebäude benötigt. Weitere Handelsvorteile folgen in einem späteren Update.</p>
         </article>
 
         <article class="panel">
@@ -180,7 +191,7 @@
           <div class="panel-head finance-head">
             <div>
               <h2>Finanzübersicht</h2>
-              <p class="muted">Einnahmen minus Produktionskosten und Marktgebühren.</p>
+              <p class="muted">Einnahmen minus Produktionskosten, Gebühren und sonstige Kosten.</p>
             </div>
             <div class="finance-period-switch" aria-label="Zeitraum">
               <button type="button" class="finance-period-btn" data-period="day">Tag</button>
