@@ -1485,3 +1485,13 @@ td button {
     min-width: 0;
   }
 }
+
+
+/* v0.1.54 – während Nutzung nur Status anzeigen */
+#buildingsTable .building-running-btn:disabled {
+  opacity: 1;
+  cursor: default;
+  background: #eef2f6;
+  color: #6f7f8f;
+  border-color: #cfd8e2;
+}

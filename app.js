@@ -642,10 +642,29 @@ function renderBuildings() {
       const nextLevel = level + 1;
       const nextPercent = buildingUpgradePercent(nextLevel);
       const nextCost = Number(bt.construction_cost || 0) * buildingLevelMultiplier(nextLevel);
-      const running = state.productionJobs.some(
+      const productionRunning = state.productionJobs.some(
         j => j.building_id === building.id && j.status === 'running'
       );
+
+      // Verkaufsgebäude können künftig ebenfalls einen laufenden Verkaufsstatus besitzen.
+      // Sobald der Status entsprechend gesetzt ist, werden die Verwaltungsbuttons ausgeblendet.
+      const retailRunning = isRetail && ['selling', 'retail_running', 'in_use'].includes(String(building.status || '').toLowerCase());
+      const buildingInUse = productionRunning || retailRunning;
+      const runningLabel = isRetail ? 'Verkauf läuft' : 'Produktion läuft';
       const reduceLabel = level <= 1 ? 'Abreißen' : 'Abstufen';
+
+      const actionHtml = buildingInUse
+        ? `<button class="building-running-btn" disabled>${runningLabel}</button>`
+        : `
+          <button
+            class="building-upgrade-btn"
+            onclick="upgradeBuilding('${building.id}','${bt.id}')"
+          >Aufstufen</button>
+          <button
+            class="building-downgrade-btn"
+            onclick="downgradeBuilding('${building.id}','${bt.id}')"
+          >${reduceLabel}</button>
+        `;
 
       return `<tr>
         <td>${bt.name}</td>
@@ -655,18 +674,7 @@ function renderBuildings() {
         <td>${num(staff)}</td>
         <td>Level ${nextLevel}: +${num(nextPercent)}%</td>
         <td><span class="building-upgrade-cost">-${money(Math.abs(nextCost))}</span></td>
-        <td class="building-actions">
-          <button
-            class="building-upgrade-btn"
-            ${running ? 'disabled' : ''}
-            onclick="upgradeBuilding('${building.id}','${bt.id}')"
-          >${running ? 'Produktion läuft' : 'Aufstufen'}</button>
-          <button
-            class="building-downgrade-btn"
-            ${running ? 'disabled' : ''}
-            onclick="downgradeBuilding('${building.id}','${bt.id}')"
-          >${running ? 'Produktion läuft' : reduceLabel}</button>
-        </td>
+        <td class="building-actions">${actionHtml}</td>
       </tr>`;
     })
     .filter(Boolean);
