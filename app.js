@@ -716,13 +716,59 @@ function financePeriodStart(period) {
   return start;
 }
 
+
+function financePeriodEnd(period, start) {
+  const end = new Date(start);
+
+  if (period === 'day') {
+    end.setHours(23, 59, 59, 999);
+    return end;
+  }
+
+  if (period === 'week') {
+    end.setDate(end.getDate() + 6);
+    end.setHours(23, 59, 59, 999);
+    return end;
+  }
+
+  end.setMonth(end.getMonth() + 1, 0);
+  end.setHours(23, 59, 59, 999);
+  return end;
+}
+
+function formatFinancePeriodRange(period, start, end) {
+  const shortDate = (date, includeYear = false) => date.toLocaleDateString('de-DE', {
+    day: '2-digit',
+    month: '2-digit',
+    ...(includeYear ? { year: 'numeric' } : {})
+  });
+
+  if (period === 'day') {
+    return shortDate(start, true);
+  }
+
+  if (period === 'week') {
+    return `${shortDate(start)} – ${shortDate(end, true)}`;
+  }
+
+  return `${shortDate(start)} – ${shortDate(end, true)}`;
+}
+
 function renderFinanceSummary() {
   const container = document.getElementById('financeSummary');
   if (!container) return;
 
   const start = financePeriodStart(state.financePeriod);
-  const transactions = state.transactions.filter(t => new Date(t.created_at) >= start);
-  const jobs = state.productionJobs.filter(j => new Date(j.started_at) >= start && j.status !== 'cancelled');
+  const end = financePeriodEnd(state.financePeriod, start);
+  const periodRange = formatFinancePeriodRange(state.financePeriod, start, end);
+  const transactions = state.transactions.filter(t => {
+    const createdAt = new Date(t.created_at);
+    return createdAt >= start && createdAt <= end;
+  });
+  const jobs = state.productionJobs.filter(j => {
+    const startedAt = new Date(j.started_at);
+    return startedAt >= start && startedAt <= end && j.status !== 'cancelled';
+  });
 
   // Marktverkäufe werden in den Transaktionen netto nach Marktgebühr gespeichert.
   // Für die Übersicht rekonstruieren wir die Brutto-Einnahmen und ziehen Gebühren separat ab.
@@ -765,7 +811,7 @@ function renderFinanceSummary() {
     'Aktuelle Woche';
 
   container.innerHTML = `
-    <div class="finance-summary-card"><span>Zeitraum</span><strong>${periodLabel}</strong></div>
+    <div class="finance-summary-card finance-period-card"><span>Zeitraum</span><strong>${periodLabel}</strong><small>${periodRange}</small></div>
     <div class="finance-summary-card"><span>Einnahmen</span><strong>${money(revenue)}</strong></div>
     <div class="finance-summary-card finance-cost-card"><span>Produktionskosten</span><strong>-${money(productionCosts)}</strong></div>
     <div class="finance-summary-card finance-cost-card"><span>Gebühren</span><strong>-${money(fees)}</strong></div>

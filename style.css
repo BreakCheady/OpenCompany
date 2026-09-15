@@ -1307,3 +1307,35 @@ td button {
 .finance-profit-gain strong {
   color: var(--success);
 }
+
+
+/* v0.1.51 – Zeitraum klar sichtbar + Kalenderwoche Montag bis Sonntag */
+.finance-period-btn.active {
+  background: #e8f2ff !important;
+  color: #245b96 !important;
+  border-color: #9fc5ef !important;
+  box-shadow: inset 0 0 0 1px rgba(80, 140, 205, .10);
+}
+
+.finance-period-card {
+  background: #eef6ff !important;
+  border-color: #b8d5f2 !important;
+  border-width: 2px;
+}
+
+.finance-period-card span {
+  color: #5b7590;
+}
+
+.finance-period-card strong {
+  color: #254f78;
+}
+
+.finance-period-card small {
+  display: block;
+  margin-top: 2px;
+  color: #6f8295;
+  font-size: 10px;
+  line-height: 1.3;
+  font-weight: 500;
+}
