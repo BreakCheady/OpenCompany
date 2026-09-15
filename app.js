@@ -22,6 +22,7 @@ const state = {
   marketOrders: [],
   marketOrderHistory: [],
   marketOrderHistoryFilter: 'all',
+  financePeriod: 'week',
   contracts: [],
   companyDirectory: [],
   recoveringPassword: false
@@ -29,6 +30,7 @@ const state = {
 
 let presenceTimer = null;
 let productionRefreshTimer = null;
+let npcMarketTimer = null;
 
 const money = n => new Intl.NumberFormat('de-DE', { style:'currency', currency:'EUR', maximumFractionDigits:2 })
   .format(Number(n || 0)).replace('€','OC$');
@@ -150,6 +152,28 @@ function stopPresenceHeartbeat() {
   presenceTimer = null;
 }
 
+function stopNpcMarketHeartbeat() {
+  if (npcMarketTimer) clearInterval(npcMarketTimer);
+  npcMarketTimer = null;
+}
+
+async function runNpcMarketTickAndRefresh() {
+  if (!sb || !state.company?.id || document.visibilityState === 'hidden') return;
+  const { data, error } = await sb.rpc('run_npc_market_tick');
+  if (error) {
+    console.warn('NPC-Markt-Tick:', error.message);
+    return;
+  }
+  if (Number(data || 0) > 0 && document.getElementById('market')?.classList.contains('active-view')) {
+    await loadGameData();
+  }
+}
+
+function startNpcMarketHeartbeat() {
+  stopNpcMarketHeartbeat();
+  npcMarketTimer = setInterval(runNpcMarketTickAndRefresh, 120000);
+}
+
 function isCompanyOnline() {
   if (!state.company?.last_seen_at) return false;
   return Date.now() - new Date(state.company.last_seen_at).getTime() < 120000;
@@ -215,6 +239,7 @@ async function handleSession(session) {
 
   if (!loggedIn) {
     stopPresenceHeartbeat();
+    stopNpcMarketHeartbeat();
     document.getElementById('gameView').classList.add('hidden');
     document.getElementById('bootstrapView').classList.add('hidden');
     clearCompanyLoadError();
@@ -237,6 +262,7 @@ async function loadCompany() {
 
   if (data) {
     startPresenceHeartbeat();
+    startNpcMarketHeartbeat();
     const completedJobs = await sb.rpc('complete_due_production_jobs', { p_company_id: data.id });
     if (completedJobs.error) console.warn('Produktionsabschluss:', completedJobs.error.message);
     // NPCs may buy suitable player orders at most once every five minutes.
@@ -257,8 +283,8 @@ async function loadGameData() {
     sb.from('production_recipe_inputs').select('*'),
     sb.from('building_types').select('*').order('construction_cost'),
     sb.from('company_buildings').select('*').eq('company_id', cid),
-    sb.from('production_jobs').select('*').eq('company_id', cid).order('started_at', {ascending:false}).limit(20),
-    sb.from('financial_transactions').select('*').eq('company_id', cid).order('created_at', {ascending:false}).limit(30),
+    sb.from('production_jobs').select('*').eq('company_id', cid).order('started_at', {ascending:false}).limit(500),
+    sb.from('financial_transactions').select('*').eq('company_id', cid).order('created_at', {ascending:false}).limit(500),
     sb.from('market_orders').select('*, products(name), materials(name)').in('status',['open','partially_filled']).order('created_at',{ascending:false}).limit(100),
     sb.from('market_orders').select('*, products(name), materials(name)').in('status',['filled','cancelled']).order('created_at',{ascending:false}).limit(100),
     sb.from('contracts').select('*').or(`seller_company_id.eq.${cid},buyer_company_id.eq.${cid}`).order('created_at',{ascending:false}),
@@ -311,23 +337,53 @@ function currentProductionContext() {
 
 function productionUnitsFromInput(rawValue) {
   const raw = String(rawValue ?? '').trim().toLowerCase();
+  const ctx = currentProductionContext();
 
   const hoursMatch = raw.match(/^(\d{1,2})\s*hrs$/i);
   if (hoursMatch) {
     const hours = Number(hoursMatch[1]);
     if (hours >= 1 && hours <= 24) {
-      const ctx = currentProductionContext();
       return {
         matchedHours: true,
+        matchedTime: false,
         hours,
         units: ctx.unitsPerHour * hours
       };
     }
   }
 
+  const timeMatch = raw.match(/^(\d{1,2})(?::([0-5]\d))?\s*(am|pm)$/i);
+  if (timeMatch) {
+    let hour = Number(timeMatch[1]);
+    const minute = Number(timeMatch[2] || 0);
+    const meridiem = timeMatch[3].toLowerCase();
+
+    if (hour >= 1 && hour <= 12) {
+      if (hour === 12) hour = 0;
+      if (meridiem === 'pm') hour += 12;
+
+      const now = new Date();
+      const target = new Date(now);
+      target.setHours(hour, minute, 0, 0);
+      if (target <= now) target.setDate(target.getDate() + 1);
+
+      const hours = (target.getTime() - now.getTime()) / 3600000;
+      if (hours > 0 && hours <= 24.01) {
+        return {
+          matchedHours: false,
+          matchedTime: true,
+          hours,
+          units: ctx.unitsPerHour * hours,
+          targetTime: target
+        };
+      }
+    }
+  }
+
   const numeric = Number(raw.replace(',', '.'));
   return {
     matchedHours: false,
+    matchedTime: false,
     hours: null,
     units: Number.isFinite(numeric) ? numeric : 0
   };
@@ -341,7 +397,7 @@ function formatProductionUnitsInput(units) {
 function handleProductionUnitsInput(event) {
   const parsed = productionUnitsFromInput(event.target.value);
 
-  if (parsed.matchedHours) {
+  if (parsed.matchedHours || parsed.matchedTime) {
     event.target.value = formatProductionUnitsInput(parsed.units);
   }
 
@@ -363,21 +419,25 @@ function productionPlan(unitsOverride = null) {
     let name = '–';
     let unit = '';
     let available = 0;
+    let averageUnitCost = 0;
     if (r.material_id) {
       const m = state.materials.find(x => x.id === r.material_id);
       const inv = state.materialInventory.find(x => x.material_id === r.material_id);
       name = m?.name || '–';
       unit = m?.unit || '';
       available = Number(inv?.quantity || 0);
+      averageUnitCost = Number(inv?.average_unit_cost || 0);
     } else {
       const p = state.products.find(x => x.id === r.component_product_id);
       const inv = state.inventory.find(x => x.product_id === r.component_product_id);
       name = p?.name || '–';
       available = Number(inv?.quantity || 0);
+      averageUnitCost = Number(inv?.average_unit_cost || 0);
     }
 
     const required = Number(r.quantity_per_unit || 0) * outputQty;
-    return { ...r, name, unit, available, required, enough: available + 1e-9 >= required };
+    const inputCost = required * averageUnitCost;
+    return { ...r, name, unit, available, averageUnitCost, inputCost, required, enough: available + 1e-9 >= required };
   });
 
   let maxUnitsByMaterial = Infinity;
@@ -390,9 +450,11 @@ function productionPlan(unitsOverride = null) {
   const maxUnitsByTime = ctx.unitsPerHour * 24;
   const maxUnits = Math.max(0, Math.floor(Math.min(maxUnitsByMaterial, maxUnitsByTime) * 10000) / 10000);
 
-  const productionCost = ctx.product && ctx.buildingType
-    ? (Number(ctx.product.production_cost || 0) + Number(ctx.buildingType.labor_cost_per_unit || 0)) * outputQty
+  const procurementCost = inputs.reduce((sum, input) => sum + Number(input.inputCost || 0), 0);
+  const personnelCost = ctx.buildingType
+    ? Number(ctx.buildingType.labor_cost_per_unit || 0) * outputQty
     : 0;
+  const productionCost = procurementCost + personnelCost;
 
   const materialsOk = inputs.every(i => i.enough);
   const within24h = hours > 0 && hours <= 24;
@@ -406,6 +468,8 @@ function productionPlan(unitsOverride = null) {
     hours,
     inputs,
     maxUnits,
+    procurementCost,
+    personnelCost,
     productionCost,
     materialsOk,
     within24h,
@@ -456,7 +520,9 @@ function renderProductionRecipe() {
     `<div class="kv"><span>Produktionsmenge</span><strong>${num(plan.outputQty)} Einheiten</strong></div>`,
     `<div class="kv"><span>Produktionsdauer</span><strong>${formatProductionDuration(plan.hours)}</strong></div>`,
     `<div class="kv"><span>Voraussichtliches Ende</span><strong>${building && plan.hours > 0 ? formatProductionFinish(plan.hours) : '–'}</strong></div>`,
-    `<div class="kv"><span>Produktionskosten</span><strong class="production-cost-negative">-${money(Math.abs(plan.productionCost))}</strong></div>`,
+    `<div class="kv"><span>Beschaffungskosten</span><strong class="production-cost-negative">-${money(Math.abs(plan.procurementCost))}</strong></div>`,
+    `<div class="kv"><span>Personalkosten</span><strong class="production-cost-negative">-${money(Math.abs(plan.personnelCost))}</strong></div>`,
+    `<div class="kv"><span>Produktionskosten gesamt</span><strong class="production-cost-negative">-${money(Math.abs(plan.productionCost))}</strong></div>`,
     `<div class="kv"><span>Belegschaft</span><strong>${building ? `${num(staff)} Mitarbeiter` : '–'}</strong></div>`
   ] : ['<div class="kv"><span>Benötigtes Gebäude</span><strong>Keines</strong></div>'];
 
@@ -631,6 +697,57 @@ function updateContractGoods() {
   document.getElementById('contractItem').innerHTML = opts.join('');
 }
 
+
+function financePeriodStart(period) {
+  const now = new Date();
+  if (period === 'month') {
+    return new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+  }
+  const start = new Date(now);
+  const day = (start.getDay() + 6) % 7;
+  start.setDate(start.getDate() - day);
+  start.setHours(0, 0, 0, 0);
+  return start;
+}
+
+function renderFinanceSummary() {
+  const container = document.getElementById('financeSummary');
+  if (!container) return;
+
+  const start = financePeriodStart(state.financePeriod);
+  const transactions = state.transactions.filter(t => new Date(t.created_at) >= start);
+  const jobs = state.productionJobs.filter(j => new Date(j.started_at) >= start && j.status !== 'cancelled');
+
+  const netSales = transactions
+    .filter(t => t.transaction_type === 'market_sale')
+    .reduce((sum, t) => sum + Number(t.amount || 0), 0);
+  const fees = Math.abs(transactions
+    .filter(t => t.transaction_type === 'market_fee')
+    .reduce((sum, t) => sum + Number(t.amount || 0), 0));
+  const revenue = netSales + fees;
+
+  const productionCosts = jobs.reduce(
+    (sum, j) => sum + (Number(j.finished_unit_cost || 0) * Number(j.output_quantity || 0)),
+    0
+  );
+
+  const profit = revenue - productionCosts - fees;
+  const profitClass = profit < 0 ? 'finance-negative' : 'finance-positive';
+  const periodLabel = state.financePeriod === 'month' ? 'Aktueller Monat' : 'Aktuelle Woche';
+
+  container.innerHTML = `
+    <div class="finance-summary-card"><span>Zeitraum</span><strong>${periodLabel}</strong></div>
+    <div class="finance-summary-card"><span>Einnahmen</span><strong>${money(revenue)}</strong></div>
+    <div class="finance-summary-card"><span>Produktionskosten</span><strong>-${money(productionCosts)}</strong></div>
+    <div class="finance-summary-card"><span>Gebühren</span><strong>-${money(fees)}</strong></div>
+    <div class="finance-summary-card finance-profit-card"><span>Gewinn / Verlust</span><strong class="${profitClass}">${profit < 0 ? '-' : ''}${money(Math.abs(profit))}</strong></div>
+  `;
+
+  document.querySelectorAll('.finance-period-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.period === state.financePeriod);
+  });
+}
+
 function renderAll() {
   const c = state.company;
   document.getElementById('statCompany').textContent = c.name;
@@ -658,6 +775,7 @@ function renderAll() {
   renderCompanyStatus();
 
   document.getElementById('recentTransactions').innerHTML = renderTable(['Betrag','Beschreibung','Zeit'], state.transactions.slice(0,8).map(t=>`<tr><td class="${transactionAmountClass(t.transaction_type)}">${money(t.amount)}</td><td>${t.description || transactionLabel(t.transaction_type)}</td><td>${new Date(t.created_at).toLocaleString('de-DE')}</td></tr>`));
+  renderFinanceSummary();
   document.getElementById('financeTable').innerHTML = renderTable(['Betrag','Beschreibung','Zeit'], state.transactions.map(t=>`<tr><td class="${transactionAmountClass(t.transaction_type)}">${money(t.amount)}</td><td>${t.description || transactionLabel(t.transaction_type)}</td><td>${new Date(t.created_at).toLocaleString('de-DE')}</td></tr>`));
   document.getElementById('inventoryTable').innerHTML = renderTable(['Produkt','Menge','Ø Kosten'], state.inventory.map(i=>`<tr><td>${i.products?.name || '–'}</td><td>${num(i.quantity)}</td><td>${money(i.average_unit_cost)}</td></tr>`));
   document.getElementById('materialInventoryTable').innerHTML = renderTable(['Material','Menge','Einheit','Ø Kosten'], state.materials.map(m => {
@@ -718,6 +836,7 @@ document.getElementById('logoutBtn').addEventListener('click', async () => {
     await sb.rpc('set_company_offline', { p_company_id: state.company.id });
   }
   stopPresenceHeartbeat();
+  stopNpcMarketHeartbeat();
   await sb?.auth.signOut();
 });
 
@@ -768,6 +887,7 @@ document.getElementById('deleteCompanyBtn').addEventListener('click', async () =
   }
 
   stopPresenceHeartbeat();
+  stopNpcMarketHeartbeat();
   const { error } = await sb.rpc('delete_account');
   if (error) {
     alert(error.message);
@@ -866,6 +986,11 @@ document.getElementById('marketOrderHistoryFilter').addEventListener('change',e=
   renderMarketOrderHistory();
 });
 
+document.querySelectorAll('.finance-period-btn').forEach(btn => btn.addEventListener('click', () => {
+  state.financePeriod = btn.dataset.period;
+  renderFinanceSummary();
+}));
+
 // Contracts
 ['contractRole','contractPartner','contractItemType'].forEach(id => document.getElementById(id).addEventListener('change',updateContractGoods));
 document.getElementById('contractForm').addEventListener('submit',async e=>{
@@ -893,7 +1018,10 @@ window.fulfillContract=async id=>{ const {error}=await sb.rpc('fulfill_contract'
 window.cancelContract=async id=>{ const {error}=await sb.rpc('cancel_contract',{p_contract_id:id}); if(error) alert(error.message); else await loadCompany(); };
 
 document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'visible') touchPresence();
+  if (document.visibilityState === 'visible') {
+    touchPresence();
+    runNpcMarketTickAndRefresh();
+  }
 });
 
 init();

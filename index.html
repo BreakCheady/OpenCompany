@@ -4,10 +4,10 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta name="theme-color" content="#0d2d55">
-  <title>OpenCompany MVP</title>
+  <title>OpenCompany</title>
   <link rel="icon" type="image/png" href="favicon.png">
   <link rel="shortcut icon" href="favicon.ico">
-  <link rel="stylesheet" href="style.css?v=0.1.47">
+  <link rel="stylesheet" href="style.css?v=0.1.48">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
@@ -18,6 +18,7 @@
       <button class="nav-item active" data-view="dashboard">Dashboard</button>
       <button class="nav-item" data-view="company">Unternehmen</button>
       <button class="nav-item" data-view="production">Produktion</button>
+      <button class="nav-item" data-view="storage">Lager</button>
       <button class="nav-item" data-view="buildings">Gebäude</button>
       <button class="nav-item" data-view="market">Markt</button>
       <button class="nav-item" data-view="contracts">Verträge</button>
@@ -27,7 +28,7 @@
       <span id="sessionLabel">Nicht angemeldet</span>
       <button id="logoutBtn" class="ghost hidden">Abmelden</button>
       <div class="sidebar-version">
-        <span class="sidebar-version-number">Version 0.1.47</span>
+        <span class="sidebar-version-number">Version 0.1.48</span>
         <span class="sidebar-credit">Made by BreakCheady</span>
       </div>
     </div>
@@ -94,7 +95,7 @@
             <h2>Produktion starten</h2>
             <form id="productionForm">
               <label>Produkt<select id="productionProduct"></select></label>
-              <label>Anzahl Einheiten<input type="text" id="productionUnits" value="1" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="z. B. 120 oder 6hrs"></label>
+              <label>Anzahl Einheiten<input type="text" id="productionUnits" value="1" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="z. B. 120, 6hrs oder 6pm"></label>
               <div class="production-actions">
                 <button type="button" id="productionMaxBtn" class="ghost">MAX</button>
                 <button type="button" id="production24Btn" class="ghost">24H</button>
@@ -108,7 +109,14 @@
           </article>
           <article class="panel"><h2>Produktlager</h2><div id="inventoryTable" class="table-wrap"></div></article>
         </div>
-        <article class="panel"><h2>Materiallager</h2><p class="muted">Neue Unternehmen starten ohne Rohstoffe. Beschaffe Materialien über den Markt.</p><div id="materialInventoryTable" class="table-wrap"></div></article>
+      </div>
+
+      <div id="storage" class="view">
+        <article class="panel">
+          <h2>Materiallager</h2>
+          <p class="muted">Neue Unternehmen starten ohne Rohstoffe. Beschaffe Materialien über den Markt.</p>
+          <div id="materialInventoryTable" class="table-wrap"></div>
+        </article>
       </div>
 
       <div id="buildings" class="view">
@@ -167,7 +175,25 @@
         </div>
       </div>
 
-      <div id="finance" class="view"><article class="panel"><h2>Finanzen</h2><div id="financeTable" class="table-wrap"></div></article></div>
+      <div id="finance" class="view">
+        <article class="panel">
+          <div class="panel-head finance-head">
+            <div>
+              <h2>Finanzübersicht</h2>
+              <p class="muted">Einnahmen minus Produktionskosten und Marktgebühren.</p>
+            </div>
+            <div class="finance-period-switch" aria-label="Zeitraum">
+              <button type="button" class="finance-period-btn active" data-period="week">Woche</button>
+              <button type="button" class="finance-period-btn" data-period="month">Monat</button>
+            </div>
+          </div>
+          <div id="financeSummary" class="finance-summary"></div>
+        </article>
+        <article class="panel">
+          <h2>Finanzbewegungen</h2>
+          <div id="financeTable" class="table-wrap"></div>
+        </article>
+      </div>
     </section>
 
     <section id="bootstrapView" class="panel hidden">
