@@ -381,7 +381,7 @@ function productionUnitsFromInput(rawValue) {
           matchedHours: false,
           matchedTime: true,
           hours,
-          units: ctx.unitsPerHour * hours,
+          units: Math.floor(ctx.unitsPerHour * hours),
           targetTime: target
         };
       }
@@ -393,7 +393,7 @@ function productionUnitsFromInput(rawValue) {
     matchedHours: false,
     matchedTime: false,
     hours: null,
-    units: Number.isFinite(numeric) ? numeric : 0
+    units: Number.isFinite(numeric) ? Math.floor(numeric) : 0
   };
 }
 
@@ -585,7 +585,7 @@ function renderProductionRecipe() {
       <div class="production-running-main">
         <div>
           <strong>Produktion läuft</strong>
-          <span>${num(runningJob.output_quantity)} Einheiten – fertig am ${finish.toLocaleString('de-DE', { weekday:'short', day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' })} Uhr</span>
+          <span>${num(Math.max(0, Number(runningJob.output_quantity || 0) - Number(runningJob.claimed_quantity || 0)))} Einheiten – fertig am ${finish.toLocaleString('de-DE', { weekday:'short', day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' })} Uhr</span>
         </div>
         <button type="button" class="production-claim-btn" ${claimable <= 0 ? 'disabled' : ''} onclick="claimProductionOutput('${runningJob.id}')">Abrufen</button>
       </div>
@@ -824,7 +824,7 @@ function retailQuantityFromInput(rawValue) {
           matchedHours: false,
           matchedTime: true,
           hours,
-          units: ctx.unitsPerHour * hours,
+          units: Math.floor(ctx.unitsPerHour * hours),
           targetTime: target
         };
       }
@@ -843,7 +843,7 @@ function retailQuantityFromInput(rawValue) {
 function formatRetailQuantityInput(units) {
   const value = Number(units || 0);
   if (!Number.isFinite(value)) return '0';
-  return Number.isInteger(value) ? String(value) : String(Math.round(value * 100) / 100);
+  return String(Math.max(0, Math.floor(value)));
 }
 
 function renderRetailSale() {
@@ -865,7 +865,8 @@ function renderRetailSale() {
   const ctx = retailSaleContext();
   const parsedQty = retailQuantityFromInput(qtyInput.value);
   const qty = Number(parsedQty.units || 0);
-  const hasStock = ctx.product && qty > 0 && ctx.available + 1e-9 >= qty;
+  const wholeUnits = Number.isInteger(qty);
+  const hasStock = ctx.product && qty > 0 && wholeUnits && ctx.available + 1e-9 >= qty;
   const saleHours = ctx.unitsPerHour > 0 ? qty / ctx.unitsPerHour : 0;
   const hasPrice = ctx.productionCost > 0;
   const ready = !!ctx.product && !!ctx.building && !ctx.runningJob && hasStock && hasPrice && saleHours > 0;
@@ -889,6 +890,8 @@ function renderRetailSale() {
     button.textContent = `${ctx.buildingType?.name || 'Verkaufsgebäude'} fehlt`;
   } else if (ctx.runningJob) {
     button.textContent = 'Verkauf läuft';
+  } else if (!wholeUnits) {
+    button.textContent = 'Nur ganze Einheiten';
   } else if (!hasStock) {
     button.textContent = 'Nicht genügend Bestand';
   } else if (!hasPrice) {
@@ -1425,6 +1428,19 @@ document.getElementById('sellOrderForm').addEventListener('submit', async e => {
 });
 
 document.getElementById('retailProduct').addEventListener('change', renderRetailSale);
+document.getElementById('retailMaxBtn').addEventListener('click', () => {
+  const ctx = retailSaleContext();
+  const maxUnits = Math.max(0, Math.floor(ctx.available || 0));
+  document.getElementById('retailQty').value = formatRetailQuantityInput(maxUnits);
+  renderRetailSale();
+});
+document.getElementById('retail24Btn').addEventListener('click', () => {
+  const ctx = retailSaleContext();
+  const capacity24h = Math.max(0, Math.floor((ctx.unitsPerHour || 0) * 24));
+  const available = Math.max(0, Math.floor(ctx.available || 0));
+  document.getElementById('retailQty').value = formatRetailQuantityInput(Math.min(capacity24h, available));
+  renderRetailSale();
+});
 document.getElementById('retailQty').addEventListener('input', e => {
   const parsed = retailQuantityFromInput(e.target.value);
   if (parsed.matchedHours || parsed.matchedTime) {
@@ -1438,7 +1454,7 @@ document.getElementById('retailSaleForm').addEventListener('submit', async e => 
   const parsedQuantity = retailQuantityFromInput(document.getElementById('retailQty').value);
   const quantity = Number(parsedQuantity.units || 0);
 
-  if (!ctx.product || !ctx.building || !Number.isFinite(quantity) || quantity <= 0) {
+  if (!ctx.product || !ctx.building || !Number.isFinite(quantity) || quantity <= 0 || !Number.isInteger(quantity)) {
     renderRetailSale();
     return;
   }

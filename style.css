@@ -1561,3 +1561,29 @@ td button {
     width: 100%;
   }
 }
+
+
+/* v0.1.61 – Lagerbereiche untereinander */
+#storage > .panel + .panel {
+  margin-top: 16px;
+}
+
+
+/* v0.1.62 – Handelsmenge nur ganzzahlig + MAX/24H */
+.retail-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.retail-actions .retail-sale-submit {
+  margin-left: auto;
+}
+
+@media (max-width: 560px) {
+  .retail-actions .retail-sale-submit {
+    width: 100%;
+    margin-left: 0;
+  }
+}

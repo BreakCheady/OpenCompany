@@ -7,7 +7,7 @@
   <title>OpenCompany</title>
   <link rel="icon" type="image/png" href="favicon.png">
   <link rel="shortcut icon" href="favicon.ico">
-  <link rel="stylesheet" href="style.css?v=0.1.60">
+  <link rel="stylesheet" href="style.css?v=0.1.62">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
@@ -28,7 +28,7 @@
       <span id="sessionLabel">Nicht angemeldet</span>
       <button id="logoutBtn" class="ghost hidden">Abmelden</button>
       <div class="sidebar-version">
-        <span class="sidebar-version-number">Version 0.1.60</span>
+        <span class="sidebar-version-number">Version 0.1.62</span>
         <span class="sidebar-credit">Made by BreakCheady</span>
       </div>
     </div>
@@ -109,17 +109,16 @@
       </div>
 
       <div id="storage" class="view">
-        <div class="grid two">
-          <article class="panel">
-            <h2>Produktlager</h2>
-            <div id="inventoryTable" class="table-wrap"></div>
-          </article>
-          <article class="panel">
-            <h2>Materiallager</h2>
-            <p class="muted">Neue Unternehmen starten ohne Rohstoffe. Beschaffe Materialien über den Markt.</p>
-            <div id="materialInventoryTable" class="table-wrap"></div>
-          </article>
-        </div>
+        <article class="panel">
+          <h2>Materiallager</h2>
+          <p class="muted">Neue Unternehmen starten ohne Rohstoffe. Beschaffe Materialien über den Markt.</p>
+          <div id="materialInventoryTable" class="table-wrap"></div>
+        </article>
+
+        <article class="panel">
+          <h2>Produktlager</h2>
+          <div id="inventoryTable" class="table-wrap"></div>
+        </article>
       </div>
 
       <div id="buildings" class="view">
@@ -174,8 +173,12 @@
                 autocomplete="off" autocapitalize="none" spellcheck="false"
                 placeholder="z. B. 120, 6hrs oder 6pm">
             </label>
+            <div class="retail-actions">
+              <button type="button" id="retailMaxBtn" class="ghost">MAX</button>
+              <button type="button" id="retail24Btn" class="ghost">24H</button>
+              <button type="submit" id="retailSaleBtn" class="retail-sale-submit">Im Handel verkaufen</button>
+            </div>
             <div id="retailSaleDetails" class="retail-sale-details"></div>
-            <button type="submit" id="retailSaleBtn" class="retail-sale-submit">Im Handel verkaufen</button>
           </form>
           <p class="muted retail-sale-note">Du kannst eine Stückzahl, eine Dauer wie <strong>6hrs</strong> oder eine Zielzeit wie <strong>6pm</strong> eingeben. Für den Handelsverkauf wird das passende Verkaufsgebäude benötigt.</p>
         </article>
