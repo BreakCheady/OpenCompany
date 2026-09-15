@@ -730,6 +730,66 @@ function retailSaleContext() {
   };
 }
 
+function retailQuantityFromInput(rawValue) {
+  const raw = String(rawValue ?? '').trim().toLowerCase();
+  const ctx = retailSaleContext();
+
+  const hoursMatch = raw.match(/^(\d{1,2})\s*hrs$/i);
+  if (hoursMatch) {
+    const hours = Number(hoursMatch[1]);
+    if (hours >= 1 && hours <= 24 && ctx.unitsPerHour > 0) {
+      return {
+        matchedHours: true,
+        matchedTime: false,
+        hours,
+        units: ctx.unitsPerHour * hours
+      };
+    }
+  }
+
+  const timeMatch = raw.match(/^(\d{1,2})(?::([0-5]\d))?\s*(am|pm)$/i);
+  if (timeMatch && ctx.unitsPerHour > 0) {
+    let hour = Number(timeMatch[1]);
+    const minute = Number(timeMatch[2] || 0);
+    const meridiem = timeMatch[3].toLowerCase();
+
+    if (hour >= 1 && hour <= 12) {
+      if (hour === 12) hour = 0;
+      if (meridiem === 'pm') hour += 12;
+
+      const now = new Date();
+      const target = new Date(now);
+      target.setHours(hour, minute, 0, 0);
+      if (target <= now) target.setDate(target.getDate() + 1);
+
+      const hours = (target.getTime() - now.getTime()) / 3600000;
+      if (hours > 0 && hours <= 24.01) {
+        return {
+          matchedHours: false,
+          matchedTime: true,
+          hours,
+          units: ctx.unitsPerHour * hours,
+          targetTime: target
+        };
+      }
+    }
+  }
+
+  const numeric = Number(raw.replace(',', '.'));
+  return {
+    matchedHours: false,
+    matchedTime: false,
+    hours: null,
+    units: Number.isFinite(numeric) ? numeric : 0
+  };
+}
+
+function formatRetailQuantityInput(units) {
+  const value = Number(units || 0);
+  if (!Number.isFinite(value)) return '0';
+  return Number.isInteger(value) ? String(value) : String(Math.round(value * 100) / 100);
+}
+
 function renderRetailSale() {
   const select = document.getElementById('retailProduct');
   const details = document.getElementById('retailSaleDetails');
@@ -747,7 +807,8 @@ function renderRetailSale() {
   if (retailProducts.some(p => p.id === previous)) select.value = previous;
 
   const ctx = retailSaleContext();
-  const qty = Number(qtyInput.value || 0);
+  const parsedQty = retailQuantityFromInput(qtyInput.value);
+  const qty = Number(parsedQty.units || 0);
   const hasStock = ctx.product && qty > 0 && ctx.available + 1e-9 >= qty;
   const saleHours = ctx.unitsPerHour > 0 ? qty / ctx.unitsPerHour : 0;
   const ready = !!ctx.product && !!ctx.building && !ctx.runningJob && hasStock && saleHours > 0;
@@ -1277,11 +1338,18 @@ document.getElementById('sellOrderForm').addEventListener('submit', async e => {
 });
 
 document.getElementById('retailProduct').addEventListener('change', renderRetailSale);
-document.getElementById('retailQty').addEventListener('input', renderRetailSale);
+document.getElementById('retailQty').addEventListener('input', e => {
+  const parsed = retailQuantityFromInput(e.target.value);
+  if (parsed.matchedHours || parsed.matchedTime) {
+    e.target.value = formatRetailQuantityInput(parsed.units);
+  }
+  renderRetailSale();
+});
 document.getElementById('retailSaleForm').addEventListener('submit', async e => {
   e.preventDefault();
   const ctx = retailSaleContext();
-  const quantity = Number(document.getElementById('retailQty').value);
+  const parsedQuantity = retailQuantityFromInput(document.getElementById('retailQty').value);
+  const quantity = Number(parsedQuantity.units || 0);
 
   if (!ctx.product || !ctx.building || !Number.isFinite(quantity) || quantity <= 0) {
     renderRetailSale();

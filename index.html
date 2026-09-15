@@ -7,7 +7,7 @@
   <title>OpenCompany</title>
   <link rel="icon" type="image/png" href="favicon.png">
   <link rel="shortcut icon" href="favicon.ico">
-  <link rel="stylesheet" href="style.css?v=0.1.56">
+  <link rel="stylesheet" href="style.css?v=0.1.57">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
@@ -28,7 +28,7 @@
       <span id="sessionLabel">Nicht angemeldet</span>
       <button id="logoutBtn" class="ghost hidden">Abmelden</button>
       <div class="sidebar-version">
-        <span class="sidebar-version-number">Version 0.1.56</span>
+        <span class="sidebar-version-number">Version 0.1.57</span>
         <span class="sidebar-credit">Made by BreakCheady</span>
       </div>
     </div>
@@ -166,11 +166,15 @@
           <h2>Produkt im Handel verkaufen</h2>
           <form id="retailSaleForm">
             <label>Produkt<select id="retailProduct"></select></label>
-            <label>Menge<input type="number" id="retailQty" min="1" step="1" value="1"></label>
+            <label>Menge
+              <input type="text" id="retailQty" value="1"
+                autocomplete="off" autocapitalize="none" spellcheck="false"
+                placeholder="z. B. 120, 6hrs oder 6pm">
+            </label>
             <div id="retailSaleDetails" class="retail-sale-details"></div>
             <button type="submit" id="retailSaleBtn" class="retail-sale-submit">Im Handel verkaufen</button>
           </form>
-          <p class="muted retail-sale-note">Für den Handelsverkauf wird das passende Verkaufsgebäude benötigt. Weitere Handelsvorteile folgen in einem späteren Update.</p>
+          <p class="muted retail-sale-note">Du kannst eine Stückzahl, eine Dauer wie <strong>6hrs</strong> oder eine Zielzeit wie <strong>6pm</strong> eingeben. Für den Handelsverkauf wird das passende Verkaufsgebäude benötigt.</p>
         </article>
 
         <article class="panel">
