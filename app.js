@@ -700,9 +700,15 @@ function updateContractGoods() {
 
 function financePeriodStart(period) {
   const now = new Date();
+
+  if (period === 'day') {
+    return new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+  }
+
   if (period === 'month') {
     return new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
   }
+
   const start = new Date(now);
   const day = (start.getDay() + 6) % 7;
   start.setDate(start.getDate() - day);
@@ -718,28 +724,52 @@ function renderFinanceSummary() {
   const transactions = state.transactions.filter(t => new Date(t.created_at) >= start);
   const jobs = state.productionJobs.filter(j => new Date(j.started_at) >= start && j.status !== 'cancelled');
 
+  // Marktverkäufe werden in den Transaktionen netto nach Marktgebühr gespeichert.
+  // Für die Übersicht rekonstruieren wir die Brutto-Einnahmen und ziehen Gebühren separat ab.
   const netSales = transactions
     .filter(t => t.transaction_type === 'market_sale')
     .reduce((sum, t) => sum + Number(t.amount || 0), 0);
+
   const fees = Math.abs(transactions
     .filter(t => t.transaction_type === 'market_fee')
     .reduce((sum, t) => sum + Number(t.amount || 0), 0));
+
   const revenue = netSales + fees;
 
+  // Produktionskosten = tatsächlich verbrauchte Beschaffungskosten + Personalkosten.
   const productionCosts = jobs.reduce(
     (sum, j) => sum + (Number(j.finished_unit_cost || 0) * Number(j.output_quantity || 0)),
     0
   );
 
-  const profit = revenue - productionCosts - fees;
+  // Materialeinkäufe werden hier bewusst nicht erneut als "sonstige Kosten" gezählt,
+  // da deren verbrauchter Anteil bereits in den Produktionskosten steckt.
+  // Produktionsbuchungen und Marktgebühren werden ebenfalls separat ausgewiesen.
+  const excludedCostTypes = new Set([
+    'production',
+    'production_refund',
+    'market_fee',
+    'market_buy'
+  ]);
+
+  const otherCosts = Math.abs(transactions
+    .filter(t => Number(t.amount || 0) < 0 && !excludedCostTypes.has(t.transaction_type))
+    .reduce((sum, t) => sum + Number(t.amount || 0), 0));
+
+  const profit = revenue - productionCosts - fees - otherCosts;
   const profitClass = profit < 0 ? 'finance-negative' : 'finance-positive';
-  const periodLabel = state.financePeriod === 'month' ? 'Aktueller Monat' : 'Aktuelle Woche';
+
+  const periodLabel =
+    state.financePeriod === 'day' ? 'Heute' :
+    state.financePeriod === 'month' ? 'Aktueller Monat' :
+    'Aktuelle Woche';
 
   container.innerHTML = `
     <div class="finance-summary-card"><span>Zeitraum</span><strong>${periodLabel}</strong></div>
     <div class="finance-summary-card"><span>Einnahmen</span><strong>${money(revenue)}</strong></div>
     <div class="finance-summary-card"><span>Produktionskosten</span><strong>-${money(productionCosts)}</strong></div>
     <div class="finance-summary-card"><span>Gebühren</span><strong>-${money(fees)}</strong></div>
+    <div class="finance-summary-card"><span>Sonstige Kosten</span><strong>-${money(otherCosts)}</strong></div>
     <div class="finance-summary-card finance-profit-card"><span>Gewinn / Verlust</span><strong class="${profitClass}">${profit < 0 ? '-' : ''}${money(Math.abs(profit))}</strong></div>
   `;
 

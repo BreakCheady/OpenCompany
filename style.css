@@ -1233,3 +1233,39 @@ td button {
     flex: 1;
   }
 }
+
+
+/* v0.1.49 – Finanzübersicht mit Tag/Woche/Monat und sonstigen Kosten */
+.finance-summary {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+}
+
+@media (max-width: 1200px) {
+  .finance-summary {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .finance-profit-card {
+    grid-column: auto;
+  }
+}
+
+@media (max-width: 760px) {
+  .finance-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .finance-profit-card {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 560px) {
+  .finance-summary {
+    grid-template-columns: 1fr;
+  }
+
+  .finance-profit-card {
+    grid-column: auto;
+  }
+}
