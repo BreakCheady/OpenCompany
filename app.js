@@ -726,7 +726,8 @@ function retailSaleContext() {
     runningJob,
     unitsPerHour,
     available: Number(inventory?.quantity || 0),
-    price: Number(product?.suggested_retail_price || 0)
+    productionCost: Number(inventory?.average_unit_cost || 0),
+    price: Number(inventory?.average_unit_cost || 0) * 2
   };
 }
 
@@ -811,13 +812,15 @@ function renderRetailSale() {
   const qty = Number(parsedQty.units || 0);
   const hasStock = ctx.product && qty > 0 && ctx.available + 1e-9 >= qty;
   const saleHours = ctx.unitsPerHour > 0 ? qty / ctx.unitsPerHour : 0;
-  const ready = !!ctx.product && !!ctx.building && !ctx.runningJob && hasStock && saleHours > 0;
+  const hasPrice = ctx.productionCost > 0;
+  const ready = !!ctx.product && !!ctx.building && !ctx.runningJob && hasStock && hasPrice && saleHours > 0;
 
   details.innerHTML = ctx.product ? [
     `<div class="kv"><span>Verkaufsgebäude</span><strong>${ctx.buildingType?.name || '–'}</strong></div>`,
     `<div class="kv"><span>Gebäudestatus</span><strong class="${ctx.building ? 'retail-ready' : 'retail-missing'}">${ctx.runningJob ? 'Verkauf läuft' : (ctx.building ? 'Bereit' : 'Fehlt')}</strong></div>`,
     `<div class="kv"><span>Verkaufsrate</span><strong>${ctx.building ? `${num(ctx.unitsPerHour)} Einheiten / Std.` : '–'}</strong></div>`,
     `<div class="kv"><span>Bestand</span><strong>${num(ctx.available)} Einheiten</strong></div>`,
+    `<div class="kv"><span>Produktionskosten</span><strong>${money(ctx.productionCost)} / Einheit</strong></div>`,
     `<div class="kv"><span>Verkaufspreis</span><strong>${money(ctx.price)} / Einheit</strong></div>`,
     `<div class="kv"><span>Verkaufsdauer</span><strong>${ctx.building && saleHours > 0 ? formatProductionDuration(saleHours) : '–'}</strong></div>`,
     `<div class="kv"><span>Voraussichtliches Ende</span><strong>${ctx.building && saleHours > 0 ? formatProductionFinish(saleHours) : '–'}</strong></div>`,
@@ -834,6 +837,8 @@ function renderRetailSale() {
     button.textContent = 'Verkauf läuft';
   } else if (!hasStock) {
     button.textContent = 'Nicht genügend Bestand';
+  } else if (!hasPrice) {
+    button.textContent = 'Produktionskosten fehlen';
   } else {
     button.textContent = 'Im Handel verkaufen';
   }
