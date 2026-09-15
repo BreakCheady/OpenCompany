@@ -1507,3 +1507,57 @@ td button {
   color: #7a6416 !important;
   border: 2px solid #e4b928 !important;
 }
+
+
+/* v0.1.60 – Teilabruf laufender Produktion */
+.production-running-main {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.production-running-main > div {
+  display: grid;
+  gap: 3px;
+}
+
+.production-running .production-claim-btn:not(:disabled) {
+  background: var(--success);
+  color: #fff;
+  border-color: var(--success);
+  flex: 0 0 auto;
+}
+
+.production-running .production-claim-btn:not(:disabled):hover {
+  background: #116b4a;
+  border-color: #116b4a;
+}
+
+.production-running .production-claim-btn:disabled {
+  opacity: .55;
+  cursor: not-allowed;
+}
+
+.production-claimable {
+  margin-top: 10px;
+  padding-top: 9px;
+  border-top: 1px solid rgba(122, 100, 22, .22);
+  font-size: 12px;
+  color: #7a6416;
+}
+
+.production-claimable.has-output strong {
+  color: #4f6f27;
+}
+
+@media (max-width: 560px) {
+  .production-running-main {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .production-running .production-claim-btn {
+    width: 100%;
+  }
+}

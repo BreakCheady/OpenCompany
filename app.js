@@ -31,6 +31,7 @@ const state = {
 
 let presenceTimer = null;
 let productionRefreshTimer = null;
+let productionClaimDisplayTimer = null;
 let npcMarketTimer = null;
 
 const money = n => new Intl.NumberFormat('de-DE', { style:'currency', currency:'EUR', maximumFractionDigits:2 })
@@ -513,6 +514,47 @@ function formatProductionFinish(hours) {
   }) + ' Uhr';
 }
 
+function productionClaimableQuantity(job) {
+  if (!job || job.status !== 'running') return 0;
+
+  const output = Number(job.output_quantity || 0);
+  const claimed = Number(job.claimed_quantity || 0);
+  const unitsPerHour = Number(job.units_per_hour || 0);
+  const startedAt = new Date(job.started_at).getTime();
+  const finishesAt = new Date(job.finishes_at).getTime();
+  const now = Date.now();
+
+  let produced;
+  if (now >= finishesAt) {
+    produced = output;
+  } else {
+    const elapsedHours = Math.max(0, (now - startedAt) / 3600000);
+    produced = Math.min(output, Math.floor(unitsPerHour * elapsedHours));
+  }
+
+  return Math.max(0, produced - claimed);
+}
+
+function productionProductDisplayName(name, quantity) {
+  if (name === 'Elektronikmodul' && Number(quantity) !== 1) return 'Elektronikmodule';
+  if (name === 'Smartphone' && Number(quantity) !== 1) return 'Smartphones';
+  return name || 'Einheiten';
+}
+
+function startProductionClaimDisplayTimer() {
+  if (productionClaimDisplayTimer) clearInterval(productionClaimDisplayTimer);
+  productionClaimDisplayTimer = null;
+
+  const hasRunningProduction = state.productionJobs.some(j => j.status === 'running');
+  if (!hasRunningProduction) return;
+
+  productionClaimDisplayTimer = setInterval(() => {
+    if (document.visibilityState === 'visible' && document.getElementById('production')?.classList.contains('active-view')) {
+      renderProductionRecipe();
+    }
+  }, 10000);
+}
+
 function renderProductionRecipe() {
   const plan = productionPlan();
   const { buildingType, building, multiplier, unitsPerHour, runningJob } = plan;
@@ -535,7 +577,20 @@ function renderProductionRecipe() {
 
   if (runningJob) {
     const finish = new Date(runningJob.finishes_at);
-    statusRows.push(`<div class="production-running"><strong>Produktion läuft</strong><span>${num(runningJob.output_quantity)} Einheiten – fertig am ${finish.toLocaleString('de-DE', { weekday:'short', day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' })} Uhr</span></div>`);
+    const claimable = productionClaimableQuantity(runningJob);
+    const runningProduct = state.products.find(p => p.id === runningJob.product_id);
+    const productName = productionProductDisplayName(runningProduct?.name, claimable);
+
+    statusRows.push(`<div class="production-running">
+      <div class="production-running-main">
+        <div>
+          <strong>Produktion läuft</strong>
+          <span>${num(runningJob.output_quantity)} Einheiten – fertig am ${finish.toLocaleString('de-DE', { weekday:'short', day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' })} Uhr</span>
+        </div>
+        <button type="button" class="production-claim-btn" ${claimable <= 0 ? 'disabled' : ''} onclick="claimProductionOutput('${runningJob.id}')">Abrufen</button>
+      </div>
+      <div class="production-claimable ${claimable > 0 ? 'has-output' : ''}">Abrufbar: <strong>${num(claimable)} ${productName}</strong></div>
+    </div>`);
   }
 
   document.getElementById('productionRequirement').innerHTML = statusRows.join('');
@@ -820,7 +875,6 @@ function renderRetailSale() {
     `<div class="kv"><span>Gebäudestatus</span><strong class="${ctx.building ? 'retail-ready' : 'retail-missing'}">${ctx.runningJob ? 'Verkauf läuft' : (ctx.building ? 'Bereit' : 'Fehlt')}</strong></div>`,
     `<div class="kv"><span>Verkaufsrate</span><strong>${ctx.building ? `${num(ctx.unitsPerHour)} Einheiten / Std.` : '–'}</strong></div>`,
     `<div class="kv"><span>Bestand</span><strong>${num(ctx.available)} Einheiten</strong></div>`,
-    `<div class="kv"><span>Produktionskosten</span><strong>${money(ctx.productionCost)} / Einheit</strong></div>`,
     `<div class="kv"><span>Verkaufspreis</span><strong>${money(ctx.price)} / Einheit</strong></div>`,
     `<div class="kv"><span>Verkaufsdauer</span><strong>${ctx.building && saleHours > 0 ? formatProductionDuration(saleHours) : '–'}</strong></div>`,
     `<div class="kv"><span>Voraussichtliches Ende</span><strong>${ctx.building && saleHours > 0 ? formatProductionFinish(saleHours) : '–'}</strong></div>`,
@@ -1222,7 +1276,7 @@ document.getElementById('productionForm').addEventListener('submit', async e => 
   const plan = productionPlan();
 
   if (plan.runningJob) {
-    if (!confirm('Produktion wirklich abbrechen? 95% der Produktionskosten und 95% der Materialien werden erstattet.')) return;
+    if (!confirm('Produktion wirklich abbrechen? Bereits fertiggestellte Einheiten werden übernommen. Von den noch nicht produzierten Einheiten werden 95% der zugehörigen Produktionskosten und Materialien erstattet.')) return;
     const { error } = await sb.rpc('cancel_production', {
       p_company_id: state.company.id,
       p_job_id: plan.runningJob.id
@@ -1243,6 +1297,34 @@ document.getElementById('productionForm').addEventListener('submit', async e => 
   });
   if(error) alert(error.message); else await loadCompany();
 });
+window.claimProductionOutput = async function(jobId) {
+  const job = state.productionJobs.find(j => j.id === jobId);
+  if (!job) return;
+
+  const claimable = productionClaimableQuantity(job);
+  if (claimable <= 0) {
+    renderProductionRecipe();
+    return;
+  }
+
+  const { data, error } = await sb.rpc('claim_production_output', {
+    p_company_id: state.company.id,
+    p_job_id: jobId
+  });
+
+  if (error) {
+    alert(error.message);
+    return;
+  }
+
+  const claimed = Number(data || 0);
+  if (claimed > 0) {
+    await loadCompany();
+  } else {
+    renderProductionRecipe();
+  }
+};
+
 window.buildBuilding = async function(buildingTypeId) {
   const bt = state.buildingTypes.find(b => b.id === buildingTypeId);
   if (!bt) return;
