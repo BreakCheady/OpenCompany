@@ -45,7 +45,8 @@ function transactionLabel(type) {
   return ({
     founding_capital: 'Startkapital',
     market_sale: 'Marktverkauf',
-    retail_sale: 'Handelsverkauf',
+    retail_sale: 'Handelsgewinn',
+    retail_cancel_fee: 'Abbruchgebühr Handel',
     market_fee: 'Gebühr',
     market_buy: 'Kauf',
     production: 'Produktion',
@@ -56,7 +57,7 @@ function transactionLabel(type) {
 }
 
 function transactionAmountClass(type) {
-  return ['market_fee', 'market_buy', 'production', 'construction'].includes(type) ? 'transaction-amount fee' : 'transaction-amount';
+  return ['market_fee', 'market_buy', 'production', 'construction', 'retail_cancel_fee'].includes(type) ? 'transaction-amount fee' : 'transaction-amount';
 }
 
 
@@ -355,7 +356,7 @@ function productionUnitsFromInput(rawValue) {
         matchedHours: true,
         matchedTime: false,
         hours,
-        units: ctx.unitsPerHour * hours
+        units: Math.floor(ctx.unitsPerHour * hours)
       };
     }
   }
@@ -545,12 +546,18 @@ function startProductionClaimDisplayTimer() {
   if (productionClaimDisplayTimer) clearInterval(productionClaimDisplayTimer);
   productionClaimDisplayTimer = null;
 
-  const hasRunningProduction = state.productionJobs.some(j => j.status === 'running');
-  if (!hasRunningProduction) return;
+  const hasRunningActivity =
+    state.productionJobs.some(j => j.status === 'running') ||
+    state.retailSaleJobs.some(j => j.status === 'running');
+  if (!hasRunningActivity) return;
 
   productionClaimDisplayTimer = setInterval(() => {
-    if (document.visibilityState === 'visible' && document.getElementById('production')?.classList.contains('active-view')) {
+    if (document.visibilityState !== 'visible') return;
+    if (document.getElementById('production')?.classList.contains('active-view')) {
       renderProductionRecipe();
+    }
+    if (document.getElementById('market')?.classList.contains('active-view')) {
+      renderRetailSale();
     }
   }, 10000);
 }
@@ -836,7 +843,7 @@ function retailQuantityFromInput(rawValue) {
     matchedHours: false,
     matchedTime: false,
     hours: null,
-    units: Number.isFinite(numeric) ? numeric : 0
+    units: Number.isFinite(numeric) ? Math.floor(numeric) : 0
   };
 }
 
@@ -846,11 +853,56 @@ function formatRetailQuantityInput(units) {
   return String(Math.max(0, Math.floor(value)));
 }
 
+function retailSoldQuantity(job) {
+  if (!job || job.status !== 'running') return 0;
+  const quantity = Number(job.quantity || 0);
+  const unitsPerHour = Number(job.units_per_hour || 0);
+  const startedAt = new Date(job.started_at).getTime();
+  const finishesAt = new Date(job.finishes_at).getTime();
+  const now = Date.now();
+
+  if (now >= finishesAt) return quantity;
+  const elapsedHours = Math.max(0, (now - startedAt) / 3600000);
+  return Math.min(quantity, Math.floor(unitsPerHour * elapsedHours));
+}
+
+function retailSaleProgress(job) {
+  if (!job) {
+    return {
+      sold: 0,
+      claimed: 0,
+      claimableUnits: 0,
+      unitPrice: 0,
+      claimableRevenue: 0,
+      openRevenue: 0,
+      cancellationFee: 0
+    };
+  }
+
+  const quantity = Number(job.quantity || 0);
+  const claimed = Number(job.claimed_quantity || 0);
+  const sold = retailSoldQuantity(job);
+  const claimableUnits = Math.max(0, sold - claimed);
+  const unitPrice = quantity > 0 ? Number(job.total_value || 0) / quantity : 0;
+
+  return {
+    sold,
+    claimed,
+    claimableUnits,
+    unitPrice,
+    claimableRevenue: claimableUnits * unitPrice,
+    openRevenue: Math.max(0, Number(job.total_value || 0) - claimed * unitPrice),
+    cancellationFee: Number(job.total_value || 0) * 0.10
+  };
+}
+
 function renderRetailSale() {
   const select = document.getElementById('retailProduct');
   const details = document.getElementById('retailSaleDetails');
   const button = document.getElementById('retailSaleBtn');
   const qtyInput = document.getElementById('retailQty');
+  const maxBtn = document.getElementById('retailMaxBtn');
+  const h24Btn = document.getElementById('retail24Btn');
   if (!select || !details || !button || !qtyInput) return;
 
   const retailProducts = state.products.filter(p => p.required_retail_building_type_id);
@@ -871,9 +923,45 @@ function renderRetailSale() {
   const hasPrice = ctx.productionCost > 0;
   const ready = !!ctx.product && !!ctx.building && !ctx.runningJob && hasStock && hasPrice && saleHours > 0;
 
+  button.classList.remove('retail-cancel-mode');
+  select.disabled = !!ctx.runningJob;
+  qtyInput.disabled = !!ctx.runningJob;
+  if (maxBtn) maxBtn.disabled = !!ctx.runningJob;
+  if (h24Btn) h24Btn.disabled = !!ctx.runningJob;
+
+  if (ctx.runningJob) {
+    const job = ctx.runningJob;
+    const progress = retailSaleProgress(job);
+    const runningProduct = state.products.find(p => p.id === job.product_id);
+    const finish = new Date(job.finishes_at);
+    const remainingUnits = Math.max(0, Number(job.quantity || 0) - progress.sold);
+
+    details.innerHTML = `
+      <div class="retail-running-box">
+        <div class="retail-running-head">
+          <div>
+            <strong>Verkauf läuft</strong>
+            <span>${num(remainingUnits)} ${productionProductDisplayName(runningProduct?.name, remainingUnits)} noch offen – fertig am ${finish.toLocaleString('de-DE', { weekday:'short', day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' })} Uhr</span>
+          </div>
+          <button type="button" class="retail-collect-btn" ${progress.claimableUnits <= 0 ? 'disabled' : ''} onclick="collectRetailRevenue('${job.id}')">Einsammeln</button>
+        </div>
+        <div class="kv"><span>Bereits verkauft</span><strong>${num(progress.sold)} ${productionProductDisplayName(runningProduct?.name, progress.sold)}</strong></div>
+        <div class="kv"><span>Einsammelbarer Erlös</span><strong class="retail-revenue-positive">${money(progress.claimableRevenue)}</strong></div>
+        <div class="kv"><span>Erwarteter Erlös (offen)</span><strong>${money(progress.openRevenue)}</strong></div>
+        <div class="kv"><span>Abbruchgebühr</span><strong class="retail-cancel-fee">-${money(progress.cancellationFee)}</strong></div>
+      </div>`;
+
+    button.disabled = false;
+    button.textContent = 'Verkauf abbrechen';
+    button.classList.add('retail-cancel-mode');
+    startProductionClaimDisplayTimer();
+    scheduleProductionRefresh();
+    return;
+  }
+
   details.innerHTML = ctx.product ? [
     `<div class="kv"><span>Verkaufsgebäude</span><strong>${ctx.buildingType?.name || '–'}</strong></div>`,
-    `<div class="kv"><span>Gebäudestatus</span><strong class="${ctx.building ? 'retail-ready' : 'retail-missing'}">${ctx.runningJob ? 'Verkauf läuft' : (ctx.building ? 'Bereit' : 'Fehlt')}</strong></div>`,
+    `<div class="kv"><span>Gebäudestatus</span><strong class="${ctx.building ? 'retail-ready' : 'retail-missing'}">${ctx.building ? 'Bereit' : 'Fehlt'}</strong></div>`,
     `<div class="kv"><span>Verkaufsrate</span><strong>${ctx.building ? `${num(ctx.unitsPerHour)} Einheiten / Std.` : '–'}</strong></div>`,
     `<div class="kv"><span>Bestand</span><strong>${num(ctx.available)} Einheiten</strong></div>`,
     `<div class="kv"><span>Verkaufspreis</span><strong>${money(ctx.price)} / Einheit</strong></div>`,
@@ -888,8 +976,6 @@ function renderRetailSale() {
     button.textContent = 'Kein Handelsprodukt';
   } else if (!ctx.building) {
     button.textContent = `${ctx.buildingType?.name || 'Verkaufsgebäude'} fehlt`;
-  } else if (ctx.runningJob) {
-    button.textContent = 'Verkauf läuft';
   } else if (!wholeUnits) {
     button.textContent = 'Nur ganze Einheiten';
   } else if (!hasStock) {
@@ -900,6 +986,7 @@ function renderRetailSale() {
     button.textContent = 'Im Handel verkaufen';
   }
 
+  startProductionClaimDisplayTimer();
   scheduleProductionRefresh();
 }
 
@@ -1057,7 +1144,7 @@ function renderFinanceSummary() {
     .reduce((sum, t) => sum + Number(t.amount || 0), 0);
 
   const fees = Math.abs(transactions
-    .filter(t => t.transaction_type === 'market_fee')
+    .filter(t => ['market_fee', 'retail_cancel_fee'].includes(t.transaction_type))
     .reduce((sum, t) => sum + Number(t.amount || 0), 0));
 
   const buildingRefunds = transactions
@@ -1079,6 +1166,7 @@ function renderFinanceSummary() {
     'production',
     'production_refund',
     'market_fee',
+    'retail_cancel_fee',
     'market_buy'
   ]);
 
@@ -1096,7 +1184,7 @@ function renderFinanceSummary() {
 
   container.innerHTML = `
     <div class="finance-summary-card finance-period-card"><span>Zeitraum</span><strong>${periodLabel}</strong><small>${periodRange}</small></div>
-    <div class="finance-summary-card"><span>Einnahmen</span><strong>${money(revenue)}</strong></div>
+    <div class="finance-summary-card"><span>Einnahmen / Gewinne</span><strong>${money(revenue)}</strong></div>
     <div class="finance-summary-card finance-cost-card"><span>Produktionskosten</span><strong>-${money(productionCosts)}</strong></div>
     <div class="finance-summary-card finance-cost-card"><span>Gebühren</span><strong>-${money(fees)}</strong></div>
     <div class="finance-summary-card finance-cost-card"><span>Sonstige Kosten</span><strong>-${money(otherCosts)}</strong></div>
@@ -1451,6 +1539,21 @@ document.getElementById('retailQty').addEventListener('input', e => {
 document.getElementById('retailSaleForm').addEventListener('submit', async e => {
   e.preventDefault();
   const ctx = retailSaleContext();
+
+  if (ctx.runningJob) {
+    const progress = retailSaleProgress(ctx.runningJob);
+    if (!confirm(`Verkauf wirklich abbrechen? Noch nicht verkaufte Ware wird zurück ins Lager gelegt. Abbruchgebühr: ${money(progress.cancellationFee)} (10% des erwarteten Erlöses).`)) return;
+
+    const { error } = await sb.rpc('cancel_retail_sale', {
+      p_company_id: state.company.id,
+      p_job_id: ctx.runningJob.id
+    });
+
+    if (error) alert(error.message);
+    else await loadCompany();
+    return;
+  }
+
   const parsedQuantity = retailQuantityFromInput(document.getElementById('retailQty').value);
   const quantity = Number(parsedQuantity.units || 0);
 
@@ -1471,6 +1574,30 @@ document.getElementById('retailSaleForm').addEventListener('submit', async e => 
     await loadCompany();
   }
 });
+window.collectRetailRevenue = async function(jobId) {
+  const job = state.retailSaleJobs.find(j => j.id === jobId);
+  if (!job) return;
+
+  const progress = retailSaleProgress(job);
+  if (progress.claimableUnits <= 0) {
+    renderRetailSale();
+    return;
+  }
+
+  const { data, error } = await sb.rpc('claim_retail_revenue', {
+    p_company_id: state.company.id,
+    p_job_id: jobId
+  });
+
+  if (error) {
+    alert(error.message);
+    return;
+  }
+
+  if (Number(data || 0) > 0) await loadCompany();
+  else renderRetailSale();
+};
+
 window.buyOrder = async function(orderId) {
   const qty=Number(prompt('Wie viele Einheiten möchtest du kaufen?','1'));
   if(!Number.isFinite(qty)||qty<=0) return;

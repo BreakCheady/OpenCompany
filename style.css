@@ -1587,3 +1587,77 @@ td button {
     margin-left: 0;
   }
 }
+
+
+/* v0.1.63 – Erlöse während laufendem Handelsverkauf einsammeln */
+.retail-running-box {
+  display: grid;
+  gap: 8px;
+  padding: 12px 14px;
+  border: 2px solid #e4b928;
+  border-radius: 10px;
+  background: #fff8d8;
+}
+
+.retail-running-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding-bottom: 9px;
+  border-bottom: 1px solid rgba(122, 100, 22, .22);
+}
+
+.retail-running-head > div {
+  display: grid;
+  gap: 3px;
+}
+
+.retail-running-head > div > strong {
+  color: #6f5600;
+}
+
+.retail-running-head > div > span {
+  color: #7a6416;
+  font-size: 11px;
+}
+
+.retail-collect-btn:not(:disabled) {
+  background: var(--success) !important;
+  color: #fff !important;
+  border-color: var(--success) !important;
+}
+
+.retail-collect-btn:disabled {
+  opacity: .55;
+  cursor: not-allowed;
+}
+
+.retail-revenue-positive {
+  color: var(--success);
+}
+
+.retail-cancel-fee {
+  color: var(--danger);
+}
+
+.retail-sale-submit.retail-cancel-mode:not(:disabled) {
+  background: var(--danger) !important;
+  color: #fff !important;
+  border-color: var(--danger) !important;
+}
+
+.retail-sale-submit.retail-cancel-mode:not(:disabled):hover {
+  filter: brightness(.9);
+}
+
+@media (max-width: 560px) {
+  .retail-running-head {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .retail-collect-btn {
+    width: 100%;
+  }
+}
