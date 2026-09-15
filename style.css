@@ -1495,3 +1495,15 @@ td button {
   color: #6f7f8f;
   border-color: #cfd8e2;
 }
+
+
+/* v0.1.56 – zeitbasierter Handelsverkauf */
+.retail-sale-details .retail-ready {
+  color: var(--success);
+}
+
+#buildingsTable .building-running-btn:disabled {
+  background: #fff8d8 !important;
+  color: #7a6416 !important;
+  border: 2px solid #e4b928 !important;
+}

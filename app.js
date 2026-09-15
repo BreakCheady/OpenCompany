@@ -18,6 +18,7 @@ const state = {
   buildingTypes: [],
   buildings: [],
   productionJobs: [],
+  retailSaleJobs: [],
   transactions: [],
   marketOrders: [],
   marketOrderHistory: [],
@@ -48,7 +49,8 @@ function transactionLabel(type) {
     market_buy: 'Kauf',
     production: 'Produktion',
     production_refund: 'Erstattung Produktion',
-    construction: 'Baukosten'
+    construction: 'Baukosten',
+    building_refund: 'Gebäude-Erstattung'
   })[type] || type;
 }
 
@@ -266,6 +268,8 @@ async function loadCompany() {
     startNpcMarketHeartbeat();
     const completedJobs = await sb.rpc('complete_due_production_jobs', { p_company_id: data.id });
     if (completedJobs.error) console.warn('Produktionsabschluss:', completedJobs.error.message);
+    const completedRetailSales = await sb.rpc('complete_due_retail_sales', { p_company_id: data.id });
+    if (completedRetailSales.error) console.warn('Handelsabschluss:', completedRetailSales.error.message);
     // NPCs may buy suitable player orders at most once every five minutes.
     const npcTick = await sb.rpc('run_npc_market_tick');
     if (npcTick.error) console.warn('NPC-Markt-Tick:', npcTick.error.message);
@@ -285,6 +289,7 @@ async function loadGameData() {
     sb.from('building_types').select('*').order('construction_cost'),
     sb.from('company_buildings').select('*').eq('company_id', cid),
     sb.from('production_jobs').select('*').eq('company_id', cid).order('started_at', {ascending:false}).limit(500),
+    sb.from('retail_sale_jobs').select('*').eq('company_id', cid).order('started_at', {ascending:false}).limit(500),
     sb.from('financial_transactions').select('*').eq('company_id', cid).order('created_at', {ascending:false}).limit(500),
     sb.from('market_orders').select('*, products(name), materials(name)').in('status',['open','partially_filled']).order('created_at',{ascending:false}).limit(100),
     sb.from('market_orders').select('*, products(name), materials(name)').in('status',['filled','cancelled']).order('created_at',{ascending:false}).limit(100),
@@ -292,7 +297,7 @@ async function loadGameData() {
     sb.rpc('list_companies')
   ]);
 
-  const labels = ['Produkte','Alle Produkte','Produktlager','Materialien','Materiallager','Rezepte','Gebäudetypen','Gebäude','Produktionen','Finanzen','Marktorders','Order-Historie','Verträge','Firmenverzeichnis'];
+  const labels = ['Produkte','Alle Produkte','Produktlager','Materialien','Materiallager','Rezepte','Gebäudetypen','Gebäude','Produktionen','Handelsverkäufe','Finanzen','Marktorders','Order-Historie','Verträge','Firmenverzeichnis'];
   const errors = results.map((r,i)=>r.error ? { label: labels[i], error:r.error } : null).filter(Boolean);
   if (errors.length) {
     console.error(errors);
@@ -301,7 +306,7 @@ async function loadGameData() {
   }
   clearGameDataError();
 
-  const [products, allProducts, inventory, materials, materialInventory, recipes, buildingTypes, buildings, productionJobs, tx, orders, history, contracts, directory] = results;
+  const [products, allProducts, inventory, materials, materialInventory, recipes, buildingTypes, buildings, productionJobs, retailSaleJobs, tx, orders, history, contracts, directory] = results;
   state.products = products.data;
   state.allProducts = allProducts.data;
   state.inventory = inventory.data;
@@ -311,6 +316,7 @@ async function loadGameData() {
   state.buildingTypes = buildingTypes.data;
   state.buildings = buildings.data;
   state.productionJobs = productionJobs.data;
+  state.retailSaleJobs = retailSaleJobs.data;
   state.transactions = tx.data;
   state.marketOrders = orders.data;
   state.marketOrderHistory = history.data;
@@ -582,7 +588,10 @@ function renderProductionRecipe() {
 
 function scheduleProductionRefresh() {
   if (productionRefreshTimer) clearTimeout(productionRefreshTimer);
-  const running = state.productionJobs.filter(j => j.status === 'running');
+  const running = [
+    ...state.productionJobs.filter(j => j.status === 'running'),
+    ...state.retailSaleJobs.filter(j => j.status === 'running')
+  ];
   if (!running.length) return;
   const nextFinish = Math.min(...running.map(j => new Date(j.finishes_at).getTime()));
   const delay = Math.max(1000, Math.min(2147480000, nextFinish - Date.now() + 1000));
@@ -645,10 +654,9 @@ function renderBuildings() {
       const productionRunning = state.productionJobs.some(
         j => j.building_id === building.id && j.status === 'running'
       );
-
-      // Verkaufsgebäude können künftig ebenfalls einen laufenden Verkaufsstatus besitzen.
-      // Sobald der Status entsprechend gesetzt ist, werden die Verwaltungsbuttons ausgeblendet.
-      const retailRunning = isRetail && ['selling', 'retail_running', 'in_use'].includes(String(building.status || '').toLowerCase());
+      const retailRunning = state.retailSaleJobs.some(
+        j => j.building_id === building.id && j.status === 'running'
+      );
       const buildingInUse = productionRunning || retailRunning;
       const runningLabel = isRetail ? 'Verkauf läuft' : 'Produktion läuft';
       const reduceLabel = level <= 1 ? 'Abreißen' : 'Abstufen';
@@ -670,7 +678,7 @@ function renderBuildings() {
         <td>${bt.name}</td>
         <td>${buildingCategoryLabel(bt.building_category)}</td>
         <td>Level ${level}</td>
-        <td>${isRetail ? 'Verkaufsgebäude' : `${num(capacity)} Einheiten`}</td>
+        <td>${num(capacity)} Einheiten</td>
         <td>${num(staff)}</td>
         <td>Level ${nextLevel}: +${num(nextPercent)}%</td>
         <td><span class="building-upgrade-cost">-${money(Math.abs(nextCost))}</span></td>
@@ -702,11 +710,21 @@ function retailSaleContext() {
       )
     : null;
 
+  const multiplier = building ? buildingLevelMultiplier(building.level) : 1;
+  const unitsPerHour = buildingType && building
+    ? Number(buildingType.base_units_per_hour || 0) * multiplier
+    : 0;
+  const runningJob = building
+    ? state.retailSaleJobs.find(j => j.building_id === building.id && j.status === 'running')
+    : null;
+
   return {
     product,
     inventory,
     buildingType,
     building,
+    runningJob,
+    unitsPerHour,
     available: Number(inventory?.quantity || 0),
     price: Number(product?.suggested_retail_price || 0)
   };
@@ -731,13 +749,17 @@ function renderRetailSale() {
   const ctx = retailSaleContext();
   const qty = Number(qtyInput.value || 0);
   const hasStock = ctx.product && qty > 0 && ctx.available + 1e-9 >= qty;
-  const ready = !!ctx.product && !!ctx.building && hasStock;
+  const saleHours = ctx.unitsPerHour > 0 ? qty / ctx.unitsPerHour : 0;
+  const ready = !!ctx.product && !!ctx.building && !ctx.runningJob && hasStock && saleHours > 0;
 
   details.innerHTML = ctx.product ? [
     `<div class="kv"><span>Verkaufsgebäude</span><strong>${ctx.buildingType?.name || '–'}</strong></div>`,
-    `<div class="kv"><span>Gebäudestatus</span><strong class="${ctx.building ? 'retail-ready' : 'retail-missing'}">${ctx.building ? 'Vorhanden' : 'Fehlt'}</strong></div>`,
+    `<div class="kv"><span>Gebäudestatus</span><strong class="${ctx.building ? 'retail-ready' : 'retail-missing'}">${ctx.runningJob ? 'Verkauf läuft' : (ctx.building ? 'Bereit' : 'Fehlt')}</strong></div>`,
+    `<div class="kv"><span>Verkaufsrate</span><strong>${ctx.building ? `${num(ctx.unitsPerHour)} Einheiten / Std.` : '–'}</strong></div>`,
     `<div class="kv"><span>Bestand</span><strong>${num(ctx.available)} Einheiten</strong></div>`,
     `<div class="kv"><span>Verkaufspreis</span><strong>${money(ctx.price)} / Einheit</strong></div>`,
+    `<div class="kv"><span>Verkaufsdauer</span><strong>${ctx.building && saleHours > 0 ? formatProductionDuration(saleHours) : '–'}</strong></div>`,
+    `<div class="kv"><span>Voraussichtliches Ende</span><strong>${ctx.building && saleHours > 0 ? formatProductionFinish(saleHours) : '–'}</strong></div>`,
     `<div class="kv"><span>Erwarteter Erlös</span><strong>${money(ctx.price * Math.max(0, qty))}</strong></div>`
   ].join('') : '<p class="muted">Für dieses Unternehmen sind noch keine Handelsprodukte vorhanden.</p>';
 
@@ -747,11 +769,15 @@ function renderRetailSale() {
     button.textContent = 'Kein Handelsprodukt';
   } else if (!ctx.building) {
     button.textContent = `${ctx.buildingType?.name || 'Verkaufsgebäude'} fehlt`;
+  } else if (ctx.runningJob) {
+    button.textContent = 'Verkauf läuft';
   } else if (!hasStock) {
     button.textContent = 'Nicht genügend Bestand';
   } else {
     button.textContent = 'Im Handel verkaufen';
   }
+
+  scheduleProductionRefresh();
 }
 
 function renderMarket() {
@@ -911,7 +937,11 @@ function renderFinanceSummary() {
     .filter(t => t.transaction_type === 'market_fee')
     .reduce((sum, t) => sum + Number(t.amount || 0), 0));
 
-  const revenue = netSales + fees + retailSales;
+  const buildingRefunds = transactions
+    .filter(t => t.transaction_type === 'building_refund')
+    .reduce((sum, t) => sum + Number(t.amount || 0), 0);
+
+  const revenue = netSales + fees + retailSales + buildingRefunds;
 
   // Produktionskosten = tatsächlich verbrauchte Beschaffungskosten + Personalkosten.
   const productionCosts = jobs.reduce(
@@ -1258,7 +1288,7 @@ document.getElementById('retailSaleForm').addEventListener('submit', async e => 
     return;
   }
 
-  const { error } = await sb.rpc('sell_retail_product', {
+  const { error } = await sb.rpc('start_retail_sale', {
     p_company_id: state.company.id,
     p_product_id: ctx.product.id,
     p_quantity: quantity
