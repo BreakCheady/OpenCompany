@@ -7,7 +7,7 @@
   <title>OpenCompany</title>
   <link rel="icon" type="image/png" href="favicon.png">
   <link rel="shortcut icon" href="favicon.ico">
-  <link rel="stylesheet" href="style.css?v=0.1.52">
+  <link rel="stylesheet" href="style.css?v=0.1.53">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
@@ -28,7 +28,7 @@
       <span id="sessionLabel">Nicht angemeldet</span>
       <button id="logoutBtn" class="ghost hidden">Abmelden</button>
       <div class="sidebar-version">
-        <span class="sidebar-version-number">Version 0.1.52</span>
+        <span class="sidebar-version-number">Version 0.1.53</span>
         <span class="sidebar-credit">Made by BreakCheady</span>
       </div>
     </div>
@@ -121,8 +121,31 @@
 
       <div id="buildings" class="view">
         <article class="panel">
-          <h2>Gebäude</h2>
-          <p class="muted">Bestimmte Produkte benötigen passende Gebäude. Mit jedem Ausbau steigen stündliche Produktionskapazität, Belegschaft und Ausbaukosten nach derselben Prozentkurve.</p>
+          <div class="panel-head building-panel-head">
+            <div>
+              <h2>Gebäude</h2>
+              <p class="muted">Verwalte deine bestehenden Produktions- und Verkaufsgebäude.</p>
+            </div>
+            <button type="button" id="openBuildingBuilderBtn" class="building-builder-open-btn">Bauen</button>
+          </div>
+
+          <div id="buildingBuilder" class="building-builder hidden">
+            <div class="building-builder-toolbar">
+              <div>
+                <h3>Gebäude bauen</h3>
+                <p class="muted">Wähle eine Kategorie und errichte ein neues Gebäude.</p>
+              </div>
+              <label>Kategorie
+                <select id="buildingCategoryFilter">
+                  <option value="all">Alle</option>
+                  <option value="production">Produktion</option>
+                  <option value="retail">Verkauf</option>
+                </select>
+              </label>
+            </div>
+            <div id="buildingCatalogTable" class="table-wrap"></div>
+          </div>
+
           <div id="buildingsTable" class="table-wrap"></div>
         </article>
       </div>

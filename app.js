@@ -589,58 +589,96 @@ function scheduleProductionRefresh() {
   productionRefreshTimer = setTimeout(() => loadCompany(), delay);
 }
 
+function buildingCategoryLabel(category) {
+  return category === 'retail' ? 'Verkauf' : 'Produktion';
+}
+
+function renderBuildingCatalog() {
+  const table = document.getElementById('buildingCatalogTable');
+  const filter = document.getElementById('buildingCategoryFilter');
+  if (!table || !filter) return;
+
+  const selectedCategory = filter.value || 'all';
+  const rows = state.buildingTypes
+    .filter(bt => selectedCategory === 'all' || bt.building_category === selectedCategory)
+    .map(bt => {
+      const existing = state.buildings.find(
+        b => b.building_type_id === bt.id && b.status === 'active'
+      );
+      const cost = Number(bt.construction_cost || 0);
+
+      return `<tr>
+        <td>${bt.name}</td>
+        <td>${buildingCategoryLabel(bt.building_category)}</td>
+        <td><span class="building-construction-cost">-${money(Math.abs(cost))}</span></td>
+        <td>
+          <button
+            class="building-catalog-build-btn"
+            ${existing ? 'disabled' : ''}
+            onclick="buildBuilding('${bt.id}')"
+          >${existing ? 'Vorhanden' : 'Bauen'}</button>
+        </td>
+      </tr>`;
+    });
+
+  table.innerHTML = renderTable(
+    ['Gebäude', 'Kategorie', 'Baukosten', 'Aktion'],
+    rows
+  );
+}
+
 function renderBuildings() {
-  document.getElementById('buildingsTable').innerHTML = renderTable(
-    ['Gebäude','Level','Kapazität / Std.','Mitarbeiter','Nächster Ausbau','Ausbaukosten','Aktion'],
-    state.buildingTypes.map(bt => {
-      const building = state.buildings.find(b => b.building_type_id === bt.id && b.status === 'active');
+  const builtRows = state.buildings
+    .filter(building => building.status === 'active')
+    .map(building => {
+      const bt = state.buildingTypes.find(type => type.id === building.building_type_id);
+      if (!bt) return '';
+
       const isRetail = bt.building_category === 'retail';
-
-      if (!building) {
-        return `<tr>
-          <td>${bt.name}</td>
-          <td>–</td>
-          <td>${isRetail ? 'Verkaufsgebäude' : `${num(bt.base_units_per_hour)} Einheiten`}</td>
-          <td>${num(bt.employees_per_building)}</td>
-          <td>${isRetail ? '–' : 'Level 1'}</td>
-          <td>${money(bt.construction_cost)}</td>
-          <td><button onclick="buildBuilding('${bt.id}')">Bauen</button></td>
-        </tr>`;
-      }
-
       const level = Number(building.level || 1);
       const multiplier = buildingLevelMultiplier(level);
       const staff = Math.round(Number(bt.employees_per_building || 0) * multiplier);
-
-      if (isRetail) {
-        return `<tr>
-          <td>${bt.name}</td>
-          <td>Level ${level}</td>
-          <td>Verkaufsgebäude</td>
-          <td>${num(staff)}</td>
-          <td>–</td>
-          <td>–</td>
-          <td><button disabled>Gebaut</button></td>
-        </tr>`;
-      }
-
       const capacity = Number(bt.base_units_per_hour || 0) * multiplier;
       const nextLevel = level + 1;
       const nextPercent = buildingUpgradePercent(nextLevel);
       const nextCost = Number(bt.construction_cost || 0) * buildingLevelMultiplier(nextLevel);
-      const running = state.productionJobs.some(j => j.building_id === building.id && j.status === 'running');
+      const running = state.productionJobs.some(
+        j => j.building_id === building.id && j.status === 'running'
+      );
+      const reduceLabel = level <= 1 ? 'Abreißen' : 'Abstufen';
 
       return `<tr>
         <td>${bt.name}</td>
+        <td>${buildingCategoryLabel(bt.building_category)}</td>
         <td>Level ${level}</td>
-        <td>${num(capacity)} Einheiten</td>
+        <td>${isRetail ? 'Verkaufsgebäude' : `${num(capacity)} Einheiten`}</td>
         <td>${num(staff)}</td>
         <td>Level ${nextLevel}: +${num(nextPercent)}%</td>
         <td><span class="building-upgrade-cost">-${money(Math.abs(nextCost))}</span></td>
-        <td><button class="${running ? '' : 'building-upgrade-btn'}" ${running ? 'disabled' : ''} onclick="upgradeBuilding('${building.id}','${bt.id}')">${running ? 'Produktion läuft' : 'Ausbauen'}</button></td>
+        <td class="building-actions">
+          <button
+            class="building-upgrade-btn"
+            ${running ? 'disabled' : ''}
+            onclick="upgradeBuilding('${building.id}','${bt.id}')"
+          >${running ? 'Produktion läuft' : 'Aufstufen'}</button>
+          <button
+            class="building-downgrade-btn"
+            ${running ? 'disabled' : ''}
+            onclick="downgradeBuilding('${building.id}','${bt.id}')"
+          >${running ? 'Produktion läuft' : reduceLabel}</button>
+        </td>
       </tr>`;
     })
-  );
+    .filter(Boolean);
+
+  document.getElementById('buildingsTable').innerHTML = builtRows.length
+    ? renderTable(
+        ['Gebäude','Kategorie','Level','Kapazität / Std.','Mitarbeiter','Nächste Aufstufung','Aufstufungskosten','Aktionen'],
+        builtRows
+      )
+    : '<p class="muted building-empty-state">Noch keine Gebäude gebaut. Nutze oben „Bauen“, um dein erstes Gebäude zu errichten.</p>';
+
+  renderBuildingCatalog();
 }
 
 function retailSaleContext() {
@@ -1102,24 +1140,86 @@ document.getElementById('productionForm').addEventListener('submit', async e => 
   if(error) alert(error.message); else await loadCompany();
 });
 window.buildBuilding = async function(buildingTypeId) {
-  const bt=state.buildingTypes.find(b=>b.id===buildingTypeId);
-  if(!confirm(`${bt?.name || 'Gebäude'} für ${money(bt?.construction_cost)} bauen?`)) return;
-  const { error }=await sb.rpc('build_building',{p_company_id:state.company.id,p_building_type_id:buildingTypeId});
-  if(error) alert(error.message); else await loadCompany();
+  const bt = state.buildingTypes.find(b => b.id === buildingTypeId);
+  if (!bt) return;
+
+  if (!confirm(`${bt.name} für ${money(bt.construction_cost)} bauen?`)) return;
+
+  const { error } = await sb.rpc('build_building', {
+    p_company_id: state.company.id,
+    p_building_type_id: buildingTypeId
+  });
+
+  if (error) {
+    alert(error.message);
+  } else {
+    await loadCompany();
+  }
 };
+
 window.upgradeBuilding = async function(buildingId, buildingTypeId) {
   const bt = state.buildingTypes.find(b => b.id === buildingTypeId);
   const building = state.buildings.find(b => b.id === buildingId);
   const nextLevel = Number(building?.level || 1) + 1;
   const increase = buildingUpgradePercent(nextLevel);
   const nextCost = Number(bt?.construction_cost || 0) * buildingLevelMultiplier(nextLevel);
-  if (!confirm(`${bt?.name || 'Gebäude'} auf Level ${nextLevel} ausbauen? Kosten: ${money(nextCost)}. Kapazität und Mitarbeiter: +${num(increase)}%.`)) return;
+
+  if (!confirm(
+    `${bt?.name || 'Gebäude'} auf Level ${nextLevel} aufstufen? ` +
+    `Kosten: ${money(nextCost)}. Mitarbeiter und vorhandene Gebäudekapazität: +${num(increase)}%.`
+  )) return;
+
   const { error } = await sb.rpc('upgrade_building', {
     p_company_id: state.company.id,
     p_building_id: buildingId
   });
-  if (error) alert(error.message); else await loadCompany();
+
+  if (error) {
+    alert(error.message);
+  } else {
+    await loadCompany();
+  }
 };
+
+window.downgradeBuilding = async function(buildingId, buildingTypeId) {
+  const bt = state.buildingTypes.find(b => b.id === buildingTypeId);
+  const building = state.buildings.find(b => b.id === buildingId);
+  if (!building) return;
+
+  const level = Number(building.level || 1);
+  const isDemolition = level <= 1;
+  const action = isDemolition ? 'abreißen' : `auf Level ${level - 1} abstufen`;
+
+  const warning = isDemolition
+    ? 'Das Gebäude wird vollständig entfernt. Es gibt keine Kostenerstattung.'
+    : 'Die Aufstufung wird zurückgenommen. Es gibt keine Kostenerstattung.';
+
+  if (!confirm(`${bt?.name || 'Gebäude'} ${action}? ${warning}`)) return;
+
+  const { error } = await sb.rpc('downgrade_building', {
+    p_company_id: state.company.id,
+    p_building_id: buildingId
+  });
+
+  if (error) {
+    alert(error.message);
+  } else {
+    await loadCompany();
+  }
+};
+
+const buildingBuilderBtn = document.getElementById('openBuildingBuilderBtn');
+const buildingBuilder = document.getElementById('buildingBuilder');
+const buildingCategoryFilter = document.getElementById('buildingCategoryFilter');
+
+buildingBuilderBtn?.addEventListener('click', () => {
+  const opening = buildingBuilder.classList.contains('hidden');
+  buildingBuilder.classList.toggle('hidden');
+  buildingBuilderBtn.textContent = opening ? 'Schließen' : 'Bauen';
+  if (opening) renderBuildingCatalog();
+});
+
+buildingCategoryFilter?.addEventListener('change', renderBuildingCatalog);
 
 // Market
 document.getElementById('sellOrderForm').addEventListener('submit', async e => {

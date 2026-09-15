@@ -1376,3 +1376,112 @@ td button {
   line-height: 1.4;
   margin-top: 10px;
 }
+
+
+/* v0.1.53 – Gebäudeverwaltung */
+.building-panel-head {
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.building-builder-open-btn {
+  background: var(--success);
+  color: #fff;
+  border-color: var(--success);
+  flex: 0 0 auto;
+}
+
+.building-builder-open-btn:hover {
+  background: #116b4a;
+  border-color: #116b4a;
+}
+
+.building-builder {
+  margin: 14px 0 18px;
+  padding: 16px;
+  border: 1px solid #dbe4ec;
+  border-radius: 12px;
+  background: #f8fafc;
+}
+
+.building-builder.hidden {
+  display: none;
+}
+
+.building-builder-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: end;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+
+.building-builder-toolbar h3 {
+  margin: 0 0 3px;
+}
+
+.building-builder-toolbar .muted {
+  margin: 0;
+}
+
+.building-builder-toolbar label {
+  min-width: 180px;
+}
+
+.building-construction-cost {
+  color: var(--danger);
+  font-weight: 700;
+}
+
+.building-catalog-build-btn:not(:disabled) {
+  background: var(--success);
+  color: #fff;
+  border-color: var(--success);
+}
+
+.building-catalog-build-btn:not(:disabled):hover {
+  background: #116b4a;
+  border-color: #116b4a;
+}
+
+.building-actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+#buildingsTable .building-upgrade-btn:not(:disabled) {
+  background: var(--success) !important;
+  color: #fff !important;
+  border-color: var(--success) !important;
+}
+
+#buildingsTable .building-upgrade-btn:not(:disabled):hover {
+  background: #116b4a !important;
+  border-color: #116b4a !important;
+}
+
+#buildingsTable .building-downgrade-btn:not(:disabled) {
+  background: var(--danger) !important;
+  color: #fff !important;
+  border-color: var(--danger) !important;
+}
+
+#buildingsTable .building-downgrade-btn:not(:disabled):hover {
+  filter: brightness(.9);
+}
+
+.building-empty-state {
+  padding: 14px 0 4px;
+}
+
+@media (max-width: 700px) {
+  .building-builder-toolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .building-builder-toolbar label {
+    min-width: 0;
+  }
+}
