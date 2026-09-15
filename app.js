@@ -767,10 +767,10 @@ function renderFinanceSummary() {
   container.innerHTML = `
     <div class="finance-summary-card"><span>Zeitraum</span><strong>${periodLabel}</strong></div>
     <div class="finance-summary-card"><span>Einnahmen</span><strong>${money(revenue)}</strong></div>
-    <div class="finance-summary-card"><span>Produktionskosten</span><strong>-${money(productionCosts)}</strong></div>
-    <div class="finance-summary-card"><span>Gebühren</span><strong>-${money(fees)}</strong></div>
-    <div class="finance-summary-card"><span>Sonstige Kosten</span><strong>-${money(otherCosts)}</strong></div>
-    <div class="finance-summary-card finance-profit-card"><span>Gewinn / Verlust</span><strong class="${profitClass}">${profit < 0 ? '-' : ''}${money(Math.abs(profit))}</strong></div>
+    <div class="finance-summary-card finance-cost-card"><span>Produktionskosten</span><strong>-${money(productionCosts)}</strong></div>
+    <div class="finance-summary-card finance-cost-card"><span>Gebühren</span><strong>-${money(fees)}</strong></div>
+    <div class="finance-summary-card finance-cost-card"><span>Sonstige Kosten</span><strong>-${money(otherCosts)}</strong></div>
+    <div class="finance-summary-card finance-profit-card ${profit < 0 ? 'finance-profit-loss' : 'finance-profit-gain'}"><span>Gewinn / Verlust</span><strong class="${profitClass}">${profit < 0 ? '-' : ''}${money(Math.abs(profit))}</strong></div>
   `;
 
   document.querySelectorAll('.finance-period-btn').forEach(btn => {
