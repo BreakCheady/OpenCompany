@@ -7,7 +7,7 @@
   <title>OpenCompany</title>
   <link rel="icon" type="image/png" href="favicon.png">
   <link rel="shortcut icon" href="favicon.ico">
-  <link rel="stylesheet" href="style.css?v=0.3.3">
+  <link rel="stylesheet" href="style.css?v=0.3.4">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
@@ -29,7 +29,7 @@
       <span id="sessionLabel">Nicht angemeldet</span>
       <button id="logoutBtn" class="ghost hidden">Abmelden</button>
       <div class="sidebar-version">
-        <span class="sidebar-version-number">Version 0.3.3</span>
+        <span class="sidebar-version-number">Version 0.3.4</span>
         <span class="sidebar-credit">Made by BreakCheady</span>
       </div>
     </div>
@@ -282,6 +282,18 @@
       <p id="companyMessage" class="status"></p>
     </section>
   </main>
+</div>
+
+<div id="gameDialogOverlay" class="game-dialog-overlay hidden" aria-hidden="true">
+  <div id="gameDialog" class="game-dialog" role="dialog" aria-modal="true" aria-labelledby="gameDialogTitle">
+    <h3 id="gameDialogTitle">Hinweis</h3>
+    <p id="gameDialogMessage"></p>
+    <input id="gameDialogInput" class="hidden" type="text" autocomplete="off">
+    <div class="game-dialog-actions">
+      <button type="button" id="gameDialogCancel" class="ghost hidden">Abbrechen</button>
+      <button type="button" id="gameDialogConfirm">OK</button>
+    </div>
+  </div>
 </div>
 <script src="config.js"></script>
 <script>

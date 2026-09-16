@@ -1898,3 +1898,34 @@ td button {
 .company-value-change-zero {
   color: var(--muted, #666);
 }
+
+
+/* v0.3.4 – In-Game-Dialoge statt Browser-Popups */
+.game-dialog-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(12, 18, 28, .48);
+  backdrop-filter: blur(2px);
+}
+
+.game-dialog-overlay.hidden { display: none !important; }
+
+.game-dialog {
+  width: min(520px, 100%);
+  background: var(--panel, #fff);
+  border: 1px solid var(--border, #dfe3e8);
+  border-radius: 14px;
+  box-shadow: 0 22px 70px rgba(0, 0, 0, .22);
+  padding: 20px;
+}
+
+.game-dialog h3 { margin: 0 0 10px; font-size: 18px; }
+.game-dialog p { margin: 0; line-height: 1.55; white-space: pre-line; }
+.game-dialog input { width: 100%; margin-top: 14px; }
+.game-dialog-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px; }
+body.game-dialog-open { overflow: hidden; }

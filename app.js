@@ -45,6 +45,74 @@ const balanceMoney = n => `${new Intl.NumberFormat('de-DE', { maximumFractionDig
 
 function msg(el, text, type='') { el.textContent = text; el.className = `status ${type}`; }
 
+
+function openGameDialog({ title='Hinweis', message='', mode='alert', defaultValue='' } = {}) {
+  const overlay = document.getElementById('gameDialogOverlay');
+  const titleEl = document.getElementById('gameDialogTitle');
+  const messageEl = document.getElementById('gameDialogMessage');
+  const inputEl = document.getElementById('gameDialogInput');
+  const cancelBtn = document.getElementById('gameDialogCancel');
+  const confirmBtn = document.getElementById('gameDialogConfirm');
+
+  if (!overlay || !titleEl || !messageEl || !inputEl || !cancelBtn || !confirmBtn) {
+    return Promise.resolve(mode === 'confirm' ? false : mode === 'prompt' ? null : true);
+  }
+
+  titleEl.textContent = title;
+  messageEl.textContent = String(message ?? '');
+  inputEl.classList.toggle('hidden', mode !== 'prompt');
+  cancelBtn.classList.toggle('hidden', mode === 'alert');
+  confirmBtn.textContent = mode === 'alert' ? 'OK' : 'Bestätigen';
+  inputEl.value = mode === 'prompt' ? String(defaultValue ?? '') : '';
+
+  overlay.classList.remove('hidden');
+  overlay.setAttribute('aria-hidden', 'false');
+  document.body.classList.add('game-dialog-open');
+
+  return new Promise(resolve => {
+    const close = result => {
+      overlay.classList.add('hidden');
+      overlay.setAttribute('aria-hidden', 'true');
+      document.body.classList.remove('game-dialog-open');
+      confirmBtn.onclick = null;
+      cancelBtn.onclick = null;
+      overlay.onclick = null;
+      document.removeEventListener('keydown', onKeyDown);
+      resolve(result);
+    };
+
+    const acceptDialog = () => close(mode === 'prompt' ? inputEl.value : true);
+    const cancelDialog = () => close(mode === 'prompt' ? null : false);
+    const onKeyDown = event => {
+      if (event.key === 'Escape' && mode !== 'alert') cancelDialog();
+      if (event.key === 'Enter' && (mode !== 'prompt' || document.activeElement === inputEl)) {
+        event.preventDefault();
+        acceptDialog();
+      }
+    };
+
+    confirmBtn.onclick = acceptDialog;
+    cancelBtn.onclick = cancelDialog;
+    overlay.onclick = event => {
+      if (event.target === overlay && mode !== 'alert') cancelDialog();
+    };
+    document.addEventListener('keydown', onKeyDown);
+    setTimeout(() => (mode === 'prompt' ? inputEl : confirmBtn).focus(), 0);
+  });
+}
+
+function gameAlert(message, title='Hinweis') {
+  return openGameDialog({ title, message, mode:'alert' });
+}
+
+function gameConfirm(message, title='Bestätigung') {
+  return openGameDialog({ title, message, mode:'confirm' });
+}
+
+function gamePrompt(message, defaultValue='', title='Eingabe') {
+  return openGameDialog({ title, message, mode:'prompt', defaultValue });
+}
+
 function transactionLabel(type) {
   return ({
     founding_capital: 'Startkapital',
@@ -1595,35 +1663,35 @@ document.getElementById('companyForm').addEventListener('submit', async e => {
 document.getElementById('resetCompanyBtn').addEventListener('click', async () => {
   if (!state.company?.id) return;
 
-  const confirmed = confirm(
+  const confirmed = await gameConfirm(
     'Unternehmen wirklich zurücksetzen? Alle Gebäude, Lagerbestände, laufenden Produktionen, Marktaktivitäten und Finanzdaten werden gelöscht. Firmenname und Account bleiben erhalten. Startkapital danach: 50.000 OC$.'
   );
   if (!confirmed) return;
 
-  const secondConfirmed = confirm('Letzte Bestätigung: Unternehmensfortschritt jetzt vollständig zurücksetzen?');
+  const secondConfirmed = await gameConfirm('Letzte Bestätigung: Unternehmensfortschritt jetzt vollständig zurücksetzen?');
   if (!secondConfirmed) return;
 
   const { error } = await sb.rpc('reset_company', { p_company_id: state.company.id });
   if (error) {
-    alert(error.message);
+    gameAlert(error.message);
     return;
   }
 
   await loadCompany();
-  alert('Unternehmen wurde zurückgesetzt. Du startest wieder mit 50.000 OC$.');
+  gameAlert('Unternehmen wurde zurückgesetzt. Du startest wieder mit 50.000 OC$.');
 });
 
 document.getElementById('deleteCompanyBtn').addEventListener('click', async () => {
   if (!state.session) return;
 
-  const confirmed = confirm(
+  const confirmed = await gameConfirm(
     'Account wirklich löschen? Dein Unternehmen, der komplette Spielfortschritt und dein Login-Account werden dauerhaft gelöscht. Danach musst du dich neu registrieren.'
   );
   if (!confirmed) return;
 
-  const typed = prompt('Zur Bestätigung bitte LÖSCHEN eingeben:');
+  const typed = await gamePrompt('Zur Bestätigung bitte LÖSCHEN eingeben:');
   if (typed !== 'LÖSCHEN') {
-    alert('Löschen abgebrochen. Bestätigung war nicht korrekt.');
+    gameAlert('Löschen abgebrochen. Bestätigung war nicht korrekt.');
     return;
   }
 
@@ -1631,7 +1699,7 @@ document.getElementById('deleteCompanyBtn').addEventListener('click', async () =
   stopNpcMarketHeartbeat();
   const { error } = await sb.rpc('delete_account');
   if (error) {
-    alert(error.message);
+    gameAlert(error.message);
     return;
   }
 
@@ -1659,12 +1727,12 @@ document.getElementById('productionForm').addEventListener('submit', async e => 
   const plan = productionPlan();
 
   if (plan.runningJob) {
-    if (!confirm('Produktion wirklich abbrechen? Bereits fertiggestellte Einheiten werden übernommen. Von den noch nicht produzierten Einheiten werden 95% der zugehörigen Produktionskosten und Materialien erstattet.')) return;
+    if (!await gameConfirm('Produktion wirklich abbrechen? Bereits fertiggestellte Einheiten werden übernommen. Von den noch nicht produzierten Einheiten werden 95% der zugehörigen Produktionskosten und Materialien erstattet.')) return;
     const { error } = await sb.rpc('cancel_production', {
       p_company_id: state.company.id,
       p_job_id: plan.runningJob.id
     });
-    if (error) alert(error.message); else await loadCompany();
+    if (error) gameAlert(error.message); else await loadCompany();
     return;
   }
 
@@ -1687,7 +1755,7 @@ document.getElementById('productionForm').addEventListener('submit', async e => 
       productionCost: plan.productionCost
     }
   });
-  if(error) alert(error.message); else await loadCompany();
+  if(error) gameAlert(error.message); else await loadCompany();
 });
 window.buyMissingProductionInput = async function(kind, itemId) {
   const plan = productionPlan();
@@ -1706,7 +1774,7 @@ window.buyMissingProductionInput = async function(kind, itemId) {
 
   const orders = marketOrdersForProductionInput(input);
   if (!orders.length) {
-    alert(`Aktuell gibt es keine passende Marktorder für ${input.name}.`);
+    gameAlert(`Aktuell gibt es keine passende Marktorder für ${input.name}.`);
     return;
   }
 
@@ -1722,7 +1790,7 @@ window.buyMissingProductionInput = async function(kind, itemId) {
   }
 
   if (marketQty <= 1e-9) {
-    alert(`Aktuell ist keine Menge von ${input.name} am Markt verfügbar.`);
+    gameAlert(`Aktuell ist keine Menge von ${input.name} am Markt verfügbar.`);
     return;
   }
 
@@ -1731,7 +1799,7 @@ window.buyMissingProductionInput = async function(kind, itemId) {
     ? `Es fehlen ${num(missing)}${unit} ${input.name}. Am Markt sind aktuell ${num(marketQty)}${unit} verfügbar. Diese Menge für ca. ${money(estimatedCost)} kaufen?`
     : `Fehlende ${num(missing)}${unit} ${input.name} für ca. ${money(estimatedCost)} kaufen?`;
 
-  if (!confirm(message)) return;
+  if (!await gameConfirm(message)) return;
 
   let toBuy = marketQty;
   for (const order of orders) {
@@ -1746,7 +1814,7 @@ window.buyMissingProductionInput = async function(kind, itemId) {
     });
 
     if (error) {
-      alert(error.message);
+      gameAlert(error.message);
       break;
     }
     toBuy -= take;
@@ -1771,7 +1839,7 @@ window.claimProductionOutput = async function(jobId) {
   });
 
   if (error) {
-    alert(error.message);
+    gameAlert(error.message);
     return;
   }
 
@@ -1787,7 +1855,7 @@ window.buildBuilding = async function(buildingTypeId) {
   const bt = state.buildingTypes.find(b => b.id === buildingTypeId);
   if (!bt) return;
 
-  if (!confirm(`${bt.name} für ${money(bt.construction_cost)} bauen?`)) return;
+  if (!await gameConfirm(`${bt.name} für ${money(bt.construction_cost)} bauen?`)) return;
 
   const { error } = await sb.rpc('build_building', {
     p_company_id: state.company.id,
@@ -1795,7 +1863,7 @@ window.buildBuilding = async function(buildingTypeId) {
   });
 
   if (error) {
-    alert(error.message);
+    gameAlert(error.message);
   } else {
     await loadCompany();
   }
@@ -1808,7 +1876,7 @@ window.upgradeBuilding = async function(buildingId, buildingTypeId) {
   const increase = buildingUpgradePercent(nextLevel);
   const nextCost = Number(bt?.construction_cost || 0) * buildingLevelMultiplier(nextLevel);
 
-  if (!confirm(
+  if (!await gameConfirm(
     `${bt?.name || 'Gebäude'} auf Level ${nextLevel} aufstufen? ` +
     `Kosten: ${money(nextCost)}. Mitarbeiter und vorhandene Gebäudekapazität: +${num(increase)}%.`
   )) return;
@@ -1819,7 +1887,7 @@ window.upgradeBuilding = async function(buildingId, buildingTypeId) {
   });
 
   if (error) {
-    alert(error.message);
+    gameAlert(error.message);
   } else {
     await loadCompany();
   }
@@ -1843,7 +1911,7 @@ window.downgradeBuilding = async function(buildingId, buildingTypeId) {
     ? `Das Gebäude wird vollständig entfernt. Erstattung: ${money(refund)} (95% der Baukosten).`
     : `Die letzte Aufstufung wird zurückgenommen. Erstattung: ${money(refund)} (95% der Kosten dieser Stufe).`;
 
-  if (!confirm(`${bt.name} ${action}? ${warning}`)) return;
+  if (!await gameConfirm(`${bt.name} ${action}? ${warning}`)) return;
 
   const { error } = await sb.rpc('downgrade_building', {
     p_company_id: state.company.id,
@@ -1851,7 +1919,7 @@ window.downgradeBuilding = async function(buildingId, buildingTypeId) {
   });
 
   if (error) {
-    alert(error.message);
+    gameAlert(error.message);
   } else {
     await loadCompany();
   }
@@ -1879,7 +1947,7 @@ document.getElementById('sellOrderForm').addEventListener('submit', async e => {
     p_quantity:Number(document.getElementById('sellQty').value),
     p_price:Number(document.getElementById('sellPrice').value)
   });
-  if(error) alert(error.message); else await loadCompany();
+  if(error) gameAlert(error.message); else await loadCompany();
 });
 
 document.getElementById('retailProduct').addEventListener('change', renderRetailSale);
@@ -1909,14 +1977,14 @@ document.getElementById('retailSaleForm').addEventListener('submit', async e => 
 
   if (ctx.runningJob) {
     const progress = retailSaleProgress(ctx.runningJob);
-    if (!confirm(`Verkauf wirklich abbrechen? Noch nicht verkaufte Ware wird zurück ins Lager gelegt. Abbruchgebühr: ${money(progress.cancellationFee)} (10% des erwarteten Erlöses).`)) return;
+    if (!await gameConfirm(`Verkauf wirklich abbrechen? Noch nicht verkaufte Ware wird zurück ins Lager gelegt. Abbruchgebühr: ${money(progress.cancellationFee)} (10% des erwarteten Erlöses).`)) return;
 
     const { error } = await sb.rpc('cancel_retail_sale', {
       p_company_id: state.company.id,
       p_job_id: ctx.runningJob.id
     });
 
-    if (error) alert(error.message);
+    if (error) gameAlert(error.message);
     else await loadCompany();
     return;
   }
@@ -1947,7 +2015,7 @@ document.getElementById('retailSaleForm').addEventListener('submit', async e => 
   });
 
   if (error) {
-    alert(error.message);
+    gameAlert(error.message);
   } else {
     await loadCompany();
   }
@@ -1968,7 +2036,7 @@ window.collectRetailRevenue = async function(jobId) {
   });
 
   if (error) {
-    alert(error.message);
+    gameAlert(error.message);
     return;
   }
 
@@ -1977,15 +2045,15 @@ window.collectRetailRevenue = async function(jobId) {
 };
 
 window.buyOrder = async function(orderId) {
-  const qty=Number(prompt('Wie viele Einheiten möchtest du kaufen?','1'));
+  const qty=Number(await gamePrompt('Wie viele Einheiten möchtest du kaufen?','1'));
   if(!Number.isFinite(qty)||qty<=0) return;
   const { error }=await sb.rpc('buy_market_order',{p_buyer_company_id:state.company.id,p_order_id:orderId,p_quantity:qty});
-  if(error) alert(error.message); else await loadCompany();
+  if(error) gameAlert(error.message); else await loadCompany();
 };
 window.cancelOrder = async function(orderId) {
-  if(!confirm('Verkaufsorder wirklich stornieren?')) return;
+  if(!await gameConfirm('Verkaufsorder wirklich stornieren?')) return;
   const { error }=await sb.rpc('cancel_market_order',{p_order_id:orderId});
-  if(error) alert(error.message); else await loadCompany();
+  if(error) gameAlert(error.message); else await loadCompany();
 };
 document.getElementById('marketOrderHistoryFilter').addEventListener('change',e=>{
   state.marketOrderHistoryFilter=e.target.value;
@@ -2040,7 +2108,7 @@ if (researchInvestmentForm) {
       return;
     }
 
-    if (!confirm(`${num(quantity)} Forschungseinheiten mit einem Einstandswert von ${money(investmentValue)} investieren? Der Patentwert-Zuwachs wird zufällig zwischen 70% und 110% dieses Werts liegen.`)) return;
+    if (!await gameConfirm(`${num(quantity)} Forschungseinheiten mit einem Einstandswert von ${money(investmentValue)} investieren?`)) return;
 
     const { data, error } = await sb.rpc('invest_research_units', {
       p_company_id: state.company.id,
@@ -2048,13 +2116,12 @@ if (researchInvestmentForm) {
     });
 
     if (error) {
-      alert(error.message);
+      gameAlert(error.message);
       return;
     }
 
     const gain = Number(data?.patent_gain || 0);
-    const factor = Number(data?.factor || 0) * 100;
-    alert(`Forschung abgeschlossen: Patentwert +${money(gain)} (${factor.toLocaleString('de-DE', { maximumFractionDigits: 2 })}%).`);
+    gameAlert(`Forschung abgeschlossen: Patentwert +${money(gain)}.`);
     researchInvestmentAmount.value = '1';
     await loadCompany();
   });
@@ -2066,7 +2133,7 @@ document.getElementById('contractForm').addEventListener('submit',async e=>{
   e.preventDefault();
   const role=document.getElementById('contractRole').value;
   const partner=document.getElementById('contractPartner').value;
-  if(!partner) { alert('Es gibt noch kein anderes Spielerunternehmen für einen Vertrag.'); return; }
+  if(!partner) { gameAlert('Es gibt noch kein anderes Spielerunternehmen für einen Vertrag.'); return; }
   const type=document.getElementById('contractItemType').value;
   const item=document.getElementById('contractItem').value;
   const seller=role==='sell' ? state.company.id : partner;
@@ -2080,11 +2147,11 @@ document.getElementById('contractForm').addEventListener('submit',async e=>{
     p_quantity:Number(document.getElementById('contractQty').value),
     p_unit_price:Number(document.getElementById('contractPrice').value)
   });
-  if(error) alert(error.message); else await loadCompany();
+  if(error) gameAlert(error.message); else await loadCompany();
 });
-window.acceptContract=async id=>{ const {error}=await sb.rpc('accept_contract',{p_contract_id:id}); if(error) alert(error.message); else await loadCompany(); };
-window.fulfillContract=async id=>{ const {error}=await sb.rpc('fulfill_contract',{p_contract_id:id}); if(error) alert(error.message); else await loadCompany(); };
-window.cancelContract=async id=>{ const {error}=await sb.rpc('cancel_contract',{p_contract_id:id}); if(error) alert(error.message); else await loadCompany(); };
+window.acceptContract=async id=>{ const {error}=await sb.rpc('accept_contract',{p_contract_id:id}); if(error) gameAlert(error.message); else await loadCompany(); };
+window.fulfillContract=async id=>{ const {error}=await sb.rpc('fulfill_contract',{p_contract_id:id}); if(error) gameAlert(error.message); else await loadCompany(); };
+window.cancelContract=async id=>{ const {error}=await sb.rpc('cancel_contract',{p_contract_id:id}); if(error) gameAlert(error.message); else await loadCompany(); };
 
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible') {
