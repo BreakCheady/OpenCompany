@@ -1982,3 +1982,14 @@ body.game-dialog-open { overflow: hidden; }
     min-width: 0;
   }
 }
+
+
+/* v0.4.0 – zentraler Marktkauf */
+.market-filter-controls #marketBuyQty {
+  min-width: 100px;
+  max-width: 120px;
+}
+
+.market-buy-cheapest-btn {
+  white-space: nowrap;
+}

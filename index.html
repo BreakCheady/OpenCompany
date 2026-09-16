@@ -7,7 +7,7 @@
   <title>OpenCompany</title>
   <link rel="icon" type="image/png" href="favicon.png">
   <link rel="shortcut icon" href="favicon.ico">
-  <link rel="stylesheet" href="style.css?v=0.3.9">
+  <link rel="stylesheet" href="style.css?v=0.4.0">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
@@ -29,7 +29,7 @@
       <span id="sessionLabel">Nicht angemeldet</span>
       <button id="logoutBtn" class="ghost hidden">Abmelden</button>
       <div class="sidebar-version">
-        <span class="sidebar-version-number">Version 0.3.9</span>
+        <span class="sidebar-version-number">Version 0.4.0</span>
         <span class="sidebar-credit">Made by BreakCheady</span>
       </div>
     </div>
@@ -197,6 +197,10 @@
                   <option value="product">Produkte</option>
                 </select>
               </label>
+              <label>Menge
+                <input id="marketBuyQty" type="number" min="1" step="1" value="1">
+              </label>
+              <button type="button" id="marketBuyCheapest" class="market-buy-cheapest-btn">Kaufen</button>
               <button type="button" id="marketFilterReset" class="ghost">Zurücksetzen</button>
             </div>
           </div>

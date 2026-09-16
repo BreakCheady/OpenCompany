@@ -1253,7 +1253,7 @@ function renderRetailSale() {
   scheduleProductionRefresh();
 }
 
-function renderMarket() {
+function filteredMarketOrders() {
   const search = String(state.marketSearchFilter || '').trim().toLocaleLowerCase('de-DE');
   const type = state.marketTypeFilter || 'all';
 
@@ -1269,19 +1269,27 @@ function renderMarket() {
     const item = itemName(o).toLocaleLowerCase('de-DE');
     const company = companyName(o.company_id).toLocaleLowerCase('de-DE');
     const kind = o.material_id ? 'rohstoff material' : 'produkt';
-
     return item.includes(search) || company.includes(search) || kind.includes(search);
   });
 
-  const filterActive = !!search || type !== 'all';
-  if (filterActive) {
+  if (search || type !== 'all') {
     orders = [...orders].sort((a,b) =>
       Number(a.price_per_unit || 0) - Number(b.price_per_unit || 0) ||
       itemName(a).localeCompare(itemName(b), 'de-DE') ||
       companyName(a.company_id).localeCompare(companyName(b.company_id), 'de-DE')
     );
   }
+  return orders;
+}
 
+function marketItemKey(order) {
+  if (order.material_id) return `material:${order.material_id}`;
+  const product = state.allProducts.find(p => p.id === order.product_id);
+  return product ? `product:${product.name}:${product.category}` : `product:${order.product_id}`;
+}
+
+function renderMarket() {
+  const orders = filteredMarketOrders();
   document.getElementById('marketOrders').innerHTML = renderTable(
     ['Firma','Gut','Art','Menge','Preis','Gebühr','Aktion'],
     orders.map(o => `<tr>
@@ -1291,7 +1299,7 @@ function renderMarket() {
       <td>${num(o.remaining_quantity)}</td>
       <td>${money(o.price_per_unit)}</td>
       <td>5%</td>
-      <td>${o.company_id === state.company.id ? `<button onclick="cancelOrder('${o.id}')">Stornieren</button>` : `<button class="market-buy-btn" onclick="buyOrder('${o.id}')">Kaufen</button>`}</td>
+      <td>${o.company_id === state.company.id ? `<button onclick="cancelOrder('${o.id}')">Stornieren</button>` : '–'}</td>
     </tr>`)
   );
 }
@@ -2074,12 +2082,6 @@ window.collectRetailRevenue = async function(jobId) {
   else renderRetailSale();
 };
 
-window.buyOrder = async function(orderId) {
-  const qty=Number(await gamePrompt('Wie viele Einheiten möchtest du kaufen?','1'));
-  if(!Number.isFinite(qty)||qty<=0) return;
-  const { error }=await sb.rpc('buy_market_order',{p_buyer_company_id:state.company.id,p_order_id:orderId,p_quantity:qty});
-  if(error) gameAlert(error.message); else await loadCompany();
-};
 window.cancelOrder = async function(orderId) {
   if(!await gameConfirm('Verkaufsorder wirklich stornieren?')) return;
   const { error }=await sb.rpc('cancel_market_order',{p_order_id:orderId});
@@ -2092,7 +2094,77 @@ document.getElementById('marketOrderHistoryFilter').addEventListener('change',e=
 
 const marketSearchFilter = document.getElementById('marketSearchFilter');
 const marketTypeFilter = document.getElementById('marketTypeFilter');
+const marketBuyQty = document.getElementById('marketBuyQty');
+const marketBuyCheapest = document.getElementById('marketBuyCheapest');
 const marketFilterReset = document.getElementById('marketFilterReset');
+
+marketBuyCheapest?.addEventListener('click', async () => {
+  const qty = Number(marketBuyQty?.value || 0);
+  if (!Number.isFinite(qty) || qty <= 0) {
+    await gameAlert('Bitte gib eine gültige Menge ein.');
+    return;
+  }
+
+  const candidateOrders = filteredMarketOrders().filter(o => o.company_id !== state.company.id);
+  if (!candidateOrders.length) {
+    await gameAlert('Für den aktuellen Filter ist kein kaufbares Angebot verfügbar.');
+    return;
+  }
+
+  const itemKeys = [...new Set(candidateOrders.map(marketItemKey))];
+  if (itemKeys.length !== 1) {
+    await gameAlert('Bitte filtere zuerst auf genau einen Artikel, bevor du kaufst.');
+    return;
+  }
+
+  const first = candidateOrders[0];
+  const available = candidateOrders.reduce((sum,o) => sum + Number(o.remaining_quantity || 0), 0);
+  if (available < qty) {
+    await gameAlert(`Nicht genügend Menge verfügbar. Aktuell verfügbar: ${num(available)}.`);
+    return;
+  }
+
+  const cheapest = Number(first.price_per_unit || 0);
+  const confirmed = await gameConfirm(`${num(qty)} × ${itemName(first)} kaufen? Das System verwendet automatisch zuerst die günstigsten verfügbaren Angebote ab ${money(cheapest)} pro Einheit.`);
+  if (!confirmed) return;
+
+  let materialId = null;
+  let productName = null;
+  let productCategory = null;
+
+  if (first.material_id) {
+    materialId = first.material_id;
+  } else {
+    const product = state.allProducts.find(p => p.id === first.product_id);
+    if (!product) {
+      await gameAlert('Produktdaten konnten nicht ermittelt werden.');
+      return;
+    }
+    productName = product.name;
+    productCategory = product.category;
+  }
+
+  marketBuyCheapest.disabled = true;
+  try {
+    const { data, error } = await sb.rpc('buy_cheapest_market_item', {
+      p_buyer_company_id: state.company.id,
+      p_material_id: materialId,
+      p_product_name: productName,
+      p_product_category: productCategory,
+      p_quantity: qty
+    });
+
+    if (error) {
+      await gameAlert(error.message);
+      return;
+    }
+
+    await loadCompany();
+    await gameAlert(`${num(data?.quantity || qty)} × ${itemName(first)} gekauft. Durchschnittspreis: ${money(data?.average_unit_price || 0)} pro Einheit.`,'Kauf abgeschlossen');
+  } finally {
+    marketBuyCheapest.disabled = false;
+  }
+});
 
 marketSearchFilter?.addEventListener('input', e => {
   state.marketSearchFilter = e.target.value;
@@ -2109,6 +2181,7 @@ marketFilterReset?.addEventListener('click', () => {
   state.marketTypeFilter = 'all';
   if (marketSearchFilter) marketSearchFilter.value = '';
   if (marketTypeFilter) marketTypeFilter.value = 'all';
+  if (marketBuyQty) marketBuyQty.value = '1';
   renderMarket();
 });
 
