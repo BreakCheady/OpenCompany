@@ -1356,7 +1356,7 @@ function renderAll() {
       const multiplier = buildingLevelMultiplier(b.level);
       return sum + Math.round(Number(type?.employees_per_building || 0) * multiplier);
     }, 0);
-  document.getElementById('statEmployees').textContent = num(automaticEmployees);
+  document.getElementById('statEmployees').textContent = `${num(automaticEmployees)} Mitarbeiter`;
   document.getElementById('statValue').textContent = money(c.company_value);
 
   const companyRows = [
@@ -1365,7 +1365,20 @@ function renderAll() {
     `<div class="kv"><span>Level</span><strong>${num(c.company_level)}</strong></div>`
   ].join('');
   document.getElementById('companySummary').innerHTML = companyRows;
-  document.getElementById('companyDetails').innerHTML = companyRows;
+
+  const companyDebt = Math.max(0, -Number(c.cash_balance || 0));
+  document.getElementById('companyDetails').innerHTML = renderTable(
+    ['Unternehmen','Status','Level','Kontostand','Mitarbeiter','Unternehmenswert','Schulden'],
+    [`<tr>
+      <td><strong>${c.name}</strong></td>
+      <td><span class="company-online-status presence-status"></span></td>
+      <td>${num(c.company_level)}</td>
+      <td class="${Number(c.cash_balance || 0) < 0 ? 'negative-balance' : ''}">${balanceMoney(Number(c.cash_balance || 0))}</td>
+      <td>${num(automaticEmployees)} Mitarbeiter</td>
+      <td>${money(c.company_value)}</td>
+      <td class="${companyDebt > 0 ? 'transaction-amount fee' : ''}">${money(companyDebt)}</td>
+    </tr>`]
+  );
   renderCompanyStatus();
 
   document.getElementById('recentTransactions').innerHTML = renderTable(['Betrag','Beschreibung','Zeit'], state.transactions.slice(0,8).map(t=>`<tr><td class="${transactionAmountClass(t.transaction_type)}">${money(t.amount)}</td><td>${t.description || transactionLabel(t.transaction_type)}</td><td>${new Date(t.created_at).toLocaleString('de-DE')}</td></tr>`));

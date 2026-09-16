@@ -1691,3 +1691,16 @@ td button {
   opacity: 1;
   cursor: not-allowed;
 }
+
+
+/* v0.1.69 – Unternehmensübersicht */
+#companyDetails table td,
+#companyDetails table th {
+  white-space: nowrap;
+}
+
+#companyDetails .negative-balance,
+#companyDetails .transaction-amount.fee {
+  color: var(--danger);
+  font-weight: 700;
+}
