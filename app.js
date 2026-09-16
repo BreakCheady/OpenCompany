@@ -21,6 +21,7 @@ const state = {
   retailSaleJobs: [],
   transactions: [],
   marketOrders: [],
+  marketTrades: [],
   marketSearchFilter: '',
   marketTypeFilter: 'all',
   selectedMarketOrderIds: [],
@@ -396,13 +397,14 @@ async function loadGameData() {
     sb.from('retail_sale_jobs').select('*').eq('company_id', cid).order('started_at', {ascending:false}).limit(500),
     sb.from('financial_transactions').select('*').eq('company_id', cid).order('created_at', {ascending:false}).limit(500),
     sb.from('market_orders').select('*, products(name), materials(name)').in('status',['open','partially_filled']).order('created_at',{ascending:false}).limit(100),
+    sb.from('market_trades').select('id,buyer_company_id,seller_company_id,product_id,material_id,quantity,price_per_unit,total_value,executed_at,products(name,category)').eq('buyer_company_id',cid).order('executed_at',{ascending:false}).limit(500),
     sb.from('contracts').select('*').or(`seller_company_id.eq.${cid},buyer_company_id.eq.${cid}`).order('created_at',{ascending:false}),
     sb.rpc('list_companies'),
     sb.rpc('get_company_debt', { p_company_id: cid }),
     sb.from('company_valuation_history').select('valuation_date,company_value,previous_company_value,change_amount,calculated_at').eq('company_id',cid).order('valuation_date',{ascending:false}).limit(1)
   ]);
 
-  const labels = ['Produkte','Alle Produkte','Produktlager','Materialien','Materiallager','Rezepte','Gebäudetypen','Gebäude','Produktionen','Handelsverkäufe','Finanzen','Marktorders','Verträge','Firmenverzeichnis','Kreditschulden','Unternehmenswert-Verlauf'];
+  const labels = ['Produkte','Alle Produkte','Produktlager','Materialien','Materiallager','Rezepte','Gebäudetypen','Gebäude','Produktionen','Handelsverkäufe','Finanzen','Marktorders','Marktkäufe','Verträge','Firmenverzeichnis','Kreditschulden','Unternehmenswert-Verlauf'];
   const errors = results.map((r,i)=>r.error ? { label: labels[i], error:r.error } : null).filter(Boolean);
   if (errors.length) {
     console.error(errors);
@@ -411,7 +413,7 @@ async function loadGameData() {
   }
   clearGameDataError();
 
-  const [products, allProducts, inventory, materials, materialInventory, recipes, buildingTypes, buildings, productionJobs, retailSaleJobs, tx, orders, contracts, directory, companyDebt, valuationHistory] = results;
+  const [products, allProducts, inventory, materials, materialInventory, recipes, buildingTypes, buildings, productionJobs, retailSaleJobs, tx, orders, marketTrades, contracts, directory, companyDebt, valuationHistory] = results;
   state.products = products.data;
   state.allProducts = allProducts.data;
   state.inventory = inventory.data;
@@ -424,6 +426,7 @@ async function loadGameData() {
   state.retailSaleJobs = retailSaleJobs.data;
   state.transactions = tx.data;
   state.marketOrders = orders.data;
+  state.marketTrades = marketTrades.data || [];
   state.contracts = contracts.data;
   state.companyDirectory = directory.data || [];
   state.companyDebt = Number(companyDebt.data || 0);
@@ -1552,9 +1555,30 @@ function renderFinanceSummary() {
     .filter(t => t.transaction_type === 'building_refund')
     .reduce((sum, t) => sum + Number(t.amount || 0), 0);
 
-  const researchCosts = Math.abs(transactions
+  const directResearchCosts = Math.abs(transactions
     .filter(t => t.transaction_type === 'research')
     .reduce((sum, t) => sum + Number(t.amount || 0), 0));
+
+  const buildingCosts = Math.abs(transactions
+    .filter(t => t.transaction_type === 'construction')
+    .reduce((sum, t) => sum + Number(t.amount || 0), 0));
+
+  const marketBuyCosts = Math.abs(transactions
+    .filter(t => t.transaction_type === 'market_buy')
+    .reduce((sum, t) => sum + Number(t.amount || 0), 0));
+
+  // Gekaufte Forschungseinheiten werden zusätzlich in "Forschung" sichtbar,
+  // bleiben für Gewinn/Verlust aber ausschließlich unter "Marktkäufe" kostenwirksam.
+  const researchMarketBuyCosts = state.marketTrades
+    .filter(trade => {
+      const executedAt = new Date(trade.executed_at);
+      return executedAt >= start && executedAt <= end &&
+        trade.products?.category === 'research' &&
+        trade.products?.name === 'Forschungseinheit';
+    })
+    .reduce((sum, trade) => sum + Number(trade.total_value || 0), 0);
+
+  const researchDisplayCosts = directResearchCosts + researchMarketBuyCosts;
 
   const revenue = netSales + fees + retailSales + buildingRefunds;
 
@@ -1564,23 +1588,23 @@ function renderFinanceSummary() {
     0
   );
 
-  // Materialeinkäufe werden hier bewusst nicht erneut als "sonstige Kosten" gezählt,
-  // da deren verbrauchter Anteil bereits in den Produktionskosten steckt.
-  // Produktionsbuchungen und Marktgebühren werden ebenfalls separat ausgewiesen.
   const excludedCostTypes = new Set([
     'production',
     'production_refund',
     'market_fee',
     'retail_cancel_fee',
     'market_buy',
-    'research'
+    'research',
+    'construction'
   ]);
 
   const otherCosts = Math.abs(transactions
     .filter(t => Number(t.amount || 0) < 0 && !excludedCostTypes.has(t.transaction_type))
     .reduce((sum, t) => sum + Number(t.amount || 0), 0));
 
-  const profit = revenue - productionCosts - researchCosts - fees - otherCosts;
+  // Forschungseinheiten aus Marktkäufen dürfen nicht doppelt abgezogen werden:
+  // researchDisplayCosts ist nur Anzeige; kostenwirksam sind directResearchCosts + marketBuyCosts.
+  const profit = revenue - productionCosts - directResearchCosts - fees - buildingCosts - marketBuyCosts - otherCosts;
   const profitClass = profit < 0 ? 'finance-negative' : 'finance-positive';
 
   const periodLabel =
@@ -1592,9 +1616,11 @@ function renderFinanceSummary() {
     <div class="finance-summary-card finance-period-card"><span>Zeitraum</span><strong>${periodLabel}</strong><small>${periodRange}</small></div>
     <div class="finance-summary-card"><span>Einnahmen / Gewinne</span><strong>${money(revenue)}</strong></div>
     <div class="finance-summary-card finance-cost-card"><span>Produktionskosten</span><strong>-${money(productionCosts)}</strong></div>
-    <div class="finance-summary-card finance-cost-card"><span>Forschung</span><strong>${researchCosts > 0 ? `-${money(researchCosts)}` : money(0)}</strong></div>
+    <div class="finance-summary-card finance-cost-card"><span>Forschung</span><strong>${researchDisplayCosts > 0 ? `-${money(researchDisplayCosts)}` : money(0)}</strong></div>
     <div class="finance-summary-card finance-cost-card"><span>Gebühren</span><strong>-${money(fees)}</strong></div>
-    <div class="finance-summary-card finance-cost-card"><span>Sonstige Kosten</span><strong>-${money(otherCosts)}</strong></div>
+    <div class="finance-summary-card finance-cost-card"><span>Baukosten</span><strong>${buildingCosts > 0 ? `-${money(buildingCosts)}` : money(0)}</strong></div>
+    <div class="finance-summary-card finance-cost-card"><span>Marktkäufe</span><strong>${marketBuyCosts > 0 ? `-${money(marketBuyCosts)}` : money(0)}</strong></div>
+    ${otherCosts > 0 ? `<div class="finance-summary-card finance-cost-card"><span>Sonstige Kosten</span><strong>-${money(otherCosts)}</strong></div>` : ''}
     <div class="finance-summary-card finance-profit-card ${profit < 0 ? 'finance-profit-loss' : 'finance-profit-gain'}"><span>Gewinn / Verlust</span><strong class="${profitClass}">${profit < 0 ? '-' : ''}${money(Math.abs(profit))}</strong></div>
   `;
 
