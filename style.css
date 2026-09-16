@@ -1993,3 +1993,46 @@ body.game-dialog-open { overflow: hidden; }
 .market-buy-cheapest-btn {
   white-space: nowrap;
 }
+
+
+/* v0.4.1 – auswählbare Marktpositionen und Live-Kosten */
+.market-order-row {
+  cursor: pointer;
+}
+
+.market-order-row.selected {
+  outline: 2px solid var(--accent, #2563eb);
+  outline-offset: -2px;
+  background: var(--accent-soft, rgba(37, 99, 235, .08));
+}
+
+.market-order-row:focus-visible {
+  outline: 2px solid var(--accent, #2563eb);
+  outline-offset: -2px;
+}
+
+.market-buy-total {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  min-width: 145px;
+  min-height: 58px;
+}
+
+.market-buy-total span {
+  font-size: 12px;
+  color: var(--muted, #666);
+}
+
+.market-buy-total strong {
+  margin-top: 5px;
+  font-size: 15px;
+  white-space: nowrap;
+}
+
+@media (max-width: 760px) {
+  .market-buy-total {
+    width: 100%;
+    min-width: 0;
+  }
+}

@@ -25,6 +25,7 @@ const state = {
   marketOrderHistoryFilter: 'all',
   marketSearchFilter: '',
   marketTypeFilter: 'all',
+  selectedMarketOrderId: null,
   financePeriod: 'week',
   financePeriodOffset: 0,
   contracts: [],
@@ -1282,26 +1283,87 @@ function filteredMarketOrders() {
   return orders;
 }
 
-function marketItemKey(order) {
-  if (order.material_id) return `material:${order.material_id}`;
-  const product = state.allProducts.find(p => p.id === order.product_id);
-  return product ? `product:${product.name}:${product.category}` : `product:${order.product_id}`;
+function selectedMarketOrder() {
+  return state.marketOrders.find(o => o.id === state.selectedMarketOrderId) || null;
+}
+
+function updateMarketBuyPreview() {
+  const qtyInput = document.getElementById('marketBuyQty');
+  const totalEl = document.getElementById('marketBuyTotal');
+  const buyBtn = document.getElementById('marketBuyCheapest');
+  if (!qtyInput || !totalEl || !buyBtn) return;
+
+  const order = selectedMarketOrder();
+  const qty = Number(qtyInput.value || 0);
+  const validQty = Number.isFinite(qty) && qty > 0;
+  const ownOrder = order?.company_id === state.company?.id;
+  const enoughAvailable = order && validQty && qty <= Number(order.remaining_quantity || 0);
+
+  if (!order) {
+    totalEl.textContent = 'Position auswählen';
+    buyBtn.disabled = true;
+    return;
+  }
+
+  if (!validQty) {
+    totalEl.textContent = '–';
+    buyBtn.disabled = true;
+    return;
+  }
+
+  totalEl.textContent = money(qty * Number(order.price_per_unit || 0));
+
+  if (ownOrder) {
+    buyBtn.disabled = true;
+    return;
+  }
+
+  buyBtn.disabled = !enoughAvailable;
+}
+
+function selectMarketOrder(orderId) {
+  const order = state.marketOrders.find(o => o.id === orderId);
+  if (!order) return;
+  state.selectedMarketOrderId = orderId;
+  renderMarket();
+  updateMarketBuyPreview();
 }
 
 function renderMarket() {
   const orders = filteredMarketOrders();
+
+  if (state.selectedMarketOrderId && !state.marketOrders.some(o => o.id === state.selectedMarketOrderId)) {
+    state.selectedMarketOrderId = null;
+  }
+
   document.getElementById('marketOrders').innerHTML = renderTable(
     ['Firma','Gut','Art','Menge','Preis','Gebühr','Aktion'],
-    orders.map(o => `<tr>
-      <td>${companyName(o.company_id)}</td>
-      <td>${itemName(o)}</td>
-      <td>${o.material_id ? 'Rohstoff' : 'Produkt'}</td>
-      <td>${num(o.remaining_quantity)}</td>
-      <td>${money(o.price_per_unit)}</td>
-      <td>5%</td>
-      <td>${o.company_id === state.company.id ? `<button onclick="cancelOrder('${o.id}')">Stornieren</button>` : '–'}</td>
-    </tr>`)
+    orders.map(o => {
+      const selected = o.id === state.selectedMarketOrderId;
+      return `<tr class="market-order-row ${selected ? 'selected' : ''}" data-order-id="${o.id}" tabindex="0" aria-selected="${selected}">
+        <td>${companyName(o.company_id)}</td>
+        <td>${itemName(o)}</td>
+        <td>${o.material_id ? 'Rohstoff' : 'Produkt'}</td>
+        <td>${num(o.remaining_quantity)}</td>
+        <td>${money(o.price_per_unit)}</td>
+        <td>5%</td>
+        <td>${o.company_id === state.company.id ? `<button onclick="event.stopPropagation(); cancelOrder('${o.id}')">Stornieren</button>` : selected ? '<strong>Ausgewählt</strong>' : 'Auswählen'}</td>
+      </tr>`;
+    })
   );
+
+  document.querySelectorAll('#marketOrders .market-order-row').forEach(row => {
+    const choose = () => selectMarketOrder(row.dataset.orderId);
+    row.addEventListener('click', choose);
+    row.addEventListener('keydown', event => {
+      if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault();
+        choose();
+      }
+    });
+  });
+
+  updateMarketBuyPreview();
 }
 
 function renderMarketOrderHistory() {
@@ -2098,59 +2160,43 @@ const marketBuyQty = document.getElementById('marketBuyQty');
 const marketBuyCheapest = document.getElementById('marketBuyCheapest');
 const marketFilterReset = document.getElementById('marketFilterReset');
 
+marketBuyQty?.addEventListener('input', updateMarketBuyPreview);
+
 marketBuyCheapest?.addEventListener('click', async () => {
+  const order = selectedMarketOrder();
   const qty = Number(marketBuyQty?.value || 0);
+
+  if (!order) {
+    await gameAlert('Bitte wähle zuerst eine Marktposition aus.');
+    return;
+  }
+
+  if (order.company_id === state.company.id) {
+    await gameAlert('Die eigene Marktorder kann nicht gekauft werden.');
+    return;
+  }
+
   if (!Number.isFinite(qty) || qty <= 0) {
     await gameAlert('Bitte gib eine gültige Menge ein.');
     return;
   }
 
-  const candidateOrders = filteredMarketOrders().filter(o => o.company_id !== state.company.id);
-  if (!candidateOrders.length) {
-    await gameAlert('Für den aktuellen Filter ist kein kaufbares Angebot verfügbar.');
+  if (qty > Number(order.remaining_quantity || 0)) {
+    await gameAlert(`Diese Position bietet nur noch ${num(order.remaining_quantity)} Einheiten an.`);
     return;
   }
 
-  const itemKeys = [...new Set(candidateOrders.map(marketItemKey))];
-  if (itemKeys.length !== 1) {
-    await gameAlert('Bitte filtere zuerst auf genau einen Artikel, bevor du kaufst.');
-    return;
-  }
-
-  const first = candidateOrders[0];
-  const available = candidateOrders.reduce((sum,o) => sum + Number(o.remaining_quantity || 0), 0);
-  if (available < qty) {
-    await gameAlert(`Nicht genügend Menge verfügbar. Aktuell verfügbar: ${num(available)}.`);
-    return;
-  }
-
-  const cheapest = Number(first.price_per_unit || 0);
-  const confirmed = await gameConfirm(`${num(qty)} × ${itemName(first)} kaufen? Das System verwendet automatisch zuerst die günstigsten verfügbaren Angebote ab ${money(cheapest)} pro Einheit.`);
+  const total = qty * Number(order.price_per_unit || 0);
+  const confirmed = await gameConfirm(
+    `${num(qty)} × ${itemName(order)} von ${companyName(order.company_id)} für insgesamt ${money(total)} kaufen?`
+  );
   if (!confirmed) return;
-
-  let materialId = null;
-  let productName = null;
-  let productCategory = null;
-
-  if (first.material_id) {
-    materialId = first.material_id;
-  } else {
-    const product = state.allProducts.find(p => p.id === first.product_id);
-    if (!product) {
-      await gameAlert('Produktdaten konnten nicht ermittelt werden.');
-      return;
-    }
-    productName = product.name;
-    productCategory = product.category;
-  }
 
   marketBuyCheapest.disabled = true;
   try {
-    const { data, error } = await sb.rpc('buy_cheapest_market_item', {
+    const { error } = await sb.rpc('buy_market_order', {
       p_buyer_company_id: state.company.id,
-      p_material_id: materialId,
-      p_product_name: productName,
-      p_product_category: productCategory,
+      p_order_id: order.id,
       p_quantity: qty
     });
 
@@ -2159,26 +2205,30 @@ marketBuyCheapest?.addEventListener('click', async () => {
       return;
     }
 
+    state.selectedMarketOrderId = null;
     await loadCompany();
-    await gameAlert(`${num(data?.quantity || qty)} × ${itemName(first)} gekauft. Durchschnittspreis: ${money(data?.average_unit_price || 0)} pro Einheit.`,'Kauf abgeschlossen');
+    await gameAlert(`${num(qty)} × ${itemName(order)} für ${money(total)} gekauft.`, 'Kauf abgeschlossen');
   } finally {
-    marketBuyCheapest.disabled = false;
+    updateMarketBuyPreview();
   }
 });
 
 marketSearchFilter?.addEventListener('input', e => {
   state.marketSearchFilter = e.target.value;
+  state.selectedMarketOrderId = null;
   renderMarket();
 });
 
 marketTypeFilter?.addEventListener('change', e => {
   state.marketTypeFilter = e.target.value;
+  state.selectedMarketOrderId = null;
   renderMarket();
 });
 
 marketFilterReset?.addEventListener('click', () => {
   state.marketSearchFilter = '';
   state.marketTypeFilter = 'all';
+  state.selectedMarketOrderId = null;
   if (marketSearchFilter) marketSearchFilter.value = '';
   if (marketTypeFilter) marketTypeFilter.value = 'all';
   if (marketBuyQty) marketBuyQty.value = '1';
