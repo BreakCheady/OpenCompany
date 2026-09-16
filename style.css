@@ -1829,3 +1829,45 @@ td button {
   font-size: 9px !important;
   line-height: 1.35;
 }
+
+
+/* v0.2.5 – Finanzzeiträume vor/zurück navigieren */
+.finance-period-navigation {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 12px 0;
+}
+
+.finance-period-navigation .finance-period-switch {
+  margin: 0;
+  flex: 1;
+}
+
+.finance-period-arrow {
+  width: 42px;
+  min-width: 42px;
+  height: 38px;
+  padding: 0;
+  font-size: 28px;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.finance-period-arrow:disabled {
+  opacity: .35;
+  cursor: not-allowed;
+}
+
+@media (max-width: 520px) {
+  .finance-period-navigation {
+    gap: 5px;
+  }
+
+  .finance-period-arrow {
+    width: 36px;
+    min-width: 36px;
+  }
+}

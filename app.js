@@ -24,6 +24,7 @@ const state = {
   marketOrderHistory: [],
   marketOrderHistoryFilter: 'all',
   financePeriod: 'week',
+  financePeriodOffset: 0,
   contracts: [],
   companyDirectory: [],
   recoveringPassword: false
@@ -1219,20 +1220,22 @@ function updateContractGoods() {
 }
 
 
-function financePeriodStart(period) {
+function financePeriodStart(period, offset = state.financePeriodOffset || 0) {
   const now = new Date();
 
   if (period === 'day') {
-    return new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+    const start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+    start.setDate(start.getDate() + offset);
+    return start;
   }
 
   if (period === 'month') {
-    return new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+    return new Date(now.getFullYear(), now.getMonth() + offset, 1, 0, 0, 0, 0);
   }
 
   const start = new Date(now);
   const day = (start.getDay() + 6) % 7;
-  start.setDate(start.getDate() - day);
+  start.setDate(start.getDate() - day + (offset * 7));
   start.setHours(0, 0, 0, 0);
   return start;
 }
@@ -1275,6 +1278,25 @@ function formatFinancePeriodRange(period, start, end) {
   return `${shortDate(start)} – ${shortDate(end, true)}`;
 }
 
+function financePeriodTransactions() {
+  const start = financePeriodStart(state.financePeriod);
+  const end = financePeriodEnd(state.financePeriod, start);
+  return state.transactions.filter(t => {
+    const createdAt = new Date(t.created_at);
+    return createdAt >= start && createdAt <= end;
+  });
+}
+
+function renderFinanceTable() {
+  const table = document.getElementById('financeTable');
+  if (!table) return;
+  const transactions = financePeriodTransactions();
+  table.innerHTML = renderTable(
+    ['Betrag','Beschreibung','Zeit'],
+    transactions.map(t => `<tr><td class="${transactionAmountClass(t.transaction_type)}">${money(t.amount)}</td><td>${t.description || transactionLabel(t.transaction_type)}</td><td>${new Date(t.created_at).toLocaleString('de-DE')}</td></tr>`)
+  );
+}
+
 function renderFinanceSummary() {
   const container = document.getElementById('financeSummary');
   if (!container) return;
@@ -1282,10 +1304,7 @@ function renderFinanceSummary() {
   const start = financePeriodStart(state.financePeriod);
   const end = financePeriodEnd(state.financePeriod, start);
   const periodRange = formatFinancePeriodRange(state.financePeriod, start, end);
-  const transactions = state.transactions.filter(t => {
-    const createdAt = new Date(t.created_at);
-    return createdAt >= start && createdAt <= end;
-  });
+  const transactions = financePeriodTransactions();
   const jobs = state.productionJobs.filter(j => {
     const startedAt = new Date(j.started_at);
     return startedAt >= start && startedAt <= end && j.status !== 'cancelled';
@@ -1341,9 +1360,9 @@ function renderFinanceSummary() {
   const profitClass = profit < 0 ? 'finance-negative' : 'finance-positive';
 
   const periodLabel =
-    state.financePeriod === 'day' ? 'Heute' :
-    state.financePeriod === 'month' ? 'Aktueller Monat' :
-    'Aktuelle Woche';
+    state.financePeriodOffset === 0
+      ? (state.financePeriod === 'day' ? 'Heute' : state.financePeriod === 'month' ? 'Aktueller Monat' : 'Aktuelle Woche')
+      : (state.financePeriod === 'day' ? 'Tag' : state.financePeriod === 'month' ? 'Monat' : 'Woche');
 
   container.innerHTML = `
     <div class="finance-summary-card finance-period-card"><span>Zeitraum</span><strong>${periodLabel}</strong><small>${periodRange}</small></div>
@@ -1358,6 +1377,11 @@ function renderFinanceSummary() {
   document.querySelectorAll('.finance-period-btn').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.period === state.financePeriod);
   });
+
+  const nextBtn = document.getElementById('financeNextPeriod');
+  if (nextBtn) nextBtn.disabled = state.financePeriodOffset >= 0;
+
+  renderFinanceTable();
 }
 
 function researchInventoryContext() {
@@ -1444,7 +1468,6 @@ function renderAll() {
 
   document.getElementById('recentTransactions').innerHTML = renderTable(['Betrag','Beschreibung','Zeit'], state.transactions.slice(0,8).map(t=>`<tr><td class="${transactionAmountClass(t.transaction_type)}">${money(t.amount)}</td><td>${t.description || transactionLabel(t.transaction_type)}</td><td>${new Date(t.created_at).toLocaleString('de-DE')}</td></tr>`));
   renderFinanceSummary();
-  document.getElementById('financeTable').innerHTML = renderTable(['Betrag','Beschreibung','Zeit'], state.transactions.map(t=>`<tr><td class="${transactionAmountClass(t.transaction_type)}">${money(t.amount)}</td><td>${t.description || transactionLabel(t.transaction_type)}</td><td>${new Date(t.created_at).toLocaleString('de-DE')}</td></tr>`));
   document.getElementById('inventoryTable').innerHTML = renderTable(['Produkt','Menge','Ø Kosten'], state.inventory.map(i=>`<tr><td>${i.products?.name || '–'}</td><td>${num(i.quantity)}</td><td>${money(i.average_unit_cost)}</td></tr>`));
   document.getElementById('materialInventoryTable').innerHTML = renderTable(['Material','Menge','Einheit','Ø Kosten'], state.materials.map(m => {
     const i = state.materialInventory.find(x => x.material_id === m.id);
@@ -1927,8 +1950,20 @@ document.getElementById('marketOrderHistoryFilter').addEventListener('change',e=
 
 document.querySelectorAll('.finance-period-btn').forEach(btn => btn.addEventListener('click', () => {
   state.financePeriod = btn.dataset.period;
+  state.financePeriodOffset = 0;
   renderFinanceSummary();
 }));
+
+document.getElementById('financePrevPeriod')?.addEventListener('click', () => {
+  state.financePeriodOffset -= 1;
+  renderFinanceSummary();
+});
+
+document.getElementById('financeNextPeriod')?.addEventListener('click', () => {
+  if (state.financePeriodOffset >= 0) return;
+  state.financePeriodOffset += 1;
+  renderFinanceSummary();
+});
 
 // Research investment
 const researchInvestmentForm = document.getElementById('researchInvestmentForm');
