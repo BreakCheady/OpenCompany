@@ -1269,13 +1269,12 @@ function filteredMarketOrders() {
     return item.includes(search) || company.includes(search) || kind.includes(search);
   });
 
-  if (search || type !== 'all') {
-    orders = [...orders].sort((a,b) =>
-      Number(a.price_per_unit || 0) - Number(b.price_per_unit || 0) ||
-      itemName(a).localeCompare(itemName(b), 'de-DE') ||
-      companyName(a.company_id).localeCompare(companyName(b.company_id), 'de-DE')
-    );
-  }
+  orders = [...orders].sort((a,b) =>
+    itemName(a).localeCompare(itemName(b), 'de-DE') ||
+    Number(a.price_per_unit || 0) - Number(b.price_per_unit || 0) ||
+    companyName(a.company_id).localeCompare(companyName(b.company_id), 'de-DE')
+  );
+
   return orders;
 }
 
