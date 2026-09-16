@@ -26,6 +26,8 @@ const state = {
   marketTrades: [],
   marketSearchFilter: '',
   marketTypeFilter: 'all',
+  marketQualityFilter: 'all',
+  researchSelectedProductId: null,
   selectedMarketOrderIds: [],
   financePeriod: 'week',
   financePeriodOffset: 0,
@@ -47,6 +49,40 @@ const money = n => new Intl.NumberFormat('de-DE', { style:'currency', currency:'
   .format(Number(n || 0)).replace('€','OC$');
 const num = n => new Intl.NumberFormat('de-DE', { maximumFractionDigits: 2 }).format(Number(n || 0));
 const balanceMoney = n => `${new Intl.NumberFormat('de-DE', { maximumFractionDigits: 0 }).format(Number(n || 0))} OC$`;
+
+
+const qualityMultiplier = quality => 1 + Math.max(0, Number(quality || 1) - 1) * 0.05;
+const researchRequirement = quality => Number(quality || 1) <= 1 ? 1000 : 2500 * (Number(quality || 1) - 1);
+const productQuality = product => Math.max(1, Number(product?.quality_level || 1));
+const minimumInputQuality = product => Math.max(1, productQuality(product) - 1);
+
+function productInventoryLots(productId) {
+  return state.inventory.filter(row => row.product_id === productId);
+}
+function materialInventoryLots(materialId) {
+  return state.materialInventory.filter(row => row.material_id === materialId);
+}
+function inventoryLotSummary(rows, minQuality = 1) {
+  const eligible = (rows || []).filter(row => Number(row.quality_level || 1) >= minQuality && Number(row.quantity || 0) > 0);
+  const quantity = eligible.reduce((sum,row) => sum + Number(row.quantity || 0), 0);
+  const value = eligible.reduce((sum,row) => sum + Number(row.quantity || 0) * Number(row.average_unit_cost || 0), 0);
+  return { quantity, averageUnitCost: quantity > 0 ? value / quantity : 0, rows: eligible };
+}
+function productLot(productId, quality) {
+  return state.inventory.find(row => row.product_id === productId && Number(row.quality_level || 1) === Number(quality || 1));
+}
+function availableProductQualities(productId) {
+  return productInventoryLots(productId).filter(row => Number(row.quantity || 0) > 0).sort((a,b)=>Number(a.quality_level||1)-Number(b.quality_level||1));
+}
+function researchCategory(product) {
+  const building = state.buildingTypes.find(bt => bt.id === product?.required_building_type_id);
+  const name = building?.name || '';
+  return ({
+    'Elektronikfabrik':'Elektronik','Maschinenfabrik':'Maschinen','Autofabrik':'Automobil','Chemiefabrik':'Chemie',
+    'Baufabrik':'Bau','Textilfabrik':'Textil','Lebensmittelfabrik':'Lebensmittel','Energietechnikfabrik':'Energietechnik',
+    'Forschungsgebäude':'Forschung'
+  })[name] || 'Sonstige';
+}
 
 function msg(el, text, type='') { el.textContent = text; el.className = `status ${type}`; }
 
@@ -475,7 +511,7 @@ async function loadGameData() {
     sb.from('retail_sale_jobs').select('*').eq('company_id', cid).order('started_at', {ascending:false}).limit(500),
     sb.from('financial_transactions').select('*').eq('company_id', cid).order('created_at', {ascending:false}).limit(500),
     sb.from('market_orders').select('*, products(name), materials(name)').in('status',['open','partially_filled']).order('created_at',{ascending:false}).limit(100),
-    sb.from('market_trades').select('id,buyer_company_id,seller_company_id,product_id,material_id,quantity,price_per_unit,total_value,executed_at,products(name,category)').eq('buyer_company_id',cid).order('executed_at',{ascending:false}).limit(500),
+    sb.from('market_trades').select('id,buyer_company_id,seller_company_id,product_id,material_id,quantity,price_per_unit,total_value,quality_level,executed_at,products(name,category)').eq('buyer_company_id',cid).order('executed_at',{ascending:false}).limit(500),
     sb.from('contracts').select('*').or(`seller_company_id.eq.${cid},buyer_company_id.eq.${cid}`).order('created_at',{ascending:false}),
     sb.rpc('list_companies'),
     sb.rpc('get_company_debt', { p_company_id: cid }),
@@ -526,7 +562,7 @@ function currentProductionContext() {
   const runningJob = building
     ? state.productionJobs.find(j => j.building_id === building.id && j.status === 'running')
     : null;
-  return { productId, product, buildingType, building, multiplier, unitsPerHour, runningJob };
+  return { productId, product, buildingType, building, multiplier, unitsPerHour, runningJob, qualityLevel: productQuality(product), minInputQuality: minimumInputQuality(product) };
 }
 
 function productionUnitsFromInput(rawValue) {
@@ -599,18 +635,20 @@ function handleProductionUnitsInput(event) {
 }
 
 function marketOrdersForProductionInput(input) {
+  const requiredQuality = Number(input.minQuality || 1);
+  const component = input.component_product_id ? state.products.find(p => p.id === input.component_product_id) : null;
   return state.marketOrders
-    .filter(order =>
-      order.order_type === 'sell' &&
-      ['open', 'partially_filled'].includes(order.status) &&
-      order.company_id !== state.company?.id &&
-      Number(order.remaining_quantity || 0) > 0 &&
-      (
-        (input.material_id && order.material_id === input.material_id) ||
-        (input.component_product_id && order.product_id === input.component_product_id)
-      )
-    )
-    .sort((a, b) => Number(a.price_per_unit || 0) - Number(b.price_per_unit || 0));
+    .filter(order => {
+      if (order.order_type !== 'sell' || !['open','partially_filled'].includes(order.status) || order.company_id === state.company?.id || Number(order.remaining_quantity || 0) <= 0) return false;
+      if (Number(order.quality_level || 1) < requiredQuality) return false;
+      if (input.material_id) return order.material_id === input.material_id;
+      if (component && order.product_id) {
+        const marketProduct = state.allProducts.find(p => p.id === order.product_id);
+        return marketProduct?.name === component.name && marketProduct?.category === component.category;
+      }
+      return false;
+    })
+    .sort((a,b)=>Number(a.price_per_unit||0)-Number(b.price_per_unit||0));
 }
 
 function estimateMissingInputPurchase(input) {
@@ -668,24 +706,25 @@ function productionPlan(unitsOverride = null) {
     let unit = '';
     let available = 0;
     let averageUnitCost = 0;
+    const minQuality = minimumInputQuality(ctx.product);
     if (r.material_id) {
       const m = state.materials.find(x => x.id === r.material_id);
-      const inv = state.materialInventory.find(x => x.material_id === r.material_id);
+      const summary = inventoryLotSummary(materialInventoryLots(r.material_id), minQuality);
       name = m?.name || '–';
       unit = m?.unit || '';
-      available = Number(inv?.quantity || 0);
-      averageUnitCost = Number(inv?.average_unit_cost || 0);
+      available = summary.quantity;
+      averageUnitCost = summary.averageUnitCost;
     } else {
       const p = state.products.find(x => x.id === r.component_product_id);
-      const inv = state.inventory.find(x => x.product_id === r.component_product_id);
+      const summary = inventoryLotSummary(productInventoryLots(r.component_product_id), minQuality);
       name = p?.name || '–';
-      available = Number(inv?.quantity || 0);
-      averageUnitCost = Number(inv?.average_unit_cost || 0);
+      available = summary.quantity;
+      averageUnitCost = summary.averageUnitCost;
     }
 
     const required = Number(r.quantity_per_unit || 0) * outputQty;
     const enough = available + 1e-9 >= required;
-    const input = { ...r, name, unit, available, averageUnitCost, required, enough };
+    const input = { ...r, name, unit, available, averageUnitCost, required, enough, minQuality };
     const purchase = estimateMissingInputPurchase(input);
     return {
       ...input,
@@ -870,6 +909,8 @@ function renderProductionRecipe() {
 
   const statusRows = buildingType ? [
     `<div class="kv"><span>Benötigtes Gebäude</span><strong>${buildingType.name} ${building ? '✓' : '✗'}</strong></div>`,
+    `<div class="kv"><span>Produktqualität</span><strong>Q${runningJob ? Number(runningJob.quality_level || 1) : productQuality(plan.product)} (+${Math.round((qualityMultiplier(runningJob ? runningJob.quality_level : productQuality(plan.product))-1)*100)}% Wert)</strong></div>`,
+    `<div class="kv"><span>Mindestqualität Inputs</span><strong>Q${runningJob ? Math.max(1, Number(runningJob.quality_level || 1)-1) : minimumInputQuality(plan.product)}</strong></div>`,
     `<div class="kv"><span>Gebäudelevel</span><strong>${building ? `Level ${building.level}` : 'Nicht gebaut'}</strong></div>`,
     `<div class="kv"><span>Kapazität</span><strong>${building ? `${num(unitsPerHour)} Einheiten / Std.` : '–'}</strong></div>`,
     `<div class="kv"><span>Produktionsmenge</span><strong>${num(displayOutputQty)} Einheiten</strong></div>`,
@@ -913,6 +954,7 @@ function renderProductionRecipe() {
     return `<tr>
       <td>${input.material_id ? 'Material' : 'Vorprodukt'}</td>
       <td>${input.name}</td>
+      <td>Q${input.minQuality}+</td>
       <td>${num(input.quantity_per_unit)} ${input.unit}</td>
       <td class="material-amount ${input.enough ? '' : 'missing'}">${num(input.required)} ${input.unit}</td>
       <td class="material-amount ${input.enough ? '' : 'missing'}">${num(input.available)} ${input.unit}</td>
@@ -921,10 +963,10 @@ function renderProductionRecipe() {
   });
 
   document.getElementById('productionRecipe').innerHTML = rows.length
-    ? renderTable(['Typ','Input','Bedarf je Einheit','Benötigt','Bestand','Aktion'], rows)
+    ? renderTable(['Typ','Input','Qualität','Bedarf je Einheit','Benötigt','Bestand','Aktion'], rows)
     : (plan.product?.category === 'research'
       ? '<div class="research-production-note">Keine Rohstoffe benötigt. Forschungseinheiten benötigen ausschließlich Geld: 12 OC$ Grundkosten + 14 OC$ Personalkosten pro Einheit.</div>'
-      : renderTable(['Typ','Input','Bedarf je Einheit','Benötigt','Bestand','Aktion'], rows));
+      : renderTable(['Typ','Input','Qualität','Bedarf je Einheit','Benötigt','Bestand','Aktion'], rows));
 
   const button = document.getElementById('productionStartBtn');
   button.classList.remove('production-ready', 'production-cancel');
@@ -1101,7 +1143,8 @@ function renderBuildings() {
 function retailSaleContext() {
   const productId = document.getElementById('retailProduct')?.value;
   const product = state.products.find(p => p.id === productId);
-  const inventory = state.inventory.find(i => i.product_id === productId);
+  const quality = Number(document.getElementById('retailQuality')?.value || 1);
+  const inventory = productLot(productId, quality);
   const buildingType = state.buildingTypes.find(
     bt => bt.id === product?.required_retail_building_type_id
   );
@@ -1128,7 +1171,8 @@ function retailSaleContext() {
     unitsPerHour,
     available: Number(inventory?.quantity || 0),
     productionCost: Number(inventory?.average_unit_cost || 0),
-    price: Number(inventory?.average_unit_cost || 0) * 2
+    quality,
+    price: Number(inventory?.average_unit_cost || 0) * 2 * qualityMultiplier(quality)
   };
 }
 
@@ -1240,6 +1284,7 @@ function renderRetailSale() {
   const details = document.getElementById('retailSaleDetails');
   const button = document.getElementById('retailSaleBtn');
   const qtyInput = document.getElementById('retailQty');
+  const qualitySelect = document.getElementById('retailQuality');
   const maxBtn = document.getElementById('retailMaxBtn');
   const h24Btn = document.getElementById('retail24Btn');
   if (!select || !details || !button || !qtyInput) return;
@@ -1253,12 +1298,20 @@ function renderRetailSale() {
 
   if (retailProducts.some(p => p.id === previous)) select.value = previous;
 
+  const retailLots = availableProductQualities(select.value);
+  const previousQuality = qualitySelect?.value;
+  if (qualitySelect) {
+    qualitySelect.innerHTML = retailLots.length ? retailLots.map(l => `<option value="${Number(l.quality_level || 1)}">Q${Number(l.quality_level || 1)} – ${num(l.quantity)} verfügbar</option>`).join('') : '<option value="1">Q1 – 0 verfügbar</option>';
+    if (retailLots.some(l => String(l.quality_level) === String(previousQuality))) qualitySelect.value = previousQuality;
+  }
+
   let ctx = retailSaleContext();
 
   // Während eines laufenden Verkaufs bleibt der komplette Startzustand sichtbar.
   if (ctx.runningJob) {
     select.dataset.runningJobId = ctx.runningJob.id;
     select.value = ctx.runningJob.product_id;
+    if (qualitySelect) qualitySelect.value = String(ctx.runningJob.quality_level || 1);
     qtyInput.value = ctx.runningJob.start_input_text || formatRetailQuantityInput(ctx.runningJob.quantity);
     ctx = retailSaleContext();
   } else if (select.dataset.runningJobId) {
@@ -1276,6 +1329,7 @@ function renderRetailSale() {
 
   button.classList.remove('retail-cancel-mode');
   select.disabled = !!ctx.runningJob;
+  if (qualitySelect) qualitySelect.disabled = !!ctx.runningJob;
   qtyInput.disabled = !!ctx.runningJob;
   if (maxBtn) maxBtn.disabled = !!ctx.runningJob;
   if (h24Btn) h24Btn.disabled = !!ctx.runningJob;
@@ -1330,6 +1384,7 @@ function renderRetailSale() {
     `<div class="kv"><span>Verkaufsgebäude</span><strong>${ctx.buildingType?.name || '–'}</strong></div>`,
     `<div class="kv"><span>Gebäudestatus</span><strong class="${ctx.building ? 'retail-ready' : 'missing-building-warning'}">${ctx.building ? 'Bereit' : 'Benötigtes Gebäude fehlt'}</strong></div>`,
     `<div class="kv"><span>Verkaufsrate</span><strong>${ctx.building ? `${num(ctx.unitsPerHour)} Einheiten / Std.` : '–'}</strong></div>`,
+    `<div class="kv"><span>Qualität</span><strong>Q${ctx.quality} (+${Math.round((qualityMultiplier(ctx.quality)-1)*100)}% Wert)</strong></div>`,
     `<div class="kv"><span>Bestand</span><strong>${num(ctx.available)} Einheiten</strong></div>`,
     `<div class="kv"><span>Verkaufspreis</span><strong>${money(ctx.price)} / Einheit</strong></div>`,
     `<div class="kv"><span>Verkaufsdauer</span><strong>${ctx.building && saleHours > 0 ? formatProductionDuration(saleHours) : '–'}</strong></div>`,
@@ -1360,6 +1415,7 @@ function renderRetailSale() {
 function filteredMarketOrders() {
   const search = String(state.marketSearchFilter || '').trim().toLocaleLowerCase('de-DE');
   const type = state.marketTypeFilter || 'all';
+  const quality = state.marketQualityFilter || 'all';
 
   let orders = state.marketOrders.filter(o => {
     const matchesType =
@@ -1367,7 +1423,9 @@ function filteredMarketOrders() {
       (type === 'material' && !!o.material_id) ||
       (type === 'product' && !!o.product_id);
 
-    if (!matchesType) return false;
+    const orderQuality = Number(o.quality_level || 1);
+    const matchesQuality = quality === 'all' || (quality === '5' ? orderQuality >= 5 : orderQuality === Number(quality));
+    if (!matchesType || !matchesQuality) return false;
     if (!search) return true;
 
     const item = itemName(o).toLocaleLowerCase('de-DE');
@@ -1392,9 +1450,9 @@ function selectedMarketOrders() {
 }
 
 function marketOrderItemKey(order) {
-  if (order.material_id) return `material:${order.material_id}`;
+  if (order.material_id) return `material:${order.material_id}:q${Number(order.quality_level || 1)}`;
   const product = state.allProducts.find(p => p.id === order.product_id);
-  return product ? `product:${product.name}:${product.category}` : `product:${order.product_id}`;
+  return product ? `product:${product.name}:${product.category}:q${Number(order.quality_level || 1)}` : `product:${order.product_id}:q${Number(order.quality_level || 1)}`;
 }
 
 function updateMarketBuyPreview() {
@@ -1463,7 +1521,7 @@ function toggleMarketOrderSelection(orderId) {
     const currentKey = marketOrderItemKey(current[0]);
     const newKey = marketOrderItemKey(order);
     if (currentKey !== newKey) {
-      gameAlert('Mehrfachauswahl ist nur für denselben Artikel möglich.');
+      gameAlert('Mehrfachauswahl ist nur für denselben Artikel in derselben Qualität möglich.');
       return;
     }
   }
@@ -1480,13 +1538,14 @@ function renderMarket() {
   );
 
   document.getElementById('marketOrders').innerHTML = renderTable(
-    ['Firma','Gut','Art','Menge','Preis','Gebühr','Aktion'],
+    ['Firma','Gut','Art','Qualität','Menge','Preis','Gebühr','Aktion'],
     orders.map(o => {
       const selected = state.selectedMarketOrderIds.includes(o.id);
       return `<tr class="market-order-row ${selected ? 'selected' : ''}" data-order-id="${o.id}" tabindex="0" aria-selected="${selected}">
         <td>${companyName(o.company_id)}</td>
         <td>${itemName(o)}</td>
         <td>${o.material_id ? 'Rohstoff' : 'Produkt'}</td>
+        <td><strong>Q${Number(o.quality_level || 1)}</strong></td>
         <td>${num(o.remaining_quantity)}</td>
         <td>${money(o.price_per_unit)}</td>
         <td>5%</td>
@@ -1520,13 +1579,13 @@ function contractStatus(s) {
 function renderContracts() {
   const cid = state.company.id;
   document.getElementById('contractsTable').innerHTML = renderTable(
-    ['Verkäufer','Käufer','Gut','Menge','Preis','Status','Aktion'],
+    ['Verkäufer','Käufer','Gut','Qualität','Menge','Preis','Status','Aktion'],
     state.contracts.map(c => {
       let action = '–';
       if (c.status === 'proposed' && c.proposer_company_id !== cid) action = `<button onclick="acceptContract('${c.id}')">Annehmen</button>`;
       else if (c.status === 'accepted') action = `<button onclick="fulfillContract('${c.id}')">Erfüllen</button>`;
       if (['proposed','accepted'].includes(c.status)) action += ` <button class="ghost" onclick="cancelContract('${c.id}')">Stornieren</button>`;
-      return `<tr><td>${companyName(c.seller_company_id)}</td><td>${companyName(c.buyer_company_id)}</td><td>${contractItemName(c)}</td><td>${num(c.quantity)}</td><td>${money(c.unit_price)}</td><td>${contractStatus(c.status)}</td><td>${action}</td></tr>`;
+      return `<tr><td>${companyName(c.seller_company_id)}</td><td>${companyName(c.buyer_company_id)}</td><td>${contractItemName(c)}</td><td>Q${Number(c.quality_level || 1)}</td><td>${num(c.quantity)}</td><td>${money(c.unit_price)}</td><td>${contractStatus(c.status)}</td><td>${action}</td></tr>`;
     })
   );
 
@@ -1740,42 +1799,61 @@ function renderFinanceSummary() {
 
 function researchInventoryContext() {
   const product = state.products.find(p => p.category === 'research' && p.name === 'Forschungseinheit');
-  const inventory = product ? state.inventory.find(i => i.product_id === product.id) : null;
-  return {
-    product,
-    inventory,
-    quantity: Number(inventory?.quantity || 0),
-    averageUnitCost: Number(inventory?.average_unit_cost || 0)
-  };
+  const summary = product ? inventoryLotSummary(productInventoryLots(product.id), 1) : {quantity:0,averageUnitCost:0};
+  return { product, quantity:summary.quantity, averageUnitCost:summary.averageUnitCost };
 }
 
 function renderResearch() {
   const ctx = researchInventoryContext();
+  const productSelect = document.getElementById('researchProduct');
   const qtyInput = document.getElementById('researchInvestmentAmount');
   const preview = document.getElementById('researchInvestmentPreview');
+  const table = document.getElementById('researchProductTable');
   const submit = document.getElementById('researchInvestmentBtn');
   const maxBtn = document.getElementById('researchInvestmentMaxBtn');
-  if (!qtyInput || !preview || !submit) return;
+  if (!productSelect || !qtyInput || !preview || !submit || !table) return;
 
-  const availableWhole = Math.max(0, Math.floor(ctx.quantity));
-  const requested = Math.max(0, Math.floor(Number(qtyInput.value || 0)));
-  const investmentValue = requested * ctx.averageUnitCost;
-  const minPatent = investmentValue * 0.70;
-  const maxPatent = investmentValue * 1.10;
-  const valid = !!ctx.product && requested >= 1 && requested <= availableWhole && ctx.averageUnitCost > 0;
+  const researchProducts = [...state.products].sort((a,b)=>researchCategory(a).localeCompare(researchCategory(b),'de-DE')||a.name.localeCompare(b.name,'de-DE'));
+  const previous = state.researchSelectedProductId || productSelect.value;
+  const groups = new Map();
+  for (const product of researchProducts) {
+    const category = researchCategory(product);
+    if (!groups.has(category)) groups.set(category,[]);
+    groups.get(category).push(product);
+  }
+  productSelect.innerHTML=[...groups.entries()].map(([category,products])=>`<optgroup label="${category}">${products.map(p=>`<option value="${p.id}">${p.name} – Q${productQuality(p)}</option>`).join('')}</optgroup>`).join('');
+  if (researchProducts.some(p=>p.id===previous)) productSelect.value=previous;
+  if (!productSelect.value && researchProducts[0]) productSelect.value=researchProducts[0].id;
+  state.researchSelectedProductId=productSelect.value;
 
-  document.getElementById('researchUnitsAvailable').textContent = `${num(availableWhole)} Forschungseinheiten`;
-  document.getElementById('researchUnitAverageCost').textContent = money(ctx.averageUnitCost);
+  const selected=state.products.find(p=>p.id===productSelect.value);
+  const quality=productQuality(selected);
+  const requirement=researchRequirement(quality);
+  const progress=Number(selected?.research_units_progress||0);
+  const remaining=Math.max(0,requirement-progress);
+  const availableWhole=Math.max(0,Math.floor(ctx.quantity));
+  const requested=Math.max(0,Math.floor(Number(qtyInput.value||0)));
+  const maxInvestment=Math.min(availableWhole,Math.floor(remaining));
+  const valid=!!selected && requested>=1 && requested<=maxInvestment;
 
-  preview.innerHTML = `
-    <div class="kv"><span>Einheiten</span><strong>${num(requested)}</strong></div>
-    <div class="kv"><span>Investitionswert</span><strong>${money(investmentValue)}</strong></div>
-    <div class="kv"><span>Möglicher Patentwert-Zuwachs</span><strong>${money(minPatent)} – ${money(maxPatent)}</strong></div>
-    `;
+  document.getElementById('researchUnitsAvailable').textContent=`${num(availableWhole)} Forschungseinheiten`;
+  document.getElementById('researchUnitAverageCost').textContent=money(ctx.averageUnitCost);
+  preview.innerHTML=selected ? `
+    <div class="kv"><span>Produkt</span><strong>${selected.name}</strong></div>
+    <div class="kv"><span>Aktuelle Qualität</span><strong>Q${quality}</strong></div>
+    <div class="kv"><span>Wertbonus</span><strong>+${Math.round((qualityMultiplier(quality)-1)*100)}%</strong></div>
+    <div class="kv"><span>Fortschritt zu Q${quality+1}</span><strong>${num(progress)} / ${num(requirement)}</strong></div>
+    <div class="kv"><span>Noch benötigt</span><strong>${num(remaining)} Forschungseinheiten</strong></div>
+    <div class="kv"><span>Geplante Investition</span><strong>${num(requested)} Forschungseinheiten</strong></div>` : '';
+  submit.disabled=!valid;
+  if (maxBtn) maxBtn.disabled=maxInvestment<=0;
 
-  submit.disabled = !valid;
-  if (maxBtn) maxBtn.disabled = availableWhole <= 0;
+  table.innerHTML=renderTable(['Kategorie','Produkt','Qualität','Wertbonus','Fortschritt','Nächste Stufe','Aktion'],researchProducts.map(p=>{
+    const q=productQuality(p), req=researchRequirement(q), prog=Number(p.research_units_progress||0);
+    return `<tr><td>${researchCategory(p)}</td><td>${p.name}</td><td><strong>Q${q}</strong></td><td>+${Math.round((qualityMultiplier(q)-1)*100)}%</td><td>${num(prog)} / ${num(req)}</td><td>Q${q+1}</td><td><button type="button" class="ghost" onclick="selectResearchProduct('${p.id}')">Auswählen</button></td></tr>`;
+  }));
 }
+window.selectResearchProduct=function(productId){ state.researchSelectedProductId=productId; const select=document.getElementById('researchProduct'); if(select) select.value=productId; document.getElementById('researchInvestmentAmount').value='1'; renderResearch(); };
 
 function currentCompanyBuildingValue() {
   return state.buildings
@@ -1830,50 +1908,19 @@ window.renameCompanyFromCompanyTab = async function() {
 function renderStorage() {
   const container = document.getElementById('storageInventoryTable');
   if (!container) return;
-
   const search = String(state.storageSearchFilter || '').trim().toLocaleLowerCase('de-DE');
   const type = state.storageTypeFilter || 'all';
 
-  const materialRows = state.materials.map(material => {
-    const inv = state.materialInventory.find(i => i.material_id === material.id);
-    return {
-      type: 'material',
-      name: material.name,
-      quantity: Number(inv?.quantity || 0),
-      unit: material.unit || '–',
-      averageCost: Number(inv?.average_unit_cost || 0)
-    };
+  const materialRows = state.materialInventory.map(inv => {
+    const material = state.materials.find(m => m.id === inv.material_id);
+    return { type:'material', name:material?.name || '–', quality:Number(inv.quality_level||1), quantity:Number(inv.quantity||0), unit:material?.unit || '–', averageCost:Number(inv.average_unit_cost||0) };
   });
-
-  const productRows = state.inventory.map(inv => ({
-    type: 'product',
-    name: inv.products?.name || '–',
-    quantity: Number(inv.quantity || 0),
-    unit: 'Stück',
-    averageCost: Number(inv.average_unit_cost || 0)
-  }));
-
-  const rows = [...materialRows, ...productRows]
-    .filter(row => {
-      const matchesType = type === 'all' || row.type === type;
-      const matchesSearch = !search || row.name.toLocaleLowerCase('de-DE').includes(search);
-      return matchesType && matchesSearch;
-    })
-    .sort((a,b) =>
-      a.name.localeCompare(b.name, 'de-DE') ||
-      a.type.localeCompare(b.type, 'de-DE')
-    );
-
-  container.innerHTML = renderTable(
-    ['Artikel','Typ','Menge','Einheit','Ø Kosten'],
-    rows.map(row => `<tr>
-      <td>${row.name}</td>
-      <td>${row.type === 'material' ? 'Rohstoff' : 'Produkt'}</td>
-      <td>${num(row.quantity)}</td>
-      <td>${row.unit}</td>
-      <td>${money(row.averageCost)}</td>
-    </tr>`)
-  );
+  for (const material of state.materials) {
+    if (!materialRows.some(r => r.name === material.name)) materialRows.push({type:'material',name:material.name,quality:1,quantity:0,unit:material.unit||'–',averageCost:0});
+  }
+  const productRows = state.inventory.map(inv => ({ type:'product', name:inv.products?.name || '–', quality:Number(inv.quality_level||1), quantity:Number(inv.quantity||0), unit:'Stück', averageCost:Number(inv.average_unit_cost||0) }));
+  const rows=[...materialRows,...productRows].filter(row => (type==='all'||row.type===type) && (!search||row.name.toLocaleLowerCase('de-DE').includes(search))).sort((a,b)=>a.name.localeCompare(b.name,'de-DE')||a.quality-b.quality||a.type.localeCompare(b.type,'de-DE'));
+  container.innerHTML=renderTable(['Artikel','Typ','Qualität','Menge','Einheit','Ø Kosten'],rows.map(row=>`<tr><td>${row.name}</td><td>${row.type==='material'?'Rohstoff':'Produkt'}</td><td>Q${row.quality}</td><td>${num(row.quantity)}</td><td>${row.unit}</td><td>${money(row.averageCost)}</td></tr>`));
 }
 
 function productOptionsGroupedByBuilding(products) {
@@ -1893,7 +1940,7 @@ function productOptionsGroupedByBuilding(products) {
     .map(([label, items]) => {
       const options = items
         .sort((a, b) => a.name.localeCompare(b.name, 'de-DE'))
-        .map(product => `<option value="${product.id}">${product.name}</option>`)
+        .map(product => `<option value="${product.id}">${product.name} (Q${productQuality(product)})</option>`)
         .join('');
       return `<optgroup label="${label}">${options}</optgroup>`;
     })
@@ -1926,8 +1973,6 @@ function renderAll() {
         : money(0);
     statValueChange.className = `company-value-change ${valueChange > 0 ? 'company-value-change-positive' : valueChange < 0 ? 'company-value-change-negative' : 'company-value-change-zero'}`;
   }
-  const researchPatentValue = document.getElementById('researchPatentValue');
-  if (researchPatentValue) researchPatentValue.textContent = money(c.patent_value || 0);
   renderResearch();
 
   const companyRows = [
@@ -1972,6 +2017,7 @@ function renderAll() {
     productionProductSelect.value = previousProductionProduct;
   }
   document.getElementById('sellProduct').innerHTML = opts;
+  updateSellQualityOptions();
   renderProductionRecipe();
   renderBuildings();
   renderRetailSale();
@@ -2387,18 +2433,35 @@ buildingBuilderBtn?.addEventListener('click', () => {
 buildingCategoryFilter?.addEventListener('change', renderBuildingCatalog);
 
 // Market
+function updateSellQualityOptions() {
+  const productId=document.getElementById('sellProduct')?.value;
+  const qualitySelect=document.getElementById('sellQuality');
+  const priceInput=document.getElementById('sellPrice');
+  if (!qualitySelect) return;
+  const lots=availableProductQualities(productId);
+  const previous=qualitySelect.value;
+  qualitySelect.innerHTML=lots.length ? lots.map(l=>`<option value="${Number(l.quality_level||1)}">Q${Number(l.quality_level||1)} – ${num(l.quantity)} verfügbar</option>`).join('') : '<option value="1">Q1 – 0 verfügbar</option>';
+  if (lots.some(l=>String(l.quality_level)===String(previous))) qualitySelect.value=previous;
+  const lot=productLot(productId,Number(qualitySelect.value||1));
+  if (priceInput && lot && Number(lot.average_unit_cost||0)>0) priceInput.value=(Number(lot.average_unit_cost)*2*qualityMultiplier(qualitySelect.value)).toFixed(2);
+}
+
 document.getElementById('sellOrderForm').addEventListener('submit', async e => {
   e.preventDefault();
-  const { error }=await sb.rpc('place_sell_order',{
+  const { error }=await sb.rpc('place_sell_order_quality',{
     p_company_id:state.company.id,
     p_product_id:document.getElementById('sellProduct').value,
+    p_quality:Number(document.getElementById('sellQuality').value||1),
     p_quantity:Number(document.getElementById('sellQty').value),
     p_price:Number(document.getElementById('sellPrice').value)
   });
   if(error) gameAlert(error.message); else await loadCompany();
 });
 
+document.getElementById('sellProduct')?.addEventListener('change', updateSellQualityOptions);
+document.getElementById('sellQuality')?.addEventListener('change', updateSellQualityOptions);
 document.getElementById('retailProduct').addEventListener('change', renderRetailSale);
+document.getElementById('retailQuality')?.addEventListener('change', renderRetailSale);
 document.getElementById('retailMaxBtn').addEventListener('click', () => {
   const ctx = retailSaleContext();
   const maxUnits = Math.max(0, Math.floor(ctx.available || 0));
@@ -2446,13 +2509,15 @@ document.getElementById('retailSaleForm').addEventListener('submit', async e => 
   }
 
   const saleHours = ctx.unitsPerHour > 0 ? quantity / ctx.unitsPerHour : 0;
-  const { error } = await sb.rpc('start_retail_sale_v2', {
+  const { error } = await sb.rpc('start_retail_sale_quality_v2', {
     p_company_id: state.company.id,
     p_product_id: ctx.product.id,
+    p_quality: ctx.quality,
     p_quantity: quantity,
     p_input_text: document.getElementById('retailQty').value,
     p_start_snapshot: {
       quantity,
+      quality: ctx.quality,
       hours: saleHours,
       unitPrice: ctx.price,
       totalValue: ctx.price * quantity,
@@ -2500,6 +2565,7 @@ window.cancelOrder = async function(orderId) {
 
 const marketSearchFilter = document.getElementById('marketSearchFilter');
 const marketTypeFilter = document.getElementById('marketTypeFilter');
+const marketQualityFilter = document.getElementById('marketQualityFilter');
 const marketBuyQty = document.getElementById('marketBuyQty');
 const marketBuyCheapest = document.getElementById('marketBuyCheapest');
 const marketFilterReset = document.getElementById('marketFilterReset');
@@ -2578,12 +2644,20 @@ marketTypeFilter?.addEventListener('change', e => {
   renderMarket();
 });
 
+marketQualityFilter?.addEventListener('change', e => {
+  state.marketQualityFilter = e.target.value;
+  state.selectedMarketOrderIds = [];
+  renderMarket();
+});
+
 marketFilterReset?.addEventListener('click', () => {
   state.marketSearchFilter = '';
   state.marketTypeFilter = 'all';
+  state.marketQualityFilter = 'all';
   state.selectedMarketOrderIds = [];
   if (marketSearchFilter) marketSearchFilter.value = '';
   if (marketTypeFilter) marketTypeFilter.value = 'all';
+  if (marketQualityFilter) marketQualityFilter.value = 'all';
   if (marketBuyQty) marketBuyQty.value = '1';
   renderMarket();
 });
@@ -2609,6 +2683,13 @@ document.getElementById('financeNextPeriod')?.addEventListener('click', () => {
 const researchInvestmentForm = document.getElementById('researchInvestmentForm');
 const researchInvestmentAmount = document.getElementById('researchInvestmentAmount');
 const researchInvestmentMaxBtn = document.getElementById('researchInvestmentMaxBtn');
+const researchProduct = document.getElementById('researchProduct');
+
+researchProduct?.addEventListener('change', () => {
+  state.researchSelectedProductId = researchProduct.value;
+  researchInvestmentAmount.value = '1';
+  renderResearch();
+});
 
 researchInvestmentAmount?.addEventListener('input', () => {
   const whole = Math.max(0, Math.floor(Number(researchInvestmentAmount.value || 0)));
@@ -2620,7 +2701,9 @@ researchInvestmentAmount?.addEventListener('input', () => {
 
 researchInvestmentMaxBtn?.addEventListener('click', () => {
   const ctx = researchInventoryContext();
-  researchInvestmentAmount.value = String(Math.max(0, Math.floor(ctx.quantity)));
+  const target=state.products.find(p=>p.id===researchProduct?.value);
+  const remaining=Math.max(0,researchRequirement(productQuality(target))-Number(target?.research_units_progress||0));
+  researchInvestmentAmount.value = String(Math.max(0, Math.min(Math.floor(ctx.quantity),Math.floor(remaining))));
   renderResearch();
 });
 
@@ -2628,18 +2711,21 @@ if (researchInvestmentForm) {
   researchInvestmentForm.addEventListener('submit', async e => {
     e.preventDefault();
     const ctx = researchInventoryContext();
+    const target = state.products.find(p => p.id === researchProduct?.value);
     const quantity = Math.max(0, Math.floor(Number(researchInvestmentAmount.value || 0)));
-    const investmentValue = quantity * ctx.averageUnitCost;
+    const requirement = researchRequirement(productQuality(target));
+    const remaining = Math.max(0, requirement - Number(target?.research_units_progress || 0));
 
-    if (!ctx.product || quantity < 1 || quantity > Math.floor(ctx.quantity) || ctx.averageUnitCost <= 0) {
+    if (!ctx.product || !target || quantity < 1 || quantity > Math.floor(ctx.quantity) || quantity > remaining) {
       renderResearch();
       return;
     }
 
-    if (!await gameConfirm(`${num(quantity)} Forschungseinheiten mit einem Einstandswert von ${money(investmentValue)} investieren?`)) return;
+    if (!await gameConfirm(`${num(quantity)} Forschungseinheiten in „${target.name}“ investieren?`)) return;
 
-    const { data, error } = await sb.rpc('invest_research_units', {
+    const { data, error } = await sb.rpc('invest_product_research', {
       p_company_id: state.company.id,
+      p_product_id: target.id,
       p_quantity: quantity
     });
 
@@ -2648,8 +2734,7 @@ if (researchInvestmentForm) {
       return;
     }
 
-    const gain = Number(data?.patent_gain || 0);
-    gameAlert(`Forschung abgeschlossen: Patentwert +${money(gain)}.`);
+    gameAlert(data?.upgraded ? `${target.name} hat Qualität Q${Number(data.quality_level || productQuality(target)+1)} erreicht.` : `${num(quantity)} Forschungseinheiten wurden in ${target.name} investiert.`);
     researchInvestmentAmount.value = '1';
     await loadCompany();
   });
@@ -2666,12 +2751,13 @@ document.getElementById('contractForm').addEventListener('submit',async e=>{
   const item=document.getElementById('contractItem').value;
   const seller=role==='sell' ? state.company.id : partner;
   const buyer=role==='sell' ? partner : state.company.id;
-  const { error }=await sb.rpc('create_contract',{
+  const { error }=await sb.rpc('create_contract_quality',{
     p_proposer_company_id:state.company.id,
     p_seller_company_id:seller,
     p_buyer_company_id:buyer,
     p_product_id:type==='product' ? item : null,
     p_material_id:type==='material' ? item : null,
+    p_quality:Number(document.getElementById('contractQuality').value || 1),
     p_quantity:Number(document.getElementById('contractQty').value),
     p_unit_price:Number(document.getElementById('contractPrice').value)
   });

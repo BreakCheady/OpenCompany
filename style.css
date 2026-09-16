@@ -2176,3 +2176,13 @@ body.game-dialog-open { overflow: hidden; }
     padding-bottom: 20px;
   }
 }
+
+
+/* Version 0.6.0 – Qualitäts- und Forschungsdarstellung */
+.research-product-table { margin-top: 18px; }
+.research-product-table td strong { white-space: nowrap; }
+#sellQuality, #retailQuality, #marketQualityFilter, #researchProduct { min-width: 110px; }
+@media (max-width: 820px) {
+  .research-investment-form { grid-template-columns: 1fr !important; }
+  .market-filter-controls { align-items: end; }
+}

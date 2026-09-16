@@ -7,7 +7,7 @@
   <title>OpenCompany</title>
   <link rel="icon" type="image/png" href="favicon.png">
   <link rel="shortcut icon" href="favicon.ico">
-  <link rel="stylesheet" href="style.css?v=0.4.15">
+  <link rel="stylesheet" href="style.css?v=0.6.0">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
@@ -29,7 +29,7 @@
       <span id="sessionLabel">Nicht angemeldet</span>
       <button id="logoutBtn" class="ghost hidden">Abmelden</button>
       <div class="sidebar-version">
-        <span class="sidebar-version-number">Version 0.5.1</span>
+        <span class="sidebar-version-number">Version 0.6.0</span>
         <span class="sidebar-credit">Made by BreakCheady</span>
       </div>
     </div>
@@ -169,6 +169,7 @@
           <h2>Produkt am Markt verkaufen</h2>
           <form id="sellOrderForm">
             <label>Produkt<select id="sellProduct"></select></label>
+            <label>Qualität<select id="sellQuality"></select></label>
             <label>Menge<input type="number" id="sellQty" min="1" value="5"></label>
             <label>Preis je Einheit<input type="number" id="sellPrice" min="0.01" step="0.01" value="800"></label>
             <button type="submit" class="sell-order-submit">Order erstellen</button>
@@ -180,6 +181,7 @@
           <h2>Produkt im Handel verkaufen</h2>
           <form id="retailSaleForm">
             <label>Produkt<select id="retailProduct"></select></label>
+            <label>Qualität<select id="retailQuality"></select></label>
             <label>Menge
               <input type="text" id="retailQty" value="1"
                 autocomplete="off" autocapitalize="none" spellcheck="false"
@@ -209,6 +211,16 @@
                   <option value="product">Produkte</option>
                 </select>
               </label>
+              <label>Qualität
+                <select id="marketQualityFilter">
+                  <option value="all">Alle</option>
+                  <option value="1">Q1</option>
+                  <option value="2">Q2</option>
+                  <option value="3">Q3</option>
+                  <option value="4">Q4</option>
+                  <option value="5">Q5+</option>
+                </select>
+              </label>
               <label>Menge
                 <input id="marketBuyQty" type="number" min="1" step="1" value="1">
               </label>
@@ -234,6 +246,7 @@
               <label>Partner<select id="contractPartner"></select></label>
               <label>Gut-Typ<select id="contractItemType"><option value="product">Produkt</option><option value="material">Material</option></select></label>
               <label>Gut<select id="contractItem"></select></label>
+              <label>Qualität<select id="contractQuality"><option value="1">Q1</option><option value="2">Q2</option><option value="3">Q3</option><option value="4">Q4</option><option value="5">Q5</option><option value="6">Q6</option></select></label>
               <label>Menge<input id="contractQty" type="number" min="0.01" step="0.01" value="10" required></label>
               <label>Preis je Einheit<input id="contractPrice" type="number" min="0.01" step="0.01" value="100" required></label>
               <button type="submit">Vertrag vorschlagen</button>
@@ -249,15 +262,17 @@
 
       <div id="research" class="view">
         <article class="panel">
-          <h2>Forschung</h2>
+          <h2>Produktforschung</h2>
 
           <div class="research-overview">
-            <div class="kv"><span>Patentwert</span><strong id="researchPatentValue">0 OC$</strong></div>
             <div class="kv"><span>Forschungseinheiten im Lager</span><strong id="researchUnitsAvailable">0</strong></div>
             <div class="kv"><span>Ø Einstandswert</span><strong id="researchUnitAverageCost">0 OC$</strong></div>
           </div>
 
           <form id="researchInvestmentForm" class="research-investment-form">
+            <label>Produkt
+              <select id="researchProduct"></select>
+            </label>
             <label>Forschungseinheiten investieren
               <input type="number" id="researchInvestmentAmount" min="1" step="1" value="1">
             </label>
@@ -268,6 +283,7 @@
           </form>
 
           <div id="researchInvestmentPreview" class="research-investment-preview"></div>
+          <div id="researchProductTable" class="table-wrap research-product-table"></div>
         </article>
       </div>
 
