@@ -1871,3 +1871,30 @@ td button {
     min-width: 36px;
   }
 }
+
+
+/* v0.3.2 – tägliche Unternehmenswert-Veränderung */
+.company-value-line {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.company-value-change {
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.company-value-change-positive {
+  color: var(--success, #16834f);
+}
+
+.company-value-change-negative {
+  color: var(--danger, #b00020);
+}
+
+.company-value-change-zero {
+  color: var(--muted, #666);
+}

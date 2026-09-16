@@ -28,6 +28,7 @@ const state = {
   contracts: [],
   companyDirectory: [],
   companyDebt: 0,
+  companyValueChange: 0,
   recoveringPassword: false
 };
 
@@ -35,6 +36,7 @@ let presenceTimer = null;
 let productionRefreshTimer = null;
 let productionClaimDisplayTimer = null;
 let npcMarketTimer = null;
+let companyValueRefreshTimer = null;
 
 const money = n => new Intl.NumberFormat('de-DE', { style:'currency', currency:'EUR', maximumFractionDigits:2 })
   .format(Number(n || 0)).replace('€','OC$');
@@ -150,15 +152,42 @@ async function touchPresence() {
   renderCompanyStatus();
 }
 
+async function refreshCompanyValueSnapshot() {
+  if (!sb || !state.company?.id || document.visibilityState === 'hidden') return;
+  const cid = state.company.id;
+  const [companyResult, historyResult] = await Promise.all([
+    sb.from('companies').select('company_value').eq('id',cid).single(),
+    sb.from('company_valuation_history').select('change_amount,calculated_at').eq('company_id',cid).order('valuation_date',{ascending:false}).limit(1)
+  ]);
+
+  if (companyResult.error || historyResult.error) return;
+  state.company.company_value = Number(companyResult.data?.company_value || state.company.company_value || 0);
+  state.companyValueChange = Number(historyResult.data?.[0]?.change_amount || 0);
+
+  const valueEl = document.getElementById('statValue');
+  const changeEl = document.getElementById('statValueChange');
+  if (valueEl) valueEl.textContent = money(state.company.company_value);
+  if (changeEl) {
+    const change = state.companyValueChange;
+    changeEl.textContent = change > 0 ? `+${money(change)}` : change < 0 ? `-${money(Math.abs(change))}` : money(0);
+    changeEl.className = `company-value-change ${change > 0 ? 'company-value-change-positive' : change < 0 ? 'company-value-change-negative' : 'company-value-change-zero'}`;
+  }
+}
+
 function startPresenceHeartbeat() {
   if (presenceTimer) clearInterval(presenceTimer);
   touchPresence();
   presenceTimer = setInterval(touchPresence, 60000);
+  if (companyValueRefreshTimer) clearInterval(companyValueRefreshTimer);
+  refreshCompanyValueSnapshot();
+  companyValueRefreshTimer = setInterval(refreshCompanyValueSnapshot, 60000);
 }
 
 function stopPresenceHeartbeat() {
   if (presenceTimer) clearInterval(presenceTimer);
   presenceTimer = null;
+  if (companyValueRefreshTimer) clearInterval(companyValueRefreshTimer);
+  companyValueRefreshTimer = null;
 }
 
 function stopNpcMarketHeartbeat() {
@@ -301,10 +330,11 @@ async function loadGameData() {
     sb.from('market_orders').select('*, products(name), materials(name)').in('status',['filled','cancelled']).order('created_at',{ascending:false}).limit(100),
     sb.from('contracts').select('*').or(`seller_company_id.eq.${cid},buyer_company_id.eq.${cid}`).order('created_at',{ascending:false}),
     sb.rpc('list_companies'),
-    sb.rpc('get_company_debt', { p_company_id: cid })
+    sb.rpc('get_company_debt', { p_company_id: cid }),
+    sb.from('company_valuation_history').select('valuation_date,company_value,previous_company_value,change_amount,calculated_at').eq('company_id',cid).order('valuation_date',{ascending:false}).limit(1)
   ]);
 
-  const labels = ['Produkte','Alle Produkte','Produktlager','Materialien','Materiallager','Rezepte','Gebäudetypen','Gebäude','Produktionen','Handelsverkäufe','Finanzen','Marktorders','Order-Historie','Verträge','Firmenverzeichnis','Kreditschulden'];
+  const labels = ['Produkte','Alle Produkte','Produktlager','Materialien','Materiallager','Rezepte','Gebäudetypen','Gebäude','Produktionen','Handelsverkäufe','Finanzen','Marktorders','Order-Historie','Verträge','Firmenverzeichnis','Kreditschulden','Unternehmenswert-Verlauf'];
   const errors = results.map((r,i)=>r.error ? { label: labels[i], error:r.error } : null).filter(Boolean);
   if (errors.length) {
     console.error(errors);
@@ -313,7 +343,7 @@ async function loadGameData() {
   }
   clearGameDataError();
 
-  const [products, allProducts, inventory, materials, materialInventory, recipes, buildingTypes, buildings, productionJobs, retailSaleJobs, tx, orders, history, contracts, directory, companyDebt] = results;
+  const [products, allProducts, inventory, materials, materialInventory, recipes, buildingTypes, buildings, productionJobs, retailSaleJobs, tx, orders, history, contracts, directory, companyDebt, valuationHistory] = results;
   state.products = products.data;
   state.allProducts = allProducts.data;
   state.inventory = inventory.data;
@@ -330,6 +360,7 @@ async function loadGameData() {
   state.contracts = contracts.data;
   state.companyDirectory = directory.data || [];
   state.companyDebt = Number(companyDebt.data || 0);
+  state.companyValueChange = Number(valuationHistory.data?.[0]?.change_amount || 0);
   renderAll();
 }
 
@@ -1442,6 +1473,16 @@ function renderAll() {
     }, 0);
   document.getElementById('statEmployees').textContent = `${num(automaticEmployees)} Mitarbeiter`;
   document.getElementById('statValue').textContent = money(c.company_value);
+  const statValueChange = document.getElementById('statValueChange');
+  if (statValueChange) {
+    const valueChange = Number(state.companyValueChange || 0);
+    statValueChange.textContent = valueChange > 0
+      ? `+${money(valueChange)}`
+      : valueChange < 0
+        ? `-${money(Math.abs(valueChange))}`
+        : money(0);
+    statValueChange.className = `company-value-change ${valueChange > 0 ? 'company-value-change-positive' : valueChange < 0 ? 'company-value-change-negative' : 'company-value-change-zero'}`;
+  }
   const researchPatentValue = document.getElementById('researchPatentValue');
   if (researchPatentValue) researchPatentValue.textContent = money(c.patent_value || 0);
   renderResearch();
