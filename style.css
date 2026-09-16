@@ -1936,3 +1936,49 @@ body.game-dialog-open { overflow: hidden; }
   opacity: 1;
   cursor: pointer;
 }
+
+
+/* v0.3.9 – Marktfilter */
+.market-orders-head {
+  align-items: flex-end;
+  gap: 16px;
+}
+
+.market-filter-controls {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-left: auto;
+}
+
+.market-filter-controls label {
+  margin: 0;
+  min-width: 160px;
+}
+
+.market-filter-controls input {
+  min-width: 230px;
+}
+
+.market-filter-controls select {
+  min-width: 130px;
+}
+
+@media (max-width: 760px) {
+  .market-orders-head {
+    align-items: stretch;
+  }
+
+  .market-filter-controls {
+    width: 100%;
+    margin-left: 0;
+  }
+
+  .market-filter-controls label,
+  .market-filter-controls input,
+  .market-filter-controls select {
+    width: 100%;
+    min-width: 0;
+  }
+}

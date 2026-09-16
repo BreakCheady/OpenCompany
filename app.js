@@ -23,6 +23,8 @@ const state = {
   marketOrders: [],
   marketOrderHistory: [],
   marketOrderHistoryFilter: 'all',
+  marketSearchFilter: '',
+  marketTypeFilter: 'all',
   financePeriod: 'week',
   financePeriodOffset: 0,
   contracts: [],
@@ -1252,9 +1254,37 @@ function renderRetailSale() {
 }
 
 function renderMarket() {
+  const search = String(state.marketSearchFilter || '').trim().toLocaleLowerCase('de-DE');
+  const type = state.marketTypeFilter || 'all';
+
+  let orders = state.marketOrders.filter(o => {
+    const matchesType =
+      type === 'all' ||
+      (type === 'material' && !!o.material_id) ||
+      (type === 'product' && !!o.product_id);
+
+    if (!matchesType) return false;
+    if (!search) return true;
+
+    const item = itemName(o).toLocaleLowerCase('de-DE');
+    const company = companyName(o.company_id).toLocaleLowerCase('de-DE');
+    const kind = o.material_id ? 'rohstoff material' : 'produkt';
+
+    return item.includes(search) || company.includes(search) || kind.includes(search);
+  });
+
+  const filterActive = !!search || type !== 'all';
+  if (filterActive) {
+    orders = [...orders].sort((a,b) =>
+      Number(a.price_per_unit || 0) - Number(b.price_per_unit || 0) ||
+      itemName(a).localeCompare(itemName(b), 'de-DE') ||
+      companyName(a.company_id).localeCompare(companyName(b.company_id), 'de-DE')
+    );
+  }
+
   document.getElementById('marketOrders').innerHTML = renderTable(
     ['Firma','Gut','Art','Menge','Preis','Gebühr','Aktion'],
-    state.marketOrders.map(o => `<tr>
+    orders.map(o => `<tr>
       <td>${companyName(o.company_id)}</td>
       <td>${itemName(o)}</td>
       <td>${o.material_id ? 'Rohstoff' : 'Produkt'}</td>
@@ -2058,6 +2088,28 @@ window.cancelOrder = async function(orderId) {
 document.getElementById('marketOrderHistoryFilter').addEventListener('change',e=>{
   state.marketOrderHistoryFilter=e.target.value;
   renderMarketOrderHistory();
+});
+
+const marketSearchFilter = document.getElementById('marketSearchFilter');
+const marketTypeFilter = document.getElementById('marketTypeFilter');
+const marketFilterReset = document.getElementById('marketFilterReset');
+
+marketSearchFilter?.addEventListener('input', e => {
+  state.marketSearchFilter = e.target.value;
+  renderMarket();
+});
+
+marketTypeFilter?.addEventListener('change', e => {
+  state.marketTypeFilter = e.target.value;
+  renderMarket();
+});
+
+marketFilterReset?.addEventListener('click', () => {
+  state.marketSearchFilter = '';
+  state.marketTypeFilter = 'all';
+  if (marketSearchFilter) marketSearchFilter.value = '';
+  if (marketTypeFilter) marketTypeFilter.value = 'all';
+  renderMarket();
 });
 
 document.querySelectorAll('.finance-period-btn').forEach(btn => btn.addEventListener('click', () => {
