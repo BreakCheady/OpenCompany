@@ -84,6 +84,28 @@ function researchCategory(product) {
   })[name] || 'Sonstige';
 }
 
+function ownsProductProductionBuilding(product) {
+  if (!product?.required_building_type_id) return false;
+  return state.buildings.some(building => building.building_type_id === product.required_building_type_id);
+}
+
+function hasProductInventory(productId) {
+  return productInventoryLots(productId).some(row => Number(row.quantity || 0) > 0);
+}
+
+function operationalProductVisible(product) {
+  if (!product) return false;
+  return hasProductInventory(product.id) || ownsProductProductionBuilding(product);
+}
+
+function operationalProducts() {
+  return state.products.filter(operationalProductVisible);
+}
+
+function operationalProductIdentitySet() {
+  return new Set(operationalProducts().map(product => `${product.name}::${product.category}`));
+}
+
 function msg(el, text, type='') { el.textContent = text; el.className = `status ${type}`; }
 
 
@@ -1289,7 +1311,7 @@ function renderRetailSale() {
   const h24Btn = document.getElementById('retail24Btn');
   if (!select || !details || !button || !qtyInput) return;
 
-  const retailProducts = state.products.filter(p => p.required_retail_building_type_id);
+  const retailProducts = operationalProducts().filter(p => p.required_retail_building_type_id);
   const previous = select.value;
 
   select.innerHTML = retailProducts.length
@@ -1417,11 +1439,19 @@ function filteredMarketOrders() {
   const type = state.marketTypeFilter || 'all';
   const quality = state.marketQualityFilter || 'all';
 
+  const visibleProductKeys = operationalProductIdentitySet();
+
   let orders = state.marketOrders.filter(o => {
     const matchesType =
       type === 'all' ||
       (type === 'material' && !!o.material_id) ||
       (type === 'product' && !!o.product_id);
+
+    if (o.product_id && o.company_id !== state.company?.id) {
+      const orderProduct = state.allProducts.find(p => p.id === o.product_id);
+      const key = orderProduct ? `${orderProduct.name}::${orderProduct.category}` : '';
+      if (!visibleProductKeys.has(key)) return false;
+    }
 
     const orderQuality = Number(o.quality_level || 1);
     const matchesQuality = quality === 'all' || (quality === '5' ? orderQuality >= 5 : orderQuality === Number(quality));
@@ -1604,9 +1634,13 @@ function updateContractGoods() {
     opts = state.materials.map(m => `<option value="${m.id}">${m.name}</option>`);
   } else {
     const sellerId = role === 'sell' ? state.company.id : partnerId;
-    opts = state.allProducts.filter(p => p.company_id === sellerId).map(p => `<option value="${p.id}">${p.name}</option>`);
+    const visibleKeys = operationalProductIdentitySet();
+    opts = state.allProducts
+      .filter(p => p.company_id === sellerId && visibleKeys.has(`${p.name}::${p.category}`))
+      .sort((a,b)=>a.name.localeCompare(b.name,'de-DE'))
+      .map(p => `<option value="${p.id}">${p.name}</option>`);
   }
-  document.getElementById('contractItem').innerHTML = opts.join('');
+  document.getElementById('contractItem').innerHTML = opts.length ? opts.join('') : '<option value="">Keine passenden Produkte verfügbar</option>';
 }
 
 
@@ -1911,14 +1945,18 @@ function renderStorage() {
   const search = String(state.storageSearchFilter || '').trim().toLocaleLowerCase('de-DE');
   const type = state.storageTypeFilter || 'all';
 
-  const materialRows = state.materialInventory.map(inv => {
-    const material = state.materials.find(m => m.id === inv.material_id);
-    return { type:'material', name:material?.name || '–', quality:Number(inv.quality_level||1), quantity:Number(inv.quantity||0), unit:material?.unit || '–', averageCost:Number(inv.average_unit_cost||0) };
-  });
-  for (const material of state.materials) {
-    if (!materialRows.some(r => r.name === material.name)) materialRows.push({type:'material',name:material.name,quality:1,quantity:0,unit:material.unit||'–',averageCost:0});
-  }
-  const productRows = state.inventory.map(inv => ({ type:'product', name:inv.products?.name || '–', quality:Number(inv.quality_level||1), quantity:Number(inv.quantity||0), unit:'Stück', averageCost:Number(inv.average_unit_cost||0) }));
+  const materialRows = state.materialInventory
+    .filter(inv => Number(inv.quantity || 0) > 0)
+    .map(inv => {
+      const material = state.materials.find(m => m.id === inv.material_id);
+      return { type:'material', name:material?.name || '–', quality:Number(inv.quality_level||1), quantity:Number(inv.quantity||0), unit:material?.unit || '–', averageCost:Number(inv.average_unit_cost||0) };
+    });
+  const productRows = state.inventory
+    .filter(inv => {
+      const product = state.products.find(p => p.id === inv.product_id);
+      return Number(inv.quantity || 0) > 0 || ownsProductProductionBuilding(product);
+    })
+    .map(inv => ({ type:'product', name:inv.products?.name || state.products.find(p=>p.id===inv.product_id)?.name || '–', quality:Number(inv.quality_level||1), quantity:Number(inv.quantity||0), unit:'Stück', averageCost:Number(inv.average_unit_cost||0) }));
   const rows=[...materialRows,...productRows].filter(row => (type==='all'||row.type===type) && (!search||row.name.toLocaleLowerCase('de-DE').includes(search))).sort((a,b)=>a.name.localeCompare(b.name,'de-DE')||a.quality-b.quality||a.type.localeCompare(b.type,'de-DE'));
   container.innerHTML=renderTable(['Artikel','Typ','Qualität','Menge','Einheit','Ø Kosten'],rows.map(row=>`<tr><td>${row.name}</td><td>${row.type==='material'?'Rohstoff':'Produkt'}</td><td>Q${row.quality}</td><td>${num(row.quantity)}</td><td>${row.unit}</td><td>${money(row.averageCost)}</td></tr>`));
 }
@@ -2009,11 +2047,12 @@ function renderAll() {
   renderFinanceSummary();
   renderStorage();
 
-  const opts = productOptionsGroupedByBuilding(state.products);
+  const visibleProducts = operationalProducts();
+  const opts = productOptionsGroupedByBuilding(visibleProducts);
   const productionProductSelect = document.getElementById('productionProduct');
   const previousProductionProduct = productionProductSelect.value;
   productionProductSelect.innerHTML = opts;
-  if (state.products.some(p => p.id === previousProductionProduct)) {
+  if (visibleProducts.some(p => p.id === previousProductionProduct)) {
     productionProductSelect.value = previousProductionProduct;
   }
   document.getElementById('sellProduct').innerHTML = opts;
