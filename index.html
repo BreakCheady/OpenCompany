@@ -7,7 +7,7 @@
   <title>OpenCompany</title>
   <link rel="icon" type="image/png" href="favicon.png">
   <link rel="shortcut icon" href="favicon.ico">
-  <link rel="stylesheet" href="style.css?v=0.1.73">
+  <link rel="stylesheet" href="style.css?v=0.2.0">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
@@ -29,7 +29,7 @@
       <span id="sessionLabel">Nicht angemeldet</span>
       <button id="logoutBtn" class="ghost hidden">Abmelden</button>
       <div class="sidebar-version">
-        <span class="sidebar-version-number">Version 0.1.73</span>
+        <span class="sidebar-version-number">Version 0.2.0</span>
         <span class="sidebar-credit">Made by BreakCheady</span>
       </div>
     </div>
@@ -128,7 +128,7 @@
           <div class="panel-head building-panel-head">
             <div>
               <h2>Gebäude</h2>
-              <p class="muted">Verwalte deine bestehenden Produktions- und Verkaufsgebäude.</p>
+              <p class="muted">Verwalte deine bestehenden Produktions-, Verkaufs- und Forschungsgebäude.</p>
             </div>
             <button type="button" id="openBuildingBuilderBtn" class="building-builder-open-btn">Bauen</button>
           </div>
@@ -144,6 +144,7 @@
                   <option value="all">Alle</option>
                   <option value="production">Produktion</option>
                   <option value="retail">Verkauf</option>
+                  <option value="research">Forschung</option>
                 </select>
               </label>
             </div>
@@ -225,18 +226,25 @@
       <div id="research" class="view">
         <article class="panel">
           <h2>Forschung</h2>
-          <p class="muted">Investitionen erhöhen den Patentwert dauerhaft im Verhältnis 1:1. Weitere Forschungsmechaniken folgen später.</p>
+          <p class="muted">Investiere Forschungseinheiten aus deinem Lager. Der Patentwert steigt zufällig um 70% bis 110% des tatsächlichen Einstandswerts der investierten Einheiten.</p>
 
-          <div class="research-placeholder">
+          <div class="research-overview">
             <div class="kv"><span>Patentwert</span><strong id="researchPatentValue">0 OC$</strong></div>
+            <div class="kv"><span>Forschungseinheiten im Lager</span><strong id="researchUnitsAvailable">0</strong></div>
+            <div class="kv"><span>Ø Einstandswert</span><strong id="researchUnitAverageCost">0 OC$</strong></div>
           </div>
 
           <form id="researchInvestmentForm" class="research-investment-form">
-            <label>Investition
-              <input type="number" id="researchInvestmentAmount" min="0.01" step="0.01" value="1000">
+            <label>Forschungseinheiten investieren
+              <input type="number" id="researchInvestmentAmount" min="1" step="1" value="1">
             </label>
-            <button type="submit" class="research-invest-button">Investieren</button>
+            <div class="research-investment-actions">
+              <button type="button" id="researchInvestmentMaxBtn" class="ghost">MAX</button>
+              <button type="submit" id="researchInvestmentBtn" class="research-invest-button">Investieren</button>
+            </div>
           </form>
+
+          <div id="researchInvestmentPreview" class="research-investment-preview"></div>
         </article>
       </div>
 

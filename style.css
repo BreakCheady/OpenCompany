@@ -1784,3 +1784,31 @@ td button {
     grid-template-columns: 1fr;
   }
 }
+
+
+/* v0.2.0 – Forschungssystem */
+.research-overview,
+.research-investment-preview {
+  display: grid;
+  margin-top: 12px;
+}
+
+.research-investment-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.research-investment-preview {
+  margin-top: 14px;
+  border-top: 1px solid var(--border);
+  padding-top: 8px;
+}
+
+.research-production-note {
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: rgba(0,0,0,.02);
+  color: var(--muted);
+}

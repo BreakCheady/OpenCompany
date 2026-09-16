@@ -53,7 +53,8 @@ function transactionLabel(type) {
     production_refund: 'Erstattung Produktion',
     construction: 'Baukosten',
     building_refund: 'Gebäude-Erstattung',
-    research: 'Forschung'
+    research: 'Forschung',
+    research_investment: 'Forschungsinvestition'
   })[type] || type;
 }
 
@@ -517,16 +518,18 @@ function productionPlan(unitsOverride = null) {
     const perUnit = Number(input.quantity_per_unit || 0);
     if (perUnit > 0) maxUnitsByMaterial = Math.min(maxUnitsByMaterial, input.available / perUnit);
   }
-  if (!Number.isFinite(maxUnitsByMaterial)) maxUnitsByMaterial = 0;
-
   const maxUnitsByTime = ctx.unitsPerHour * 24;
+  if (!Number.isFinite(maxUnitsByMaterial)) maxUnitsByMaterial = maxUnitsByTime;
   const maxUnits = Math.max(0, Math.floor(Math.min(maxUnitsByMaterial, maxUnitsByTime) * 10000) / 10000);
 
   const procurementCost = inputs.reduce((sum, input) => sum + Number(input.openProcurementCost || 0), 0);
+  const baseProductionCost = ctx.product?.category === 'research'
+    ? Number(ctx.product.production_cost || 0) * outputQty
+    : 0;
   const personnelCost = ctx.buildingType
     ? Number(ctx.buildingType.labor_cost_per_unit || 0) * outputQty
     : 0;
-  const productionCost = procurementCost + personnelCost;
+  const productionCost = procurementCost + baseProductionCost + personnelCost;
 
   const materialsOk = inputs.every(i => i.enough);
   const within24h = hours > 0 && hours <= 24;
@@ -541,6 +544,7 @@ function productionPlan(unitsOverride = null) {
     inputs,
     maxUnits,
     procurementCost,
+    baseProductionCost,
     personnelCost,
     productionCost,
     materialsOk,
@@ -670,6 +674,7 @@ function renderProductionRecipe() {
   const displayOutputQty = runningJob ? Number(startSnapshot.outputQty ?? runningJob.output_quantity ?? 0) : plan.outputQty;
   const displayHours = runningJob ? Number(startSnapshot.hours ?? runningJob.hours ?? 0) : plan.hours;
   const displayProcurementCost = runningJob ? Number(startSnapshot.procurementCost ?? 0) : plan.procurementCost;
+  const displayBaseProductionCost = runningJob ? Number(startSnapshot.baseProductionCost ?? 0) : plan.baseProductionCost;
   const displayPersonnelCost = runningJob ? Number(startSnapshot.personnelCost ?? runningJob.production_cash_cost ?? 0) : plan.personnelCost;
   const displayProductionCost = runningJob
     ? Number(startSnapshot.productionCost ?? (displayProcurementCost + displayPersonnelCost))
@@ -687,7 +692,9 @@ function renderProductionRecipe() {
     `<div class="kv"><span>Produktionsmenge</span><strong>${num(displayOutputQty)} Einheiten</strong></div>`,
     `<div class="kv"><span>Produktionsdauer</span><strong>${formatProductionDuration(displayHours)}</strong></div>`,
     `<div class="kv"><span>Voraussichtliches Ende</span><strong>${displayFinish}</strong></div>`,
-    `<div class="kv"><span>Beschaffungskosten</span><strong class="${displayProcurementCost > 0 ? 'production-cost-negative' : 'production-cost-zero'}">${displayProcurementCost > 0 ? '-' : ''}${money(Math.abs(displayProcurementCost))}</strong></div>`,
+    ...(plan.product?.category === 'research'
+      ? [`<div class="kv"><span>Grund-Produktionskosten</span><strong class="production-cost-negative">-${money(Math.abs(displayBaseProductionCost))}</strong></div>`]
+      : [`<div class="kv"><span>Beschaffungskosten</span><strong class="${displayProcurementCost > 0 ? 'production-cost-negative' : 'production-cost-zero'}">${displayProcurementCost > 0 ? '-' : ''}${money(Math.abs(displayProcurementCost))}</strong></div>`]),
     `<div class="kv"><span>Personalkosten</span><strong class="production-cost-negative">-${money(Math.abs(displayPersonnelCost))}</strong></div>`,
     `<div class="kv"><span>Produktionskosten gesamt</span><strong class="production-cost-negative">-${money(Math.abs(displayProductionCost))}</strong></div>`,
     `<div class="kv"><span>Belegschaft</span><strong>${building ? `${num(staff)} Mitarbeiter` : '–'}</strong></div>`
@@ -730,10 +737,11 @@ function renderProductionRecipe() {
     </tr>`;
   });
 
-  document.getElementById('productionRecipe').innerHTML = renderTable(
-    ['Typ','Input','Bedarf je Einheit','Benötigt','Bestand','Aktion'],
-    rows
-  );
+  document.getElementById('productionRecipe').innerHTML = rows.length
+    ? renderTable(['Typ','Input','Bedarf je Einheit','Benötigt','Bestand','Aktion'], rows)
+    : (plan.product?.category === 'research'
+      ? '<div class="research-production-note">Keine Rohstoffe benötigt. Forschungseinheiten benötigen ausschließlich Geld: 12 OC$ Grundkosten + 14 OC$ Personalkosten pro Einheit.</div>'
+      : renderTable(['Typ','Input','Bedarf je Einheit','Benötigt','Bestand','Aktion'], rows));
 
   const button = document.getElementById('productionStartBtn');
   button.classList.remove('production-ready', 'production-cancel');
@@ -780,7 +788,9 @@ function scheduleProductionRefresh() {
 }
 
 function buildingCategoryLabel(category) {
-  return category === 'retail' ? 'Verkauf' : 'Produktion';
+  if (category === 'retail') return 'Verkauf';
+  if (category === 'research') return 'Forschung';
+  return 'Produktion';
 }
 
 function renderBuildingCatalog() {
@@ -1349,6 +1359,45 @@ function renderFinanceSummary() {
   });
 }
 
+function researchInventoryContext() {
+  const product = state.products.find(p => p.category === 'research' && p.name === 'Forschungseinheit');
+  const inventory = product ? state.inventory.find(i => i.product_id === product.id) : null;
+  return {
+    product,
+    inventory,
+    quantity: Number(inventory?.quantity || 0),
+    averageUnitCost: Number(inventory?.average_unit_cost || 0)
+  };
+}
+
+function renderResearch() {
+  const ctx = researchInventoryContext();
+  const qtyInput = document.getElementById('researchInvestmentAmount');
+  const preview = document.getElementById('researchInvestmentPreview');
+  const submit = document.getElementById('researchInvestmentBtn');
+  const maxBtn = document.getElementById('researchInvestmentMaxBtn');
+  if (!qtyInput || !preview || !submit) return;
+
+  const availableWhole = Math.max(0, Math.floor(ctx.quantity));
+  const requested = Math.max(0, Math.floor(Number(qtyInput.value || 0)));
+  const investmentValue = requested * ctx.averageUnitCost;
+  const minPatent = investmentValue * 0.70;
+  const maxPatent = investmentValue * 1.10;
+  const valid = !!ctx.product && requested >= 1 && requested <= availableWhole && ctx.averageUnitCost > 0;
+
+  document.getElementById('researchUnitsAvailable').textContent = `${num(availableWhole)} Forschungseinheiten`;
+  document.getElementById('researchUnitAverageCost').textContent = money(ctx.averageUnitCost);
+
+  preview.innerHTML = `
+    <div class="kv"><span>Einheiten</span><strong>${num(requested)}</strong></div>
+    <div class="kv"><span>Investitionswert</span><strong>${money(investmentValue)}</strong></div>
+    <div class="kv"><span>Möglicher Patentwert-Zuwachs</span><strong>${money(minPatent)} – ${money(maxPatent)}</strong></div>
+    <div class="kv"><span>Zufallsfaktor</span><strong>70% – 110%</strong></div>`;
+
+  submit.disabled = !valid;
+  if (maxBtn) maxBtn.disabled = availableWhole <= 0;
+}
+
 function renderAll() {
   const c = state.company;
   document.getElementById('statCompany').textContent = c.name;
@@ -1367,6 +1416,7 @@ function renderAll() {
   document.getElementById('statValue').textContent = money(c.company_value);
   const researchPatentValue = document.getElementById('researchPatentValue');
   if (researchPatentValue) researchPatentValue.textContent = money(c.patent_value || 0);
+  renderResearch();
 
   const companyRows = [
     `<div class="kv"><span>Name</span><strong>${c.name}</strong></div>`,
@@ -1564,6 +1614,7 @@ document.getElementById('productionForm').addEventListener('submit', async e => 
       outputQty: plan.outputQty,
       hours: plan.hours,
       procurementCost: plan.procurementCost,
+      baseProductionCost: plan.baseProductionCost,
       personnelCost: plan.personnelCost,
       productionCost: plan.productionCost
     }
@@ -1880,28 +1931,52 @@ document.querySelectorAll('.finance-period-btn').forEach(btn => btn.addEventList
 
 // Research investment
 const researchInvestmentForm = document.getElementById('researchInvestmentForm');
+const researchInvestmentAmount = document.getElementById('researchInvestmentAmount');
+const researchInvestmentMaxBtn = document.getElementById('researchInvestmentMaxBtn');
+
+researchInvestmentAmount?.addEventListener('input', () => {
+  const whole = Math.max(0, Math.floor(Number(researchInvestmentAmount.value || 0)));
+  if (String(whole) !== researchInvestmentAmount.value && researchInvestmentAmount.value !== '') {
+    researchInvestmentAmount.value = String(whole);
+  }
+  renderResearch();
+});
+
+researchInvestmentMaxBtn?.addEventListener('click', () => {
+  const ctx = researchInventoryContext();
+  researchInvestmentAmount.value = String(Math.max(0, Math.floor(ctx.quantity)));
+  renderResearch();
+});
+
 if (researchInvestmentForm) {
   researchInvestmentForm.addEventListener('submit', async e => {
     e.preventDefault();
-    const amount = Number(document.getElementById('researchInvestmentAmount').value);
+    const ctx = researchInventoryContext();
+    const quantity = Math.max(0, Math.floor(Number(researchInvestmentAmount.value || 0)));
+    const investmentValue = quantity * ctx.averageUnitCost;
 
-    if (!Number.isFinite(amount) || amount <= 0) {
-      alert('Bitte einen gültigen Investitionsbetrag eingeben.');
+    if (!ctx.product || quantity < 1 || quantity > Math.floor(ctx.quantity) || ctx.averageUnitCost <= 0) {
+      renderResearch();
       return;
     }
 
-    if (!confirm(`${money(amount)} in Forschung investieren? Der Patentwert steigt um denselben Betrag.`)) return;
+    if (!confirm(`${num(quantity)} Forschungseinheiten mit einem Einstandswert von ${money(investmentValue)} investieren? Der Patentwert-Zuwachs wird zufällig zwischen 70% und 110% dieses Werts liegen.`)) return;
 
-    const { error } = await sb.rpc('invest_research', {
+    const { data, error } = await sb.rpc('invest_research_units', {
       p_company_id: state.company.id,
-      p_amount: amount
+      p_quantity: quantity
     });
 
     if (error) {
       alert(error.message);
-    } else {
-      await loadCompany();
+      return;
     }
+
+    const gain = Number(data?.patent_gain || 0);
+    const factor = Number(data?.factor || 0) * 100;
+    alert(`Forschung abgeschlossen: Patentwert +${money(gain)} (${factor.toLocaleString('de-DE', { maximumFractionDigits: 2 })}%).`);
+    researchInvestmentAmount.value = '1';
+    await loadCompany();
   });
 }
 
