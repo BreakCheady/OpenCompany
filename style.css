@@ -407,23 +407,27 @@ td button {
   .app-shell {
     display: block;
     min-height: 100vh;
-    padding-bottom: 72px;
+    padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px));
   }
 
   .sidebar {
-    position: fixed;
-    top: auto;
+    position: fixed !important;
+    top: auto !important;
     right: 0;
     bottom: 0;
     left: 0;
     width: 100%;
-    height: 64px;
+    height: calc(64px + env(safe-area-inset-bottom, 0px));
     overflow: visible;
-    padding: 6px;
+    padding: 6px 6px calc(6px + env(safe-area-inset-bottom, 0px));
     display: block;
+    z-index: 1000;
     background: rgba(16,47,82,.98);
     backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
     box-shadow: 0 -5px 18px rgba(16,47,82,.16);
+    transform: translateZ(0);
+    -webkit-transform: translateZ(0);
   }
 
   .brand,
