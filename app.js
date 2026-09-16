@@ -864,8 +864,8 @@ function renderProductionRecipe() {
   if (!building) {
     hint.textContent = 'Benötigtes Gebäude fehlt.';
   } else if (runningJob) {
-    const refundCash = Number(runningJob.production_cash_cost || 0) * 0.95;
-    hint.textContent = `Abbruch möglich: 95% der Produktionskosten (${money(refundCash)}) und 95% der Materialien werden erstattet.`;
+    const refundCash = Number(runningJob.production_cash_cost || 0) * 0.90;
+    hint.textContent = `Abbruch möglich: 90% der Produktionskosten (${money(refundCash)}) und 90% der Materialien werden erstattet.`;
   } else if (!plan.atLeastOne) {
     hint.textContent = 'Es muss mindestens 1 Einheit produziert werden können.';
   } else if (!plan.within24h) {
@@ -1125,7 +1125,7 @@ function retailSaleProgress(job) {
     unitPrice,
     claimableRevenue: claimableUnits * unitPrice,
     openRevenue: Math.max(0, Number(job.total_value || 0) - claimed * unitPrice),
-    cancellationFee: Number(job.total_value || 0) * 0.10
+    cancellationFee: Number(job.total_value || 0) * 0.20
   };
 }
 
@@ -1727,7 +1727,7 @@ document.getElementById('productionForm').addEventListener('submit', async e => 
   const plan = productionPlan();
 
   if (plan.runningJob) {
-    if (!await gameConfirm('Produktion wirklich abbrechen? Bereits fertiggestellte Einheiten werden übernommen. Von den noch nicht produzierten Einheiten werden 95% der zugehörigen Produktionskosten und Materialien erstattet.')) return;
+    if (!await gameConfirm('Produktion wirklich abbrechen? Bereits fertiggestellte Einheiten werden übernommen. Von den noch nicht produzierten Einheiten werden 90% der zugehörigen Produktionskosten und Materialien erstattet.')) return;
     const { error } = await sb.rpc('cancel_production', {
       p_company_id: state.company.id,
       p_job_id: plan.runningJob.id
@@ -1977,7 +1977,7 @@ document.getElementById('retailSaleForm').addEventListener('submit', async e => 
 
   if (ctx.runningJob) {
     const progress = retailSaleProgress(ctx.runningJob);
-    if (!await gameConfirm(`Verkauf wirklich abbrechen? Noch nicht verkaufte Ware wird zurück ins Lager gelegt. Abbruchgebühr: ${money(progress.cancellationFee)} (10% des erwarteten Erlöses).`)) return;
+    if (!await gameConfirm(`Verkauf wirklich abbrechen? Noch nicht verkaufte Ware wird zurück ins Lager gelegt. Abbruchgebühr: ${money(progress.cancellationFee)} (20% des erwarteten Erlöses).`)) return;
 
     const { error } = await sb.rpc('cancel_retail_sale', {
       p_company_id: state.company.id,
