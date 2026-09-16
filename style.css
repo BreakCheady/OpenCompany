@@ -2042,3 +2042,26 @@ body.game-dialog-open { overflow: hidden; }
 .market-order-row.selected td:first-child {
   box-shadow: inset 4px 0 0 var(--accent, #2563eb);
 }
+
+
+/* v0.4.6 – Unternehmensname bearbeiten */
+.company-name-edit-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.company-name-edit-btn {
+  min-width: 26px;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border-radius: 6px;
+  font-size: 15px;
+  line-height: 1;
+}
+
+.company-name-edit-btn:disabled {
+  opacity: .38;
+  cursor: not-allowed;
+}

@@ -1673,6 +1673,57 @@ function renderResearch() {
   if (maxBtn) maxBtn.disabled = availableWhole <= 0;
 }
 
+function currentCompanyBuildingValue() {
+  return state.buildings
+    .filter(b => b.status === 'active')
+    .reduce((total, building) => {
+      const type = state.buildingTypes.find(bt => bt.id === building.building_type_id);
+      const baseCost = Number(type?.construction_cost || 0);
+      const level = Math.max(1, Number(building.level || 1));
+      let value = baseCost;
+      for (let lvl = 2; lvl <= level; lvl += 1) {
+        value += Math.round((baseCost * buildingLevelMultiplier(lvl)) * 100) / 100;
+      }
+      return total + value;
+    }, 0);
+}
+
+function companyRenameAvailability() {
+  const changedAt = state.company?.last_name_change_at;
+  if (!changedAt) return { allowed: true, availableAt: null };
+  const availableAt = new Date(new Date(changedAt).getTime() + 14 * 24 * 60 * 60 * 1000);
+  return { allowed: Date.now() >= availableAt.getTime(), availableAt };
+}
+
+window.renameCompanyFromCompanyTab = async function() {
+  const availability = companyRenameAvailability();
+  if (!availability.allowed) {
+    await gameAlert(`Der Firmenname kann wieder ab ${availability.availableAt.toLocaleString('de-DE')} geändert werden.`);
+    return;
+  }
+
+  const newName = await gamePrompt('Neuen Unternehmensnamen eingeben:', state.company?.name || '', 'Unternehmensnamen ändern');
+  if (newName === null) return;
+  const trimmedName = String(newName).trim();
+  if (!trimmedName || trimmedName === state.company?.name) return;
+
+  const confirmed = await gameConfirm(`Unternehmensnamen wirklich in „${trimmedName}“ ändern? Danach ist eine weitere Änderung 14 Tage lang gesperrt.`);
+  if (!confirmed) return;
+
+  const { data, error } = await sb.rpc('rename_company', {
+    p_company_id: state.company.id,
+    p_new_name: trimmedName
+  });
+
+  if (error) {
+    await gameAlert(error.message);
+    return;
+  }
+
+  if (data) state.company = data;
+  await loadCompany();
+};
+
 function renderAll() {
   const c = state.company;
   document.getElementById('statCompany').textContent = c.name;
@@ -1711,15 +1762,22 @@ function renderAll() {
   document.getElementById('companySummary').innerHTML = companyRows;
 
   const companyDebt = Math.max(0, Number(state.companyDebt || 0));
+  const companyBuildingValue = currentCompanyBuildingValue();
+  const renameAvailability = companyRenameAvailability();
+  const renameTitle = renameAvailability.allowed
+    ? 'Unternehmensnamen ändern'
+    : `Namensänderung wieder ab ${renameAvailability.availableAt.toLocaleString('de-DE')} möglich`;
+
   document.getElementById('companyDetails').innerHTML = renderTable(
-    ['Unternehmen','Status','Level','Kontostand','Mitarbeiter','Unternehmenswert','Patentwert','Schulden'],
+    ['Unternehmen','Status','Level','Kontostand','Mitarbeiter','Unternehmenswert','Gebäudewert','Patentwert','Schulden'],
     [`<tr>
-      <td><strong>${c.name}</strong></td>
+      <td><span class="company-name-edit-wrap"><strong>${c.name}</strong><button type="button" class="company-name-edit-btn" onclick="renameCompanyFromCompanyTab()" title="${renameTitle}" aria-label="Unternehmensnamen ändern" ${renameAvailability.allowed ? '' : 'disabled'}>✎</button></span></td>
       <td><span class="company-online-status presence-status"></span></td>
       <td>${num(c.company_level)}</td>
       <td class="${Number(c.cash_balance || 0) < 0 ? 'negative-balance' : ''}">${balanceMoney(Number(c.cash_balance || 0))}</td>
       <td>${num(automaticEmployees)} Mitarbeiter</td>
       <td title="Wird täglich um 01:00 Uhr neu berechnet">${money(c.company_value)}</td>
+      <td>${money(companyBuildingValue)}</td>
       <td>${money(c.patent_value || 0)}</td>
       <td class="${companyDebt > 0 ? 'company-debt-negative' : 'company-debt-zero'}">${companyDebt > 0 ? `-${money(companyDebt)}` : money(0)}</td>
     </tr>`]
