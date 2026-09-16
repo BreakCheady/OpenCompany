@@ -1632,19 +1632,76 @@ function updateContractGoods() {
   const role = document.getElementById('contractRole').value;
   const partnerId = document.getElementById('contractPartner').value;
   const type = document.getElementById('contractItemType').value;
+  const itemSelect = document.getElementById('contractItem');
   let opts = [];
 
   if (type === 'material') {
-    opts = state.materials.map(m => `<option value="${m.id}">${m.name}</option>`);
+    const materials = role === 'sell'
+      ? state.materials.filter(material =>
+          state.materialInventory.some(inv =>
+            inv.material_id === material.id && Number(inv.quantity || 0) > 0
+          )
+        )
+      : state.materials;
+
+    opts = materials
+      .sort((a,b)=>a.name.localeCompare(b.name,'de-DE'))
+      .map(m => `<option value="${m.id}">${m.name}</option>`);
+  } else if (role === 'sell') {
+    opts = stockedProducts()
+      .sort((a,b)=>a.name.localeCompare(b.name,'de-DE'))
+      .map(p => `<option value="${p.id}">${p.name}</option>`);
   } else {
-    const sellerId = role === 'sell' ? state.company.id : partnerId;
     const visibleKeys = operationalProductIdentitySet();
     opts = state.allProducts
-      .filter(p => p.company_id === sellerId && visibleKeys.has(`${p.name}::${p.category}`))
+      .filter(p => p.company_id === partnerId && visibleKeys.has(`${p.name}::${p.category}`))
       .sort((a,b)=>a.name.localeCompare(b.name,'de-DE'))
       .map(p => `<option value="${p.id}">${p.name}</option>`);
   }
-  document.getElementById('contractItem').innerHTML = opts.length ? opts.join('') : '<option value="">Keine passenden Produkte verfügbar</option>';
+
+  itemSelect.innerHTML = opts.length
+    ? opts.join('')
+    : `<option value="">${role === 'sell' ? 'Keine passenden Bestände im Lager' : 'Keine passenden Produkte verfügbar'}</option>`;
+
+  updateContractQualityOptions();
+}
+
+function updateContractQualityOptions() {
+  const role = document.getElementById('contractRole')?.value;
+  const type = document.getElementById('contractItemType')?.value;
+  const itemId = document.getElementById('contractItem')?.value;
+  const qualitySelect = document.getElementById('contractQuality');
+  if (!qualitySelect) return;
+
+  const previous = qualitySelect.value;
+
+  if (role === 'sell' && itemId) {
+    const lots = type === 'material'
+      ? materialInventoryLots(itemId)
+      : productInventoryLots(itemId);
+
+    const qualities = [...new Set(
+      lots
+        .filter(lot => Number(lot.quantity || 0) > 0)
+        .map(lot => Number(lot.quality_level || 1))
+    )].sort((a,b)=>a-b);
+
+    qualitySelect.innerHTML = qualities.length
+      ? qualities.map(q => `<option value="${q}">Q${q}</option>`).join('')
+      : '<option value="">Keine Qualität auf Lager</option>';
+
+    if (qualities.some(q => String(q) === String(previous))) {
+      qualitySelect.value = previous;
+    }
+    return;
+  }
+
+  qualitySelect.innerHTML = [1,2,3,4,5,6]
+    .map(q => `<option value="${q}">Q${q}</option>`)
+    .join('');
+  if ([1,2,3,4,5,6].some(q => String(q) === String(previous))) {
+    qualitySelect.value = previous;
+  }
 }
 
 
@@ -2783,6 +2840,7 @@ if (researchInvestmentForm) {
 
 // Contracts
 ['contractRole','contractPartner','contractItemType'].forEach(id => document.getElementById(id).addEventListener('change',updateContractGoods));
+document.getElementById('contractItem')?.addEventListener('change', updateContractQualityOptions);
 document.getElementById('contractForm').addEventListener('submit',async e=>{
   e.preventDefault();
   const role=document.getElementById('contractRole').value;
@@ -2790,6 +2848,10 @@ document.getElementById('contractForm').addEventListener('submit',async e=>{
   if(!partner) { gameAlert('Es gibt noch kein anderes Spielerunternehmen für einen Vertrag.'); return; }
   const type=document.getElementById('contractItemType').value;
   const item=document.getElementById('contractItem').value;
+  if(!item) {
+    gameAlert(role==='sell' ? 'Für diesen Verkauf ist kein passender Lagerbestand vorhanden.' : 'Bitte wähle ein Gut aus.');
+    return;
+  }
   const seller=role==='sell' ? state.company.id : partner;
   const buyer=role==='sell' ? partner : state.company.id;
   const { error }=await sb.rpc('create_contract_quality',{
