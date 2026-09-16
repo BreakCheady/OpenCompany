@@ -625,22 +625,70 @@ function startProductionClaimDisplayTimer() {
 }
 
 function renderProductionRecipe() {
-  const plan = productionPlan();
-  const { buildingType, building, multiplier, unitsPerHour, runningJob } = plan;
+  let plan = productionPlan();
+  let { buildingType, building, multiplier, unitsPerHour, runningJob } = plan;
+  const productSelect = document.getElementById('productionProduct');
+  const unitsInput = document.getElementById('productionUnits');
+  const maxBtn = document.getElementById('productionMaxBtn');
+  const h24Btn = document.getElementById('production24Btn');
+
+  // Während einer laufenden Produktion bleibt der komplette Startzustand sichtbar.
+  // Die Werte stammen persistent aus dem Produktionsauftrag und überleben auch Seiten-Reloads.
+  if (runningJob) {
+    productSelect.dataset.runningJobId = runningJob.id;
+    productSelect.value = runningJob.product_id;
+    unitsInput.value = runningJob.start_input_text || formatProductionUnitsInput(runningJob.output_quantity);
+    productSelect.disabled = true;
+    unitsInput.disabled = true;
+    if (maxBtn) maxBtn.disabled = true;
+    if (h24Btn) h24Btn.disabled = true;
+
+    // Rezept/Bestände dürfen aktuell bleiben; die oben angezeigten Startwerte werden separat eingefroren.
+    plan = productionPlan(Number(runningJob.output_quantity || 0));
+    ({ buildingType, building, multiplier, unitsPerHour, runningJob } = plan);
+  } else {
+    const hadRunningJob = !!productSelect.dataset.runningJobId;
+    delete productSelect.dataset.runningJobId;
+    productSelect.disabled = false;
+    unitsInput.disabled = false;
+    if (maxBtn) maxBtn.disabled = false;
+    if (h24Btn) h24Btn.disabled = false;
+
+    if (hadRunningJob) {
+      unitsInput.value = '1';
+      plan = productionPlan();
+      ({ buildingType, building, multiplier, unitsPerHour, runningJob } = plan);
+    }
+  }
+
   const staff = buildingType && building
     ? Math.round(Number(buildingType.employees_per_building || 0) * multiplier)
     : 0;
+
+  const startSnapshot = runningJob?.start_snapshot || {};
+  const displayOutputQty = runningJob ? Number(startSnapshot.outputQty ?? runningJob.output_quantity ?? 0) : plan.outputQty;
+  const displayHours = runningJob ? Number(startSnapshot.hours ?? runningJob.hours ?? 0) : plan.hours;
+  const displayProcurementCost = runningJob ? Number(startSnapshot.procurementCost ?? 0) : plan.procurementCost;
+  const displayPersonnelCost = runningJob ? Number(startSnapshot.personnelCost ?? runningJob.production_cash_cost ?? 0) : plan.personnelCost;
+  const displayProductionCost = runningJob
+    ? Number(startSnapshot.productionCost ?? (displayProcurementCost + displayPersonnelCost))
+    : plan.productionCost;
+  const displayFinish = runningJob
+    ? new Date(runningJob.finishes_at).toLocaleString('de-DE', {
+        weekday:'short', day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit'
+      }) + ' Uhr'
+    : (building && plan.hours > 0 ? formatProductionFinish(plan.hours) : '–');
 
   const statusRows = buildingType ? [
     `<div class="kv"><span>Benötigtes Gebäude</span><strong>${buildingType.name} ${building ? '✓' : '✗'}</strong></div>`,
     `<div class="kv"><span>Gebäudelevel</span><strong>${building ? `Level ${building.level}` : 'Nicht gebaut'}</strong></div>`,
     `<div class="kv"><span>Kapazität</span><strong>${building ? `${num(unitsPerHour)} Einheiten / Std.` : '–'}</strong></div>`,
-    `<div class="kv"><span>Produktionsmenge</span><strong>${num(plan.outputQty)} Einheiten</strong></div>`,
-    `<div class="kv"><span>Produktionsdauer</span><strong>${formatProductionDuration(plan.hours)}</strong></div>`,
-    `<div class="kv"><span>Voraussichtliches Ende</span><strong>${building && plan.hours > 0 ? formatProductionFinish(plan.hours) : '–'}</strong></div>`,
-    `<div class="kv"><span>Beschaffungskosten</span><strong class="production-cost-negative">-${money(Math.abs(plan.procurementCost))}</strong></div>`,
-    `<div class="kv"><span>Personalkosten</span><strong class="production-cost-negative">-${money(Math.abs(plan.personnelCost))}</strong></div>`,
-    `<div class="kv"><span>Produktionskosten gesamt</span><strong class="production-cost-negative">-${money(Math.abs(plan.productionCost))}</strong></div>`,
+    `<div class="kv"><span>Produktionsmenge</span><strong>${num(displayOutputQty)} Einheiten</strong></div>`,
+    `<div class="kv"><span>Produktionsdauer</span><strong>${formatProductionDuration(displayHours)}</strong></div>`,
+    `<div class="kv"><span>Voraussichtliches Ende</span><strong>${displayFinish}</strong></div>`,
+    `<div class="kv"><span>Beschaffungskosten</span><strong class="${displayProcurementCost > 0 ? 'production-cost-negative' : 'production-cost-zero'}">${displayProcurementCost > 0 ? '-' : ''}${money(Math.abs(displayProcurementCost))}</strong></div>`,
+    `<div class="kv"><span>Personalkosten</span><strong class="production-cost-negative">-${money(Math.abs(displayPersonnelCost))}</strong></div>`,
+    `<div class="kv"><span>Produktionskosten gesamt</span><strong class="production-cost-negative">-${money(Math.abs(displayProductionCost))}</strong></div>`,
     `<div class="kv"><span>Belegschaft</span><strong>${building ? `${num(staff)} Mitarbeiter` : '–'}</strong></div>`
   ] : ['<div class="kv"><span>Benötigtes Gebäude</span><strong>Keines</strong></div>'];
 
@@ -984,7 +1032,19 @@ function renderRetailSale() {
 
   if (retailProducts.some(p => p.id === previous)) select.value = previous;
 
-  const ctx = retailSaleContext();
+  let ctx = retailSaleContext();
+
+  // Während eines laufenden Verkaufs bleibt der komplette Startzustand sichtbar.
+  if (ctx.runningJob) {
+    select.dataset.runningJobId = ctx.runningJob.id;
+    select.value = ctx.runningJob.product_id;
+    qtyInput.value = ctx.runningJob.start_input_text || formatRetailQuantityInput(ctx.runningJob.quantity);
+    ctx = retailSaleContext();
+  } else if (select.dataset.runningJobId) {
+    delete select.dataset.runningJobId;
+    qtyInput.value = '1';
+  }
+
   const parsedQty = retailQuantityFromInput(qtyInput.value);
   const qty = Number(parsedQty.units || 0);
   const wholeUnits = Number.isInteger(qty);
@@ -1006,7 +1066,23 @@ function renderRetailSale() {
     const finish = new Date(job.finishes_at);
     const remainingUnits = Math.max(0, Number(job.quantity || 0) - progress.sold);
 
+    const startSnapshot = job.start_snapshot || {};
+    const startQty = Number(startSnapshot.quantity ?? job.quantity ?? 0);
+    const startHours = Number(startSnapshot.hours ?? ((new Date(job.finishes_at) - new Date(job.started_at)) / 3600000));
+    const startUnitPrice = Number(startSnapshot.unitPrice ?? (startQty > 0 ? Number(job.total_value || 0) / startQty : 0));
+    const startTotalValue = Number(startSnapshot.totalValue ?? job.total_value ?? 0);
+    const startUnitsPerHour = Number(startSnapshot.unitsPerHour ?? job.units_per_hour ?? 0);
+    const startAvailable = Number(startSnapshot.available ?? 0);
+
     details.innerHTML = `
+      <div class="kv"><span>Verkaufsgebäude</span><strong>${startSnapshot.buildingTypeName || ctx.buildingType?.name || '–'}</strong></div>
+      <div class="kv"><span>Gebäudestatus</span><strong class="retail-ready">Verkauf läuft</strong></div>
+      <div class="kv"><span>Verkaufsrate</span><strong>${num(startUnitsPerHour)} Einheiten / Std.</strong></div>
+      <div class="kv"><span>Bestand beim Start</span><strong>${num(startAvailable)} Einheiten</strong></div>
+      <div class="kv"><span>Verkaufspreis</span><strong>${money(startUnitPrice)} / Einheit</strong></div>
+      <div class="kv"><span>Verkaufsdauer</span><strong>${formatProductionDuration(startHours)}</strong></div>
+      <div class="kv"><span>Voraussichtliches Ende</span><strong>${finish.toLocaleString('de-DE', { weekday:'short', day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' })} Uhr</strong></div>
+      <div class="kv"><span>Erwarteter Erlös</span><strong>${money(startTotalValue)}</strong></div>
       <div class="retail-running-box">
         <div class="retail-running-head">
           <div>
@@ -1302,7 +1378,12 @@ function renderAll() {
   }));
 
   const opts = state.products.map(p=>`<option value="${p.id}">${p.name}</option>`).join('');
-  document.getElementById('productionProduct').innerHTML = opts;
+  const productionProductSelect = document.getElementById('productionProduct');
+  const previousProductionProduct = productionProductSelect.value;
+  productionProductSelect.innerHTML = opts;
+  if (state.products.some(p => p.id === previousProductionProduct)) {
+    productionProductSelect.value = previousProductionProduct;
+  }
   document.getElementById('sellProduct').innerHTML = opts;
   renderProductionRecipe();
   renderBuildings();
@@ -1451,10 +1532,18 @@ document.getElementById('productionForm').addEventListener('submit', async e => 
     return;
   }
 
-  const { error } = await sb.rpc('start_production',{
+  const { error } = await sb.rpc('start_production_v2',{
     p_company_id:state.company.id,
     p_product_id:document.getElementById('productionProduct').value,
-    p_hours:plan.hours
+    p_hours:plan.hours,
+    p_input_text:document.getElementById('productionUnits').value,
+    p_start_snapshot:{
+      outputQty: plan.outputQty,
+      hours: plan.hours,
+      procurementCost: plan.procurementCost,
+      personnelCost: plan.personnelCost,
+      productionCost: plan.productionCost
+    }
   });
   if(error) alert(error.message); else await loadCompany();
 });
@@ -1698,10 +1787,21 @@ document.getElementById('retailSaleForm').addEventListener('submit', async e => 
     return;
   }
 
-  const { error } = await sb.rpc('start_retail_sale', {
+  const saleHours = ctx.unitsPerHour > 0 ? quantity / ctx.unitsPerHour : 0;
+  const { error } = await sb.rpc('start_retail_sale_v2', {
     p_company_id: state.company.id,
     p_product_id: ctx.product.id,
-    p_quantity: quantity
+    p_quantity: quantity,
+    p_input_text: document.getElementById('retailQty').value,
+    p_start_snapshot: {
+      quantity,
+      hours: saleHours,
+      unitPrice: ctx.price,
+      totalValue: ctx.price * quantity,
+      available: ctx.available,
+      unitsPerHour: ctx.unitsPerHour,
+      buildingTypeName: ctx.buildingType?.name || ''
+    }
   });
 
   if (error) {

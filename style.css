@@ -1675,3 +1675,19 @@ td button {
   background: #116b4a !important;
   border-color: #116b4a !important;
 }
+
+
+/* v0.1.65 – neutrale Nullkosten */
+.production-cost-zero {
+  color: inherit;
+}
+
+
+/* v0.1.67 – Startwerte während laufender Prozesse eingefroren */
+#productionProduct:disabled,
+#productionUnits:disabled,
+#retailProduct:disabled,
+#retailQty:disabled {
+  opacity: 1;
+  cursor: not-allowed;
+}
