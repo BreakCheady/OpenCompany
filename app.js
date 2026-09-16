@@ -14,6 +14,8 @@ const state = {
   inventory: [],
   materials: [],
   materialInventory: [],
+  storageSearchFilter: '',
+  storageTypeFilter: 'all',
   recipes: [],
   buildingTypes: [],
   buildings: [],
@@ -1724,6 +1726,55 @@ window.renameCompanyFromCompanyTab = async function() {
   await loadCompany();
 };
 
+function renderStorage() {
+  const container = document.getElementById('storageInventoryTable');
+  if (!container) return;
+
+  const search = String(state.storageSearchFilter || '').trim().toLocaleLowerCase('de-DE');
+  const type = state.storageTypeFilter || 'all';
+
+  const materialRows = state.materials.map(material => {
+    const inv = state.materialInventory.find(i => i.material_id === material.id);
+    return {
+      type: 'material',
+      name: material.name,
+      quantity: Number(inv?.quantity || 0),
+      unit: material.unit || '–',
+      averageCost: Number(inv?.average_unit_cost || 0)
+    };
+  });
+
+  const productRows = state.inventory.map(inv => ({
+    type: 'product',
+    name: inv.products?.name || '–',
+    quantity: Number(inv.quantity || 0),
+    unit: 'Stück',
+    averageCost: Number(inv.average_unit_cost || 0)
+  }));
+
+  const rows = [...materialRows, ...productRows]
+    .filter(row => {
+      const matchesType = type === 'all' || row.type === type;
+      const matchesSearch = !search || row.name.toLocaleLowerCase('de-DE').includes(search);
+      return matchesType && matchesSearch;
+    })
+    .sort((a,b) =>
+      a.name.localeCompare(b.name, 'de-DE') ||
+      a.type.localeCompare(b.type, 'de-DE')
+    );
+
+  container.innerHTML = renderTable(
+    ['Artikel','Typ','Menge','Einheit','Ø Kosten'],
+    rows.map(row => `<tr>
+      <td>${row.name}</td>
+      <td>${row.type === 'material' ? 'Rohstoff' : 'Produkt'}</td>
+      <td>${num(row.quantity)}</td>
+      <td>${row.unit}</td>
+      <td>${money(row.averageCost)}</td>
+    </tr>`)
+  );
+}
+
 function renderAll() {
   const c = state.company;
   document.getElementById('statCompany').textContent = c.name;
@@ -1786,11 +1837,7 @@ function renderAll() {
 
   document.getElementById('recentTransactions').innerHTML = renderTable(['Betrag','Beschreibung','Zeit'], state.transactions.slice(0,8).map(t=>`<tr><td class="${transactionAmountClass(t.transaction_type)}">${money(t.amount)}</td><td>${t.description || transactionLabel(t.transaction_type)}</td><td>${new Date(t.created_at).toLocaleString('de-DE')}</td></tr>`));
   renderFinanceSummary();
-  document.getElementById('inventoryTable').innerHTML = renderTable(['Produkt','Menge','Ø Kosten'], state.inventory.map(i=>`<tr><td>${i.products?.name || '–'}</td><td>${num(i.quantity)}</td><td>${money(i.average_unit_cost)}</td></tr>`));
-  document.getElementById('materialInventoryTable').innerHTML = renderTable(['Material','Menge','Einheit','Ø Kosten'], state.materials.map(m => {
-    const i = state.materialInventory.find(x => x.material_id === m.id);
-    return `<tr><td>${m.name}</td><td>${num(i?.quantity || 0)}</td><td>${m.unit}</td><td>${money(i?.average_unit_cost || 0)}</td></tr>`;
-  }));
+  renderStorage();
 
   const opts = state.products.map(p=>`<option value="${p.id}">${p.name}</option>`).join('');
   const productionProductSelect = document.getElementById('productionProduct');
@@ -1807,6 +1854,29 @@ function renderAll() {
   renderContracts();
 
 }
+
+
+const storageSearchFilter = document.getElementById('storageSearchFilter');
+const storageTypeFilter = document.getElementById('storageTypeFilter');
+const storageFilterReset = document.getElementById('storageFilterReset');
+
+storageSearchFilter?.addEventListener('input', event => {
+  state.storageSearchFilter = event.target.value;
+  renderStorage();
+});
+
+storageTypeFilter?.addEventListener('change', event => {
+  state.storageTypeFilter = event.target.value;
+  renderStorage();
+});
+
+storageFilterReset?.addEventListener('click', () => {
+  state.storageSearchFilter = '';
+  state.storageTypeFilter = 'all';
+  if (storageSearchFilter) storageSearchFilter.value = '';
+  if (storageTypeFilter) storageTypeFilter.value = 'all';
+  renderStorage();
+});
 
 // Auth
 document.getElementById('loginForm').addEventListener('submit', async e => {
