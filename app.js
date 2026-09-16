@@ -413,6 +413,60 @@ function handleProductionUnitsInput(event) {
   renderProductionRecipe();
 }
 
+function marketOrdersForProductionInput(input) {
+  return state.marketOrders
+    .filter(order =>
+      order.order_type === 'sell' &&
+      ['open', 'partially_filled'].includes(order.status) &&
+      order.company_id !== state.company?.id &&
+      Number(order.remaining_quantity || 0) > 0 &&
+      (
+        (input.material_id && order.material_id === input.material_id) ||
+        (input.component_product_id && order.product_id === input.component_product_id)
+      )
+    )
+    .sort((a, b) => Number(a.price_per_unit || 0) - Number(b.price_per_unit || 0));
+}
+
+function estimateMissingInputPurchase(input) {
+  const missing = Math.max(0, Number(input.required || 0) - Number(input.available || 0));
+  if (missing <= 0) return { missing: 0, availableOnMarket: 0, estimatedCost: 0, fullyAvailable: true };
+
+  const orders = marketOrdersForProductionInput(input);
+  let remaining = missing;
+  let availableOnMarket = 0;
+  let estimatedCost = 0;
+
+  for (const order of orders) {
+    if (remaining <= 1e-9) break;
+    const orderQty = Number(order.remaining_quantity || 0);
+    const take = Math.min(remaining, orderQty);
+    availableOnMarket += take;
+    estimatedCost += take * Number(order.price_per_unit || 0);
+    remaining -= take;
+  }
+
+  // Wenn der Markt die komplette Fehlmenge nicht deckt, wird der ungedeckte Rest
+  // mit einem stabilen Referenzpreis geschätzt, damit offene Beschaffungskosten nicht 0 werden.
+  if (remaining > 1e-9) {
+    let fallbackPrice = 0;
+    if (input.material_id) {
+      fallbackPrice = Number(state.materials.find(m => m.id === input.material_id)?.base_cost || 0);
+    } else if (input.component_product_id) {
+      const product = state.products.find(p => p.id === input.component_product_id);
+      fallbackPrice = Number(product?.suggested_retail_price || input.averageUnitCost || 0);
+    }
+    estimatedCost += remaining * fallbackPrice;
+  }
+
+  return {
+    missing,
+    availableOnMarket,
+    estimatedCost,
+    fullyAvailable: availableOnMarket + 1e-9 >= missing
+  };
+}
+
 function productionPlan(unitsOverride = null) {
   const ctx = currentProductionContext();
   const unitsInput = document.getElementById('productionUnits');
@@ -445,8 +499,16 @@ function productionPlan(unitsOverride = null) {
     }
 
     const required = Number(r.quantity_per_unit || 0) * outputQty;
-    const inputCost = required * averageUnitCost;
-    return { ...r, name, unit, available, averageUnitCost, inputCost, required, enough: available + 1e-9 >= required };
+    const enough = available + 1e-9 >= required;
+    const input = { ...r, name, unit, available, averageUnitCost, required, enough };
+    const purchase = estimateMissingInputPurchase(input);
+    return {
+      ...input,
+      missing: purchase.missing,
+      openProcurementCost: purchase.estimatedCost,
+      marketAvailable: purchase.availableOnMarket,
+      marketFullyAvailable: purchase.fullyAvailable
+    };
   });
 
   let maxUnitsByMaterial = Infinity;
@@ -459,7 +521,7 @@ function productionPlan(unitsOverride = null) {
   const maxUnitsByTime = ctx.unitsPerHour * 24;
   const maxUnits = Math.max(0, Math.floor(Math.min(maxUnitsByMaterial, maxUnitsByTime) * 10000) / 10000);
 
-  const procurementCost = inputs.reduce((sum, input) => sum + Number(input.inputCost || 0), 0);
+  const procurementCost = inputs.reduce((sum, input) => sum + Number(input.openProcurementCost || 0), 0);
   const personnelCost = ctx.buildingType
     ? Number(ctx.buildingType.labor_cost_per_unit || 0) * outputQty
     : 0;
@@ -602,17 +664,25 @@ function renderProductionRecipe() {
 
   document.getElementById('productionRequirement').innerHTML = statusRows.join('');
 
-  const rows = plan.inputs.map(input => `
-    <tr>
+  const rows = plan.inputs.map(input => {
+    const inputId = input.material_id || input.component_product_id;
+    const inputKind = input.material_id ? 'material' : 'product';
+    const buyButton = input.enough
+      ? ''
+      : `<button type="button" class="production-buy-input-btn" onclick="buyMissingProductionInput('${inputKind}','${inputId}')">Kaufen</button>`;
+
+    return `<tr>
       <td>${input.material_id ? 'Material' : 'Vorprodukt'}</td>
       <td>${input.name}</td>
       <td>${num(input.quantity_per_unit)} ${input.unit}</td>
       <td class="material-amount ${input.enough ? '' : 'missing'}">${num(input.required)} ${input.unit}</td>
       <td class="material-amount ${input.enough ? '' : 'missing'}">${num(input.available)} ${input.unit}</td>
-    </tr>`);
+      <td>${buyButton}</td>
+    </tr>`;
+  });
 
   document.getElementById('productionRecipe').innerHTML = renderTable(
-    ['Typ','Input','Bedarf je Einheit','Benötigt','Bestand'],
+    ['Typ','Input','Bedarf je Einheit','Benötigt','Bestand','Aktion'],
     rows
   );
 
@@ -1388,6 +1458,72 @@ document.getElementById('productionForm').addEventListener('submit', async e => 
   });
   if(error) alert(error.message); else await loadCompany();
 });
+window.buyMissingProductionInput = async function(kind, itemId) {
+  const plan = productionPlan();
+  const input = plan.inputs.find(i =>
+    (kind === 'material' && i.material_id === itemId) ||
+    (kind === 'product' && i.component_product_id === itemId)
+  );
+
+  if (!input) return;
+
+  let missing = Math.max(0, Number(input.required || 0) - Number(input.available || 0));
+  if (missing <= 1e-9) {
+    renderProductionRecipe();
+    return;
+  }
+
+  const orders = marketOrdersForProductionInput(input);
+  if (!orders.length) {
+    alert(`Aktuell gibt es keine passende Marktorder für ${input.name}.`);
+    return;
+  }
+
+  let marketQty = 0;
+  let estimatedCost = 0;
+  let remaining = missing;
+  for (const order of orders) {
+    if (remaining <= 1e-9) break;
+    const take = Math.min(remaining, Number(order.remaining_quantity || 0));
+    marketQty += take;
+    estimatedCost += take * Number(order.price_per_unit || 0);
+    remaining -= take;
+  }
+
+  if (marketQty <= 1e-9) {
+    alert(`Aktuell ist keine Menge von ${input.name} am Markt verfügbar.`);
+    return;
+  }
+
+  const unit = input.unit ? ` ${input.unit}` : '';
+  const message = remaining > 1e-9
+    ? `Es fehlen ${num(missing)}${unit} ${input.name}. Am Markt sind aktuell ${num(marketQty)}${unit} verfügbar. Diese Menge für ca. ${money(estimatedCost)} kaufen?`
+    : `Fehlende ${num(missing)}${unit} ${input.name} für ca. ${money(estimatedCost)} kaufen?`;
+
+  if (!confirm(message)) return;
+
+  let toBuy = marketQty;
+  for (const order of orders) {
+    if (toBuy <= 1e-9) break;
+    const take = Math.min(toBuy, Number(order.remaining_quantity || 0));
+    if (take <= 1e-9) continue;
+
+    const { error } = await sb.rpc('buy_market_order', {
+      p_buyer_company_id: state.company.id,
+      p_order_id: order.id,
+      p_quantity: take
+    });
+
+    if (error) {
+      alert(error.message);
+      break;
+    }
+    toBuy -= take;
+  }
+
+  await loadCompany();
+};
+
 window.claimProductionOutput = async function(jobId) {
   const job = state.productionJobs.find(j => j.id === jobId);
   if (!job) return;

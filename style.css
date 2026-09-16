@@ -1661,3 +1661,17 @@ td button {
     width: 100%;
   }
 }
+
+
+/* v0.1.64 – fehlende Produktionsinputs direkt kaufen */
+.production-buy-input-btn {
+  background: var(--success) !important;
+  color: #fff !important;
+  border-color: var(--success) !important;
+  white-space: nowrap;
+}
+
+.production-buy-input-btn:hover {
+  background: #116b4a !important;
+  border-color: #116b4a !important;
+}
