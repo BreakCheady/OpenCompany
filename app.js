@@ -41,6 +41,7 @@ let productionRefreshTimer = null;
 let productionClaimDisplayTimer = null;
 let npcMarketTimer = null;
 let companyValueRefreshTimer = null;
+let buildingConstructionTimer = null;
 
 const money = n => new Intl.NumberFormat('de-DE', { style:'currency', currency:'EUR', maximumFractionDigits:2 })
   .format(Number(n || 0)).replace('€','OC$');
@@ -159,6 +160,74 @@ function buildingUpgradePercent(nextLevel) {
   return 0;
 }
 
+function buildingConstructionHours(targetLevel) {
+  const level = Math.max(1, Number(targetLevel || 1));
+  if (level <= 2) return 3;
+  if (level === 3) return 5;
+  if (level === 4) return 7;
+  if (level === 5) return 10;
+  return 10 + ((level - 5) * 5);
+}
+
+function formatBuildingConstructionTime(hours) {
+  return `${num(hours)} Std.`;
+}
+
+function buildingConstructionFinishText(hours) {
+  const finish = new Date(Date.now() + (Number(hours || 0) * 60 * 60 * 1000));
+  return finish.toLocaleString('de-DE', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+}
+
+function buildingConstructionFinishDate(building) {
+  if (!building?.construction_complete_at) return '–';
+  return new Date(building.construction_complete_at).toLocaleString('de-DE', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+}
+
+function formatBuildingConstructionStatus(building) {
+  if (!building?.construction_complete_at) return 'Im Bau';
+  const target = new Date(building.construction_complete_at);
+  const remainingMs = target.getTime() - Date.now();
+  if (remainingMs <= 0) return 'Fertigstellung läuft …';
+
+  const totalMinutes = Math.max(1, Math.ceil(remainingMs / 60000));
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+
+  return `Im Bau · ${hours > 0 ? `${hours} Std. ` : ''}${minutes} Min.`;
+}
+
+async function refreshBuildingConstruction() {
+  if (!sb || !state.company?.id || document.visibilityState === 'hidden') return;
+
+  const { data, error } = await sb.rpc('complete_due_buildings', {
+    p_company_id: state.company.id
+  });
+
+  if (error) {
+    console.warn('Gebäudebau konnte nicht aktualisiert werden:', error.message);
+    return;
+  }
+
+  if (Number(data || 0) > 0) {
+    await loadGameData();
+  } else if (state.buildings?.some(b => b.status === 'inactive' && b.construction_complete_at)) {
+    renderBuildings();
+  }
+}
+
+
 function renderTable(headers, rows) {
   if (!rows.length) return '<p class="muted">Noch keine Daten.</p>';
   return `<table><thead><tr>${headers.map(h=>`<th>${h}</th>`).join('')}</tr></thead><tbody>${rows.join('')}</tbody></table>`;
@@ -253,6 +322,9 @@ function startPresenceHeartbeat() {
   if (companyValueRefreshTimer) clearInterval(companyValueRefreshTimer);
   refreshCompanyValueSnapshot();
   companyValueRefreshTimer = setInterval(refreshCompanyValueSnapshot, 60000);
+
+  if (buildingConstructionTimer) clearInterval(buildingConstructionTimer);
+  buildingConstructionTimer = setInterval(refreshBuildingConstruction, 60000);
 }
 
 function stopPresenceHeartbeat() {
@@ -260,6 +332,8 @@ function stopPresenceHeartbeat() {
   presenceTimer = null;
   if (companyValueRefreshTimer) clearInterval(companyValueRefreshTimer);
   companyValueRefreshTimer = null;
+  if (buildingConstructionTimer) clearInterval(buildingConstructionTimer);
+  buildingConstructionTimer = null;
 }
 
 function stopNpcMarketHeartbeat() {
@@ -373,6 +447,8 @@ async function loadCompany() {
   if (data) {
     startPresenceHeartbeat();
     startNpcMarketHeartbeat();
+    const completedBuildings = await sb.rpc('complete_due_buildings', { p_company_id: data.id });
+    if (completedBuildings.error) console.warn('Gebäudebau:', completedBuildings.error.message);
     const completedJobs = await sb.rpc('complete_due_production_jobs', { p_company_id: data.id });
     if (completedJobs.error) console.warn('Produktionsabschluss:', completedJobs.error.message);
     const completedRetailSales = await sb.rpc('complete_due_retail_sales', { p_company_id: data.id });
@@ -911,45 +987,65 @@ function renderBuildingCatalog() {
     .filter(bt => selectedCategory === 'all' || bt.building_category === selectedCategory)
     .map(bt => {
       const existing = state.buildings.find(
-        b => b.building_type_id === bt.id && b.status === 'active'
+        b => b.building_type_id === bt.id
       );
       const cost = Number(bt.construction_cost || 0);
+      const buildHours = buildingConstructionHours(1);
+      const existingLabel = existing?.status === 'inactive' ? 'Im Bau' : 'Vorhanden';
 
       return `<tr>
         <td>${bt.name}</td>
         <td>${buildingCategoryLabel(bt.building_category)}</td>
         <td><span class="building-construction-cost">-${money(Math.abs(cost))}</span></td>
+        <td>${formatBuildingConstructionTime(buildHours)}</td>
         <td>
           <button
             class="building-catalog-build-btn"
             ${existing ? 'disabled' : ''}
             onclick="buildBuilding('${bt.id}')"
-          >${existing ? 'Vorhanden' : 'Bauen'}</button>
+          >${existing ? existingLabel : 'Bauen'}</button>
         </td>
       </tr>`;
     });
 
   table.innerHTML = renderTable(
-    ['Gebäude', 'Kategorie', 'Baukosten', 'Aktion'],
+    ['Gebäude', 'Kategorie', 'Baukosten', 'Bauzeit', 'Aktion'],
     rows
   );
 }
 
 function renderBuildings() {
   const builtRows = state.buildings
-    .filter(building => building.status === 'active')
     .map(building => {
       const bt = state.buildingTypes.find(type => type.id === building.building_type_id);
       if (!bt) return '';
 
+      const isUnderConstruction = building.status === 'inactive' && !!building.construction_complete_at;
       const isRetail = bt.building_category === 'retail';
       const level = Number(building.level || 1);
+      const targetLevel = Number(building.construction_target_level || level);
       const multiplier = buildingLevelMultiplier(level);
       const staff = Math.round(Number(bt.employees_per_building || 0) * multiplier);
       const capacity = Number(bt.base_units_per_hour || 0) * multiplier;
       const nextLevel = level + 1;
       const nextPercent = buildingUpgradePercent(nextLevel);
       const nextCost = Number(bt.construction_cost || 0) * buildingLevelMultiplier(nextLevel);
+      const nextBuildHours = buildingConstructionHours(nextLevel);
+
+      if (isUnderConstruction) {
+        return `<tr>
+          <td>${bt.name}</td>
+          <td>${buildingCategoryLabel(bt.building_category)}</td>
+          <td>Level ${targetLevel}</td>
+          <td>–</td>
+          <td>–</td>
+          <td><span class="badge">${formatBuildingConstructionStatus(building)}</span></td>
+          <td>–</td>
+          <td>${buildingConstructionFinishDate(building)}</td>
+          <td class="building-actions"><button disabled>Im Bau</button></td>
+        </tr>`;
+      }
+
       const productionRunning = state.productionJobs.some(
         j => j.building_id === building.id && j.status === 'running'
       );
@@ -979,8 +1075,9 @@ function renderBuildings() {
         <td>Level ${level}</td>
         <td>${num(capacity)} Einheiten</td>
         <td>${num(staff)}</td>
-        <td>Level ${nextLevel}: +${num(nextPercent)}%</td>
+        <td>Level ${nextLevel}: ${formatBuildingConstructionTime(nextBuildHours)}</td>
         <td><span class="building-upgrade-cost">-${money(Math.abs(nextCost))}</span></td>
+        <td>–</td>
         <td class="building-actions">${actionHtml}</td>
       </tr>`;
     })
@@ -988,7 +1085,7 @@ function renderBuildings() {
 
   document.getElementById('buildingsTable').innerHTML = builtRows.length
     ? renderTable(
-        ['Gebäude','Kategorie','Level','Kapazität / Std.','Mitarbeiter','Nächste Aufstufung','Aufstufungskosten','Aktionen'],
+        ['Gebäude','Kategorie','Level','Kapazität / Std.','Mitarbeiter','Status / nächste Bauzeit','Aufstufungskosten','Fertig am','Aktionen'],
         builtRows
       )
     : '<p class="muted building-empty-state">Noch keine Gebäude gebaut. Nutze oben „Bauen“, um dein erstes Gebäude zu errichten.</p>';
@@ -1677,11 +1774,10 @@ function renderResearch() {
 
 function currentCompanyBuildingValue() {
   return state.buildings
-    .filter(b => b.status === 'active')
     .reduce((total, building) => {
       const type = state.buildingTypes.find(bt => bt.id === building.building_type_id);
       const baseCost = Number(type?.construction_cost || 0);
-      const level = Math.max(1, Number(building.level || 1));
+      const level = Math.max(1, Number(building.construction_target_level || building.level || 1));
       let value = baseCost;
       for (let lvl = 2; lvl <= level; lvl += 1) {
         value += Math.round((baseCost * buildingLevelMultiplier(lvl)) * 100) / 100;
@@ -2130,7 +2226,9 @@ window.buildBuilding = async function(buildingTypeId) {
   const bt = state.buildingTypes.find(b => b.id === buildingTypeId);
   if (!bt) return;
 
-  if (!await gameConfirm(`${bt.name} für ${money(bt.construction_cost)} bauen?`)) return;
+  const buildHours = buildingConstructionHours(1);
+  const finishText = buildingConstructionFinishText(buildHours);
+  if (!await gameConfirm(`${bt.name} für ${money(bt.construction_cost)} bauen? Bauzeit: ${formatBuildingConstructionTime(buildHours)}. Voraussichtlich fertig am ${finishText}. Das Gebäude ist erst nach Fertigstellung verfügbar.`)) return;
 
   const { error } = await sb.rpc('build_building', {
     p_company_id: state.company.id,
@@ -2151,9 +2249,14 @@ window.upgradeBuilding = async function(buildingId, buildingTypeId) {
   const increase = buildingUpgradePercent(nextLevel);
   const nextCost = Number(bt?.construction_cost || 0) * buildingLevelMultiplier(nextLevel);
 
+  const buildHours = buildingConstructionHours(nextLevel);
+  const finishText = buildingConstructionFinishText(buildHours);
+
   if (!await gameConfirm(
     `${bt?.name || 'Gebäude'} auf Level ${nextLevel} aufstufen? ` +
-    `Kosten: ${money(nextCost)}. Mitarbeiter und vorhandene Gebäudekapazität: +${num(increase)}%.`
+    `Kosten: ${money(nextCost)}. Bauzeit: ${formatBuildingConstructionTime(buildHours)}. ` +
+    `Voraussichtlich fertig am ${finishText}. Während des Ausbaus ist das Gebäude nicht nutzbar. ` +
+    `Mitarbeiter und vorhandene Gebäudekapazität nach Fertigstellung: +${num(increase)}%.`
   )) return;
 
   const { error } = await sb.rpc('upgrade_building', {
