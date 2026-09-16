@@ -27,6 +27,7 @@ const state = {
   financePeriodOffset: 0,
   contracts: [],
   companyDirectory: [],
+  companyDebt: 0,
   recoveringPassword: false
 };
 
@@ -299,10 +300,11 @@ async function loadGameData() {
     sb.from('market_orders').select('*, products(name), materials(name)').in('status',['open','partially_filled']).order('created_at',{ascending:false}).limit(100),
     sb.from('market_orders').select('*, products(name), materials(name)').in('status',['filled','cancelled']).order('created_at',{ascending:false}).limit(100),
     sb.from('contracts').select('*').or(`seller_company_id.eq.${cid},buyer_company_id.eq.${cid}`).order('created_at',{ascending:false}),
-    sb.rpc('list_companies')
+    sb.rpc('list_companies'),
+    sb.rpc('get_company_debt', { p_company_id: cid })
   ]);
 
-  const labels = ['Produkte','Alle Produkte','Produktlager','Materialien','Materiallager','Rezepte','Gebäudetypen','Gebäude','Produktionen','Handelsverkäufe','Finanzen','Marktorders','Order-Historie','Verträge','Firmenverzeichnis'];
+  const labels = ['Produkte','Alle Produkte','Produktlager','Materialien','Materiallager','Rezepte','Gebäudetypen','Gebäude','Produktionen','Handelsverkäufe','Finanzen','Marktorders','Order-Historie','Verträge','Firmenverzeichnis','Kreditschulden'];
   const errors = results.map((r,i)=>r.error ? { label: labels[i], error:r.error } : null).filter(Boolean);
   if (errors.length) {
     console.error(errors);
@@ -311,7 +313,7 @@ async function loadGameData() {
   }
   clearGameDataError();
 
-  const [products, allProducts, inventory, materials, materialInventory, recipes, buildingTypes, buildings, productionJobs, retailSaleJobs, tx, orders, history, contracts, directory] = results;
+  const [products, allProducts, inventory, materials, materialInventory, recipes, buildingTypes, buildings, productionJobs, retailSaleJobs, tx, orders, history, contracts, directory, companyDebt] = results;
   state.products = products.data;
   state.allProducts = allProducts.data;
   state.inventory = inventory.data;
@@ -327,6 +329,7 @@ async function loadGameData() {
   state.marketOrderHistory = history.data;
   state.contracts = contracts.data;
   state.companyDirectory = directory.data || [];
+  state.companyDebt = Number(companyDebt.data || 0);
   renderAll();
 }
 
@@ -1450,7 +1453,7 @@ function renderAll() {
   ].join('');
   document.getElementById('companySummary').innerHTML = companyRows;
 
-  const companyDebt = Math.max(0, -Number(c.cash_balance || 0));
+  const companyDebt = Math.max(0, Number(state.companyDebt || 0));
   document.getElementById('companyDetails').innerHTML = renderTable(
     ['Unternehmen','Status','Level','Kontostand','Mitarbeiter','Unternehmenswert','Patentwert','Schulden'],
     [`<tr>
@@ -1459,7 +1462,7 @@ function renderAll() {
       <td>${num(c.company_level)}</td>
       <td class="${Number(c.cash_balance || 0) < 0 ? 'negative-balance' : ''}">${balanceMoney(Number(c.cash_balance || 0))}</td>
       <td>${num(automaticEmployees)} Mitarbeiter</td>
-      <td>${money(c.company_value)}</td>
+      <td title="Wird täglich um 01:00 Uhr neu berechnet">${money(c.company_value)}</td>
       <td>${money(c.patent_value || 0)}</td>
       <td class="${companyDebt > 0 ? 'company-debt-negative' : 'company-debt-zero'}">${companyDebt > 0 ? `-${money(companyDebt)}` : money(0)}</td>
     </tr>`]
