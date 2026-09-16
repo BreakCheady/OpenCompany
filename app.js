@@ -21,8 +21,6 @@ const state = {
   retailSaleJobs: [],
   transactions: [],
   marketOrders: [],
-  marketOrderHistory: [],
-  marketOrderHistoryFilter: 'all',
   marketSearchFilter: '',
   marketTypeFilter: 'all',
   selectedMarketOrderIds: [],
@@ -398,14 +396,13 @@ async function loadGameData() {
     sb.from('retail_sale_jobs').select('*').eq('company_id', cid).order('started_at', {ascending:false}).limit(500),
     sb.from('financial_transactions').select('*').eq('company_id', cid).order('created_at', {ascending:false}).limit(500),
     sb.from('market_orders').select('*, products(name), materials(name)').in('status',['open','partially_filled']).order('created_at',{ascending:false}).limit(100),
-    sb.from('market_orders').select('*, products(name), materials(name)').in('status',['filled','cancelled']).order('created_at',{ascending:false}).limit(100),
     sb.from('contracts').select('*').or(`seller_company_id.eq.${cid},buyer_company_id.eq.${cid}`).order('created_at',{ascending:false}),
     sb.rpc('list_companies'),
     sb.rpc('get_company_debt', { p_company_id: cid }),
     sb.from('company_valuation_history').select('valuation_date,company_value,previous_company_value,change_amount,calculated_at').eq('company_id',cid).order('valuation_date',{ascending:false}).limit(1)
   ]);
 
-  const labels = ['Produkte','Alle Produkte','Produktlager','Materialien','Materiallager','Rezepte','Gebäudetypen','Gebäude','Produktionen','Handelsverkäufe','Finanzen','Marktorders','Order-Historie','Verträge','Firmenverzeichnis','Kreditschulden','Unternehmenswert-Verlauf'];
+  const labels = ['Produkte','Alle Produkte','Produktlager','Materialien','Materiallager','Rezepte','Gebäudetypen','Gebäude','Produktionen','Handelsverkäufe','Finanzen','Marktorders','Verträge','Firmenverzeichnis','Kreditschulden','Unternehmenswert-Verlauf'];
   const errors = results.map((r,i)=>r.error ? { label: labels[i], error:r.error } : null).filter(Boolean);
   if (errors.length) {
     console.error(errors);
@@ -414,7 +411,7 @@ async function loadGameData() {
   }
   clearGameDataError();
 
-  const [products, allProducts, inventory, materials, materialInventory, recipes, buildingTypes, buildings, productionJobs, retailSaleJobs, tx, orders, history, contracts, directory, companyDebt, valuationHistory] = results;
+  const [products, allProducts, inventory, materials, materialInventory, recipes, buildingTypes, buildings, productionJobs, retailSaleJobs, tx, orders, contracts, directory, companyDebt, valuationHistory] = results;
   state.products = products.data;
   state.allProducts = allProducts.data;
   state.inventory = inventory.data;
@@ -427,7 +424,6 @@ async function loadGameData() {
   state.retailSaleJobs = retailSaleJobs.data;
   state.transactions = tx.data;
   state.marketOrders = orders.data;
-  state.marketOrderHistory = history.data;
   state.contracts = contracts.data;
   state.companyDirectory = directory.data || [];
   state.companyDebt = Number(companyDebt.data || 0);
@@ -1407,20 +1403,6 @@ function renderMarket() {
   updateMarketBuyPreview();
 }
 
-function renderMarketOrderHistory() {
-  const rows = state.marketOrderHistoryFilter === 'all'
-    ? state.marketOrderHistory
-    : state.marketOrderHistory.filter(o => o.status === state.marketOrderHistoryFilter);
-
-  document.getElementById('marketOrderHistory').innerHTML = renderTable(
-    ['Produkt','Menge','Preis','Status','Erstellt'],
-    rows.map(o => {
-      const status = o.status === 'filled' ? 'Abgeschlossen' : 'Storniert';
-      const statusClass = o.status === 'filled' ? 'order-status-filled' : 'order-status-cancelled';
-      return `<tr><td>${itemName(o)}</td><td>${num(o.quantity)}</td><td>${money(o.price_per_unit)}</td><td><span class="badge ${statusClass}">${status}</span></td><td>${new Date(o.created_at).toLocaleString('de-DE')}</td></tr>`;
-    })
-  );
-}
 
 function contractItemName(c) {
   if (c.material_id) return state.materials.find(m => m.id === c.material_id)?.name || 'Material';
@@ -1739,7 +1721,6 @@ function renderAll() {
   renderBuildings();
   renderRetailSale();
   renderMarket();
-  renderMarketOrderHistory();
   renderContracts();
 
 }
@@ -2190,10 +2171,6 @@ window.cancelOrder = async function(orderId) {
   const { error }=await sb.rpc('cancel_market_order',{p_order_id:orderId});
   if(error) gameAlert(error.message); else await loadCompany();
 };
-document.getElementById('marketOrderHistoryFilter').addEventListener('change',e=>{
-  state.marketOrderHistoryFilter=e.target.value;
-  renderMarketOrderHistory();
-});
 
 const marketSearchFilter = document.getElementById('marketSearchFilter');
 const marketTypeFilter = document.getElementById('marketTypeFilter');
