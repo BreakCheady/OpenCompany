@@ -102,6 +102,10 @@ function operationalProducts() {
   return state.products.filter(operationalProductVisible);
 }
 
+function stockedProducts() {
+  return state.products.filter(product => hasProductInventory(product.id));
+}
+
 function operationalProductIdentitySet() {
   return new Set(operationalProducts().map(product => `${product.name}::${product.category}`));
 }
@@ -1311,7 +1315,7 @@ function renderRetailSale() {
   const h24Btn = document.getElementById('retail24Btn');
   if (!select || !details || !button || !qtyInput) return;
 
-  const retailProducts = operationalProducts().filter(p => p.required_retail_building_type_id);
+  const retailProducts = stockedProducts().filter(p => p.required_retail_building_type_id);
   const previous = select.value;
 
   select.innerHTML = retailProducts.length
@@ -1952,10 +1956,7 @@ function renderStorage() {
       return { type:'material', name:material?.name || '–', quality:Number(inv.quality_level||1), quantity:Number(inv.quantity||0), unit:material?.unit || '–', averageCost:Number(inv.average_unit_cost||0) };
     });
   const productRows = state.inventory
-    .filter(inv => {
-      const product = state.products.find(p => p.id === inv.product_id);
-      return Number(inv.quantity || 0) > 0 || ownsProductProductionBuilding(product);
-    })
+    .filter(inv => Number(inv.quantity || 0) > 0)
     .map(inv => ({ type:'product', name:inv.products?.name || state.products.find(p=>p.id===inv.product_id)?.name || '–', quality:Number(inv.quality_level||1), quantity:Number(inv.quantity||0), unit:'Stück', averageCost:Number(inv.average_unit_cost||0) }));
   const rows=[...materialRows,...productRows].filter(row => (type==='all'||row.type===type) && (!search||row.name.toLocaleLowerCase('de-DE').includes(search))).sort((a,b)=>a.name.localeCompare(b.name,'de-DE')||a.quality-b.quality||a.type.localeCompare(b.type,'de-DE'));
   container.innerHTML=renderTable(['Artikel','Typ','Qualität','Menge','Einheit','Ø Kosten'],rows.map(row=>`<tr><td>${row.name}</td><td>${row.type==='material'?'Rohstoff':'Produkt'}</td><td>Q${row.quality}</td><td>${num(row.quantity)}</td><td>${row.unit}</td><td>${money(row.averageCost)}</td></tr>`));
@@ -2055,7 +2056,8 @@ function renderAll() {
   if (visibleProducts.some(p => p.id === previousProductionProduct)) {
     productionProductSelect.value = previousProductionProduct;
   }
-  document.getElementById('sellProduct').innerHTML = opts;
+  const sellOpts = productOptionsGroupedByBuilding(stockedProducts());
+  document.getElementById('sellProduct').innerHTML = sellOpts || '<option value="">Keine Produkte im Lager</option>';
   updateSellQualityOptions();
   renderProductionRecipe();
   renderBuildings();
