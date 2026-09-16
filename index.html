@@ -7,7 +7,7 @@
   <title>OpenCompany</title>
   <link rel="icon" type="image/png" href="favicon.png">
   <link rel="shortcut icon" href="favicon.ico">
-  <link rel="stylesheet" href="style.css?v=0.1.71">
+  <link rel="stylesheet" href="style.css?v=0.1.72">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
@@ -29,7 +29,7 @@
       <span id="sessionLabel">Nicht angemeldet</span>
       <button id="logoutBtn" class="ghost hidden">Abmelden</button>
       <div class="sidebar-version">
-        <span class="sidebar-version-number">Version 0.1.71</span>
+        <span class="sidebar-version-number">Version 0.1.72</span>
         <span class="sidebar-credit">Made by BreakCheady</span>
       </div>
     </div>
@@ -67,7 +67,6 @@
           <article class="stat-card"><span>Kontostand</span><strong id="statCash">–</strong></article>
           <article class="stat-card"><span>Belegschaft</span><strong id="statEmployees">–</strong></article>
           <article class="stat-card"><span>Unternehmenswert</span><strong id="statValue">–</strong></article>
-          <article class="stat-card"><span>Patentwert</span><strong id="statPatentValue">–</strong></article>
         </div>
         <div class="grid two">
           <article class="panel"><h2>Firmenstatus</h2><div id="companySummary" class="stack"></div></article>
@@ -226,11 +225,18 @@
       <div id="research" class="view">
         <article class="panel">
           <h2>Forschung</h2>
-          <p class="muted">Das Forschungssystem wird in einem späteren Update erweitert.</p>
+          <p class="muted">Investitionen erhöhen den Patentwert dauerhaft im Verhältnis 1:1. Weitere Forschungsmechaniken folgen später.</p>
+
           <div class="research-placeholder">
             <div class="kv"><span>Patentwert</span><strong id="researchPatentValue">0 OC$</strong></div>
-            <div class="kv"><span>Status</span><strong>Vorbereitung</strong></div>
           </div>
+
+          <form id="researchInvestmentForm" class="research-investment-form">
+            <label>Investition
+              <input type="number" id="researchInvestmentAmount" min="0.01" step="0.01" value="1000">
+            </label>
+            <button type="submit" class="research-invest-button">Investieren</button>
+          </form>
         </article>
       </div>
 

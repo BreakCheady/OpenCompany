@@ -1365,7 +1365,6 @@ function renderAll() {
     }, 0);
   document.getElementById('statEmployees').textContent = `${num(automaticEmployees)} Mitarbeiter`;
   document.getElementById('statValue').textContent = money(c.company_value);
-  document.getElementById('statPatentValue').textContent = money(c.patent_value || 0);
   const researchPatentValue = document.getElementById('researchPatentValue');
   if (researchPatentValue) researchPatentValue.textContent = money(c.patent_value || 0);
 
@@ -1878,6 +1877,33 @@ document.querySelectorAll('.finance-period-btn').forEach(btn => btn.addEventList
   state.financePeriod = btn.dataset.period;
   renderFinanceSummary();
 }));
+
+// Research investment
+const researchInvestmentForm = document.getElementById('researchInvestmentForm');
+if (researchInvestmentForm) {
+  researchInvestmentForm.addEventListener('submit', async e => {
+    e.preventDefault();
+    const amount = Number(document.getElementById('researchInvestmentAmount').value);
+
+    if (!Number.isFinite(amount) || amount <= 0) {
+      alert('Bitte einen gültigen Investitionsbetrag eingeben.');
+      return;
+    }
+
+    if (!confirm(`${money(amount)} in Forschung investieren? Der Patentwert steigt um denselben Betrag.`)) return;
+
+    const { error } = await sb.rpc('invest_research', {
+      p_company_id: state.company.id,
+      p_amount: amount
+    });
+
+    if (error) {
+      alert(error.message);
+    } else {
+      await loadCompany();
+    }
+  });
+}
 
 // Contracts
 ['contractRole','contractPartner','contractItemType'].forEach(id => document.getElementById(id).addEventListener('change',updateContractGoods));
