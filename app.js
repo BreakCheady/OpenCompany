@@ -1315,20 +1315,38 @@ function renderRetailSale() {
   const h24Btn = document.getElementById('retail24Btn');
   if (!select || !details || !button || !qtyInput) return;
 
-  const retailProducts = stockedProducts().filter(p => p.required_retail_building_type_id);
+  const stockedRetailProducts = stockedProducts().filter(p => p.required_retail_building_type_id);
+  const runningRetailJob = state.retailSaleJobs.find(job => job.status === 'running');
+  const runningRetailProduct = runningRetailJob
+    ? state.products.find(p => p.id === runningRetailJob.product_id)
+    : null;
+  const retailProducts = [...stockedRetailProducts];
+  if (runningRetailProduct && !retailProducts.some(p => p.id === runningRetailProduct.id)) {
+    retailProducts.push(runningRetailProduct);
+  }
   const previous = select.value;
 
   select.innerHTML = retailProducts.length
-    ? retailProducts.map(p => `<option value="${p.id}">${p.name}</option>`).join('')
+    ? retailProducts.map(p => `<option value="${p.id}">${p.name}${runningRetailJob?.product_id === p.id && !hasProductInventory(p.id) ? ' – Verkauf läuft' : ''}</option>`).join('')
     : '<option value="">Keine Handelsprodukte verfügbar</option>';
 
   if (retailProducts.some(p => p.id === previous)) select.value = previous;
 
   const retailLots = availableProductQualities(select.value);
   const previousQuality = qualitySelect?.value;
+  const selectedRunningJob = state.retailSaleJobs.find(job => job.status === 'running' && job.product_id === select.value);
   if (qualitySelect) {
-    qualitySelect.innerHTML = retailLots.length ? retailLots.map(l => `<option value="${Number(l.quality_level || 1)}">Q${Number(l.quality_level || 1)} – ${num(l.quantity)} verfügbar</option>`).join('') : '<option value="1">Q1 – 0 verfügbar</option>';
-    if (retailLots.some(l => String(l.quality_level) === String(previousQuality))) qualitySelect.value = previousQuality;
+    const runningQuality = Number(selectedRunningJob?.quality_level || 1);
+    qualitySelect.innerHTML = retailLots.length
+      ? retailLots.map(l => `<option value="${Number(l.quality_level || 1)}">Q${Number(l.quality_level || 1)} – ${num(l.quantity)} verfügbar</option>`).join('')
+      : selectedRunningJob
+        ? `<option value="${runningQuality}">Q${runningQuality} – Verkauf läuft</option>`
+        : '<option value="1">Q1 – 0 verfügbar</option>';
+    if (selectedRunningJob) {
+      qualitySelect.value = String(runningQuality);
+    } else if (retailLots.some(l => String(l.quality_level) === String(previousQuality))) {
+      qualitySelect.value = previousQuality;
+    }
   }
 
   let ctx = retailSaleContext();
@@ -1406,17 +1424,21 @@ function renderRetailSale() {
     return;
   }
 
+  const expectedRevenue = ctx.price * Math.max(0, qty);
+  const cancellationFee = expectedRevenue * 0.20;
   details.innerHTML = ctx.product ? [
     `<div class="kv"><span>Verkaufsgebäude</span><strong>${ctx.buildingType?.name || '–'}</strong></div>`,
     `<div class="kv"><span>Gebäudestatus</span><strong class="${ctx.building ? 'retail-ready' : 'missing-building-warning'}">${ctx.building ? 'Bereit' : 'Benötigtes Gebäude fehlt'}</strong></div>`,
     `<div class="kv"><span>Verkaufsrate</span><strong>${ctx.building ? `${num(ctx.unitsPerHour)} Einheiten / Std.` : '–'}</strong></div>`,
     `<div class="kv"><span>Qualität</span><strong>Q${ctx.quality} (+${Math.round((qualityMultiplier(ctx.quality)-1)*100)}% Wert)</strong></div>`,
-    `<div class="kv"><span>Bestand</span><strong>${num(ctx.available)} Einheiten</strong></div>`,
+    `<div class="kv"><span>Verfügbarer Bestand</span><strong>${num(ctx.available)} Einheiten</strong></div>`,
+    `<div class="kv"><span>Ausgewählte Menge</span><strong>${qty > 0 ? `${num(qty)} Einheiten` : '–'}</strong></div>`,
     `<div class="kv"><span>Verkaufspreis</span><strong>${money(ctx.price)} / Einheit</strong></div>`,
     `<div class="kv"><span>Verkaufsdauer</span><strong>${ctx.building && saleHours > 0 ? formatProductionDuration(saleHours) : '–'}</strong></div>`,
     `<div class="kv"><span>Voraussichtliches Ende</span><strong>${ctx.building && saleHours > 0 ? formatProductionFinish(saleHours) : '–'}</strong></div>`,
-    `<div class="kv"><span>Erwarteter Erlös</span><strong>${money(ctx.price * Math.max(0, qty))}</strong></div>`
-  ].join('') : '<p class="muted">Für dieses Unternehmen sind noch keine Handelsprodukte vorhanden.</p>';
+    `<div class="kv"><span>Erwarteter Erlös</span><strong class="retail-revenue-positive">${money(expectedRevenue)}</strong></div>`,
+    `<div class="kv"><span>Abbruchgebühr</span><strong class="retail-cancel-fee">${expectedRevenue > 0 ? `-${money(cancellationFee)}` : money(0)}</strong></div>`
+  ].join('') : '<p class="muted">Es befinden sich keine Produkte für den Handelsverkauf im Lager.</p>';
 
   button.disabled = !ready;
 
