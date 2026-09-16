@@ -1812,3 +1812,11 @@ td button {
   background: rgba(0,0,0,.02);
   color: var(--muted);
 }
+
+
+/* v0.2.1 – fehlendes Gebäude deutlich hervorheben */
+.required-building-missing,
+.retail-missing {
+  color: #b00020 !important;
+  font-weight: 800 !important;
+}
