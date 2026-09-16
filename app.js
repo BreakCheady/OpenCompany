@@ -1042,7 +1042,12 @@ function renderBuildings() {
           <td><span class="badge">${formatBuildingConstructionStatus(building)}</span></td>
           <td>–</td>
           <td>${buildingConstructionFinishDate(building)}</td>
-          <td class="building-actions"><button disabled>Im Bau</button></td>
+          <td class="building-actions">
+            <button
+              class="building-downgrade-btn"
+              onclick="cancelBuildingConstruction('${building.id}','${bt.id}')"
+            >Abbrechen</button>
+          </td>
         </tr>`;
       }
 
@@ -2269,6 +2274,47 @@ window.upgradeBuilding = async function(buildingId, buildingTypeId) {
   } else {
     await loadCompany();
   }
+};
+
+window.cancelBuildingConstruction = async function(buildingId, buildingTypeId) {
+  const building = state.buildings.find(b => b.id === buildingId);
+  const bt = state.buildingTypes.find(b => b.id === buildingTypeId);
+  if (!building || !bt) return;
+
+  const targetLevel = Math.max(
+    1,
+    Number(building.construction_target_level || building.level || 1)
+  );
+  const isNewBuild = Number(building.level || 1) === 1 && targetLevel === 1;
+  const constructionCost = targetLevel === 1
+    ? Number(bt.construction_cost || 0)
+    : Number(bt.construction_cost || 0) * buildingLevelMultiplier(targetLevel);
+  const refund = constructionCost * 0.95;
+
+  const actionText = isNewBuild
+    ? `den Bau von ${bt.name} abbrechen`
+    : `den Ausbau von ${bt.name} auf Level ${targetLevel} abbrechen`;
+
+  const consequenceText = isNewBuild
+    ? 'Das unfertige Gebäude wird entfernt.'
+    : `Das Gebäude bleibt auf Level ${building.level}.`;
+
+  if (!await gameConfirm(
+    `${actionText}? Du erhältst ${money(refund)} zurück (95% der Kosten dieser Baustufe). ${consequenceText}`
+  )) return;
+
+  const { data, error } = await sb.rpc('cancel_building_construction', {
+    p_company_id: state.company.id,
+    p_building_id: buildingId
+  });
+
+  if (error) {
+    await gameAlert(error.message);
+    return;
+  }
+
+  await gameAlert(`Bau abgebrochen. Erstattung: ${money(Number(data?.refund || refund))}.`);
+  await loadCompany();
 };
 
 window.downgradeBuilding = async function(buildingId, buildingTypeId) {
