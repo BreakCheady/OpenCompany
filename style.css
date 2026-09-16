@@ -1750,3 +1750,37 @@ td button {
   background: #116b4a !important;
   border-color: #116b4a !important;
 }
+
+
+/* v0.1.73 – Finanzen: Bewegungen links, Übersicht rechts */
+.finance-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.65fr) minmax(320px, .85fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.finance-movements-panel,
+.finance-overview-panel {
+  min-width: 0;
+}
+
+.finance-overview-panel .finance-period-switch {
+  margin: 12px 0;
+}
+
+.finance-summary.finance-summary-vertical {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+}
+
+.finance-summary.finance-summary-vertical .finance-summary-card {
+  width: 100%;
+}
+
+@media (max-width: 980px) {
+  .finance-layout {
+    grid-template-columns: 1fr;
+  }
+}

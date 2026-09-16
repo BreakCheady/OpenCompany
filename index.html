@@ -7,7 +7,7 @@
   <title>OpenCompany</title>
   <link rel="icon" type="image/png" href="favicon.png">
   <link rel="shortcut icon" href="favicon.ico">
-  <link rel="stylesheet" href="style.css?v=0.1.72">
+  <link rel="stylesheet" href="style.css?v=0.1.73">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
@@ -22,14 +22,14 @@
       <button class="nav-item" data-view="buildings">Gebäude</button>
       <button class="nav-item" data-view="market">Markt &amp; Handel</button>
       <button class="nav-item" data-view="contracts">Verträge</button>
-      <button class="nav-item" data-view="research">Forschung</button>
       <button class="nav-item" data-view="finance">Finanzen</button>
+      <button class="nav-item" data-view="research">Forschung</button>
     </nav>
     <div class="sidebar-footer">
       <span id="sessionLabel">Nicht angemeldet</span>
       <button id="logoutBtn" class="ghost hidden">Abmelden</button>
       <div class="sidebar-version">
-        <span class="sidebar-version-number">Version 0.1.72</span>
+        <span class="sidebar-version-number">Version 0.1.73</span>
         <span class="sidebar-credit">Made by BreakCheady</span>
       </div>
     </div>
@@ -241,24 +241,27 @@
       </div>
 
       <div id="finance" class="view">
-        <article class="panel">
-          <div class="panel-head finance-head">
-            <div>
-              <h2>Finanzübersicht</h2>
-              <p class="muted">Einnahmen minus Produktionskosten, Forschung, Gebühren und sonstige Kosten.</p>
+        <div class="finance-layout">
+          <article class="panel finance-movements-panel">
+            <h2>Finanzbewegungen</h2>
+            <div id="financeTable" class="table-wrap"></div>
+          </article>
+
+          <article class="panel finance-overview-panel">
+            <div class="panel-head finance-head">
+              <div>
+                <h2>Finanzübersicht</h2>
+                <p class="muted">Einnahmen minus Produktionskosten, Forschung, Gebühren und sonstige Kosten.</p>
+              </div>
             </div>
             <div class="finance-period-switch" aria-label="Zeitraum">
               <button type="button" class="finance-period-btn" data-period="day">Tag</button>
               <button type="button" class="finance-period-btn active" data-period="week">Woche</button>
               <button type="button" class="finance-period-btn" data-period="month">Monat</button>
             </div>
-          </div>
-          <div id="financeSummary" class="finance-summary"></div>
-        </article>
-        <article class="panel">
-          <h2>Finanzbewegungen</h2>
-          <div id="financeTable" class="table-wrap"></div>
-        </article>
+            <div id="financeSummary" class="finance-summary finance-summary-vertical"></div>
+          </article>
+        </div>
       </div>
     </section>
 
