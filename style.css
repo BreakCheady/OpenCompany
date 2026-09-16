@@ -2036,3 +2036,9 @@ body.game-dialog-open { overflow: hidden; }
     min-width: 0;
   }
 }
+
+
+/* v0.4.2 – Mehrfachauswahl Marktorders */
+.market-order-row.selected td:first-child {
+  box-shadow: inset 4px 0 0 var(--accent, #2563eb);
+}
