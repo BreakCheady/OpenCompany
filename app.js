@@ -1876,6 +1876,30 @@ function renderStorage() {
   );
 }
 
+function productOptionsGroupedByBuilding(products) {
+  const groups = new Map();
+
+  (products || []).forEach(product => {
+    const building = state.buildingTypes.find(
+      bt => bt.id === product.required_building_type_id
+    );
+    const label = building?.name || 'Sonstige';
+    if (!groups.has(label)) groups.set(label, []);
+    groups.get(label).push(product);
+  });
+
+  return [...groups.entries()]
+    .sort(([a], [b]) => a.localeCompare(b, 'de-DE'))
+    .map(([label, items]) => {
+      const options = items
+        .sort((a, b) => a.name.localeCompare(b.name, 'de-DE'))
+        .map(product => `<option value="${product.id}">${product.name}</option>`)
+        .join('');
+      return `<optgroup label="${label}">${options}</optgroup>`;
+    })
+    .join('');
+}
+
 function renderAll() {
   const c = state.company;
   document.getElementById('statCompany').textContent = c.name;
@@ -1940,7 +1964,7 @@ function renderAll() {
   renderFinanceSummary();
   renderStorage();
 
-  const opts = state.products.map(p=>`<option value="${p.id}">${p.name}</option>`).join('');
+  const opts = productOptionsGroupedByBuilding(state.products);
   const productionProductSelect = document.getElementById('productionProduct');
   const previousProductionProduct = productionProductSelect.value;
   productionProductSelect.innerHTML = opts;
