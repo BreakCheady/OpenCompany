@@ -1704,3 +1704,15 @@ td button {
   color: var(--danger);
   font-weight: 700;
 }
+
+
+/* v0.1.70 – Schuldenformatierung */
+#companyDetails .company-debt-negative {
+  color: var(--danger);
+  font-weight: 700;
+}
+
+#companyDetails .company-debt-zero {
+  color: inherit;
+  font-weight: 400;
+}

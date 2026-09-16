@@ -1376,7 +1376,7 @@ function renderAll() {
       <td class="${Number(c.cash_balance || 0) < 0 ? 'negative-balance' : ''}">${balanceMoney(Number(c.cash_balance || 0))}</td>
       <td>${num(automaticEmployees)} Mitarbeiter</td>
       <td>${money(c.company_value)}</td>
-      <td class="${companyDebt > 0 ? 'transaction-amount fee' : ''}">${money(companyDebt)}</td>
+      <td class="${companyDebt > 0 ? 'company-debt-negative' : 'company-debt-zero'}">${companyDebt > 0 ? `-${money(companyDebt)}` : money(0)}</td>
     </tr>`]
   );
   renderCompanyStatus();
