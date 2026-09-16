@@ -1716,3 +1716,11 @@ td button {
   color: inherit;
   font-weight: 400;
 }
+
+
+/* v0.1.71 – Forschungsgrundlage */
+.research-placeholder {
+  display: grid;
+  gap: 0;
+  margin-top: 12px;
+}

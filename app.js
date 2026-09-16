@@ -52,12 +52,13 @@ function transactionLabel(type) {
     production: 'Produktion',
     production_refund: 'Erstattung Produktion',
     construction: 'Baukosten',
-    building_refund: 'Gebäude-Erstattung'
+    building_refund: 'Gebäude-Erstattung',
+    research: 'Forschung'
   })[type] || type;
 }
 
 function transactionAmountClass(type) {
-  return ['market_fee', 'market_buy', 'production', 'construction', 'retail_cancel_fee'].includes(type) ? 'transaction-amount fee' : 'transaction-amount';
+  return ['market_fee', 'market_buy', 'production', 'construction', 'retail_cancel_fee', 'research'].includes(type) ? 'transaction-amount fee' : 'transaction-amount';
 }
 
 
@@ -1297,6 +1298,10 @@ function renderFinanceSummary() {
     .filter(t => t.transaction_type === 'building_refund')
     .reduce((sum, t) => sum + Number(t.amount || 0), 0);
 
+  const researchCosts = Math.abs(transactions
+    .filter(t => t.transaction_type === 'research')
+    .reduce((sum, t) => sum + Number(t.amount || 0), 0));
+
   const revenue = netSales + fees + retailSales + buildingRefunds;
 
   // Produktionskosten = tatsächlich verbrauchte Beschaffungskosten + Personalkosten.
@@ -1313,14 +1318,15 @@ function renderFinanceSummary() {
     'production_refund',
     'market_fee',
     'retail_cancel_fee',
-    'market_buy'
+    'market_buy',
+    'research'
   ]);
 
   const otherCosts = Math.abs(transactions
     .filter(t => Number(t.amount || 0) < 0 && !excludedCostTypes.has(t.transaction_type))
     .reduce((sum, t) => sum + Number(t.amount || 0), 0));
 
-  const profit = revenue - productionCosts - fees - otherCosts;
+  const profit = revenue - productionCosts - researchCosts - fees - otherCosts;
   const profitClass = profit < 0 ? 'finance-negative' : 'finance-positive';
 
   const periodLabel =
@@ -1332,6 +1338,7 @@ function renderFinanceSummary() {
     <div class="finance-summary-card finance-period-card"><span>Zeitraum</span><strong>${periodLabel}</strong><small>${periodRange}</small></div>
     <div class="finance-summary-card"><span>Einnahmen / Gewinne</span><strong>${money(revenue)}</strong></div>
     <div class="finance-summary-card finance-cost-card"><span>Produktionskosten</span><strong>-${money(productionCosts)}</strong></div>
+    <div class="finance-summary-card finance-cost-card"><span>Forschung</span><strong>${researchCosts > 0 ? `-${money(researchCosts)}` : money(0)}</strong></div>
     <div class="finance-summary-card finance-cost-card"><span>Gebühren</span><strong>-${money(fees)}</strong></div>
     <div class="finance-summary-card finance-cost-card"><span>Sonstige Kosten</span><strong>-${money(otherCosts)}</strong></div>
     <div class="finance-summary-card finance-profit-card ${profit < 0 ? 'finance-profit-loss' : 'finance-profit-gain'}"><span>Gewinn / Verlust</span><strong class="${profitClass}">${profit < 0 ? '-' : ''}${money(Math.abs(profit))}</strong></div>
@@ -1358,6 +1365,9 @@ function renderAll() {
     }, 0);
   document.getElementById('statEmployees').textContent = `${num(automaticEmployees)} Mitarbeiter`;
   document.getElementById('statValue').textContent = money(c.company_value);
+  document.getElementById('statPatentValue').textContent = money(c.patent_value || 0);
+  const researchPatentValue = document.getElementById('researchPatentValue');
+  if (researchPatentValue) researchPatentValue.textContent = money(c.patent_value || 0);
 
   const companyRows = [
     `<div class="kv"><span>Name</span><strong>${c.name}</strong></div>`,
@@ -1368,7 +1378,7 @@ function renderAll() {
 
   const companyDebt = Math.max(0, -Number(c.cash_balance || 0));
   document.getElementById('companyDetails').innerHTML = renderTable(
-    ['Unternehmen','Status','Level','Kontostand','Mitarbeiter','Unternehmenswert','Schulden'],
+    ['Unternehmen','Status','Level','Kontostand','Mitarbeiter','Unternehmenswert','Patentwert','Schulden'],
     [`<tr>
       <td><strong>${c.name}</strong></td>
       <td><span class="company-online-status presence-status"></span></td>
@@ -1376,6 +1386,7 @@ function renderAll() {
       <td class="${Number(c.cash_balance || 0) < 0 ? 'negative-balance' : ''}">${balanceMoney(Number(c.cash_balance || 0))}</td>
       <td>${num(automaticEmployees)} Mitarbeiter</td>
       <td>${money(c.company_value)}</td>
+      <td>${money(c.patent_value || 0)}</td>
       <td class="${companyDebt > 0 ? 'company-debt-negative' : 'company-debt-zero'}">${companyDebt > 0 ? `-${money(companyDebt)}` : money(0)}</td>
     </tr>`]
   );

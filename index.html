@@ -7,7 +7,7 @@
   <title>OpenCompany</title>
   <link rel="icon" type="image/png" href="favicon.png">
   <link rel="shortcut icon" href="favicon.ico">
-  <link rel="stylesheet" href="style.css?v=0.1.70">
+  <link rel="stylesheet" href="style.css?v=0.1.71">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
@@ -22,13 +22,14 @@
       <button class="nav-item" data-view="buildings">Gebäude</button>
       <button class="nav-item" data-view="market">Markt &amp; Handel</button>
       <button class="nav-item" data-view="contracts">Verträge</button>
+      <button class="nav-item" data-view="research">Forschung</button>
       <button class="nav-item" data-view="finance">Finanzen</button>
     </nav>
     <div class="sidebar-footer">
       <span id="sessionLabel">Nicht angemeldet</span>
       <button id="logoutBtn" class="ghost hidden">Abmelden</button>
       <div class="sidebar-version">
-        <span class="sidebar-version-number">Version 0.1.70</span>
+        <span class="sidebar-version-number">Version 0.1.71</span>
         <span class="sidebar-credit">Made by BreakCheady</span>
       </div>
     </div>
@@ -66,6 +67,7 @@
           <article class="stat-card"><span>Kontostand</span><strong id="statCash">–</strong></article>
           <article class="stat-card"><span>Belegschaft</span><strong id="statEmployees">–</strong></article>
           <article class="stat-card"><span>Unternehmenswert</span><strong id="statValue">–</strong></article>
+          <article class="stat-card"><span>Patentwert</span><strong id="statPatentValue">–</strong></article>
         </div>
         <div class="grid two">
           <article class="panel"><h2>Firmenstatus</h2><div id="companySummary" class="stack"></div></article>
@@ -220,12 +222,24 @@
         </div>
       </div>
 
+
+      <div id="research" class="view">
+        <article class="panel">
+          <h2>Forschung</h2>
+          <p class="muted">Das Forschungssystem wird in einem späteren Update erweitert.</p>
+          <div class="research-placeholder">
+            <div class="kv"><span>Patentwert</span><strong id="researchPatentValue">0 OC$</strong></div>
+            <div class="kv"><span>Status</span><strong>Vorbereitung</strong></div>
+          </div>
+        </article>
+      </div>
+
       <div id="finance" class="view">
         <article class="panel">
           <div class="panel-head finance-head">
             <div>
               <h2>Finanzübersicht</h2>
-              <p class="muted">Einnahmen minus Produktionskosten, Gebühren und sonstige Kosten.</p>
+              <p class="muted">Einnahmen minus Produktionskosten, Forschung, Gebühren und sonstige Kosten.</p>
             </div>
             <div class="finance-period-switch" aria-label="Zeitraum">
               <button type="button" class="finance-period-btn" data-period="day">Tag</button>
