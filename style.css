@@ -1929,3 +1929,10 @@ td button {
 .game-dialog input { width: 100%; margin-top: 14px; }
 .game-dialog-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px; }
 body.game-dialog-open { overflow: hidden; }
+
+
+/* v0.3.5 – Produktwahl bleibt trotz laufender Produktion aktiv */
+#productionProduct {
+  opacity: 1;
+  cursor: pointer;
+}

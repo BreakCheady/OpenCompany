@@ -744,14 +744,14 @@ function renderProductionRecipe() {
   // Die Werte stammen persistent aus dem Produktionsauftrag und überleben auch Seiten-Reloads.
   if (runningJob) {
     productSelect.dataset.runningJobId = runningJob.id;
-    productSelect.value = runningJob.product_id;
     unitsInput.value = runningJob.start_input_text || formatProductionUnitsInput(runningJob.output_quantity);
-    productSelect.disabled = true;
+    productSelect.disabled = false;
     unitsInput.disabled = true;
     if (maxBtn) maxBtn.disabled = true;
     if (h24Btn) h24Btn.disabled = true;
 
-    // Rezept/Bestände dürfen aktuell bleiben; die oben angezeigten Startwerte werden separat eingefroren.
+    // Das Produkt-Dropdown bleibt frei wählbar, damit andere Produktionsgebäude parallel genutzt werden können.
+    // Die angezeigten Startwerte des laufenden Auftrags bleiben eingefroren.
     plan = productionPlan(Number(runningJob.output_quantity || 0));
     ({ buildingType, building, multiplier, unitsPerHour, runningJob } = plan);
   } else {
