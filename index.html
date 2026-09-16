@@ -7,7 +7,7 @@
   <title>OpenCompany</title>
   <link rel="icon" type="image/png" href="favicon.png">
   <link rel="shortcut icon" href="favicon.ico">
-  <link rel="stylesheet" href="style.css?v=0.2.1">
+  <link rel="stylesheet" href="style.css?v=0.2.4">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
@@ -29,7 +29,7 @@
       <span id="sessionLabel">Nicht angemeldet</span>
       <button id="logoutBtn" class="ghost hidden">Abmelden</button>
       <div class="sidebar-version">
-        <span class="sidebar-version-number">Version 0.2.1</span>
+        <span class="sidebar-version-number">Version 0.2.4</span>
         <span class="sidebar-credit">Made by BreakCheady</span>
       </div>
     </div>
@@ -77,17 +77,16 @@
       <div id="company" class="view">
         <article class="panel">
           <h2>Unternehmen</h2>
-          <p class="muted">Die Belegschaft umfasst Mitarbeiter aller aktiven Gebäude. Mitarbeiter in Verkaufsgebäuden sind rein statistisch und verursachen keine Personalkosten. Schulden entsprechen aktuell einem negativen Kontostand.</p>
           <div id="companyDetails" class="table-wrap"></div>
         </article>
         <article class="panel company-danger-zone">
           <h2>Unternehmensverwaltung</h2>
-          <p class="muted">Diese Aktionen können nicht rückgängig gemacht werden.</p>
+          <p class="muted account-danger-note">Diese Aktionen können nicht rückgängig gemacht werden.</p>
           <div class="company-management-actions">
             <button type="button" id="resetCompanyBtn" class="company-reset-btn">Unternehmen zurücksetzen</button>
             <button type="button" id="deleteCompanyBtn" class="company-delete-btn">Unternehmen löschen</button>
           </div>
-          <p class="muted company-management-note">Zurücksetzen behält Account und Firmenname, löscht aber den Spielfortschritt und setzt das Startkapital auf 50.000 OC$. Löschen entfernt zusätzlich den Account.</p>
+          <p class="muted company-management-note account-danger-note">Zurücksetzen behält Account und Firmenname, löscht aber den Spielfortschritt und setzt das Startkapital auf 50.000 OC$. Löschen entfernt zusätzlich den Account.</p>
         </article>
       </div>
 
@@ -113,7 +112,6 @@
       <div id="storage" class="view">
         <article class="panel">
           <h2>Materiallager</h2>
-          <p class="muted">Neue Unternehmen starten ohne Rohstoffe. Beschaffe Materialien über den Markt.</p>
           <div id="materialInventoryTable" class="table-wrap"></div>
         </article>
 
@@ -128,7 +126,6 @@
           <div class="panel-head building-panel-head">
             <div>
               <h2>Gebäude</h2>
-              <p class="muted">Verwalte deine bestehenden Produktions-, Verkaufs- und Forschungsgebäude.</p>
             </div>
             <button type="button" id="openBuildingBuilderBtn" class="building-builder-open-btn">Bauen</button>
           </div>
@@ -193,7 +190,7 @@
 
         <article class="panel">
           <div class="panel-head">
-            <div><h2>Order-Historie</h2><p class="muted">Abgeschlossene und stornierte Marktorders.</p></div>
+            <div><h2>Order-Historie</h2></div>
             <label>Status<select id="marketOrderHistoryFilter"><option value="all">Alle</option><option value="filled">Abgeschlossen</option><option value="cancelled">Storniert</option></select></label>
           </div>
           <div id="marketOrderHistory" class="table-wrap"></div>
@@ -226,7 +223,6 @@
       <div id="research" class="view">
         <article class="panel">
           <h2>Forschung</h2>
-          <p class="muted">Investiere Forschungseinheiten aus deinem Lager. Der Patentwert steigt zufällig um 70% bis 110% des tatsächlichen Einstandswerts der investierten Einheiten.</p>
 
           <div class="research-overview">
             <div class="kv"><span>Patentwert</span><strong id="researchPatentValue">0 OC$</strong></div>
@@ -259,7 +255,6 @@
             <div class="panel-head finance-head">
               <div>
                 <h2>Finanzübersicht</h2>
-                <p class="muted">Einnahmen minus Produktionskosten, Forschung, Gebühren und sonstige Kosten.</p>
               </div>
             </div>
             <div class="finance-period-switch" aria-label="Zeitraum">

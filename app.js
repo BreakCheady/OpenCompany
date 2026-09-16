@@ -686,7 +686,7 @@ function renderProductionRecipe() {
     : (building && plan.hours > 0 ? formatProductionFinish(plan.hours) : '–');
 
   const statusRows = buildingType ? [
-    `<div class="kv"><span>Benötigtes Gebäude</span><strong>${building ? `${buildingType.name} ✓` : `<span class="required-building-missing">Benötigtes Gebäude fehlt</span>`}</strong></div>`,
+    `<div class="kv"><span>Benötigtes Gebäude</span><strong>${buildingType.name} ${building ? '✓' : '✗'}</strong></div>`,
     `<div class="kv"><span>Gebäudelevel</span><strong>${building ? `Level ${building.level}` : 'Nicht gebaut'}</strong></div>`,
     `<div class="kv"><span>Kapazität</span><strong>${building ? `${num(unitsPerHour)} Einheiten / Std.` : '–'}</strong></div>`,
     `<div class="kv"><span>Produktionsmenge</span><strong>${num(displayOutputQty)} Einheiten</strong></div>`,
@@ -757,6 +757,7 @@ function renderProductionRecipe() {
   }
 
   const hint = document.getElementById('productionCheck');
+  hint.classList.toggle('missing-building-warning', !building);
   if (!building) {
     hint.textContent = 'Benötigtes Gebäude fehlt.';
   } else if (runningJob) {
@@ -1118,7 +1119,7 @@ function renderRetailSale() {
 
   details.innerHTML = ctx.product ? [
     `<div class="kv"><span>Verkaufsgebäude</span><strong>${ctx.buildingType?.name || '–'}</strong></div>`,
-    `<div class="kv"><span>Gebäudestatus</span><strong class="${ctx.building ? 'retail-ready' : 'required-building-missing'}">${ctx.building ? 'Bereit' : 'Benötigtes Gebäude fehlt'}</strong></div>`,
+    `<div class="kv"><span>Gebäudestatus</span><strong class="${ctx.building ? 'retail-ready' : 'missing-building-warning'}">${ctx.building ? 'Bereit' : 'Benötigtes Gebäude fehlt'}</strong></div>`,
     `<div class="kv"><span>Verkaufsrate</span><strong>${ctx.building ? `${num(ctx.unitsPerHour)} Einheiten / Std.` : '–'}</strong></div>`,
     `<div class="kv"><span>Bestand</span><strong>${num(ctx.available)} Einheiten</strong></div>`,
     `<div class="kv"><span>Verkaufspreis</span><strong>${money(ctx.price)} / Einheit</strong></div>`,
@@ -1392,7 +1393,7 @@ function renderResearch() {
     <div class="kv"><span>Einheiten</span><strong>${num(requested)}</strong></div>
     <div class="kv"><span>Investitionswert</span><strong>${money(investmentValue)}</strong></div>
     <div class="kv"><span>Möglicher Patentwert-Zuwachs</span><strong>${money(minPatent)} – ${money(maxPatent)}</strong></div>
-    <div class="kv"><span>Zufallsfaktor</span><strong>70% – 110%</strong></div>`;
+    `;
 
   submit.disabled = !valid;
   if (maxBtn) maxBtn.disabled = availableWhole <= 0;

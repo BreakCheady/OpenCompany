@@ -1814,9 +1814,18 @@ td button {
 }
 
 
-/* v0.2.1 – fehlendes Gebäude deutlich hervorheben */
-.required-building-missing,
-.retail-missing {
+
+
+
+/* v0.2.2 – fehlendes Gebäude: separater Hinweis kräftig rot, nicht fett */
+.missing-building-warning {
   color: #b00020 !important;
-  font-weight: 800 !important;
+  font-weight: 400 !important;
+}
+
+
+/* v0.2.4 – kompakte Hinweise im Unternehmensbereich */
+.account-danger-note {
+  font-size: 9px !important;
+  line-height: 1.35;
 }
