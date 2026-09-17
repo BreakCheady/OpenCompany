@@ -2529,7 +2529,7 @@ document.getElementById('resetCompanyBtn').addEventListener('click', async () =>
   if (!state.company?.id) return;
 
   const confirmed = await gameConfirm(
-    'Unternehmen wirklich zurücksetzen? Alle Gebäude, Lagerbestände, laufenden Produktionen, Marktaktivitäten und Finanzdaten werden gelöscht. Firmenname und Account bleiben erhalten. Startkapital danach: 50.000 OC$.'
+    'Unternehmen wirklich zurücksetzen? Alle Gebäude, Lagerbestände, laufenden Produktionen, Marktaktivitäten und Finanzdaten werden gelöscht. Firmenname und Account bleiben erhalten. Startkapital danach: 100.000 OC$. Zusätzlich erhältst du eine Elektronikfabrik und ein Elektronikgeschäft.'
   );
   if (!confirmed) return;
 
