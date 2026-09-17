@@ -29,7 +29,7 @@
       <span id="sessionLabel">Nicht angemeldet</span>
       <button id="logoutBtn" class="ghost hidden">Abmelden</button>
       <div class="sidebar-version">
-        <span class="sidebar-version-number">Version 0.6.6</span>
+        <span class="sidebar-version-number">Version 0.6.7</span>
         <span class="sidebar-credit">Made by BreakCheady</span>
       </div>
     </div>
@@ -203,7 +203,13 @@
 
         <article class="panel">
           <div class="panel-head market-orders-head">
-            <div><h2>Offene Marktorders</h2></div>
+            <div>
+              <h2>Offene Marktorders</h2>
+              <div class="kv">
+                <span>Nächste Marktaktualisierung</span>
+                <strong id="marketRefreshTimer">–</strong>
+              </div>
+            </div>
             <div class="market-filter-controls">
               <label>Suche
                 <input id="marketSearchFilter" type="search" placeholder="z. B. Silizium oder Smartphone" autocomplete="off">

@@ -42,6 +42,7 @@ let presenceTimer = null;
 let productionRefreshTimer = null;
 let productionClaimDisplayTimer = null;
 let npcMarketTimer = null;
+let npcMarketCountdownTimer = null;
 let companyValueRefreshTimer = null;
 let buildingConstructionTimer = null;
 
@@ -398,26 +399,64 @@ function stopPresenceHeartbeat() {
   buildingConstructionTimer = null;
 }
 
+function nextMarketRefreshAt(now = new Date()) {
+  const next = new Date(now);
+  next.setSeconds(0, 0);
+  const nextQuarter = (Math.floor(next.getMinutes() / 15) + 1) * 15;
+  next.setMinutes(nextQuarter);
+  return next;
+}
+
+function updateMarketRefreshTimer() {
+  const el = document.getElementById('marketRefreshTimer');
+  if (!el) return;
+
+  const now = new Date();
+  const next = nextMarketRefreshAt(now);
+  const remainingSeconds = Math.max(0, Math.ceil((next.getTime() - now.getTime()) / 1000));
+  const minutes = Math.floor(remainingSeconds / 60);
+  const seconds = remainingSeconds % 60;
+  const countdown = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+  const nextTime = next.toLocaleTimeString('de-DE', { hour:'2-digit', minute:'2-digit' });
+
+  el.textContent = `${nextTime} Uhr · ${countdown}`;
+}
+
 function stopNpcMarketHeartbeat() {
-  if (npcMarketTimer) clearInterval(npcMarketTimer);
+  if (npcMarketTimer) clearTimeout(npcMarketTimer);
   npcMarketTimer = null;
+  if (npcMarketCountdownTimer) clearInterval(npcMarketCountdownTimer);
+  npcMarketCountdownTimer = null;
 }
 
 async function runNpcMarketTickAndRefresh() {
   if (!sb || !state.company?.id || document.visibilityState === 'hidden') return;
-  const { data, error } = await sb.rpc('run_npc_market_tick');
-  if (error) {
-    console.warn('NPC-Markt-Tick:', error.message);
-    return;
-  }
-  if (Number(data || 0) > 0 && document.getElementById('market')?.classList.contains('active-view')) {
+
+  const { error } = await sb.rpc('run_npc_market_tick');
+  if (error) console.warn('NPC-Markt-Tick:', error.message);
+
+  if (document.getElementById('market')?.classList.contains('active-view')) {
     await loadGameData();
   }
 }
 
+function scheduleNextNpcMarketRefresh() {
+  const next = nextMarketRefreshAt();
+  const delay = Math.max(250, next.getTime() - Date.now() + 250);
+
+  npcMarketTimer = setTimeout(async () => {
+    updateMarketRefreshTimer();
+    await runNpcMarketTickAndRefresh();
+    updateMarketRefreshTimer();
+    scheduleNextNpcMarketRefresh();
+  }, delay);
+}
+
 function startNpcMarketHeartbeat() {
   stopNpcMarketHeartbeat();
-  npcMarketTimer = setInterval(runNpcMarketTickAndRefresh, 120000);
+  updateMarketRefreshTimer();
+  npcMarketCountdownTimer = setInterval(updateMarketRefreshTimer, 1000);
+  scheduleNextNpcMarketRefresh();
 }
 
 function isCompanyOnline() {
@@ -2913,10 +2952,13 @@ window.acceptContract=async id=>{ const {error}=await sb.rpc('accept_contract',{
 window.fulfillContract=async id=>{ const {error}=await sb.rpc('fulfill_contract',{p_contract_id:id}); if(error) gameAlert(error.message); else await loadCompany(); };
 window.cancelContract=async id=>{ const {error}=await sb.rpc('cancel_contract',{p_contract_id:id}); if(error) gameAlert(error.message); else await loadCompany(); };
 
-document.addEventListener('visibilitychange', () => {
+document.addEventListener('visibilitychange', async () => {
   if (document.visibilityState === 'visible') {
     touchPresence();
-    runNpcMarketTickAndRefresh();
+    updateMarketRefreshTimer();
+    if (document.getElementById('market')?.classList.contains('active-view')) {
+      await loadGameData();
+    }
   }
 });
 
