@@ -2296,7 +2296,7 @@ function renderBonds() {
   </tr>`);
 
   const marketRows = openRequests.map(r => `<tr>
-    <td>${r.borrower_name}</td>
+    <td>${r.borrower_name}${r.borrower_type === 'npc' ? ' (NPC)' : ''}</td>
     <td>${money(r.requested_amount)}</td>
     <td>${money(r.remaining_amount)}</td>
     <td>${num(r.daily_interest_rate)}% / Tag</td>
@@ -2313,7 +2313,7 @@ function renderBonds() {
     const active = i.status === 'active';
     const matured = active && new Date(i.matures_at).getTime() <= now;
     return `<tr>
-      <td>${i.lender_name}</td>
+      <td>${i.lender_name}${i.lender_type === 'npc' ? ' (NPC)' : ''}</td>
       <td>${money(i.original_principal)}</td>
       <td>${money(i.outstanding_principal)}</td>
       <td>${num(i.daily_interest_rate)}%</td>
@@ -2330,7 +2330,7 @@ function renderBonds() {
   });
 
   const investmentRows = investments.map(i => `<tr>
-    <td>${i.borrower_name}</td>
+    <td>${i.borrower_name}${i.borrower_type === 'npc' ? ' (NPC)' : ''}</td>
     <td>${money(i.original_principal)}</td>
     <td>${money(i.outstanding_principal)}</td>
     <td>${num(i.daily_interest_rate)}%</td>
