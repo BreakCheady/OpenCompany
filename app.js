@@ -423,6 +423,27 @@ async function touchPresence() {
   renderCompanyStatus();
 }
 
+function companyValueChangeDisplay(currentValue, changeValue) {
+  const current = Number(currentValue || 0);
+  const change = Number(changeValue || 0);
+  const previous = current - change;
+  const percentage = previous !== 0 ? (change / Math.abs(previous)) * 100 : 0;
+
+  const amountText = change > 0
+    ? `+${money(change)}`
+    : change < 0
+      ? `-${money(Math.abs(change))}`
+      : money(0);
+
+  const percentageText = change > 0
+    ? `+${percentage.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%`
+    : change < 0
+      ? `${percentage.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%`
+      : '0,00%';
+
+  return `${amountText} (${percentageText})`;
+}
+
 async function refreshCompanyValueSnapshot() {
   if (!sb || !state.company?.id || document.visibilityState === 'hidden') return;
   const cid = state.company.id;
@@ -440,7 +461,7 @@ async function refreshCompanyValueSnapshot() {
   if (valueEl) valueEl.textContent = money(state.company.company_value);
   if (changeEl) {
     const change = state.companyValueChange;
-    changeEl.textContent = change > 0 ? `+${money(change)}` : change < 0 ? `-${money(Math.abs(change))}` : money(0);
+    changeEl.textContent = companyValueChangeDisplay(state.company.company_value, change);
     changeEl.className = `company-value-change ${change > 0 ? 'company-value-change-positive' : change < 0 ? 'company-value-change-negative' : 'company-value-change-zero'}`;
   }
 }
@@ -2670,11 +2691,7 @@ function renderAll() {
   const statValueChange = document.getElementById('statValueChange');
   if (statValueChange) {
     const valueChange = Number(state.companyValueChange || 0);
-    statValueChange.textContent = valueChange > 0
-      ? `+${money(valueChange)}`
-      : valueChange < 0
-        ? `-${money(Math.abs(valueChange))}`
-        : money(0);
+    statValueChange.textContent = companyValueChangeDisplay(c.company_value, valueChange);
     statValueChange.className = `company-value-change ${valueChange > 0 ? 'company-value-change-positive' : valueChange < 0 ? 'company-value-change-negative' : 'company-value-change-zero'}`;
   }
   renderResearch();
