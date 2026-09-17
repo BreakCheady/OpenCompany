@@ -698,8 +698,9 @@ function currentProductionContext() {
 
   const building = runningBuilding || freeBuilding || matchingBuildings[0] || null;
   const multiplier = building ? buildingLevelMultiplier(building.level) : 1;
-  const unitsPerHour = buildingType && building
-    ? Number(buildingType.base_units_per_hour || 0) * multiplier
+  const baseProductRate = Number(product?.base_production_rate || 0);
+  const unitsPerHour = buildingType && building && baseProductRate > 0
+    ? Math.max(1, Math.floor(baseProductRate * multiplier))
     : 0;
 
   return {
@@ -712,6 +713,7 @@ function currentProductionContext() {
     runningJob,
     freeBuilding,
     matchingBuildingCount: matchingBuildings.length,
+    baseProductRate,
     qualityLevel: productQuality(product),
     minInputQuality: minimumInputQuality(product)
   };
@@ -1064,7 +1066,8 @@ function renderProductionRecipe() {
     `<div class="kv"><span>Produktqualität</span><strong>Q${runningJob ? Number(runningJob.quality_level || 1) : productQuality(plan.product)} (+${Math.round((qualityMultiplier(runningJob ? runningJob.quality_level : productQuality(plan.product))-1)*100)}% Wert)</strong></div>`,
     `<div class="kv"><span>Mindestqualität Inputs</span><strong>Q${runningJob ? Math.max(1, Number(runningJob.quality_level || 1)-1) : minimumInputQuality(plan.product)}</strong></div>`,
     `<div class="kv"><span>Gebäudelevel</span><strong>${building ? `Level ${building.level}` : 'Nicht gebaut'}</strong></div>`,
-    `<div class="kv"><span>Kapazität</span><strong>${building ? `${num(unitsPerHour)} Einheiten / Std.` : '–'}</strong></div>`,
+    `<div class="kv"><span>Produkt-Basisrate</span><strong>${plan.product ? `${num(plan.product.base_production_rate || 0)} Einheiten / Std.` : '–'}</strong></div>`,
+    `<div class="kv"><span>Produktionsrate</span><strong>${building ? `${num(unitsPerHour)} Einheiten / Std.` : '–'}</strong></div>`,
     `<div class="kv"><span>Produktionsmenge</span><strong>${num(displayOutputQty)} Einheiten</strong></div>`,
     `<div class="kv"><span>Produktionsdauer</span><strong>${formatProductionDuration(displayHours)}</strong></div>`,
     `<div class="kv"><span>Voraussichtliches Ende</span><strong>${displayFinish}</strong></div>`,
@@ -1282,7 +1285,7 @@ function renderBuildings() {
         <td>${bt.name}</td>
         <td>${buildingCategoryLabel(bt.building_category)}</td>
         <td>Level ${level}</td>
-        <td>${num(capacity)} Einheiten</td>
+        <td>Produktabhängig</td>
         <td>${num(staff)}</td>
         <td>Level ${nextLevel}: ${formatBuildingConstructionTime(nextBuildHours)}</td>
         <td><span class="building-upgrade-cost">-${money(Math.abs(nextCost))}</span></td>
@@ -1329,8 +1332,9 @@ function retailSaleContext() {
   const building = runningBuilding || freeBuilding || matchingBuildings[0] || null;
 
   const multiplier = building ? buildingLevelMultiplier(building.level) : 1;
-  const baseUnitsPerHour = buildingType && building
-    ? Number(buildingType.base_units_per_hour || 0) * multiplier
+  const baseProductRetailRate = Number(product?.base_retail_rate || 0);
+  const baseUnitsPerHour = buildingType && building && baseProductRetailRate > 0
+    ? Math.max(1, Math.floor(baseProductRetailRate * multiplier))
     : 0;
 
   const productionCost = Number(inventory?.average_unit_cost || 0);
@@ -1341,7 +1345,9 @@ function retailSaleContext() {
 
   const priceRatio = referencePrice > 0 ? price / referencePrice : 1;
   const demandFactor = Math.max(0.10, Math.min(2.00, 1 - 0.375 * (priceRatio - 1)));
-  const unitsPerHour = baseUnitsPerHour * demandFactor;
+  const unitsPerHour = baseUnitsPerHour > 0
+    ? Math.max(1, Math.floor(baseUnitsPerHour * demandFactor))
+    : 0;
 
   const runningJob = productRunningJob;
 
@@ -1351,6 +1357,7 @@ function retailSaleContext() {
     buildingType,
     building,
     runningJob,
+    baseProductRetailRate,
     baseUnitsPerHour,
     unitsPerHour,
     available: Number(inventory?.quantity || 0),
@@ -1374,7 +1381,7 @@ function retailQuantityFromInput(rawValue) {
         matchedHours: true,
         matchedTime: false,
         hours,
-        units: ctx.unitsPerHour * hours
+        units: Math.floor(ctx.unitsPerHour * hours)
       };
     }
   }
@@ -1604,6 +1611,7 @@ function renderRetailSale() {
   details.innerHTML = ctx.product ? [
     `<div class="kv"><span>Verkaufsgebäude</span><strong>${ctx.buildingType?.name || '–'}</strong></div>`,
     `<div class="kv"><span>Gebäudestatus</span><strong class="${ctx.building ? 'retail-ready' : 'missing-building-warning'}">${ctx.building ? 'Bereit' : 'Benötigtes Gebäude fehlt'}</strong></div>`,
+    `<div class="kv"><span>Produkt-Basisverkaufsrate</span><strong>${ctx.product ? `${num(ctx.product.base_retail_rate || 0)} Einheiten / Std.` : '–'}</strong></div>`,
     `<div class="kv"><span>Verkaufsrate</span><strong>${ctx.building ? `${num(ctx.unitsPerHour)} Einheiten / Std.` : '–'}</strong></div>`,
     `<div class="kv"><span>Qualität</span><strong>Q${ctx.quality} (+${Math.round((qualityMultiplier(ctx.quality)-1)*100)}% Wert)</strong></div>`,
     `<div class="kv"><span>Verfügbarer Bestand</span><strong>${num(ctx.available)} Einheiten</strong></div>`,
