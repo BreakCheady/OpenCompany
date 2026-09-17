@@ -2022,9 +2022,30 @@ window.renameCompanyFromCompanyTab = async function() {
   await loadCompany();
 };
 
+function currentStorageValue() {
+  const materialValue = state.materialInventory.reduce((sum, inv) => {
+    const quantity = Number(inv.quantity || 0);
+    const averageCost = Number(inv.average_unit_cost || 0);
+    const quality = Number(inv.quality_level || 1);
+    return sum + quantity * averageCost * qualityMultiplier(quality);
+  }, 0);
+
+  const productValue = state.inventory.reduce((sum, inv) => {
+    const quantity = Number(inv.quantity || 0);
+    const averageCost = Number(inv.average_unit_cost || 0);
+    const quality = Number(inv.quality_level || 1);
+    return sum + quantity * averageCost * qualityMultiplier(quality);
+  }, 0);
+
+  return materialValue + productValue;
+}
+
 function renderStorage() {
   const container = document.getElementById('storageInventoryTable');
   if (!container) return;
+
+  const storageTotalValue = document.getElementById('storageTotalValue');
+  if (storageTotalValue) storageTotalValue.textContent = money(currentStorageValue());
   const search = String(state.storageSearchFilter || '').trim().toLocaleLowerCase('de-DE');
   const type = state.storageTypeFilter || 'all';
 
