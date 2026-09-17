@@ -45,6 +45,8 @@ let npcMarketTimer = null;
 let npcMarketCountdownTimer = null;
 let companyValueRefreshTimer = null;
 let buildingConstructionTimer = null;
+let companyBalancePollTimer = null;
+let companyBalanceChannel = null;
 
 const money = n => new Intl.NumberFormat('de-DE', { style:'currency', currency:'EUR', maximumFractionDigits:2 })
   .format(Number(n || 0)).replace('€','OC$');
@@ -429,6 +431,84 @@ async function refreshCompanyValueSnapshot() {
   }
 }
 
+function updateCompanyBalanceUI(balance) {
+  const cashValue = Number(balance || 0);
+  if (state.company) state.company.cash_balance = cashValue;
+
+  const statCash = document.getElementById('statCash');
+  if (statCash) {
+    statCash.textContent = balanceMoney(cashValue);
+    statCash.classList.toggle('negative-balance', cashValue < 0);
+  }
+
+  const companyCash = document.getElementById('companyCashBalance');
+  if (companyCash) {
+    companyCash.textContent = balanceMoney(cashValue);
+    companyCash.classList.toggle('negative-balance', cashValue < 0);
+  }
+}
+
+async function refreshCompanyBalance() {
+  if (!sb || !state.company?.id || document.visibilityState === 'hidden') return;
+
+  const { data, error } = await sb
+    .from('companies')
+    .select('cash_balance')
+    .eq('id', state.company.id)
+    .maybeSingle();
+
+  if (error) {
+    console.warn('Kontostand-Aktualisierung:', error.message);
+    return;
+  }
+
+  if (data) updateCompanyBalanceUI(data.cash_balance);
+}
+
+function stopCompanyBalanceWatcher() {
+  if (companyBalancePollTimer) clearInterval(companyBalancePollTimer);
+  companyBalancePollTimer = null;
+
+  if (companyBalanceChannel && sb) {
+    sb.removeChannel(companyBalanceChannel);
+  }
+  companyBalanceChannel = null;
+}
+
+function startCompanyBalanceWatcher() {
+  stopCompanyBalanceWatcher();
+  if (!sb || !state.company?.id) return;
+
+  const companyId = state.company.id;
+
+  companyBalanceChannel = sb
+    .channel(`company-balance-${companyId}`)
+    .on(
+      'postgres_changes',
+      {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'companies',
+        filter: `id=eq.${companyId}`
+      },
+      payload => {
+        if (payload?.new && Object.prototype.hasOwnProperty.call(payload.new, 'cash_balance')) {
+          const previous = Number(state.company?.cash_balance || 0);
+          const next = Number(payload.new.cash_balance || 0);
+          if (next !== previous) updateCompanyBalanceUI(next);
+        }
+      }
+    )
+    .subscribe(status => {
+      if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+        console.warn('Kontostand-Realtime nicht verfügbar – Sicherheitsabfrage bleibt aktiv.');
+      }
+    });
+
+  refreshCompanyBalance();
+  companyBalancePollTimer = setInterval(refreshCompanyBalance, 10000);
+}
+
 function startPresenceHeartbeat() {
   if (presenceTimer) clearInterval(presenceTimer);
   touchPresence();
@@ -582,6 +662,7 @@ async function handleSession(session) {
   if (!loggedIn) {
     stopPresenceHeartbeat();
     stopNpcMarketHeartbeat();
+    stopCompanyBalanceWatcher();
     document.getElementById('gameView').classList.add('hidden');
     document.getElementById('bootstrapView').classList.add('hidden');
     clearCompanyLoadError();
@@ -619,6 +700,7 @@ async function loadCompany() {
     const refreshed = await sb.from('companies').select('*').eq('id', data.id).single();
     if (!refreshed.error && refreshed.data) state.company = refreshed.data;
 
+    startCompanyBalanceWatcher();
     await loadGameData();
   }
 }
@@ -2329,7 +2411,7 @@ function renderAll() {
       <td>${num(c.company_level)}</td>
       <td>${xpCtx.level >= 30 ? `${num(xpCtx.totalXp)} XP` : `${num(xpCtx.progress)} / ${num(xpCtx.needed)}`}</td>
       <td>${usedSlotCount} / ${slotCount}</td>
-      <td class="${Number(c.cash_balance || 0) < 0 ? 'negative-balance' : ''}">${balanceMoney(Number(c.cash_balance || 0))}</td>
+      <td id="companyCashBalance" class="${Number(c.cash_balance || 0) < 0 ? 'negative-balance' : ''}">${balanceMoney(Number(c.cash_balance || 0))}</td>
       <td>${num(automaticEmployees)} Mitarbeiter</td>
       <td title="Wird täglich um 01:00 Uhr neu berechnet">${money(c.company_value)}</td>
       <td>${money(companyBuildingValue)}</td>
@@ -2428,6 +2510,7 @@ document.getElementById('logoutBtn').addEventListener('click', async () => {
   }
   stopPresenceHeartbeat();
   stopNpcMarketHeartbeat();
+  stopCompanyBalanceWatcher();
   await sb?.auth.signOut();
 });
 
@@ -3126,6 +3209,7 @@ window.cancelContract=async id=>{ const {error}=await sb.rpc('cancel_contract',{
 document.addEventListener('visibilitychange', async () => {
   if (document.visibilityState === 'visible') {
     touchPresence();
+    refreshCompanyBalance();
     updateMarketRefreshTimer();
     if (document.getElementById('market')?.classList.contains('active-view')) {
       await loadGameData();
