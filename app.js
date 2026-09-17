@@ -419,7 +419,7 @@ function updateMarketRefreshTimer() {
   const countdown = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
   const nextTime = next.toLocaleTimeString('de-DE', { hour:'2-digit', minute:'2-digit' });
 
-  el.textContent = `${nextTime} Uhr · ${countdown}`;
+  el.textContent = `${nextTime} Uhr · ${countdown} ${remainingSeconds < 60 ? 'Sekunden' : 'Minuten'}`;
 }
 
 function stopNpcMarketHeartbeat() {
@@ -1220,9 +1220,20 @@ function retailSaleContext() {
     : null;
 
   const multiplier = building ? buildingLevelMultiplier(building.level) : 1;
-  const unitsPerHour = buildingType && building
+  const baseUnitsPerHour = buildingType && building
     ? Number(buildingType.base_units_per_hour || 0) * multiplier
     : 0;
+
+  const productionCost = Number(inventory?.average_unit_cost || 0);
+  const referencePrice = productionCost * 2 * qualityMultiplier(quality);
+  const priceInput = document.getElementById('retailPrice');
+  const enteredPrice = Number(priceInput?.value || 0);
+  const price = enteredPrice > 0 ? enteredPrice : referencePrice;
+
+  const priceRatio = referencePrice > 0 ? price / referencePrice : 1;
+  const demandFactor = Math.max(0.10, Math.min(2.00, 1 - 0.375 * (priceRatio - 1)));
+  const unitsPerHour = baseUnitsPerHour * demandFactor;
+
   const runningJob = building
     ? state.retailSaleJobs.find(j => j.building_id === building.id && j.status === 'running')
     : null;
@@ -1233,11 +1244,14 @@ function retailSaleContext() {
     buildingType,
     building,
     runningJob,
+    baseUnitsPerHour,
     unitsPerHour,
     available: Number(inventory?.quantity || 0),
-    productionCost: Number(inventory?.average_unit_cost || 0),
+    productionCost,
     quality,
-    price: Number(inventory?.average_unit_cost || 0) * 2 * qualityMultiplier(quality)
+    referencePrice,
+    price,
+    demandFactor
   };
 }
 
@@ -1350,6 +1364,7 @@ function renderRetailSale() {
   const button = document.getElementById('retailSaleBtn');
   const qtyInput = document.getElementById('retailQty');
   const qualitySelect = document.getElementById('retailQuality');
+  const priceInput = document.getElementById('retailPrice');
   const maxBtn = document.getElementById('retailMaxBtn');
   const h24Btn = document.getElementById('retail24Btn');
   if (!select || !details || !button || !qtyInput) return;
@@ -1390,16 +1405,29 @@ function renderRetailSale() {
 
   let ctx = retailSaleContext();
 
+  if (priceInput && !priceInput.dataset.manualPrice && ctx.referencePrice > 0 && !ctx.runningJob) {
+    priceInput.value = ctx.referencePrice.toFixed(2);
+    ctx = retailSaleContext();
+  }
+
   // Während eines laufenden Verkaufs bleibt der komplette Startzustand sichtbar.
   if (ctx.runningJob) {
     select.dataset.runningJobId = ctx.runningJob.id;
     select.value = ctx.runningJob.product_id;
     if (qualitySelect) qualitySelect.value = String(ctx.runningJob.quality_level || 1);
     qtyInput.value = ctx.runningJob.start_input_text || formatRetailQuantityInput(ctx.runningJob.quantity);
+    const runningSnapshot = ctx.runningJob.start_snapshot || {};
+    if (priceInput) priceInput.value = Number(runningSnapshot.unitPrice ?? (Number(ctx.runningJob.total_value || 0) / Number(ctx.runningJob.quantity || 1))).toFixed(2);
     ctx = retailSaleContext();
   } else if (select.dataset.runningJobId) {
     delete select.dataset.runningJobId;
     qtyInput.value = '1';
+    if (priceInput) {
+      delete priceInput.dataset.manualPrice;
+      const resetCtx = retailSaleContext();
+      if (resetCtx.referencePrice > 0) priceInput.value = resetCtx.referencePrice.toFixed(2);
+    }
+    ctx = retailSaleContext();
   }
 
   const parsedQty = retailQuantityFromInput(qtyInput.value);
@@ -1407,12 +1435,13 @@ function renderRetailSale() {
   const wholeUnits = Number.isInteger(qty);
   const hasStock = ctx.product && qty > 0 && wholeUnits && ctx.available + 1e-9 >= qty;
   const saleHours = ctx.unitsPerHour > 0 ? qty / ctx.unitsPerHour : 0;
-  const hasPrice = ctx.productionCost > 0;
+  const hasPrice = ctx.productionCost > 0 && Number(ctx.price || 0) > 0;
   const ready = !!ctx.product && !!ctx.building && !ctx.runningJob && hasStock && hasPrice && saleHours > 0;
 
   button.classList.remove('retail-cancel-mode');
   select.disabled = !!ctx.runningJob;
   if (qualitySelect) qualitySelect.disabled = !!ctx.runningJob;
+  if (priceInput) priceInput.disabled = !!ctx.runningJob;
   qtyInput.disabled = !!ctx.runningJob;
   if (maxBtn) maxBtn.disabled = !!ctx.runningJob;
   if (h24Btn) h24Btn.disabled = !!ctx.runningJob;
@@ -1472,7 +1501,9 @@ function renderRetailSale() {
     `<div class="kv"><span>Qualität</span><strong>Q${ctx.quality} (+${Math.round((qualityMultiplier(ctx.quality)-1)*100)}% Wert)</strong></div>`,
     `<div class="kv"><span>Verfügbarer Bestand</span><strong>${num(ctx.available)} Einheiten</strong></div>`,
     `<div class="kv"><span>Ausgewählte Menge</span><strong>${qty > 0 ? `${num(qty)} Einheiten` : '–'}</strong></div>`,
-    `<div class="kv"><span>Verkaufspreis</span><strong>${money(ctx.price)} / Einheit</strong></div>`,
+    `<div class="kv"><span>Referenzpreis</span><strong>${money(ctx.referencePrice)} / Einheit</strong></div>`,
+    `<div class="kv"><span>Gewählter Verkaufspreis</span><strong>${money(ctx.price)} / Einheit</strong></div>`,
+    `<div class="kv"><span>Preisbedingte Nachfrage</span><strong>${Math.round(ctx.demandFactor * 100)}%</strong></div>`,
     `<div class="kv"><span>Verkaufsdauer</span><strong>${ctx.building && saleHours > 0 ? formatProductionDuration(saleHours) : '–'}</strong></div>`,
     `<div class="kv"><span>Voraussichtliches Ende</span><strong>${ctx.building && saleHours > 0 ? formatProductionFinish(saleHours) : '–'}</strong></div>`,
     `<div class="kv"><span>Erwarteter Erlös</span><strong class="retail-revenue-positive">${money(expectedRevenue)}</strong></div>`,
@@ -2640,8 +2671,20 @@ document.getElementById('sellOrderForm').addEventListener('submit', async e => {
 
 document.getElementById('sellProduct')?.addEventListener('change', updateSellQualityOptions);
 document.getElementById('sellQuality')?.addEventListener('change', updateSellQualityOptions);
-document.getElementById('retailProduct').addEventListener('change', renderRetailSale);
-document.getElementById('retailQuality')?.addEventListener('change', renderRetailSale);
+document.getElementById('retailProduct').addEventListener('change', () => {
+  const priceInput = document.getElementById('retailPrice');
+  if (priceInput) delete priceInput.dataset.manualPrice;
+  renderRetailSale();
+});
+document.getElementById('retailQuality')?.addEventListener('change', () => {
+  const priceInput = document.getElementById('retailPrice');
+  if (priceInput) delete priceInput.dataset.manualPrice;
+  renderRetailSale();
+});
+document.getElementById('retailPrice')?.addEventListener('input', event => {
+  event.target.dataset.manualPrice = '1';
+  renderRetailSale();
+});
 document.getElementById('retailMaxBtn').addEventListener('click', () => {
   const ctx = retailSaleContext();
   const maxUnits = Math.max(0, Math.floor(ctx.available || 0));
@@ -2694,12 +2737,15 @@ document.getElementById('retailSaleForm').addEventListener('submit', async e => 
     p_product_id: ctx.product.id,
     p_quality: ctx.quality,
     p_quantity: quantity,
+    p_unit_price: ctx.price,
     p_input_text: document.getElementById('retailQty').value,
     p_start_snapshot: {
       quantity,
       quality: ctx.quality,
       hours: saleHours,
       unitPrice: ctx.price,
+      referencePrice: ctx.referencePrice,
+      demandFactor: ctx.demandFactor,
       totalValue: ctx.price * quantity,
       available: ctx.available,
       unitsPerHour: ctx.unitsPerHour,
