@@ -2375,3 +2375,37 @@ body.game-dialog-open { overflow: hidden; }
     flex-wrap: wrap;
   }
 }
+
+/* v0.10.8 – Versionshinweis im Dashboard nur auf dem Handy */
+.mobile-dashboard-version {
+  display: none;
+}
+
+@media (max-width: 820px) {
+  #dashboard {
+    position: relative;
+  }
+
+  .mobile-dashboard-version {
+    display: grid;
+    justify-items: end;
+    gap: 1px;
+    margin: -2px 2px 8px auto;
+    width: max-content;
+    color: var(--muted);
+    text-align: right;
+    line-height: 1.2;
+  }
+
+  .mobile-dashboard-version span {
+    font-size: 10px;
+    font-weight: 600;
+  }
+
+  .mobile-dashboard-version small {
+    font-size: 8px;
+    font-weight: 400;
+    opacity: .72;
+  }
+}
+
