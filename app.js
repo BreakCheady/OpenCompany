@@ -91,7 +91,7 @@ function xpProgressContext(company = state.company) {
 }
 
 function featureRequiredLevel(view) {
-  return ({ contracts: 5, research: 10, loans: 10 })[view] || 0;
+  return ({ contracts: 5, research: 5, loans: 10 })[view] || 0;
 }
 
 function featureUnlocked(view) {
