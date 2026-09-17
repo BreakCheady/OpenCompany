@@ -2221,3 +2221,54 @@ body.game-dialog-open { overflow: hidden; }
     padding-bottom: 8px;
   }
 }
+
+
+/* v0.6.9 – mehr Abstand zwischen Marktfiltern und Aktionen */
+@media (min-width: 761px) {
+  .market-filter-controls {
+    gap: 14px;
+    column-gap: 14px;
+  }
+
+  .market-buy-total {
+    margin-left: 4px;
+  }
+
+  .market-buy-cheapest-btn {
+    margin-left: 2px;
+  }
+
+  .market-filter-controls .ghost {
+    margin-left: 2px;
+  }
+}
+
+
+/* v0.8.0 – Unternehmenslevel, XP und Gebäudeplätze */
+.nav-item.feature-locked {
+  opacity: 0.58;
+}
+
+.xp-progress {
+  height: 8px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: rgba(13, 45, 85, 0.10);
+  margin: 2px 0 8px;
+}
+
+.xp-progress > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: currentColor;
+}
+
+.building-slots-summary {
+  max-width: 360px;
+  margin: 10px 0 16px;
+}
+
+.building-slots-summary.building-slots-over strong {
+  font-weight: 700;
+}

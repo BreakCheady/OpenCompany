@@ -7,7 +7,7 @@
   <title>OpenCompany</title>
   <link rel="icon" type="image/png" href="favicon.png">
   <link rel="shortcut icon" href="favicon.ico">
-  <link rel="stylesheet" href="style.css?v=0.6.9">
+  <link rel="stylesheet" href="style.css?v=0.8.0">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
@@ -29,7 +29,7 @@
       <span id="sessionLabel">Nicht angemeldet</span>
       <button id="logoutBtn" class="ghost hidden">Abmelden</button>
       <div class="sidebar-version">
-        <span class="sidebar-version-number">Version 0.7.0</span>
+        <span class="sidebar-version-number">Version 0.8.0</span>
         <span class="sidebar-credit">Made by BreakCheady</span>
       </div>
     </div>
@@ -144,6 +144,11 @@
               <h2>Gebäude</h2>
             </div>
             <button type="button" id="openBuildingBuilderBtn" class="building-builder-open-btn">Bauen</button>
+          </div>
+
+          <div id="buildingSlotsSummary" class="kv building-slots-summary">
+            <span>Gebäudeplätze</span>
+            <strong>0 / 4</strong>
           </div>
 
           <div id="buildingBuilder" class="building-builder hidden">

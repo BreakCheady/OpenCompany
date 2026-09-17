@@ -57,6 +57,57 @@ const researchRequirement = quality => Number(quality || 1) <= 1 ? 1000 : 2500 *
 const productQuality = product => Math.max(1, Number(product?.quality_level || 1));
 const minimumInputQuality = product => Math.max(1, productQuality(product) - 1);
 
+
+const COMPANY_XP_TOTALS = [
+  0,250,600,1050,1650,2450,3450,4700,6200,7950,9950,
+  12450,15450,18950,22950,27450,32450,38450,45450,53450,
+  62450,72450,83950,96950,111450,127450,145450,165450,
+  187450,211450,237450
+];
+
+function buildingSlotsForLevel(level) {
+  return Math.min(16, 4 + 2 * Math.min(6, Math.floor(Math.max(0, Number(level || 0)) / 5)));
+}
+
+function xpProgressContext(company = state.company) {
+  const level = Math.max(0, Math.min(30, Number(company?.company_level || 0)));
+  const totalXp = Math.max(0, Number(company?.experience_points || 0));
+  const currentBase = COMPANY_XP_TOTALS[level] || 0;
+  const nextTotal = level >= 30 ? currentBase : COMPANY_XP_TOTALS[level + 1];
+  const needed = Math.max(0, nextTotal - currentBase);
+  const progress = level >= 30 ? needed : Math.max(0, totalXp - currentBase);
+  return {
+    level,
+    totalXp,
+    currentBase,
+    nextTotal,
+    needed,
+    progress,
+    percent: level >= 30 ? 100 : Math.max(0, Math.min(100, needed > 0 ? progress / needed * 100 : 0))
+  };
+}
+
+function featureRequiredLevel(view) {
+  return ({ contracts: 5, research: 10, loans: 15 })[view] || 0;
+}
+
+function featureUnlocked(view) {
+  return Number(state.company?.company_level || 0) >= featureRequiredLevel(view);
+}
+
+function updateFeatureLocks() {
+  document.querySelectorAll('.nav-item[data-view]').forEach(button => {
+    const required = featureRequiredLevel(button.dataset.view);
+    if (!required) return;
+    const unlocked = featureUnlocked(button.dataset.view);
+    button.classList.toggle('feature-locked', !unlocked);
+    button.dataset.locked = unlocked ? 'false' : 'true';
+    const baseLabel = button.dataset.baseLabel || button.textContent.replace(/\s*🔒.*$/, '');
+    button.dataset.baseLabel = baseLabel;
+    button.textContent = unlocked ? baseLabel : `${baseLabel} 🔒 L${required}`;
+  });
+}
+
 function productInventoryLots(productId) {
   return state.inventory.filter(row => row.product_id === productId);
 }
@@ -473,13 +524,19 @@ function renderCompanyStatus() {
 }
 
 function bindNavigation() {
-  document.querySelectorAll('.nav-item').forEach(btn => btn.addEventListener('click', () => {
+  document.querySelectorAll('.nav-item').forEach(btn => btn.addEventListener('click', async () => {
+    const view = btn.dataset.view;
+    const requiredLevel = featureRequiredLevel(view);
+    if (requiredLevel && !featureUnlocked(view)) {
+      await gameAlert(`${btn.dataset.baseLabel || btn.textContent.replace(/\s*🔒.*$/, '')} wird auf Unternehmenslevel ${requiredLevel} freigeschaltet.`);
+      return;
+    }
+
     document.querySelectorAll('.nav-item').forEach(b=>b.classList.remove('active'));
     btn.classList.add('active');
-    const view = btn.dataset.view;
     document.querySelectorAll('.view').forEach(v=>v.classList.remove('active-view'));
     document.getElementById(view).classList.add('active-view');
-    document.getElementById('pageTitle').textContent = btn.textContent;
+    document.getElementById('pageTitle').textContent = btn.dataset.baseLabel || btn.textContent;
   }));
 }
 bindNavigation();
@@ -548,15 +605,20 @@ async function loadCompany() {
   if (data) {
     startPresenceHeartbeat();
     startNpcMarketHeartbeat();
+
+    const dailyXp = await sb.rpc('claim_daily_login_xp', { p_company_id: data.id });
+    if (dailyXp.error) console.warn('Tägliche XP:', dailyXp.error.message);
+
     const completedBuildings = await sb.rpc('complete_due_buildings', { p_company_id: data.id });
     if (completedBuildings.error) console.warn('Gebäudebau:', completedBuildings.error.message);
     const completedJobs = await sb.rpc('complete_due_production_jobs', { p_company_id: data.id });
     if (completedJobs.error) console.warn('Produktionsabschluss:', completedJobs.error.message);
     const completedRetailSales = await sb.rpc('complete_due_retail_sales', { p_company_id: data.id });
     if (completedRetailSales.error) console.warn('Handelsabschluss:', completedRetailSales.error.message);
-    // NPCs may buy suitable player orders at most once every five minutes.
-    const npcTick = await sb.rpc('run_npc_market_tick');
-    if (npcTick.error) console.warn('NPC-Markt-Tick:', npcTick.error.message);
+
+    const refreshed = await sb.from('companies').select('*').eq('id', data.id).single();
+    if (!refreshed.error && refreshed.data) state.company = refreshed.data;
+
     await loadGameData();
   }
 }
@@ -617,17 +679,42 @@ function currentProductionContext() {
   const productId = document.getElementById('productionProduct').value;
   const product = state.products.find(p => p.id === productId);
   const buildingType = state.buildingTypes.find(b => b.id === product?.required_building_type_id);
-  const building = buildingType
-    ? state.buildings.find(cb => cb.building_type_id === buildingType.id && cb.status === 'active')
+
+  const matchingBuildings = buildingType
+    ? state.buildings.filter(cb => cb.building_type_id === buildingType.id && cb.status === 'active')
+    : [];
+
+  const runningJob = state.productionJobs.find(
+    job => job.product_id === productId && job.status === 'running'
+  ) || null;
+
+  const runningBuilding = runningJob
+    ? matchingBuildings.find(building => building.id === runningJob.building_id)
     : null;
+
+  const freeBuilding = matchingBuildings.find(building =>
+    !state.productionJobs.some(job => job.building_id === building.id && job.status === 'running')
+  ) || null;
+
+  const building = runningBuilding || freeBuilding || matchingBuildings[0] || null;
   const multiplier = building ? buildingLevelMultiplier(building.level) : 1;
   const unitsPerHour = buildingType && building
     ? Number(buildingType.base_units_per_hour || 0) * multiplier
     : 0;
-  const runningJob = building
-    ? state.productionJobs.find(j => j.building_id === building.id && j.status === 'running')
-    : null;
-  return { productId, product, buildingType, building, multiplier, unitsPerHour, runningJob, qualityLevel: productQuality(product), minInputQuality: minimumInputQuality(product) };
+
+  return {
+    productId,
+    product,
+    buildingType,
+    building,
+    multiplier,
+    unitsPerHour,
+    runningJob,
+    freeBuilding,
+    matchingBuildingCount: matchingBuildings.length,
+    qualityLevel: productQuality(product),
+    minInputQuality: minimumInputQuality(product)
+  };
 }
 
 function productionUnitsFromInput(rawValue) {
@@ -1090,38 +1177,48 @@ function renderBuildingCatalog() {
   if (!table || !filter) return;
 
   const selectedCategory = filter.value || 'all';
+  const slots = buildingSlotsForLevel(state.company?.company_level);
+  const used = state.buildings.length;
+  const noFreeSlot = used >= slots;
+
   const rows = state.buildingTypes
     .filter(bt => selectedCategory === 'all' || bt.building_category === selectedCategory)
     .map(bt => {
-      const existing = state.buildings.find(
-        b => b.building_type_id === bt.id
-      );
       const cost = Number(bt.construction_cost || 0);
       const buildHours = buildingConstructionHours(1);
-      const existingLabel = existing?.status === 'inactive' ? 'Im Bau' : 'Vorhanden';
+      const count = state.buildings.filter(b => b.building_type_id === bt.id).length;
 
       return `<tr>
         <td>${bt.name}</td>
         <td>${buildingCategoryLabel(bt.building_category)}</td>
+        <td>${count}</td>
         <td><span class="building-construction-cost">-${money(Math.abs(cost))}</span></td>
         <td>${formatBuildingConstructionTime(buildHours)}</td>
         <td>
           <button
             class="building-catalog-build-btn"
-            ${existing ? 'disabled' : ''}
+            ${noFreeSlot ? 'disabled' : ''}
             onclick="buildBuilding('${bt.id}')"
-          >${existing ? existingLabel : 'Bauen'}</button>
+          >${noFreeSlot ? 'Keine Plätze' : 'Bauen'}</button>
         </td>
       </tr>`;
     });
 
   table.innerHTML = renderTable(
-    ['Gebäude', 'Kategorie', 'Baukosten', 'Bauzeit', 'Aktion'],
+    ['Gebäude', 'Kategorie', 'Anzahl', 'Baukosten', 'Bauzeit', 'Aktion'],
     rows
   );
 }
 
 function renderBuildings() {
+  const slots = buildingSlotsForLevel(state.company?.company_level);
+  const usedSlots = state.buildings.length;
+  const slotsEl = document.getElementById('buildingSlotsSummary');
+  if (slotsEl) {
+    slotsEl.innerHTML = `<span>Gebäudeplätze</span><strong>${usedSlots} / ${slots}</strong>`;
+    slotsEl.classList.toggle('building-slots-over', usedSlots > slots);
+  }
+
   const builtRows = state.buildings
     .map(building => {
       const bt = state.buildingTypes.find(type => type.id === building.building_type_id);
@@ -1213,11 +1310,23 @@ function retailSaleContext() {
   const buildingType = state.buildingTypes.find(
     bt => bt.id === product?.required_retail_building_type_id
   );
-  const building = buildingType
-    ? state.buildings.find(
-        b => b.building_type_id === buildingType.id && b.status === 'active'
-      )
+  const matchingBuildings = buildingType
+    ? state.buildings.filter(b => b.building_type_id === buildingType.id && b.status === 'active')
+    : [];
+
+  const productRunningJob = state.retailSaleJobs.find(
+    job => job.product_id === productId && job.status === 'running'
+  ) || null;
+
+  const runningBuilding = productRunningJob
+    ? matchingBuildings.find(building => building.id === productRunningJob.building_id)
     : null;
+
+  const freeBuilding = matchingBuildings.find(building =>
+    !state.retailSaleJobs.some(job => job.building_id === building.id && job.status === 'running')
+  ) || null;
+
+  const building = runningBuilding || freeBuilding || matchingBuildings[0] || null;
 
   const multiplier = building ? buildingLevelMultiplier(building.level) : 1;
   const baseUnitsPerHour = buildingType && building
@@ -1234,9 +1343,7 @@ function retailSaleContext() {
   const demandFactor = Math.max(0.10, Math.min(2.00, 1 - 0.375 * (priceRatio - 1)));
   const unitsPerHour = baseUnitsPerHour * demandFactor;
 
-  const runningJob = building
-    ? state.retailSaleJobs.find(j => j.building_id === building.id && j.status === 'running')
-    : null;
+  const runningJob = productRunningJob;
 
   return {
     product,
@@ -2158,6 +2265,7 @@ function productOptionsGroupedByBuilding(products) {
 
 function renderAll() {
   const c = state.company;
+  updateFeatureLocks();
   document.getElementById('statCompany').textContent = c.name;
   const cashValue = Number(c.cash_balance || 0);
   const statCash = document.getElementById('statCash');
@@ -2184,10 +2292,17 @@ function renderAll() {
   }
   renderResearch();
 
+  const xpCtx = xpProgressContext(c);
+  const slotCount = buildingSlotsForLevel(c.company_level);
+  const usedSlotCount = state.buildings.length;
+
   const companyRows = [
     `<div class="kv"><span>Name</span><strong>${c.name}</strong></div>`,
     `<div class="kv"><span>Status</span><strong class="company-online-status presence-status"></strong></div>`,
-    `<div class="kv"><span>Level</span><strong>${num(c.company_level)}</strong></div>`
+    `<div class="kv"><span>Level</span><strong>${num(c.company_level)}</strong></div>`,
+    `<div class="kv"><span>Erfahrung</span><strong>${xpCtx.level >= 30 ? `${num(xpCtx.totalXp)} XP · Max-Level` : `${num(xpCtx.progress)} / ${num(xpCtx.needed)} XP`}</strong></div>`,
+    `<div class="xp-progress"><span style="width:${xpCtx.percent}%"></span></div>`,
+    `<div class="kv"><span>Gebäudeplätze</span><strong>${usedSlotCount} / ${slotCount}</strong></div>`
   ].join('');
   document.getElementById('companySummary').innerHTML = companyRows;
 
@@ -2199,11 +2314,13 @@ function renderAll() {
     : `Namensänderung wieder ab ${renameAvailability.availableAt.toLocaleString('de-DE')} möglich`;
 
   document.getElementById('companyDetails').innerHTML = renderTable(
-    ['Unternehmen','Status','Level','Kontostand','Mitarbeiter','Unternehmenswert','Gebäudewert','Patentwert','Schulden'],
+    ['Unternehmen','Status','Level','XP','Gebäudeplätze','Kontostand','Mitarbeiter','Unternehmenswert','Gebäudewert','Patentwert','Schulden'],
     [`<tr>
       <td><span class="company-name-edit-wrap"><strong>${c.name}</strong><button type="button" class="company-name-edit-btn" onclick="renameCompanyFromCompanyTab()" title="${renameTitle}" aria-label="Unternehmensnamen ändern" ${renameAvailability.allowed ? '' : 'disabled'}>✎</button></span></td>
       <td><span class="company-online-status presence-status"></span></td>
       <td>${num(c.company_level)}</td>
+      <td>${xpCtx.level >= 30 ? `${num(xpCtx.totalXp)} XP` : `${num(xpCtx.progress)} / ${num(xpCtx.needed)}`}</td>
+      <td>${usedSlotCount} / ${slotCount}</td>
       <td class="${Number(c.cash_balance || 0) < 0 ? 'negative-balance' : ''}">${balanceMoney(Number(c.cash_balance || 0))}</td>
       <td>${num(automaticEmployees)} Mitarbeiter</td>
       <td title="Wird täglich um 01:00 Uhr neu berechnet">${money(c.company_value)}</td>
