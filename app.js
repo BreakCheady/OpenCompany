@@ -1521,6 +1521,34 @@ function retailQuantityFromInput(rawValue) {
   };
 }
 
+function rememberRetailQuantityExpression(input, rawValue, parsed) {
+  if (!input) return;
+  if (parsed?.matchedHours || parsed?.matchedTime) {
+    input.dataset.quantityMode = parsed.matchedTime ? 'time' : 'hours';
+    input.dataset.quantityExpression = String(rawValue ?? '').trim();
+  } else {
+    input.dataset.quantityMode = 'fixed';
+    delete input.dataset.quantityExpression;
+  }
+}
+
+function recalculateRetailQuantityFromRememberedExpression() {
+  const qtyInput = document.getElementById('retailQty');
+  if (!qtyInput?.dataset.quantityExpression) return false;
+
+  const parsed = retailQuantityFromInput(qtyInput.dataset.quantityExpression);
+  if (!(parsed.matchedHours || parsed.matchedTime)) {
+    delete qtyInput.dataset.quantityMode;
+    delete qtyInput.dataset.quantityExpression;
+    return false;
+  }
+
+  const ctx = retailSaleContext();
+  const available = Math.max(0, Math.floor(ctx.available || 0));
+  qtyInput.value = formatRetailQuantityInput(Math.min(parsed.units, available));
+  return true;
+}
+
 function formatRetailQuantityInput(units) {
   const value = Number(units || 0);
   if (!Number.isFinite(value)) return '0';
@@ -1634,6 +1662,8 @@ function renderRetailSale() {
   } else if (select.dataset.runningJobId) {
     delete select.dataset.runningJobId;
     qtyInput.value = '1';
+    delete qtyInput.dataset.quantityMode;
+    delete qtyInput.dataset.quantityExpression;
     if (priceInput) {
       delete priceInput.dataset.manualPrice;
       const resetCtx = retailSaleContext();
@@ -3151,33 +3181,61 @@ document.getElementById('retailProduct').addEventListener('change', () => {
   const priceInput = document.getElementById('retailPrice');
   if (priceInput) delete priceInput.dataset.manualPrice;
   renderRetailSale();
+  recalculateRetailQuantityFromRememberedExpression();
+  renderRetailSale();
 });
 document.getElementById('retailQuality')?.addEventListener('change', () => {
   const priceInput = document.getElementById('retailPrice');
   if (priceInput) delete priceInput.dataset.manualPrice;
   renderRetailSale();
+  recalculateRetailQuantityFromRememberedExpression();
+  renderRetailSale();
 });
 document.getElementById('retailPrice')?.addEventListener('input', event => {
   event.target.dataset.manualPrice = '1';
+
+  const qtyInput = document.getElementById('retailQty');
+  const fixedQuantity = qtyInput?.dataset.quantityMode === 'fixed'
+    ? qtyInput.value
+    : null;
+
+  recalculateRetailQuantityFromRememberedExpression();
+
+  if (fixedQuantity !== null && qtyInput) {
+    qtyInput.value = fixedQuantity;
+  }
+
+  // renderRetailSale berechnet mit der neuen Verkaufsrate automatisch
+  // Verkaufsdauer und voraussichtliches Ende neu.
   renderRetailSale();
 });
 document.getElementById('retailMaxBtn').addEventListener('click', () => {
   const ctx = retailSaleContext();
   const maxUnits = Math.max(0, Math.floor(ctx.available || 0));
-  document.getElementById('retailQty').value = formatRetailQuantityInput(maxUnits);
+  const qtyInput = document.getElementById('retailQty');
+  qtyInput.dataset.quantityMode = 'fixed';
+  delete qtyInput.dataset.quantityExpression;
+  qtyInput.value = formatRetailQuantityInput(maxUnits);
   renderRetailSale();
 });
 document.getElementById('retail24Btn').addEventListener('click', () => {
   const ctx = retailSaleContext();
   const capacity24h = Math.max(0, Math.floor((ctx.unitsPerHour || 0) * 24));
   const available = Math.max(0, Math.floor(ctx.available || 0));
-  document.getElementById('retailQty').value = formatRetailQuantityInput(Math.min(capacity24h, available));
+  const qtyInput = document.getElementById('retailQty');
+  qtyInput.dataset.quantityMode = 'fixed';
+  delete qtyInput.dataset.quantityExpression;
+  qtyInput.value = formatRetailQuantityInput(Math.min(capacity24h, available));
   renderRetailSale();
 });
 document.getElementById('retailQty').addEventListener('input', e => {
-  const parsed = retailQuantityFromInput(e.target.value);
+  const rawValue = e.target.value;
+  const parsed = retailQuantityFromInput(rawValue);
+  rememberRetailQuantityExpression(e.target, rawValue, parsed);
   if (parsed.matchedHours || parsed.matchedTime) {
-    e.target.value = formatRetailQuantityInput(parsed.units);
+    const ctx = retailSaleContext();
+    const available = Math.max(0, Math.floor(ctx.available || 0));
+    e.target.value = formatRetailQuantityInput(Math.min(parsed.units, available));
   }
   renderRetailSale();
 });
@@ -3214,7 +3272,7 @@ document.getElementById('retailSaleForm').addEventListener('submit', async e => 
     p_quality: ctx.quality,
     p_quantity: quantity,
     p_unit_price: ctx.price,
-    p_input_text: document.getElementById('retailQty').value,
+    p_input_text: document.getElementById('retailQty').dataset.quantityExpression || document.getElementById('retailQty').value,
     p_start_snapshot: {
       quantity,
       quality: ctx.quality,
