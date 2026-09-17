@@ -35,6 +35,7 @@ const state = {
   companyDirectory: [],
   companyDebt: 0,
   companyValueChange: 0,
+  bondDashboard: null,
   recoveringPassword: false
 };
 
@@ -247,12 +248,25 @@ function transactionLabel(type) {
     construction: 'Baukosten',
     building_refund: 'Gebäude-Erstattung',
     research: 'Forschung',
-    research_investment: 'Forschungsinvestition'
+    research_investment: 'Forschungsinvestition',
+    bond_investment: 'Anleiheninvestment',
+    bond_proceeds: 'Kreditauszahlung',
+    bond_repayment: 'Kredittilgung',
+    bond_principal_income: 'Tilgungseingang',
+    bond_interest_paid: 'Zinsabgabe',
+    bond_interest_income: 'Zinserlös',
+    bond_interest_state: 'Zinserlös vom Staat',
+    bond_interest_missed: 'Zinsausfall',
+    bond_default_compensation: 'Staatliche Kreditausfallentschädigung',
+    bond_default_reset: 'Insolvenzverfahren'
   })[type] || type;
 }
 
 function transactionAmountClass(type) {
-  return ['market_fee', 'market_buy', 'production', 'construction', 'retail_cancel_fee', 'research'].includes(type) ? 'transaction-amount fee' : 'transaction-amount';
+  return [
+    'market_fee','market_buy','production','construction','retail_cancel_fee','research',
+    'bond_investment','bond_repayment','bond_interest_paid'
+  ].includes(type) ? 'transaction-amount fee' : 'transaction-amount';
 }
 
 
@@ -724,10 +738,11 @@ async function loadGameData() {
     sb.from('contracts').select('*').or(`seller_company_id.eq.${cid},buyer_company_id.eq.${cid}`).order('created_at',{ascending:false}),
     sb.rpc('list_companies'),
     sb.rpc('get_company_debt', { p_company_id: cid }),
+    sb.rpc('get_bond_dashboard', { p_company_id: cid }),
     sb.from('company_valuation_history').select('valuation_date,company_value,previous_company_value,change_amount,calculated_at').eq('company_id',cid).order('valuation_date',{ascending:false}).limit(1)
   ]);
 
-  const labels = ['Produkte','Alle Produkte','Produktlager','Materialien','Materiallager','Rezepte','Gebäudetypen','Gebäude','Produktionen','Handelsverkäufe','Finanzen','Marktorders','Marktkäufe','Verträge','Firmenverzeichnis','Kreditschulden','Unternehmenswert-Verlauf'];
+  const labels = ['Produkte','Alle Produkte','Produktlager','Materialien','Materiallager','Rezepte','Gebäudetypen','Gebäude','Produktionen','Handelsverkäufe','Finanzen','Marktorders','Marktkäufe','Verträge','Firmenverzeichnis','Kreditschulden','Anleihen','Unternehmenswert-Verlauf'];
   const errors = results.map((r,i)=>r.error ? { label: labels[i], error:r.error } : null).filter(Boolean);
   if (errors.length) {
     console.error(errors);
@@ -736,7 +751,7 @@ async function loadGameData() {
   }
   clearGameDataError();
 
-  const [products, allProducts, inventory, materials, materialInventory, recipes, buildingTypes, buildings, productionJobs, retailSaleJobs, tx, orders, marketTrades, contracts, directory, companyDebt, valuationHistory] = results;
+  const [products, allProducts, inventory, materials, materialInventory, recipes, buildingTypes, buildings, productionJobs, retailSaleJobs, tx, orders, marketTrades, contracts, directory, companyDebt, bondDashboard, valuationHistory] = results;
   state.products = products.data;
   state.allProducts = allProducts.data;
   state.inventory = inventory.data;
@@ -753,6 +768,7 @@ async function loadGameData() {
   state.contracts = contracts.data;
   state.companyDirectory = directory.data || [];
   state.companyDebt = Number(companyDebt.data || 0);
+  state.bondDashboard = bondDashboard.data || null;
   state.companyValueChange = Number(valuationHistory.data?.[0]?.change_amount || 0);
   renderAll();
 }
@@ -2098,6 +2114,16 @@ function renderFinanceSummary() {
     .filter(t => ['market_fee', 'retail_cancel_fee'].includes(t.transaction_type))
     .reduce((sum, t) => sum + Number(t.amount || 0), 0));
 
+  const bondInterestIncome = transactions
+    .filter(t => ['bond_interest_income','bond_interest_state'].includes(t.transaction_type))
+    .reduce((sum, t) => sum + Number(t.amount || 0), 0);
+
+  const bondInterestPaid = Math.abs(transactions
+    .filter(t => t.transaction_type === 'bond_interest_paid')
+    .reduce((sum, t) => sum + Number(t.amount || 0), 0));
+
+  const netBondInterest = bondInterestIncome - bondInterestPaid;
+
   const buildingRefunds = transactions
     .filter(t => t.transaction_type === 'building_refund')
     .reduce((sum, t) => sum + Number(t.amount || 0), 0);
@@ -2127,7 +2153,7 @@ function renderFinanceSummary() {
 
   const researchDisplayCosts = directResearchCosts + researchMarketBuyCosts;
 
-  const revenue = netSales + fees + retailSales + buildingRefunds;
+  const revenue = netSales + fees + retailSales + buildingRefunds + bondInterestIncome;
 
   // Produktionskosten = tatsächlich verbrauchte Beschaffungskosten + Personalkosten.
   const productionCosts = jobs.reduce(
@@ -2142,7 +2168,10 @@ function renderFinanceSummary() {
     'retail_cancel_fee',
     'market_buy',
     'research',
-    'construction'
+    'construction',
+    'bond_investment',
+    'bond_repayment',
+    'bond_interest_paid'
   ]);
 
   const otherCosts = Math.abs(transactions
@@ -2151,7 +2180,7 @@ function renderFinanceSummary() {
 
   // Forschungseinheiten aus Marktkäufen dürfen nicht doppelt abgezogen werden:
   // researchDisplayCosts ist nur Anzeige; kostenwirksam sind directResearchCosts + marketBuyCosts.
-  const profit = revenue - productionCosts - directResearchCosts - fees - buildingCosts - marketBuyCosts - otherCosts;
+  const profit = revenue - productionCosts - directResearchCosts - fees - buildingCosts - marketBuyCosts - bondInterestPaid - otherCosts;
   const profitClass = profit < 0 ? 'finance-negative' : 'finance-positive';
 
   const periodLabel =
@@ -2167,6 +2196,12 @@ function renderFinanceSummary() {
     <div class="finance-summary-card finance-cost-card"><span>Gebühren</span><strong>-${money(fees)}</strong></div>
     <div class="finance-summary-card finance-cost-card"><span>Baukosten</span><strong>${buildingCosts > 0 ? `-${money(buildingCosts)}` : money(0)}</strong></div>
     <div class="finance-summary-card finance-cost-card"><span>Marktkäufe</span><strong>${marketBuyCosts > 0 ? `-${money(marketBuyCosts)}` : money(0)}</strong></div>
+    <div class="finance-summary-card ${netBondInterest < 0 ? 'finance-cost-card' : ''}">
+      <span>Zinsen</span>
+      <strong class="${netBondInterest < 0 ? 'finance-negative' : netBondInterest > 0 ? 'finance-positive' : ''}">
+        ${netBondInterest < 0 ? '-' : netBondInterest > 0 ? '+' : ''}${money(Math.abs(netBondInterest))}
+      </strong>
+    </div>
     ${otherCosts > 0 ? `<div class="finance-summary-card finance-cost-card"><span>Sonstige Kosten</span><strong>-${money(otherCosts)}</strong></div>` : ''}
     <div class="finance-summary-card finance-profit-card ${profit < 0 ? 'finance-profit-loss' : 'finance-profit-gain'}"><span>Gewinn / Verlust</span><strong class="${profitClass}">${profit < 0 ? '-' : ''}${money(Math.abs(profit))}</strong></div>
   `;
@@ -2180,6 +2215,238 @@ function renderFinanceSummary() {
 
   renderFinanceTable();
 }
+
+
+function bondStatusLabel(status) {
+  return ({
+    open:'Offen',
+    funded:'Voll finanziert',
+    closed:'Beendet',
+    active:'Aktiv',
+    repaid:'Getilgt',
+    auto_repaid:'Automatisch getilgt',
+    defaulted:'Ausgefallen',
+    cancelled:'Storniert'
+  })[status] || status || '–';
+}
+
+function formatBondDate(value) {
+  if (!value) return '–';
+  return new Date(value).toLocaleString('de-DE', {
+    day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit'
+  }) + ' Uhr';
+}
+
+function updateBondRequestPreview() {
+  const countInput = document.getElementById('bondRequestCount');
+  const preview = document.getElementById('bondRequestAmountPreview');
+  if (!countInput || !preview) return;
+  const count = Math.max(0, Math.floor(Number(countInput.value || 0)));
+  preview.textContent = money(count * 5000);
+}
+
+function renderBonds() {
+  const dashboard = state.bondDashboard;
+  const container = document.getElementById('bondFinanceContent');
+  if (!container) return;
+
+  if (!dashboard) {
+    container.innerHTML = '<p class="muted">Anleihedaten konnten nicht geladen werden.</p>';
+    return;
+  }
+
+  const unlocked = Number(state.company?.company_level || 0) >= 15;
+  const buildingValue = Number(dashboard.building_value || 0);
+  const creditLimit = Number(dashboard.credit_limit || 0);
+  const outstanding = Number(dashboard.outstanding_principal || 0);
+  const reserved = Number(dashboard.reserved_requests || 0);
+  const available = Number(dashboard.available_credit || 0);
+  const defaultDays = Number(dashboard.default_days || 0);
+
+  const warning = defaultDays > 0
+    ? `<div class="bond-warning"><strong>⚠ Zinsausfall: ${defaultDays} von 3 Tagen.</strong><span>Nach dem dritten aufeinanderfolgenden Ausfall wird das Unternehmen zurückgesetzt.</span></div>`
+    : '';
+
+  const overview = `
+    <div class="bond-overview">
+      <div class="finance-summary-card"><span>Gebäudewert</span><strong>${money(buildingValue)}</strong></div>
+      <div class="finance-summary-card"><span>Kreditlimit (99%)</span><strong>${money(creditLimit)}</strong></div>
+      <div class="finance-summary-card"><span>Offene Kreditsumme</span><strong>${money(outstanding)}</strong></div>
+      <div class="finance-summary-card"><span>Reservierte Anfragen</span><strong>${money(reserved)}</strong></div>
+      <div class="finance-summary-card"><span>Noch verfügbar</span><strong>${money(available)}</strong></div>
+    </div>`;
+
+  if (!unlocked) {
+    container.innerHTML = `${warning}${overview}<div class="bond-locked"><strong>🔒 Anleihen werden auf Unternehmenslevel 15 freigeschaltet.</strong></div>`;
+    return;
+  }
+
+  const myRequests = dashboard.my_requests || [];
+  const openRequests = dashboard.open_requests || [];
+  const borrowed = dashboard.my_borrowed_positions || [];
+  const investments = dashboard.my_investments || [];
+
+  const myRequestRows = myRequests.map(r => `<tr>
+    <td>${money(r.requested_amount)}</td>
+    <td>${money(r.funded_amount)}</td>
+    <td>${money(r.remaining_amount)}</td>
+    <td>${num(r.daily_interest_rate)}%</td>
+    <td>${bondStatusLabel(r.status)}</td>
+    <td>${formatBondDate(r.created_at)}</td>
+  </tr>`);
+
+  const marketRows = openRequests.map(r => `<tr>
+    <td>${r.borrower_name}</td>
+    <td>${money(r.requested_amount)}</td>
+    <td>${money(r.remaining_amount)}</td>
+    <td>${num(r.daily_interest_rate)}% / Tag</td>
+    <td>
+      <div class="bond-inline-action">
+        <input type="number" id="bondInvest-${r.id}" min="0.01" step="0.01" max="${Number(r.remaining_amount || 0)}" placeholder="OC$">
+        <button type="button" onclick="investBondRequest('${r.id}')">Bereitstellen</button>
+      </div>
+    </td>
+  </tr>`);
+
+  const now = Date.now();
+  const borrowedRows = borrowed.map(i => {
+    const active = i.status === 'active';
+    const matured = active && new Date(i.matures_at).getTime() <= now;
+    return `<tr>
+      <td>${i.lender_name}</td>
+      <td>${money(i.original_principal)}</td>
+      <td>${money(i.outstanding_principal)}</td>
+      <td>${num(i.daily_interest_rate)}%</td>
+      <td>${money(i.total_received)} / ${money(i.target_received)}</td>
+      <td>${formatBondDate(i.matures_at)}</td>
+      <td>${bondStatusLabel(i.status)}</td>
+      <td>
+        ${active ? `<div class="bond-inline-action">
+          <input type="number" id="bondRepay-${i.id}" min="0.01" step="0.01" max="${Number(i.outstanding_principal || 0)}" placeholder="OC$" ${matured ? '' : 'disabled'}>
+          <button type="button" onclick="repayBondInvestment('${i.id}')" ${matured ? '' : 'disabled'}>${matured ? 'Tilgen' : '14 Tage'}</button>
+        </div>` : '–'}
+      </td>
+    </tr>`;
+  });
+
+  const investmentRows = investments.map(i => `<tr>
+    <td>${i.borrower_name}</td>
+    <td>${money(i.original_principal)}</td>
+    <td>${money(i.outstanding_principal)}</td>
+    <td>${num(i.daily_interest_rate)}%</td>
+    <td class="finance-positive">+${money(i.interest_received)}</td>
+    <td>${money(i.total_received)} / ${money(i.target_received)}</td>
+    <td>${bondStatusLabel(i.status)}</td>
+  </tr>`);
+
+  container.innerHTML = `
+    ${warning}
+    ${overview}
+    <div class="bond-grid">
+      <section class="bond-section">
+        <h3>Anleihen anfragen</h3>
+        <p class="muted">1 Anleihe = 5.000 OC$. Mindestzins 0,50% täglich. Das Kreditlimit entspricht 99% des Gebäudewerts, abgerundet auf 5.000 OC$.</p>
+        <form id="bondRequestForm" class="bond-request-form">
+          <label>Anzahl Anleihen
+            <input type="number" id="bondRequestCount" min="1" step="1" value="1">
+          </label>
+          <label>Täglicher Zinssatz
+            <input type="number" id="bondRequestRate" min="0.50" step="0.01" value="0.50">
+          </label>
+          <div class="kv bond-request-preview"><span>Anfragevolumen</span><strong id="bondRequestAmountPreview">${money(5000)}</strong></div>
+          <button type="submit">Kredit anfragen</button>
+        </form>
+      </section>
+
+      <section class="bond-section">
+        <h3>Meine Kreditanfragen</h3>
+        <div class="table-wrap">${renderTable(['Anfrage','Finanziert','Rest','Zins','Status','Erstellt'], myRequestRows)}</div>
+      </section>
+    </div>
+
+    <section class="bond-section">
+      <h3>Offene Anleihen anderer Unternehmen</h3>
+      <div class="table-wrap">${renderTable(['Unternehmen','Anfrage','Noch offen','Zins','Investition'], marketRows)}</div>
+    </section>
+
+    <section class="bond-section">
+      <h3>Meine aufgenommenen Kredite</h3>
+      <p class="muted">Tilgung ist je Kreditanteil 14 Tage nach Finanzierung möglich. Ohne aktive Tilgung läuft die tägliche Zahlung weiter, bis insgesamt 105% des ursprünglichen Kreditanteils beim Kreditgeber angekommen sind.</p>
+      <div class="table-wrap">${renderTable(['Kreditgeber','Ursprünglich','Restschuld','Zins','Erhalten / Ziel','Tilgbar ab','Status','Tilgung'], borrowedRows)}</div>
+    </section>
+
+    <section class="bond-section">
+      <h3>Meine Anleiheinvestitionen</h3>
+      <div class="table-wrap">${renderTable(['Kreditnehmer','Investiert','Restforderung','Zins','Zinserlöse','Erhalten / Ziel','Status'], investmentRows)}</div>
+    </section>
+  `;
+
+  const requestForm = document.getElementById('bondRequestForm');
+  const requestCount = document.getElementById('bondRequestCount');
+  requestCount?.addEventListener('input', () => {
+    const whole = Math.max(0, Math.floor(Number(requestCount.value || 0)));
+    if (requestCount.value !== '' && String(whole) !== requestCount.value) requestCount.value = String(whole);
+    updateBondRequestPreview();
+  });
+
+  requestForm?.addEventListener('submit', async event => {
+    event.preventDefault();
+    const count = Math.floor(Number(document.getElementById('bondRequestCount')?.value || 0));
+    const rate = Number(document.getElementById('bondRequestRate')?.value || 0);
+    if (count < 1 || rate < 0.50) {
+      gameAlert('Bitte mindestens 1 Anleihe und mindestens 0,50% Tageszins angeben.');
+      return;
+    }
+
+    const total = count * 5000;
+    if (total > available) {
+      gameAlert(`Dein verfügbarer Kreditspielraum beträgt aktuell ${money(available)}.`);
+      return;
+    }
+
+    if (!await gameConfirm(`${count} Anleihe${count === 1 ? '' : 'n'} über ${money(total)} zu ${num(rate)}% Tageszins anfragen?`)) return;
+    const { error } = await sb.rpc('create_bond_request', {
+      p_company_id: state.company.id,
+      p_bond_count: count,
+      p_daily_interest_rate: rate
+    });
+    if (error) gameAlert(error.message); else await loadCompany();
+  });
+}
+
+window.investBondRequest = async function(requestId) {
+  const input = document.getElementById(`bondInvest-${requestId}`);
+  const amount = Number(input?.value || 0);
+  if (amount <= 0) {
+    gameAlert('Bitte einen Betrag größer als 0 OC$ eingeben.');
+    return;
+  }
+  if (!await gameConfirm(`${money(amount)} für diese Anleihe bereitstellen? Der Betrag wird sofort von deinem Kontostand abgebucht.`)) return;
+
+  const { error } = await sb.rpc('invest_in_bond_request', {
+    p_investor_company_id: state.company.id,
+    p_request_id: requestId,
+    p_amount: amount
+  });
+  if (error) gameAlert(error.message); else await loadCompany();
+};
+
+window.repayBondInvestment = async function(investmentId) {
+  const input = document.getElementById(`bondRepay-${investmentId}`);
+  const amount = Number(input?.value || 0);
+  if (amount <= 0) {
+    gameAlert('Bitte einen Tilgungsbetrag größer als 0 OC$ eingeben.');
+    return;
+  }
+  if (!await gameConfirm(`${money(amount)} auf diesen Kreditanteil tilgen?`)) return;
+
+  const { error } = await sb.rpc('repay_bond_investment', {
+    p_company_id: state.company.id,
+    p_investment_id: investmentId,
+    p_amount: amount
+  });
+  if (error) gameAlert(error.message); else await loadCompany();
+};
 
 function researchInventoryContext() {
   const product = state.products.find(p => p.category === 'research' && p.name === 'Forschungseinheit');
@@ -2423,6 +2690,7 @@ function renderAll() {
 
   document.getElementById('recentTransactions').innerHTML = renderTable(['Betrag','Beschreibung','Zeit'], state.transactions.slice(0,8).map(t=>`<tr><td class="${transactionAmountClass(t.transaction_type)}">${money(t.amount)}</td><td>${t.description || transactionLabel(t.transaction_type)}</td><td>${new Date(t.created_at).toLocaleString('de-DE')}</td></tr>`));
   renderFinanceSummary();
+  renderBonds();
   renderStorage();
 
   const visibleProducts = operationalProducts();

@@ -2272,3 +2272,106 @@ body.game-dialog-open { overflow: hidden; }
 .building-slots-summary.building-slots-over strong {
   font-weight: 700;
 }
+
+
+/* v1.0.0 – Anleihen & Kredite */
+.bond-finance-panel {
+  margin-top: 18px;
+}
+
+.bond-overview {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(130px, 1fr));
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.bond-grid {
+  display: grid;
+  grid-template-columns: minmax(260px, 0.8fr) minmax(360px, 1.2fr);
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.bond-section {
+  margin-top: 16px;
+}
+
+.bond-section:first-child {
+  margin-top: 0;
+}
+
+.bond-request-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(130px, 1fr));
+  gap: 10px;
+  align-items: end;
+}
+
+.bond-request-form button {
+  min-height: 42px;
+}
+
+.bond-request-preview {
+  min-height: 42px;
+  align-items: center;
+}
+
+.bond-inline-action {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 240px;
+}
+
+.bond-inline-action input {
+  width: 120px;
+  min-width: 100px;
+}
+
+.bond-inline-action button {
+  white-space: nowrap;
+}
+
+.bond-warning {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  border: 1px solid rgba(180, 45, 45, 0.35);
+  background: rgba(180, 45, 45, 0.08);
+  border-radius: 10px;
+  padding: 12px 14px;
+  margin-bottom: 14px;
+}
+
+.bond-warning strong,
+.bond-warning span {
+  color: #a12626;
+}
+
+.bond-locked {
+  border: 1px dashed var(--border, #c7d2df);
+  border-radius: 10px;
+  padding: 18px;
+  text-align: center;
+}
+
+@media (max-width: 1100px) {
+  .bond-overview {
+    grid-template-columns: repeat(2, minmax(140px, 1fr));
+  }
+  .bond-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 760px) {
+  .bond-overview,
+  .bond-request-form {
+    grid-template-columns: 1fr;
+  }
+  .bond-inline-action {
+    min-width: 200px;
+    flex-wrap: wrap;
+  }
+}
