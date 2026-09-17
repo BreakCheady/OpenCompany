@@ -2748,9 +2748,7 @@ function renderAll() {
   if (visibleProducts.some(p => p.id === previousProductionProduct)) {
     productionProductSelect.value = previousProductionProduct;
   }
-  const sellOpts = productOptionsGroupedByBuilding(stockedProducts());
-  document.getElementById('sellProduct').innerHTML = sellOpts || '<option value="">Keine Produkte im Lager</option>';
-  updateSellQualityOptions();
+  renderMarketSellItems();
   renderProductionRecipe();
   renderBuildings();
   renderRetailSale();
@@ -3167,31 +3165,122 @@ buildingBuilderBtn?.addEventListener('click', () => {
 buildingCategoryFilter?.addEventListener('change', renderBuildingCatalog);
 
 // Market
+function stockedMaterials() {
+  return state.materials.filter(material =>
+    materialInventoryLots(material.id).some(lot => Number(lot.quantity || 0) > 0)
+  );
+}
+
+function renderMarketSellItems() {
+  const typeSelect = document.getElementById('sellItemType');
+  const itemSelect = document.getElementById('sellProduct');
+  const qtyInput = document.getElementById('sellQty');
+  if (!typeSelect || !itemSelect) return;
+
+  const type = typeSelect.value || 'product';
+  const previous = itemSelect.value;
+
+  if (type === 'material') {
+    const materials = stockedMaterials().sort((a, b) => a.name.localeCompare(b.name, 'de-DE'));
+    itemSelect.innerHTML = materials.length
+      ? materials.map(material => `<option value="${material.id}">${material.name}</option>`).join('')
+      : '<option value="">Keine Rohstoffe im Lager</option>';
+
+    if (materials.some(material => material.id === previous)) itemSelect.value = previous;
+
+    if (qtyInput) {
+      qtyInput.min = '0.01';
+      qtyInput.step = '0.01';
+    }
+  } else {
+    const products = stockedProducts();
+    itemSelect.innerHTML = productOptionsGroupedByBuilding(products) || '<option value="">Keine Produkte im Lager</option>';
+
+    if (products.some(product => product.id === previous)) itemSelect.value = previous;
+
+    if (qtyInput) {
+      qtyInput.min = '1';
+      qtyInput.step = '1';
+    }
+  }
+
+  updateSellQualityOptions();
+}
+
 function updateSellQualityOptions() {
-  const productId=document.getElementById('sellProduct')?.value;
-  const qualitySelect=document.getElementById('sellQuality');
-  const priceInput=document.getElementById('sellPrice');
+  const type = document.getElementById('sellItemType')?.value || 'product';
+  const itemId = document.getElementById('sellProduct')?.value;
+  const qualitySelect = document.getElementById('sellQuality');
+  const priceInput = document.getElementById('sellPrice');
   if (!qualitySelect) return;
-  const lots=availableProductQualities(productId);
-  const previous=qualitySelect.value;
-  qualitySelect.innerHTML=lots.length ? lots.map(l=>`<option value="${Number(l.quality_level||1)}">Q${Number(l.quality_level||1)} – ${num(l.quantity)} verfügbar</option>`).join('') : '<option value="1">Q1 – 0 verfügbar</option>';
-  if (lots.some(l=>String(l.quality_level)===String(previous))) qualitySelect.value=previous;
-  const lot=productLot(productId,Number(qualitySelect.value||1));
-  if (priceInput && lot && Number(lot.average_unit_cost||0)>0) priceInput.value=(Number(lot.average_unit_cost)*2*qualityMultiplier(qualitySelect.value)).toFixed(2);
+
+  const lots = type === 'material'
+    ? materialInventoryLots(itemId).filter(lot => Number(lot.quantity || 0) > 0)
+    : availableProductQualities(itemId);
+
+  const previous = qualitySelect.value;
+
+  qualitySelect.innerHTML = lots.length
+    ? [...lots]
+        .sort((a, b) => Number(a.quality_level || 1) - Number(b.quality_level || 1))
+        .map(lot => `<option value="${Number(lot.quality_level || 1)}">Q${Number(lot.quality_level || 1)} – ${num(lot.quantity)} verfügbar</option>`)
+        .join('')
+    : '<option value="1">Q1 – 0 verfügbar</option>';
+
+  if (lots.some(lot => String(lot.quality_level || 1) === String(previous))) {
+    qualitySelect.value = previous;
+  }
+
+  const quality = Number(qualitySelect.value || 1);
+  const lot = lots.find(row => Number(row.quality_level || 1) === quality);
+
+  if (priceInput && lot && Number(lot.average_unit_cost || 0) > 0) {
+    priceInput.value = (Number(lot.average_unit_cost) * 2 * qualityMultiplier(quality)).toFixed(2);
+  }
 }
 
 document.getElementById('sellOrderForm').addEventListener('submit', async e => {
   e.preventDefault();
-  const { error }=await sb.rpc('place_sell_order_quality',{
-    p_company_id:state.company.id,
-    p_product_id:document.getElementById('sellProduct').value,
-    p_quality:Number(document.getElementById('sellQuality').value||1),
-    p_quantity:Number(document.getElementById('sellQty').value),
-    p_price:Number(document.getElementById('sellPrice').value)
-  });
-  if(error) gameAlert(error.message); else await loadCompany();
+
+  const type = document.getElementById('sellItemType')?.value || 'product';
+  const itemId = document.getElementById('sellProduct')?.value;
+  const quality = Number(document.getElementById('sellQuality')?.value || 1);
+  const quantity = Number(document.getElementById('sellQty')?.value);
+  const price = Number(document.getElementById('sellPrice')?.value);
+
+  if (!itemId) {
+    await gameAlert(type === 'material'
+      ? 'Kein Rohstoffbestand zum Verkaufen vorhanden.'
+      : 'Kein Produktbestand zum Verkaufen vorhanden.');
+    return;
+  }
+
+  const rpcName = type === 'material'
+    ? 'place_material_sell_order_quality'
+    : 'place_sell_order_quality';
+
+  const rpcArgs = type === 'material'
+    ? {
+        p_company_id: state.company.id,
+        p_material_id: itemId,
+        p_quality: quality,
+        p_quantity: quantity,
+        p_price: price
+      }
+    : {
+        p_company_id: state.company.id,
+        p_product_id: itemId,
+        p_quality: quality,
+        p_quantity: quantity,
+        p_price: price
+      };
+
+  const { error } = await sb.rpc(rpcName, rpcArgs);
+  if (error) gameAlert(error.message);
+  else await loadCompany();
 });
 
+document.getElementById('sellItemType')?.addEventListener('change', renderMarketSellItems);
 document.getElementById('sellProduct')?.addEventListener('change', updateSellQualityOptions);
 document.getElementById('sellQuality')?.addEventListener('change', updateSellQualityOptions);
 document.getElementById('retailProduct').addEventListener('change', () => {

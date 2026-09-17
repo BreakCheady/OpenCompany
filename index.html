@@ -7,7 +7,7 @@
   <title>OpenCompany</title>
   <link rel="icon" type="image/png" href="favicon.png">
   <link rel="shortcut icon" href="favicon.ico">
-  <link rel="stylesheet" href="style.css?v=0.10.0">
+  <link rel="stylesheet" href="style.css?v=0.10.7">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
@@ -29,7 +29,7 @@
       <span id="sessionLabel">Nicht angemeldet</span>
       <button id="logoutBtn" class="ghost hidden">Abmelden</button>
       <div class="sidebar-version">
-        <span class="sidebar-version-number">Version 0.10.6</span>
+        <span class="sidebar-version-number">Version 0.10.7</span>
         <span class="sidebar-credit">Made by BreakCheady</span>
       </div>
     </div>
@@ -175,15 +175,21 @@
 
       <div id="market" class="view">
         <article class="panel">
-          <h2>Produkt am Markt verkaufen</h2>
+          <h2>Am Markt verkaufen</h2>
           <form id="sellOrderForm">
-            <label>Produkt<select id="sellProduct"></select></label>
+            <label>Art
+              <select id="sellItemType">
+                <option value="product">Produkt</option>
+                <option value="material">Rohstoff</option>
+              </select>
+            </label>
+            <label>Gut<select id="sellProduct"></select></label>
             <label>Qualität<select id="sellQuality"></select></label>
-            <label>Menge<input type="number" id="sellQty" min="1" value="5"></label>
+            <label>Menge<input type="number" id="sellQty" min="1" step="1" value="5"></label>
             <label>Preis je Einheit<input type="number" id="sellPrice" min="0.01" step="0.01" value="800"></label>
             <button type="submit" class="sell-order-submit">Order erstellen</button>
           </form>
-          <p class="muted market-fee-note">Bei erfolgreichen Marktverkäufen werden 5% Marktgebühr vom Verkaufserlös abgezogen.</p>
+          <p class="muted market-fee-note">Du kannst Produkte und Rohstoffe aus deinem Lager anbieten. Bei erfolgreichen Marktverkäufen werden 5% Marktgebühr vom Verkaufserlös abgezogen.</p>
         </article>
 
         <article class="panel">
