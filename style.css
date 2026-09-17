@@ -2186,3 +2186,38 @@ body.game-dialog-open { overflow: hidden; }
   .research-investment-form { grid-template-columns: 1fr !important; }
   .market-filter-controls { align-items: end; }
 }
+
+
+/* v0.6.8 – kompaktere Marktfilter */
+@media (min-width: 761px) {
+  .market-filter-controls {
+    gap: 8px;
+  }
+
+  .market-filter-controls label {
+    min-width: 0;
+  }
+
+  .market-filter-controls #marketSearchFilter {
+    width: 190px;
+    min-width: 190px;
+  }
+
+  .market-filter-controls #marketTypeFilter,
+  .market-filter-controls #marketQualityFilter {
+    width: 125px;
+    min-width: 125px;
+  }
+
+  .market-filter-controls #marketBuyQty {
+    width: 88px;
+    min-width: 88px;
+    max-width: 88px;
+  }
+
+  .market-filter-controls input,
+  .market-filter-controls select {
+    padding-top: 8px;
+    padding-bottom: 8px;
+  }
+}
