@@ -91,7 +91,7 @@ function xpProgressContext(company = state.company) {
 }
 
 function featureRequiredLevel(view) {
-  return ({ contracts: 5, research: 10, loans: 15 })[view] || 0;
+  return ({ contracts: 5, research: 10, loans: 10 })[view] || 0;
 }
 
 function featureUnlocked(view) {
@@ -2255,7 +2255,7 @@ function renderBonds() {
     return;
   }
 
-  const unlocked = Number(state.company?.company_level || 0) >= 15;
+  const unlocked = Number(state.company?.company_level || 0) >= 10;
   const buildingValue = Number(dashboard.building_value || 0);
   const creditLimit = Number(dashboard.credit_limit || 0);
   const outstanding = Number(dashboard.outstanding_principal || 0);
@@ -2277,7 +2277,7 @@ function renderBonds() {
     </div>`;
 
   if (!unlocked) {
-    container.innerHTML = `${warning}${overview}<div class="bond-locked"><strong>🔒 Anleihen werden auf Unternehmenslevel 15 freigeschaltet.</strong></div>`;
+    container.innerHTML = `${warning}${overview}<div class="bond-locked"><strong>🔒 Anleihen werden auf Unternehmenslevel 10 freigeschaltet.</strong></div>`;
     return;
   }
 
