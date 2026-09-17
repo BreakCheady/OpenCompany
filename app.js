@@ -35,6 +35,7 @@ const state = {
   companyDirectory: [],
   companyDebt: 0,
   companyValueChange: 0,
+  bondDashboard: null,
   recoveringPassword: false
 };
 
@@ -42,8 +43,11 @@ let presenceTimer = null;
 let productionRefreshTimer = null;
 let productionClaimDisplayTimer = null;
 let npcMarketTimer = null;
+let npcMarketCountdownTimer = null;
 let companyValueRefreshTimer = null;
 let buildingConstructionTimer = null;
+let companyBalancePollTimer = null;
+let companyBalanceChannel = null;
 
 const money = n => new Intl.NumberFormat('de-DE', { style:'currency', currency:'EUR', maximumFractionDigits:2 })
   .format(Number(n || 0)).replace('€','OC$');
@@ -55,6 +59,57 @@ const qualityMultiplier = quality => 1 + Math.max(0, Number(quality || 1) - 1) *
 const researchRequirement = quality => Number(quality || 1) <= 1 ? 1000 : 2500 * (Number(quality || 1) - 1);
 const productQuality = product => Math.max(1, Number(product?.quality_level || 1));
 const minimumInputQuality = product => Math.max(1, productQuality(product) - 1);
+
+
+const COMPANY_XP_TOTALS = [
+  0,250,600,1050,1650,2450,3450,4700,6200,7950,9950,
+  12450,15450,18950,22950,27450,32450,38450,45450,53450,
+  62450,72450,83950,96950,111450,127450,145450,165450,
+  187450,211450,237450
+];
+
+function buildingSlotsForLevel(level) {
+  return Math.min(16, 4 + 2 * Math.min(6, Math.floor(Math.max(0, Number(level || 0)) / 5)));
+}
+
+function xpProgressContext(company = state.company) {
+  const level = Math.max(0, Math.min(30, Number(company?.company_level || 0)));
+  const totalXp = Math.max(0, Number(company?.experience_points || 0));
+  const currentBase = COMPANY_XP_TOTALS[level] || 0;
+  const nextTotal = level >= 30 ? currentBase : COMPANY_XP_TOTALS[level + 1];
+  const needed = Math.max(0, nextTotal - currentBase);
+  const progress = level >= 30 ? needed : Math.max(0, totalXp - currentBase);
+  return {
+    level,
+    totalXp,
+    currentBase,
+    nextTotal,
+    needed,
+    progress,
+    percent: level >= 30 ? 100 : Math.max(0, Math.min(100, needed > 0 ? progress / needed * 100 : 0))
+  };
+}
+
+function featureRequiredLevel(view) {
+  return ({ contracts: 5, research: 5, loans: 10 })[view] || 0;
+}
+
+function featureUnlocked(view) {
+  return Number(state.company?.company_level || 0) >= featureRequiredLevel(view);
+}
+
+function updateFeatureLocks() {
+  document.querySelectorAll('.nav-item[data-view]').forEach(button => {
+    const required = featureRequiredLevel(button.dataset.view);
+    if (!required) return;
+    const unlocked = featureUnlocked(button.dataset.view);
+    button.classList.toggle('feature-locked', !unlocked);
+    button.dataset.locked = unlocked ? 'false' : 'true';
+    const baseLabel = button.dataset.baseLabel || button.textContent.replace(/\s*🔒.*$/, '');
+    button.dataset.baseLabel = baseLabel;
+    button.textContent = unlocked ? baseLabel : `${baseLabel} 🔒 L${required}`;
+  });
+}
 
 function productInventoryLots(productId) {
   return state.inventory.filter(row => row.product_id === productId);
@@ -193,12 +248,25 @@ function transactionLabel(type) {
     construction: 'Baukosten',
     building_refund: 'Gebäude-Erstattung',
     research: 'Forschung',
-    research_investment: 'Forschungsinvestition'
+    research_investment: 'Forschungsinvestition',
+    bond_investment: 'Anleiheninvestment',
+    bond_proceeds: 'Kreditauszahlung',
+    bond_repayment: 'Kredittilgung',
+    bond_principal_income: 'Tilgungseingang',
+    bond_interest_paid: 'Zinsabgabe',
+    bond_interest_income: 'Zinserlös',
+    bond_interest_state: 'Zinserlös vom Staat',
+    bond_interest_missed: 'Zinsausfall',
+    bond_default_compensation: 'Staatliche Kreditausfallentschädigung',
+    bond_default_reset: 'Insolvenzverfahren'
   })[type] || type;
 }
 
 function transactionAmountClass(type) {
-  return ['market_fee', 'market_buy', 'production', 'construction', 'retail_cancel_fee', 'research'].includes(type) ? 'transaction-amount fee' : 'transaction-amount';
+  return [
+    'market_fee','market_buy','production','construction','retail_cancel_fee','research',
+    'bond_investment','bond_repayment','bond_interest_paid'
+  ].includes(type) ? 'transaction-amount fee' : 'transaction-amount';
 }
 
 
@@ -355,6 +423,27 @@ async function touchPresence() {
   renderCompanyStatus();
 }
 
+function companyValueChangeDisplay(currentValue, changeValue) {
+  const current = Number(currentValue || 0);
+  const change = Number(changeValue || 0);
+  const previous = current - change;
+  const percentage = previous !== 0 ? (change / Math.abs(previous)) * 100 : 0;
+
+  const amountText = change > 0
+    ? `+${money(change)}`
+    : change < 0
+      ? `-${money(Math.abs(change))}`
+      : money(0);
+
+  const percentageText = change > 0
+    ? `+${percentage.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%`
+    : change < 0
+      ? `${percentage.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%`
+      : '0,00%';
+
+  return `${amountText} (${percentageText})`;
+}
+
 async function refreshCompanyValueSnapshot() {
   if (!sb || !state.company?.id || document.visibilityState === 'hidden') return;
   const cid = state.company.id;
@@ -372,9 +461,87 @@ async function refreshCompanyValueSnapshot() {
   if (valueEl) valueEl.textContent = money(state.company.company_value);
   if (changeEl) {
     const change = state.companyValueChange;
-    changeEl.textContent = change > 0 ? `+${money(change)}` : change < 0 ? `-${money(Math.abs(change))}` : money(0);
+    changeEl.textContent = companyValueChangeDisplay(state.company.company_value, change);
     changeEl.className = `company-value-change ${change > 0 ? 'company-value-change-positive' : change < 0 ? 'company-value-change-negative' : 'company-value-change-zero'}`;
   }
+}
+
+function updateCompanyBalanceUI(balance) {
+  const cashValue = Number(balance || 0);
+  if (state.company) state.company.cash_balance = cashValue;
+
+  const statCash = document.getElementById('statCash');
+  if (statCash) {
+    statCash.textContent = balanceMoney(cashValue);
+    statCash.classList.toggle('negative-balance', cashValue < 0);
+  }
+
+  const companyCash = document.getElementById('companyCashBalance');
+  if (companyCash) {
+    companyCash.textContent = balanceMoney(cashValue);
+    companyCash.classList.toggle('negative-balance', cashValue < 0);
+  }
+}
+
+async function refreshCompanyBalance() {
+  if (!sb || !state.company?.id || document.visibilityState === 'hidden') return;
+
+  const { data, error } = await sb
+    .from('companies')
+    .select('cash_balance')
+    .eq('id', state.company.id)
+    .maybeSingle();
+
+  if (error) {
+    console.warn('Kontostand-Aktualisierung:', error.message);
+    return;
+  }
+
+  if (data) updateCompanyBalanceUI(data.cash_balance);
+}
+
+function stopCompanyBalanceWatcher() {
+  if (companyBalancePollTimer) clearInterval(companyBalancePollTimer);
+  companyBalancePollTimer = null;
+
+  if (companyBalanceChannel && sb) {
+    sb.removeChannel(companyBalanceChannel);
+  }
+  companyBalanceChannel = null;
+}
+
+function startCompanyBalanceWatcher() {
+  stopCompanyBalanceWatcher();
+  if (!sb || !state.company?.id) return;
+
+  const companyId = state.company.id;
+
+  companyBalanceChannel = sb
+    .channel(`company-balance-${companyId}`)
+    .on(
+      'postgres_changes',
+      {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'companies',
+        filter: `id=eq.${companyId}`
+      },
+      payload => {
+        if (payload?.new && Object.prototype.hasOwnProperty.call(payload.new, 'cash_balance')) {
+          const previous = Number(state.company?.cash_balance || 0);
+          const next = Number(payload.new.cash_balance || 0);
+          if (next !== previous) updateCompanyBalanceUI(next);
+        }
+      }
+    )
+    .subscribe(status => {
+      if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+        console.warn('Kontostand-Realtime nicht verfügbar – Sicherheitsabfrage bleibt aktiv.');
+      }
+    });
+
+  refreshCompanyBalance();
+  companyBalancePollTimer = setInterval(refreshCompanyBalance, 10000);
 }
 
 function startPresenceHeartbeat() {
@@ -398,26 +565,64 @@ function stopPresenceHeartbeat() {
   buildingConstructionTimer = null;
 }
 
+function nextMarketRefreshAt(now = new Date()) {
+  const next = new Date(now);
+  next.setSeconds(0, 0);
+  const nextQuarter = (Math.floor(next.getMinutes() / 15) + 1) * 15;
+  next.setMinutes(nextQuarter);
+  return next;
+}
+
+function updateMarketRefreshTimer() {
+  const el = document.getElementById('marketRefreshTimer');
+  if (!el) return;
+
+  const now = new Date();
+  const next = nextMarketRefreshAt(now);
+  const remainingSeconds = Math.max(0, Math.ceil((next.getTime() - now.getTime()) / 1000));
+  const minutes = Math.floor(remainingSeconds / 60);
+  const seconds = remainingSeconds % 60;
+  const countdown = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+  const nextTime = next.toLocaleTimeString('de-DE', { hour:'2-digit', minute:'2-digit' });
+
+  el.textContent = `${nextTime} Uhr · ${countdown} ${remainingSeconds < 60 ? 'Sekunden' : 'Minuten'}`;
+}
+
 function stopNpcMarketHeartbeat() {
-  if (npcMarketTimer) clearInterval(npcMarketTimer);
+  if (npcMarketTimer) clearTimeout(npcMarketTimer);
   npcMarketTimer = null;
+  if (npcMarketCountdownTimer) clearInterval(npcMarketCountdownTimer);
+  npcMarketCountdownTimer = null;
 }
 
 async function runNpcMarketTickAndRefresh() {
   if (!sb || !state.company?.id || document.visibilityState === 'hidden') return;
-  const { data, error } = await sb.rpc('run_npc_market_tick');
-  if (error) {
-    console.warn('NPC-Markt-Tick:', error.message);
-    return;
-  }
-  if (Number(data || 0) > 0 && document.getElementById('market')?.classList.contains('active-view')) {
+
+  const { error } = await sb.rpc('run_npc_market_tick');
+  if (error) console.warn('NPC-Markt-Tick:', error.message);
+
+  if (document.getElementById('market')?.classList.contains('active-view')) {
     await loadGameData();
   }
 }
 
+function scheduleNextNpcMarketRefresh() {
+  const next = nextMarketRefreshAt();
+  const delay = Math.max(250, next.getTime() - Date.now() + 250);
+
+  npcMarketTimer = setTimeout(async () => {
+    updateMarketRefreshTimer();
+    await runNpcMarketTickAndRefresh();
+    updateMarketRefreshTimer();
+    scheduleNextNpcMarketRefresh();
+  }, delay);
+}
+
 function startNpcMarketHeartbeat() {
   stopNpcMarketHeartbeat();
-  npcMarketTimer = setInterval(runNpcMarketTickAndRefresh, 120000);
+  updateMarketRefreshTimer();
+  npcMarketCountdownTimer = setInterval(updateMarketRefreshTimer, 1000);
+  scheduleNextNpcMarketRefresh();
 }
 
 function isCompanyOnline() {
@@ -434,13 +639,19 @@ function renderCompanyStatus() {
 }
 
 function bindNavigation() {
-  document.querySelectorAll('.nav-item').forEach(btn => btn.addEventListener('click', () => {
+  document.querySelectorAll('.nav-item').forEach(btn => btn.addEventListener('click', async () => {
+    const view = btn.dataset.view;
+    const requiredLevel = featureRequiredLevel(view);
+    if (requiredLevel && !featureUnlocked(view)) {
+      await gameAlert(`${btn.dataset.baseLabel || btn.textContent.replace(/\s*🔒.*$/, '')} wird auf Unternehmenslevel ${requiredLevel} freigeschaltet.`);
+      return;
+    }
+
     document.querySelectorAll('.nav-item').forEach(b=>b.classList.remove('active'));
     btn.classList.add('active');
-    const view = btn.dataset.view;
     document.querySelectorAll('.view').forEach(v=>v.classList.remove('active-view'));
     document.getElementById(view).classList.add('active-view');
-    document.getElementById('pageTitle').textContent = btn.textContent;
+    document.getElementById('pageTitle').textContent = btn.dataset.baseLabel || btn.textContent;
   }));
 }
 bindNavigation();
@@ -486,6 +697,7 @@ async function handleSession(session) {
   if (!loggedIn) {
     stopPresenceHeartbeat();
     stopNpcMarketHeartbeat();
+    stopCompanyBalanceWatcher();
     document.getElementById('gameView').classList.add('hidden');
     document.getElementById('bootstrapView').classList.add('hidden');
     clearCompanyLoadError();
@@ -509,15 +721,21 @@ async function loadCompany() {
   if (data) {
     startPresenceHeartbeat();
     startNpcMarketHeartbeat();
+
+    const dailyXp = await sb.rpc('claim_daily_login_xp', { p_company_id: data.id });
+    if (dailyXp.error) console.warn('Tägliche XP:', dailyXp.error.message);
+
     const completedBuildings = await sb.rpc('complete_due_buildings', { p_company_id: data.id });
     if (completedBuildings.error) console.warn('Gebäudebau:', completedBuildings.error.message);
     const completedJobs = await sb.rpc('complete_due_production_jobs', { p_company_id: data.id });
     if (completedJobs.error) console.warn('Produktionsabschluss:', completedJobs.error.message);
     const completedRetailSales = await sb.rpc('complete_due_retail_sales', { p_company_id: data.id });
     if (completedRetailSales.error) console.warn('Handelsabschluss:', completedRetailSales.error.message);
-    // NPCs may buy suitable player orders at most once every five minutes.
-    const npcTick = await sb.rpc('run_npc_market_tick');
-    if (npcTick.error) console.warn('NPC-Markt-Tick:', npcTick.error.message);
+
+    const refreshed = await sb.from('companies').select('*').eq('id', data.id).single();
+    if (!refreshed.error && refreshed.data) state.company = refreshed.data;
+
+    startCompanyBalanceWatcher();
     await loadGameData();
   }
 }
@@ -541,10 +759,11 @@ async function loadGameData() {
     sb.from('contracts').select('*').or(`seller_company_id.eq.${cid},buyer_company_id.eq.${cid}`).order('created_at',{ascending:false}),
     sb.rpc('list_companies'),
     sb.rpc('get_company_debt', { p_company_id: cid }),
+    sb.rpc('get_bond_dashboard', { p_company_id: cid }),
     sb.from('company_valuation_history').select('valuation_date,company_value,previous_company_value,change_amount,calculated_at').eq('company_id',cid).order('valuation_date',{ascending:false}).limit(1)
   ]);
 
-  const labels = ['Produkte','Alle Produkte','Produktlager','Materialien','Materiallager','Rezepte','Gebäudetypen','Gebäude','Produktionen','Handelsverkäufe','Finanzen','Marktorders','Marktkäufe','Verträge','Firmenverzeichnis','Kreditschulden','Unternehmenswert-Verlauf'];
+  const labels = ['Produkte','Alle Produkte','Produktlager','Materialien','Materiallager','Rezepte','Gebäudetypen','Gebäude','Produktionen','Handelsverkäufe','Finanzen','Marktorders','Marktkäufe','Verträge','Firmenverzeichnis','Kreditschulden','Anleihen','Unternehmenswert-Verlauf'];
   const errors = results.map((r,i)=>r.error ? { label: labels[i], error:r.error } : null).filter(Boolean);
   if (errors.length) {
     console.error(errors);
@@ -553,7 +772,7 @@ async function loadGameData() {
   }
   clearGameDataError();
 
-  const [products, allProducts, inventory, materials, materialInventory, recipes, buildingTypes, buildings, productionJobs, retailSaleJobs, tx, orders, marketTrades, contracts, directory, companyDebt, valuationHistory] = results;
+  const [products, allProducts, inventory, materials, materialInventory, recipes, buildingTypes, buildings, productionJobs, retailSaleJobs, tx, orders, marketTrades, contracts, directory, companyDebt, bondDashboard, valuationHistory] = results;
   state.products = products.data;
   state.allProducts = allProducts.data;
   state.inventory = inventory.data;
@@ -570,6 +789,7 @@ async function loadGameData() {
   state.contracts = contracts.data;
   state.companyDirectory = directory.data || [];
   state.companyDebt = Number(companyDebt.data || 0);
+  state.bondDashboard = bondDashboard.data || null;
   state.companyValueChange = Number(valuationHistory.data?.[0]?.change_amount || 0);
   renderAll();
 }
@@ -578,17 +798,44 @@ function currentProductionContext() {
   const productId = document.getElementById('productionProduct').value;
   const product = state.products.find(p => p.id === productId);
   const buildingType = state.buildingTypes.find(b => b.id === product?.required_building_type_id);
-  const building = buildingType
-    ? state.buildings.find(cb => cb.building_type_id === buildingType.id && cb.status === 'active')
+
+  const matchingBuildings = buildingType
+    ? state.buildings.filter(cb => cb.building_type_id === buildingType.id && cb.status === 'active')
+    : [];
+
+  const runningJob = state.productionJobs.find(
+    job => job.product_id === productId && job.status === 'running'
+  ) || null;
+
+  const runningBuilding = runningJob
+    ? matchingBuildings.find(building => building.id === runningJob.building_id)
     : null;
+
+  const freeBuilding = matchingBuildings.find(building =>
+    !state.productionJobs.some(job => job.building_id === building.id && job.status === 'running')
+  ) || null;
+
+  const building = runningBuilding || freeBuilding || matchingBuildings[0] || null;
   const multiplier = building ? buildingLevelMultiplier(building.level) : 1;
-  const unitsPerHour = buildingType && building
-    ? Number(buildingType.base_units_per_hour || 0) * multiplier
+  const baseProductRate = Number(product?.base_production_rate || 0);
+  const unitsPerHour = buildingType && building && baseProductRate > 0
+    ? Math.max(1, Math.floor(baseProductRate * multiplier))
     : 0;
-  const runningJob = building
-    ? state.productionJobs.find(j => j.building_id === building.id && j.status === 'running')
-    : null;
-  return { productId, product, buildingType, building, multiplier, unitsPerHour, runningJob, qualityLevel: productQuality(product), minInputQuality: minimumInputQuality(product) };
+
+  return {
+    productId,
+    product,
+    buildingType,
+    building,
+    multiplier,
+    unitsPerHour,
+    runningJob,
+    freeBuilding,
+    matchingBuildingCount: matchingBuildings.length,
+    baseProductRate,
+    qualityLevel: productQuality(product),
+    minInputQuality: minimumInputQuality(product)
+  };
 }
 
 function productionUnitsFromInput(rawValue) {
@@ -938,7 +1185,8 @@ function renderProductionRecipe() {
     `<div class="kv"><span>Produktqualität</span><strong>Q${runningJob ? Number(runningJob.quality_level || 1) : productQuality(plan.product)} (+${Math.round((qualityMultiplier(runningJob ? runningJob.quality_level : productQuality(plan.product))-1)*100)}% Wert)</strong></div>`,
     `<div class="kv"><span>Mindestqualität Inputs</span><strong>Q${runningJob ? Math.max(1, Number(runningJob.quality_level || 1)-1) : minimumInputQuality(plan.product)}</strong></div>`,
     `<div class="kv"><span>Gebäudelevel</span><strong>${building ? `Level ${building.level}` : 'Nicht gebaut'}</strong></div>`,
-    `<div class="kv"><span>Kapazität</span><strong>${building ? `${num(unitsPerHour)} Einheiten / Std.` : '–'}</strong></div>`,
+    `<div class="kv"><span>Produkt-Basisrate</span><strong>${plan.product ? `${num(plan.product.base_production_rate || 0)} Einheiten / Std.` : '–'}</strong></div>`,
+    `<div class="kv"><span>Produktionsrate</span><strong>${building ? `${num(unitsPerHour)} Einheiten / Std.` : '–'}</strong></div>`,
     `<div class="kv"><span>Produktionsmenge</span><strong>${num(displayOutputQty)} Einheiten</strong></div>`,
     `<div class="kv"><span>Produktionsdauer</span><strong>${formatProductionDuration(displayHours)}</strong></div>`,
     `<div class="kv"><span>Voraussichtliches Ende</span><strong>${displayFinish}</strong></div>`,
@@ -1051,38 +1299,48 @@ function renderBuildingCatalog() {
   if (!table || !filter) return;
 
   const selectedCategory = filter.value || 'all';
+  const slots = buildingSlotsForLevel(state.company?.company_level);
+  const used = state.buildings.length;
+  const noFreeSlot = used >= slots;
+
   const rows = state.buildingTypes
     .filter(bt => selectedCategory === 'all' || bt.building_category === selectedCategory)
     .map(bt => {
-      const existing = state.buildings.find(
-        b => b.building_type_id === bt.id
-      );
       const cost = Number(bt.construction_cost || 0);
       const buildHours = buildingConstructionHours(1);
-      const existingLabel = existing?.status === 'inactive' ? 'Im Bau' : 'Vorhanden';
+      const count = state.buildings.filter(b => b.building_type_id === bt.id).length;
 
       return `<tr>
         <td>${bt.name}</td>
         <td>${buildingCategoryLabel(bt.building_category)}</td>
+        <td>${count}</td>
         <td><span class="building-construction-cost">-${money(Math.abs(cost))}</span></td>
         <td>${formatBuildingConstructionTime(buildHours)}</td>
         <td>
           <button
             class="building-catalog-build-btn"
-            ${existing ? 'disabled' : ''}
+            ${noFreeSlot ? 'disabled' : ''}
             onclick="buildBuilding('${bt.id}')"
-          >${existing ? existingLabel : 'Bauen'}</button>
+          >${noFreeSlot ? 'Keine Plätze' : 'Bauen'}</button>
         </td>
       </tr>`;
     });
 
   table.innerHTML = renderTable(
-    ['Gebäude', 'Kategorie', 'Baukosten', 'Bauzeit', 'Aktion'],
+    ['Gebäude', 'Kategorie', 'Anzahl', 'Baukosten', 'Bauzeit', 'Aktion'],
     rows
   );
 }
 
 function renderBuildings() {
+  const slots = buildingSlotsForLevel(state.company?.company_level);
+  const usedSlots = state.buildings.length;
+  const slotsEl = document.getElementById('buildingSlotsSummary');
+  if (slotsEl) {
+    slotsEl.innerHTML = `<span>Gebäudeplätze</span><strong>${usedSlots} / ${slots}</strong>`;
+    slotsEl.classList.toggle('building-slots-over', usedSlots > slots);
+  }
+
   const builtRows = state.buildings
     .map(building => {
       const bt = state.buildingTypes.find(type => type.id === building.building_type_id);
@@ -1146,7 +1404,7 @@ function renderBuildings() {
         <td>${bt.name}</td>
         <td>${buildingCategoryLabel(bt.building_category)}</td>
         <td>Level ${level}</td>
-        <td>${num(capacity)} Einheiten</td>
+        <td>Produktabhängig</td>
         <td>${num(staff)}</td>
         <td>Level ${nextLevel}: ${formatBuildingConstructionTime(nextBuildHours)}</td>
         <td><span class="building-upgrade-cost">-${money(Math.abs(nextCost))}</span></td>
@@ -1174,19 +1432,43 @@ function retailSaleContext() {
   const buildingType = state.buildingTypes.find(
     bt => bt.id === product?.required_retail_building_type_id
   );
-  const building = buildingType
-    ? state.buildings.find(
-        b => b.building_type_id === buildingType.id && b.status === 'active'
-      )
+  const matchingBuildings = buildingType
+    ? state.buildings.filter(b => b.building_type_id === buildingType.id && b.status === 'active')
+    : [];
+
+  const productRunningJob = state.retailSaleJobs.find(
+    job => job.product_id === productId && job.status === 'running'
+  ) || null;
+
+  const runningBuilding = productRunningJob
+    ? matchingBuildings.find(building => building.id === productRunningJob.building_id)
     : null;
 
+  const freeBuilding = matchingBuildings.find(building =>
+    !state.retailSaleJobs.some(job => job.building_id === building.id && job.status === 'running')
+  ) || null;
+
+  const building = runningBuilding || freeBuilding || matchingBuildings[0] || null;
+
   const multiplier = building ? buildingLevelMultiplier(building.level) : 1;
-  const unitsPerHour = buildingType && building
-    ? Number(buildingType.base_units_per_hour || 0) * multiplier
+  const baseProductRetailRate = Number(product?.base_retail_rate || 0);
+  const baseUnitsPerHour = buildingType && building && baseProductRetailRate > 0
+    ? Math.max(1, Math.floor(baseProductRetailRate * multiplier))
     : 0;
-  const runningJob = building
-    ? state.retailSaleJobs.find(j => j.building_id === building.id && j.status === 'running')
-    : null;
+
+  const productionCost = Number(inventory?.average_unit_cost || 0);
+  const referencePrice = productionCost * 2 * qualityMultiplier(quality);
+  const priceInput = document.getElementById('retailPrice');
+  const enteredPrice = Number(priceInput?.value || 0);
+  const price = enteredPrice > 0 ? enteredPrice : referencePrice;
+
+  const priceRatio = referencePrice > 0 ? price / referencePrice : 1;
+  const demandFactor = Math.max(0.10, Math.min(2.00, 1 - 0.375 * (priceRatio - 1)));
+  const unitsPerHour = baseUnitsPerHour > 0
+    ? Math.max(1, Math.floor(baseUnitsPerHour * demandFactor))
+    : 0;
+
+  const runningJob = productRunningJob;
 
   return {
     product,
@@ -1194,11 +1476,15 @@ function retailSaleContext() {
     buildingType,
     building,
     runningJob,
+    baseProductRetailRate,
+    baseUnitsPerHour,
     unitsPerHour,
     available: Number(inventory?.quantity || 0),
-    productionCost: Number(inventory?.average_unit_cost || 0),
+    productionCost,
     quality,
-    price: Number(inventory?.average_unit_cost || 0) * 2 * qualityMultiplier(quality)
+    referencePrice,
+    price,
+    demandFactor
   };
 }
 
@@ -1214,7 +1500,7 @@ function retailQuantityFromInput(rawValue) {
         matchedHours: true,
         matchedTime: false,
         hours,
-        units: ctx.unitsPerHour * hours
+        units: Math.floor(ctx.unitsPerHour * hours)
       };
     }
   }
@@ -1254,6 +1540,34 @@ function retailQuantityFromInput(rawValue) {
     hours: null,
     units: Number.isFinite(numeric) ? Math.floor(numeric) : 0
   };
+}
+
+function rememberRetailQuantityExpression(input, rawValue, parsed) {
+  if (!input) return;
+  if (parsed?.matchedHours || parsed?.matchedTime) {
+    input.dataset.quantityMode = parsed.matchedTime ? 'time' : 'hours';
+    input.dataset.quantityExpression = String(rawValue ?? '').trim();
+  } else {
+    input.dataset.quantityMode = 'fixed';
+    delete input.dataset.quantityExpression;
+  }
+}
+
+function recalculateRetailQuantityFromRememberedExpression() {
+  const qtyInput = document.getElementById('retailQty');
+  if (!qtyInput?.dataset.quantityExpression) return false;
+
+  const parsed = retailQuantityFromInput(qtyInput.dataset.quantityExpression);
+  if (!(parsed.matchedHours || parsed.matchedTime)) {
+    delete qtyInput.dataset.quantityMode;
+    delete qtyInput.dataset.quantityExpression;
+    return false;
+  }
+
+  const ctx = retailSaleContext();
+  const available = Math.max(0, Math.floor(ctx.available || 0));
+  qtyInput.value = formatRetailQuantityInput(Math.min(parsed.units, available));
+  return true;
 }
 
 function formatRetailQuantityInput(units) {
@@ -1311,6 +1625,7 @@ function renderRetailSale() {
   const button = document.getElementById('retailSaleBtn');
   const qtyInput = document.getElementById('retailQty');
   const qualitySelect = document.getElementById('retailQuality');
+  const priceInput = document.getElementById('retailPrice');
   const maxBtn = document.getElementById('retailMaxBtn');
   const h24Btn = document.getElementById('retail24Btn');
   if (!select || !details || !button || !qtyInput) return;
@@ -1351,16 +1666,31 @@ function renderRetailSale() {
 
   let ctx = retailSaleContext();
 
+  if (priceInput && !priceInput.dataset.manualPrice && ctx.referencePrice > 0 && !ctx.runningJob) {
+    priceInput.value = ctx.referencePrice.toFixed(2);
+    ctx = retailSaleContext();
+  }
+
   // Während eines laufenden Verkaufs bleibt der komplette Startzustand sichtbar.
   if (ctx.runningJob) {
     select.dataset.runningJobId = ctx.runningJob.id;
     select.value = ctx.runningJob.product_id;
     if (qualitySelect) qualitySelect.value = String(ctx.runningJob.quality_level || 1);
     qtyInput.value = ctx.runningJob.start_input_text || formatRetailQuantityInput(ctx.runningJob.quantity);
+    const runningSnapshot = ctx.runningJob.start_snapshot || {};
+    if (priceInput) priceInput.value = Number(runningSnapshot.unitPrice ?? (Number(ctx.runningJob.total_value || 0) / Number(ctx.runningJob.quantity || 1))).toFixed(2);
     ctx = retailSaleContext();
   } else if (select.dataset.runningJobId) {
     delete select.dataset.runningJobId;
     qtyInput.value = '1';
+    delete qtyInput.dataset.quantityMode;
+    delete qtyInput.dataset.quantityExpression;
+    if (priceInput) {
+      delete priceInput.dataset.manualPrice;
+      const resetCtx = retailSaleContext();
+      if (resetCtx.referencePrice > 0) priceInput.value = resetCtx.referencePrice.toFixed(2);
+    }
+    ctx = retailSaleContext();
   }
 
   const parsedQty = retailQuantityFromInput(qtyInput.value);
@@ -1368,12 +1698,13 @@ function renderRetailSale() {
   const wholeUnits = Number.isInteger(qty);
   const hasStock = ctx.product && qty > 0 && wholeUnits && ctx.available + 1e-9 >= qty;
   const saleHours = ctx.unitsPerHour > 0 ? qty / ctx.unitsPerHour : 0;
-  const hasPrice = ctx.productionCost > 0;
+  const hasPrice = ctx.productionCost > 0 && Number(ctx.price || 0) > 0;
   const ready = !!ctx.product && !!ctx.building && !ctx.runningJob && hasStock && hasPrice && saleHours > 0;
 
   button.classList.remove('retail-cancel-mode');
   select.disabled = !!ctx.runningJob;
   if (qualitySelect) qualitySelect.disabled = !!ctx.runningJob;
+  if (priceInput) priceInput.disabled = !!ctx.runningJob;
   qtyInput.disabled = !!ctx.runningJob;
   if (maxBtn) maxBtn.disabled = !!ctx.runningJob;
   if (h24Btn) h24Btn.disabled = !!ctx.runningJob;
@@ -1429,11 +1760,14 @@ function renderRetailSale() {
   details.innerHTML = ctx.product ? [
     `<div class="kv"><span>Verkaufsgebäude</span><strong>${ctx.buildingType?.name || '–'}</strong></div>`,
     `<div class="kv"><span>Gebäudestatus</span><strong class="${ctx.building ? 'retail-ready' : 'missing-building-warning'}">${ctx.building ? 'Bereit' : 'Benötigtes Gebäude fehlt'}</strong></div>`,
+    `<div class="kv"><span>Produkt-Basisverkaufsrate</span><strong>${ctx.product ? `${num(ctx.product.base_retail_rate || 0)} Einheiten / Std.` : '–'}</strong></div>`,
     `<div class="kv"><span>Verkaufsrate</span><strong>${ctx.building ? `${num(ctx.unitsPerHour)} Einheiten / Std.` : '–'}</strong></div>`,
     `<div class="kv"><span>Qualität</span><strong>Q${ctx.quality} (+${Math.round((qualityMultiplier(ctx.quality)-1)*100)}% Wert)</strong></div>`,
     `<div class="kv"><span>Verfügbarer Bestand</span><strong>${num(ctx.available)} Einheiten</strong></div>`,
     `<div class="kv"><span>Ausgewählte Menge</span><strong>${qty > 0 ? `${num(qty)} Einheiten` : '–'}</strong></div>`,
-    `<div class="kv"><span>Verkaufspreis</span><strong>${money(ctx.price)} / Einheit</strong></div>`,
+    `<div class="kv"><span>Referenzpreis</span><strong>${money(ctx.referencePrice)} / Einheit</strong></div>`,
+    `<div class="kv"><span>Gewählter Verkaufspreis</span><strong>${money(ctx.price)} / Einheit</strong></div>`,
+    `<div class="kv"><span>Preisbedingte Nachfrage</span><strong>${Math.round(ctx.demandFactor * 100)}%</strong></div>`,
     `<div class="kv"><span>Verkaufsdauer</span><strong>${ctx.building && saleHours > 0 ? formatProductionDuration(saleHours) : '–'}</strong></div>`,
     `<div class="kv"><span>Voraussichtliches Ende</span><strong>${ctx.building && saleHours > 0 ? formatProductionFinish(saleHours) : '–'}</strong></div>`,
     `<div class="kv"><span>Erwarteter Erlös</span><strong class="retail-revenue-positive">${money(expectedRevenue)}</strong></div>`,
@@ -1831,6 +2165,16 @@ function renderFinanceSummary() {
     .filter(t => ['market_fee', 'retail_cancel_fee'].includes(t.transaction_type))
     .reduce((sum, t) => sum + Number(t.amount || 0), 0));
 
+  const bondInterestIncome = transactions
+    .filter(t => ['bond_interest_income','bond_interest_state'].includes(t.transaction_type))
+    .reduce((sum, t) => sum + Number(t.amount || 0), 0);
+
+  const bondInterestPaid = Math.abs(transactions
+    .filter(t => t.transaction_type === 'bond_interest_paid')
+    .reduce((sum, t) => sum + Number(t.amount || 0), 0));
+
+  const netBondInterest = bondInterestIncome - bondInterestPaid;
+
   const buildingRefunds = transactions
     .filter(t => t.transaction_type === 'building_refund')
     .reduce((sum, t) => sum + Number(t.amount || 0), 0);
@@ -1860,7 +2204,7 @@ function renderFinanceSummary() {
 
   const researchDisplayCosts = directResearchCosts + researchMarketBuyCosts;
 
-  const revenue = netSales + fees + retailSales + buildingRefunds;
+  const revenue = netSales + fees + retailSales + buildingRefunds + bondInterestIncome;
 
   // Produktionskosten = tatsächlich verbrauchte Beschaffungskosten + Personalkosten.
   const productionCosts = jobs.reduce(
@@ -1875,7 +2219,10 @@ function renderFinanceSummary() {
     'retail_cancel_fee',
     'market_buy',
     'research',
-    'construction'
+    'construction',
+    'bond_investment',
+    'bond_repayment',
+    'bond_interest_paid'
   ]);
 
   const otherCosts = Math.abs(transactions
@@ -1884,7 +2231,7 @@ function renderFinanceSummary() {
 
   // Forschungseinheiten aus Marktkäufen dürfen nicht doppelt abgezogen werden:
   // researchDisplayCosts ist nur Anzeige; kostenwirksam sind directResearchCosts + marketBuyCosts.
-  const profit = revenue - productionCosts - directResearchCosts - fees - buildingCosts - marketBuyCosts - otherCosts;
+  const profit = revenue - productionCosts - directResearchCosts - fees - buildingCosts - marketBuyCosts - bondInterestPaid - otherCosts;
   const profitClass = profit < 0 ? 'finance-negative' : 'finance-positive';
 
   const periodLabel =
@@ -1900,6 +2247,12 @@ function renderFinanceSummary() {
     <div class="finance-summary-card finance-cost-card"><span>Gebühren</span><strong>-${money(fees)}</strong></div>
     <div class="finance-summary-card finance-cost-card"><span>Baukosten</span><strong>${buildingCosts > 0 ? `-${money(buildingCosts)}` : money(0)}</strong></div>
     <div class="finance-summary-card finance-cost-card"><span>Marktkäufe</span><strong>${marketBuyCosts > 0 ? `-${money(marketBuyCosts)}` : money(0)}</strong></div>
+    <div class="finance-summary-card ${netBondInterest < 0 ? 'finance-cost-card' : ''}">
+      <span>Zinsen</span>
+      <strong class="${netBondInterest < 0 ? 'finance-negative' : netBondInterest > 0 ? 'finance-positive' : ''}">
+        ${netBondInterest < 0 ? '-' : netBondInterest > 0 ? '+' : ''}${money(Math.abs(netBondInterest))}
+      </strong>
+    </div>
     ${otherCosts > 0 ? `<div class="finance-summary-card finance-cost-card"><span>Sonstige Kosten</span><strong>-${money(otherCosts)}</strong></div>` : ''}
     <div class="finance-summary-card finance-profit-card ${profit < 0 ? 'finance-profit-loss' : 'finance-profit-gain'}"><span>Gewinn / Verlust</span><strong class="${profitClass}">${profit < 0 ? '-' : ''}${money(Math.abs(profit))}</strong></div>
   `;
@@ -1913,6 +2266,238 @@ function renderFinanceSummary() {
 
   renderFinanceTable();
 }
+
+
+function bondStatusLabel(status) {
+  return ({
+    open:'Offen',
+    funded:'Voll finanziert',
+    closed:'Beendet',
+    active:'Aktiv',
+    repaid:'Getilgt',
+    auto_repaid:'Automatisch getilgt',
+    defaulted:'Ausgefallen',
+    cancelled:'Storniert'
+  })[status] || status || '–';
+}
+
+function formatBondDate(value) {
+  if (!value) return '–';
+  return new Date(value).toLocaleString('de-DE', {
+    day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit'
+  }) + ' Uhr';
+}
+
+function updateBondRequestPreview() {
+  const countInput = document.getElementById('bondRequestCount');
+  const preview = document.getElementById('bondRequestAmountPreview');
+  if (!countInput || !preview) return;
+  const count = Math.max(0, Math.floor(Number(countInput.value || 0)));
+  preview.textContent = money(count * 5000);
+}
+
+function renderBonds() {
+  const dashboard = state.bondDashboard;
+  const container = document.getElementById('bondFinanceContent');
+  if (!container) return;
+
+  if (!dashboard) {
+    container.innerHTML = '<p class="muted">Anleihedaten konnten nicht geladen werden.</p>';
+    return;
+  }
+
+  const unlocked = Number(state.company?.company_level || 0) >= 10;
+  const buildingValue = Number(dashboard.building_value || 0);
+  const creditLimit = Number(dashboard.credit_limit || 0);
+  const outstanding = Number(dashboard.outstanding_principal || 0);
+  const reserved = Number(dashboard.reserved_requests || 0);
+  const available = Number(dashboard.available_credit || 0);
+  const defaultDays = Number(dashboard.default_days || 0);
+
+  const warning = defaultDays > 0
+    ? `<div class="bond-warning"><strong>⚠ Zinsausfall: ${defaultDays} von 3 Tagen.</strong><span>Nach dem dritten aufeinanderfolgenden Ausfall wird das Unternehmen zurückgesetzt.</span></div>`
+    : '';
+
+  const overview = `
+    <div class="bond-overview">
+      <div class="finance-summary-card"><span>Gebäudewert</span><strong>${money(buildingValue)}</strong></div>
+      <div class="finance-summary-card"><span>Kreditlimit (99%)</span><strong>${money(creditLimit)}</strong></div>
+      <div class="finance-summary-card"><span>Offene Kreditsumme</span><strong>${money(outstanding)}</strong></div>
+      <div class="finance-summary-card"><span>Reservierte Anfragen</span><strong>${money(reserved)}</strong></div>
+      <div class="finance-summary-card"><span>Noch verfügbar</span><strong>${money(available)}</strong></div>
+    </div>`;
+
+  if (!unlocked) {
+    container.innerHTML = `${warning}${overview}<div class="bond-locked"><strong>🔒 Anleihen werden auf Unternehmenslevel 10 freigeschaltet.</strong></div>`;
+    return;
+  }
+
+  const myRequests = dashboard.my_requests || [];
+  const openRequests = dashboard.open_requests || [];
+  const borrowed = dashboard.my_borrowed_positions || [];
+  const investments = dashboard.my_investments || [];
+
+  const myRequestRows = myRequests.map(r => `<tr>
+    <td>${money(r.requested_amount)}</td>
+    <td>${money(r.funded_amount)}</td>
+    <td>${money(r.remaining_amount)}</td>
+    <td>${num(r.daily_interest_rate)}%</td>
+    <td>${bondStatusLabel(r.status)}</td>
+    <td>${formatBondDate(r.created_at)}</td>
+  </tr>`);
+
+  const marketRows = openRequests.map(r => `<tr>
+    <td>${r.borrower_name}${r.borrower_type === 'npc' ? ' (NPC)' : ''}</td>
+    <td>${money(r.requested_amount)}</td>
+    <td>${money(r.remaining_amount)}</td>
+    <td>${num(r.daily_interest_rate)}% / Tag</td>
+    <td>
+      <div class="bond-inline-action">
+        <input type="number" id="bondInvest-${r.id}" min="0.01" step="0.01" max="${Number(r.remaining_amount || 0)}" placeholder="OC$">
+        <button type="button" onclick="investBondRequest('${r.id}')">Bereitstellen</button>
+      </div>
+    </td>
+  </tr>`);
+
+  const now = Date.now();
+  const borrowedRows = borrowed.map(i => {
+    const active = i.status === 'active';
+    const matured = active && new Date(i.matures_at).getTime() <= now;
+    return `<tr>
+      <td>${i.lender_name}${i.lender_type === 'npc' ? ' (NPC)' : ''}</td>
+      <td>${money(i.original_principal)}</td>
+      <td>${money(i.outstanding_principal)}</td>
+      <td>${num(i.daily_interest_rate)}%</td>
+      <td>${money(i.total_received)} / ${money(i.target_received)}</td>
+      <td>${formatBondDate(i.matures_at)}</td>
+      <td>${bondStatusLabel(i.status)}</td>
+      <td>
+        ${active ? `<div class="bond-inline-action">
+          <input type="number" id="bondRepay-${i.id}" min="0.01" step="0.01" max="${Number(i.outstanding_principal || 0)}" placeholder="OC$" ${matured ? '' : 'disabled'}>
+          <button type="button" onclick="repayBondInvestment('${i.id}')" ${matured ? '' : 'disabled'}>${matured ? 'Tilgen' : '14 Tage'}</button>
+        </div>` : '–'}
+      </td>
+    </tr>`;
+  });
+
+  const investmentRows = investments.map(i => `<tr>
+    <td>${i.borrower_name}${i.borrower_type === 'npc' ? ' (NPC)' : ''}</td>
+    <td>${money(i.original_principal)}</td>
+    <td>${money(i.outstanding_principal)}</td>
+    <td>${num(i.daily_interest_rate)}%</td>
+    <td class="finance-positive">+${money(i.interest_received)}</td>
+    <td>${money(i.total_received)} / ${money(i.target_received)}</td>
+    <td>${bondStatusLabel(i.status)}</td>
+  </tr>`);
+
+  container.innerHTML = `
+    ${warning}
+    ${overview}
+    <div class="bond-grid">
+      <section class="bond-section">
+        <h3>Anleihen anfragen</h3>
+        <p class="muted">1 Anleihe = 5.000 OC$. Mindestzins 0,50% täglich. Das Kreditlimit entspricht 99% des Gebäudewerts, abgerundet auf 5.000 OC$.</p>
+        <form id="bondRequestForm" class="bond-request-form">
+          <label>Anzahl Anleihen
+            <input type="number" id="bondRequestCount" min="1" step="1" value="1">
+          </label>
+          <label>Täglicher Zinssatz
+            <input type="number" id="bondRequestRate" min="0.50" step="0.01" value="0.50">
+          </label>
+          <div class="kv bond-request-preview"><span>Anfragevolumen</span><strong id="bondRequestAmountPreview">${money(5000)}</strong></div>
+          <button type="submit">Kredit anfragen</button>
+        </form>
+      </section>
+
+      <section class="bond-section">
+        <h3>Meine Kreditanfragen</h3>
+        <div class="table-wrap">${renderTable(['Anfrage','Finanziert','Rest','Zins','Status','Erstellt'], myRequestRows)}</div>
+      </section>
+    </div>
+
+    <section class="bond-section">
+      <h3>Offene Anleihen anderer Unternehmen</h3>
+      <div class="table-wrap">${renderTable(['Unternehmen','Anfrage','Noch offen','Zins','Investition'], marketRows)}</div>
+    </section>
+
+    <section class="bond-section">
+      <h3>Meine aufgenommenen Kredite</h3>
+      <p class="muted">Tilgung ist je Kreditanteil 14 Tage nach Finanzierung möglich. Ohne aktive Tilgung läuft die tägliche Zahlung weiter, bis insgesamt 105% des ursprünglichen Kreditanteils beim Kreditgeber angekommen sind.</p>
+      <div class="table-wrap">${renderTable(['Kreditgeber','Ursprünglich','Restschuld','Zins','Erhalten / Ziel','Tilgbar ab','Status','Tilgung'], borrowedRows)}</div>
+    </section>
+
+    <section class="bond-section">
+      <h3>Meine Anleiheinvestitionen</h3>
+      <div class="table-wrap">${renderTable(['Kreditnehmer','Investiert','Restforderung','Zins','Zinserlöse','Erhalten / Ziel','Status'], investmentRows)}</div>
+    </section>
+  `;
+
+  const requestForm = document.getElementById('bondRequestForm');
+  const requestCount = document.getElementById('bondRequestCount');
+  requestCount?.addEventListener('input', () => {
+    const whole = Math.max(0, Math.floor(Number(requestCount.value || 0)));
+    if (requestCount.value !== '' && String(whole) !== requestCount.value) requestCount.value = String(whole);
+    updateBondRequestPreview();
+  });
+
+  requestForm?.addEventListener('submit', async event => {
+    event.preventDefault();
+    const count = Math.floor(Number(document.getElementById('bondRequestCount')?.value || 0));
+    const rate = Number(document.getElementById('bondRequestRate')?.value || 0);
+    if (count < 1 || rate < 0.50) {
+      gameAlert('Bitte mindestens 1 Anleihe und mindestens 0,50% Tageszins angeben.');
+      return;
+    }
+
+    const total = count * 5000;
+    if (total > available) {
+      gameAlert(`Dein verfügbarer Kreditspielraum beträgt aktuell ${money(available)}.`);
+      return;
+    }
+
+    if (!await gameConfirm(`${count} Anleihe${count === 1 ? '' : 'n'} über ${money(total)} zu ${num(rate)}% Tageszins anfragen?`)) return;
+    const { error } = await sb.rpc('create_bond_request', {
+      p_company_id: state.company.id,
+      p_bond_count: count,
+      p_daily_interest_rate: rate
+    });
+    if (error) gameAlert(error.message); else await loadCompany();
+  });
+}
+
+window.investBondRequest = async function(requestId) {
+  const input = document.getElementById(`bondInvest-${requestId}`);
+  const amount = Number(input?.value || 0);
+  if (amount <= 0) {
+    gameAlert('Bitte einen Betrag größer als 0 OC$ eingeben.');
+    return;
+  }
+  if (!await gameConfirm(`${money(amount)} für diese Anleihe bereitstellen? Der Betrag wird sofort von deinem Kontostand abgebucht.`)) return;
+
+  const { error } = await sb.rpc('invest_in_bond_request', {
+    p_investor_company_id: state.company.id,
+    p_request_id: requestId,
+    p_amount: amount
+  });
+  if (error) gameAlert(error.message); else await loadCompany();
+};
+
+window.repayBondInvestment = async function(investmentId) {
+  const input = document.getElementById(`bondRepay-${investmentId}`);
+  const amount = Number(input?.value || 0);
+  if (amount <= 0) {
+    gameAlert('Bitte einen Tilgungsbetrag größer als 0 OC$ eingeben.');
+    return;
+  }
+  if (!await gameConfirm(`${money(amount)} auf diesen Kreditanteil tilgen?`)) return;
+
+  const { error } = await sb.rpc('repay_bond_investment', {
+    p_company_id: state.company.id,
+    p_investment_id: investmentId,
+    p_amount: amount
+  });
+  if (error) gameAlert(error.message); else await loadCompany();
+};
 
 function researchInventoryContext() {
   const product = state.products.find(p => p.category === 'research' && p.name === 'Forschungseinheit');
@@ -2088,6 +2673,7 @@ function productOptionsGroupedByBuilding(products) {
 
 function renderAll() {
   const c = state.company;
+  updateFeatureLocks();
   document.getElementById('statCompany').textContent = c.name;
   const cashValue = Number(c.cash_balance || 0);
   const statCash = document.getElementById('statCash');
@@ -2105,19 +2691,22 @@ function renderAll() {
   const statValueChange = document.getElementById('statValueChange');
   if (statValueChange) {
     const valueChange = Number(state.companyValueChange || 0);
-    statValueChange.textContent = valueChange > 0
-      ? `+${money(valueChange)}`
-      : valueChange < 0
-        ? `-${money(Math.abs(valueChange))}`
-        : money(0);
+    statValueChange.textContent = companyValueChangeDisplay(c.company_value, valueChange);
     statValueChange.className = `company-value-change ${valueChange > 0 ? 'company-value-change-positive' : valueChange < 0 ? 'company-value-change-negative' : 'company-value-change-zero'}`;
   }
   renderResearch();
 
+  const xpCtx = xpProgressContext(c);
+  const slotCount = buildingSlotsForLevel(c.company_level);
+  const usedSlotCount = state.buildings.length;
+
   const companyRows = [
     `<div class="kv"><span>Name</span><strong>${c.name}</strong></div>`,
     `<div class="kv"><span>Status</span><strong class="company-online-status presence-status"></strong></div>`,
-    `<div class="kv"><span>Level</span><strong>${num(c.company_level)}</strong></div>`
+    `<div class="kv"><span>Level</span><strong>${num(c.company_level)}</strong></div>`,
+    `<div class="kv"><span>Erfahrung</span><strong>${xpCtx.level >= 30 ? `${num(xpCtx.totalXp)} XP · Max-Level` : `${num(xpCtx.progress)} / ${num(xpCtx.needed)} XP`}</strong></div>`,
+    `<div class="xp-progress"><span style="width:${xpCtx.percent}%"></span></div>`,
+    `<div class="kv"><span>Gebäudeplätze</span><strong>${usedSlotCount} / ${slotCount}</strong></div>`
   ].join('');
   document.getElementById('companySummary').innerHTML = companyRows;
 
@@ -2129,12 +2718,14 @@ function renderAll() {
     : `Namensänderung wieder ab ${renameAvailability.availableAt.toLocaleString('de-DE')} möglich`;
 
   document.getElementById('companyDetails').innerHTML = renderTable(
-    ['Unternehmen','Status','Level','Kontostand','Mitarbeiter','Unternehmenswert','Gebäudewert','Patentwert','Schulden'],
+    ['Unternehmen','Status','Level','XP','Gebäudeplätze','Kontostand','Mitarbeiter','Unternehmenswert','Gebäudewert','Patentwert','Schulden'],
     [`<tr>
       <td><span class="company-name-edit-wrap"><strong>${c.name}</strong><button type="button" class="company-name-edit-btn" onclick="renameCompanyFromCompanyTab()" title="${renameTitle}" aria-label="Unternehmensnamen ändern" ${renameAvailability.allowed ? '' : 'disabled'}>✎</button></span></td>
       <td><span class="company-online-status presence-status"></span></td>
       <td>${num(c.company_level)}</td>
-      <td class="${Number(c.cash_balance || 0) < 0 ? 'negative-balance' : ''}">${balanceMoney(Number(c.cash_balance || 0))}</td>
+      <td>${xpCtx.level >= 30 ? `${num(xpCtx.totalXp)} XP` : `${num(xpCtx.progress)} / ${num(xpCtx.needed)}`}</td>
+      <td>${usedSlotCount} / ${slotCount}</td>
+      <td id="companyCashBalance" class="${Number(c.cash_balance || 0) < 0 ? 'negative-balance' : ''}">${balanceMoney(Number(c.cash_balance || 0))}</td>
       <td>${num(automaticEmployees)} Mitarbeiter</td>
       <td title="Wird täglich um 01:00 Uhr neu berechnet">${money(c.company_value)}</td>
       <td>${money(companyBuildingValue)}</td>
@@ -2146,6 +2737,7 @@ function renderAll() {
 
   document.getElementById('recentTransactions').innerHTML = renderTable(['Betrag','Beschreibung','Zeit'], state.transactions.slice(0,8).map(t=>`<tr><td class="${transactionAmountClass(t.transaction_type)}">${money(t.amount)}</td><td>${t.description || transactionLabel(t.transaction_type)}</td><td>${new Date(t.created_at).toLocaleString('de-DE')}</td></tr>`));
   renderFinanceSummary();
+  renderBonds();
   renderStorage();
 
   const visibleProducts = operationalProducts();
@@ -2156,7 +2748,9 @@ function renderAll() {
   if (visibleProducts.some(p => p.id === previousProductionProduct)) {
     productionProductSelect.value = previousProductionProduct;
   }
-  renderMarketSellItems();
+  const sellOpts = productOptionsGroupedByBuilding(stockedProducts());
+  document.getElementById('sellProduct').innerHTML = sellOpts || '<option value="">Keine Produkte im Lager</option>';
+  updateSellQualityOptions();
   renderProductionRecipe();
   renderBuildings();
   renderRetailSale();
@@ -2231,6 +2825,7 @@ document.getElementById('logoutBtn').addEventListener('click', async () => {
   }
   stopPresenceHeartbeat();
   stopNpcMarketHeartbeat();
+  stopCompanyBalanceWatcher();
   await sb?.auth.signOut();
 });
 
@@ -2249,7 +2844,7 @@ document.getElementById('resetCompanyBtn').addEventListener('click', async () =>
   if (!state.company?.id) return;
 
   const confirmed = await gameConfirm(
-    'Unternehmen wirklich zurücksetzen? Alle Gebäude, Lagerbestände, laufenden Produktionen, Marktaktivitäten und Finanzdaten werden gelöscht. Firmenname und Account bleiben erhalten. Startkapital danach: 50.000 OC$.'
+    'Unternehmen wirklich zurücksetzen? Alle Gebäude, Lagerbestände, laufenden Produktionen, Marktaktivitäten und Finanzdaten werden gelöscht. Firmenname und Account bleiben erhalten. Startkapital danach: 100.000 OC$. Zusätzlich erhältst du eine Elektronikfabrik und ein Elektronikgeschäft.'
   );
   if (!confirmed) return;
 
@@ -2572,132 +3167,92 @@ buildingBuilderBtn?.addEventListener('click', () => {
 buildingCategoryFilter?.addEventListener('change', renderBuildingCatalog);
 
 // Market
-function stockedMaterials() {
-  return state.materials.filter(material =>
-    materialInventoryLots(material.id).some(lot => Number(lot.quantity || 0) > 0)
-  );
-}
-
-function renderMarketSellItems() {
-  const typeSelect = document.getElementById('sellItemType');
-  const itemSelect = document.getElementById('sellProduct');
-  const qtyInput = document.getElementById('sellQty');
-  if (!typeSelect || !itemSelect) return;
-
-  const type = typeSelect.value || 'product';
-  const previous = itemSelect.value;
-
-  if (type === 'material') {
-    const materials = stockedMaterials().sort((a,b)=>a.name.localeCompare(b.name,'de-DE'));
-    itemSelect.innerHTML = materials.length
-      ? materials.map(material => `<option value="${material.id}">${material.name}</option>`).join('')
-      : '<option value="">Keine Rohstoffe im Lager</option>';
-    if (materials.some(material => material.id === previous)) itemSelect.value = previous;
-    if (qtyInput) {
-      qtyInput.min = '0.01';
-      qtyInput.step = '0.01';
-    }
-  } else {
-    const products = stockedProducts();
-    itemSelect.innerHTML = productOptionsGroupedByBuilding(products) || '<option value="">Keine Produkte im Lager</option>';
-    if (products.some(product => product.id === previous)) itemSelect.value = previous;
-    if (qtyInput) {
-      qtyInput.min = '1';
-      qtyInput.step = '1';
-    }
-  }
-
-  updateSellQualityOptions();
-}
-
 function updateSellQualityOptions() {
-  const type = document.getElementById('sellItemType')?.value || 'product';
-  const itemId = document.getElementById('sellProduct')?.value;
-  const qualitySelect = document.getElementById('sellQuality');
-  const priceInput = document.getElementById('sellPrice');
+  const productId=document.getElementById('sellProduct')?.value;
+  const qualitySelect=document.getElementById('sellQuality');
+  const priceInput=document.getElementById('sellPrice');
   if (!qualitySelect) return;
-
-  const lots = type === 'material'
-    ? materialInventoryLots(itemId).filter(lot => Number(lot.quantity || 0) > 0)
-    : availableProductQualities(itemId);
-
-  const previous = qualitySelect.value;
-  qualitySelect.innerHTML = lots.length
-    ? lots
-        .sort((a,b)=>Number(a.quality_level||1)-Number(b.quality_level||1))
-        .map(lot => `<option value="${Number(lot.quality_level || 1)}">Q${Number(lot.quality_level || 1)} – ${num(lot.quantity)} verfügbar</option>`)
-        .join('')
-    : '<option value="1">Q1 – 0 verfügbar</option>';
-
-  if (lots.some(lot => String(lot.quality_level || 1) === String(previous))) {
-    qualitySelect.value = previous;
-  }
-
-  const quality = Number(qualitySelect.value || 1);
-  const lot = lots.find(row => Number(row.quality_level || 1) === quality);
-  if (priceInput && lot && Number(lot.average_unit_cost || 0) > 0) {
-    priceInput.value = (Number(lot.average_unit_cost) * 2 * qualityMultiplier(quality)).toFixed(2);
-  }
+  const lots=availableProductQualities(productId);
+  const previous=qualitySelect.value;
+  qualitySelect.innerHTML=lots.length ? lots.map(l=>`<option value="${Number(l.quality_level||1)}">Q${Number(l.quality_level||1)} – ${num(l.quantity)} verfügbar</option>`).join('') : '<option value="1">Q1 – 0 verfügbar</option>';
+  if (lots.some(l=>String(l.quality_level)===String(previous))) qualitySelect.value=previous;
+  const lot=productLot(productId,Number(qualitySelect.value||1));
+  if (priceInput && lot && Number(lot.average_unit_cost||0)>0) priceInput.value=(Number(lot.average_unit_cost)*2*qualityMultiplier(qualitySelect.value)).toFixed(2);
 }
 
 document.getElementById('sellOrderForm').addEventListener('submit', async e => {
   e.preventDefault();
-
-  const type = document.getElementById('sellItemType')?.value || 'product';
-  const itemId = document.getElementById('sellProduct')?.value;
-  const quality = Number(document.getElementById('sellQuality')?.value || 1);
-  const quantity = Number(document.getElementById('sellQty')?.value);
-  const price = Number(document.getElementById('sellPrice')?.value);
-
-  if (!itemId) {
-    await gameAlert(type === 'material' ? 'Kein Rohstoffbestand zum Verkaufen vorhanden.' : 'Kein Produktbestand zum Verkaufen vorhanden.');
-    return;
-  }
-
-  const rpc = type === 'material' ? 'place_material_sell_order_quality' : 'place_sell_order_quality';
-  const args = type === 'material'
-    ? {
-        p_company_id: state.company.id,
-        p_material_id: itemId,
-        p_quality: quality,
-        p_quantity: quantity,
-        p_price: price
-      }
-    : {
-        p_company_id: state.company.id,
-        p_product_id: itemId,
-        p_quality: quality,
-        p_quantity: quantity,
-        p_price: price
-      };
-
-  const { error } = await sb.rpc(rpc, args);
-  if (error) gameAlert(error.message);
-  else await loadCompany();
+  const { error }=await sb.rpc('place_sell_order_quality',{
+    p_company_id:state.company.id,
+    p_product_id:document.getElementById('sellProduct').value,
+    p_quality:Number(document.getElementById('sellQuality').value||1),
+    p_quantity:Number(document.getElementById('sellQty').value),
+    p_price:Number(document.getElementById('sellPrice').value)
+  });
+  if(error) gameAlert(error.message); else await loadCompany();
 });
 
-document.getElementById('sellItemType')?.addEventListener('change', renderMarketSellItems);
 document.getElementById('sellProduct')?.addEventListener('change', updateSellQualityOptions);
 document.getElementById('sellQuality')?.addEventListener('change', updateSellQualityOptions);
-document.getElementById('retailProduct').addEventListener('change', renderRetailSale);
-document.getElementById('retailQuality')?.addEventListener('change', renderRetailSale);
+document.getElementById('retailProduct').addEventListener('change', () => {
+  const priceInput = document.getElementById('retailPrice');
+  if (priceInput) delete priceInput.dataset.manualPrice;
+  renderRetailSale();
+  recalculateRetailQuantityFromRememberedExpression();
+  renderRetailSale();
+});
+document.getElementById('retailQuality')?.addEventListener('change', () => {
+  const priceInput = document.getElementById('retailPrice');
+  if (priceInput) delete priceInput.dataset.manualPrice;
+  renderRetailSale();
+  recalculateRetailQuantityFromRememberedExpression();
+  renderRetailSale();
+});
+document.getElementById('retailPrice')?.addEventListener('input', event => {
+  event.target.dataset.manualPrice = '1';
+
+  const qtyInput = document.getElementById('retailQty');
+  const fixedQuantity = qtyInput?.dataset.quantityMode === 'fixed'
+    ? qtyInput.value
+    : null;
+
+  recalculateRetailQuantityFromRememberedExpression();
+
+  if (fixedQuantity !== null && qtyInput) {
+    qtyInput.value = fixedQuantity;
+  }
+
+  // renderRetailSale berechnet mit der neuen Verkaufsrate automatisch
+  // Verkaufsdauer und voraussichtliches Ende neu.
+  renderRetailSale();
+});
 document.getElementById('retailMaxBtn').addEventListener('click', () => {
   const ctx = retailSaleContext();
   const maxUnits = Math.max(0, Math.floor(ctx.available || 0));
-  document.getElementById('retailQty').value = formatRetailQuantityInput(maxUnits);
+  const qtyInput = document.getElementById('retailQty');
+  qtyInput.dataset.quantityMode = 'fixed';
+  delete qtyInput.dataset.quantityExpression;
+  qtyInput.value = formatRetailQuantityInput(maxUnits);
   renderRetailSale();
 });
 document.getElementById('retail24Btn').addEventListener('click', () => {
   const ctx = retailSaleContext();
   const capacity24h = Math.max(0, Math.floor((ctx.unitsPerHour || 0) * 24));
   const available = Math.max(0, Math.floor(ctx.available || 0));
-  document.getElementById('retailQty').value = formatRetailQuantityInput(Math.min(capacity24h, available));
+  const qtyInput = document.getElementById('retailQty');
+  qtyInput.dataset.quantityMode = 'fixed';
+  delete qtyInput.dataset.quantityExpression;
+  qtyInput.value = formatRetailQuantityInput(Math.min(capacity24h, available));
   renderRetailSale();
 });
 document.getElementById('retailQty').addEventListener('input', e => {
-  const parsed = retailQuantityFromInput(e.target.value);
+  const rawValue = e.target.value;
+  const parsed = retailQuantityFromInput(rawValue);
+  rememberRetailQuantityExpression(e.target, rawValue, parsed);
   if (parsed.matchedHours || parsed.matchedTime) {
-    e.target.value = formatRetailQuantityInput(parsed.units);
+    const ctx = retailSaleContext();
+    const available = Math.max(0, Math.floor(ctx.available || 0));
+    e.target.value = formatRetailQuantityInput(Math.min(parsed.units, available));
   }
   renderRetailSale();
 });
@@ -2733,12 +3288,15 @@ document.getElementById('retailSaleForm').addEventListener('submit', async e => 
     p_product_id: ctx.product.id,
     p_quality: ctx.quality,
     p_quantity: quantity,
-    p_input_text: document.getElementById('retailQty').value,
+    p_unit_price: ctx.price,
+    p_input_text: document.getElementById('retailQty').dataset.quantityExpression || document.getElementById('retailQty').value,
     p_start_snapshot: {
       quantity,
       quality: ctx.quality,
       hours: saleHours,
       unitPrice: ctx.price,
+      referencePrice: ctx.referencePrice,
+      demandFactor: ctx.demandFactor,
       totalValue: ctx.price * quantity,
       available: ctx.available,
       unitsPerHour: ctx.unitsPerHour,
@@ -2991,10 +3549,14 @@ window.acceptContract=async id=>{ const {error}=await sb.rpc('accept_contract',{
 window.fulfillContract=async id=>{ const {error}=await sb.rpc('fulfill_contract',{p_contract_id:id}); if(error) gameAlert(error.message); else await loadCompany(); };
 window.cancelContract=async id=>{ const {error}=await sb.rpc('cancel_contract',{p_contract_id:id}); if(error) gameAlert(error.message); else await loadCompany(); };
 
-document.addEventListener('visibilitychange', () => {
+document.addEventListener('visibilitychange', async () => {
   if (document.visibilityState === 'visible') {
     touchPresence();
-    runNpcMarketTickAndRefresh();
+    refreshCompanyBalance();
+    updateMarketRefreshTimer();
+    if (document.getElementById('market')?.classList.contains('active-view')) {
+      await loadGameData();
+    }
   }
 });
 
