@@ -2206,9 +2206,12 @@ function renderFinanceSummary() {
 
   const revenue = netSales + fees + retailSales + buildingRefunds + bondInterestIncome;
 
-  // Produktionskosten = tatsächlich verbrauchte Beschaffungskosten + Personalkosten.
+  // Produktionskosten im Finanztab = nur direkte, beim Produktionsstart
+  // tatsächlich angefallene Cash-Kosten (z. B. Personal / Forschungs-Grundkosten).
+  // Der Einstandswert bereits vorhandener Lagerware steckt im finished_unit_cost,
+  // darf hier aber nicht erneut als Aufwand gezählt werden.
   const productionCosts = jobs.reduce(
-    (sum, j) => sum + (Number(j.finished_unit_cost || 0) * Number(j.output_quantity || 0)),
+    (sum, j) => sum + Number(j.production_cash_cost || 0),
     0
   );
 
