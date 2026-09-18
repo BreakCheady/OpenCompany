@@ -2376,36 +2376,18 @@ body.game-dialog-open { overflow: hidden; }
   }
 }
 
-/* v0.10.8 – Versionshinweis im Dashboard nur auf dem Handy */
-.mobile-dashboard-version {
-  display: none;
+/* v0.10.15 – Anfragevolumen bei Anleihen gelb hervorheben */
+.bond-request-preview {
+  background: #fff8d8 !important;
+  border-color: #e4b928 !important;
+  border-width: 2px;
 }
 
-@media (max-width: 820px) {
-  #dashboard {
-    position: relative;
-  }
+.bond-request-preview span {
+  color: #7a6416;
+}
 
-  .mobile-dashboard-version {
-    display: grid;
-    justify-items: end;
-    gap: 1px;
-    margin: -2px 2px 8px auto;
-    width: max-content;
-    color: var(--muted);
-    text-align: right;
-    line-height: 1.2;
-  }
-
-  .mobile-dashboard-version span {
-    font-size: 10px;
-    font-weight: 600;
-  }
-
-  .mobile-dashboard-version small {
-    font-size: 8px;
-    font-weight: 400;
-    opacity: .72;
-  }
+.bond-request-preview strong {
+  color: #6f5600;
 }
 
