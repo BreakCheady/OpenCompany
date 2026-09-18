@@ -2405,3 +2405,37 @@ body.game-dialog-open { overflow: hidden; }
   background: #a92b24 !important;
   border-color: #a92b24 !important;
 }
+
+
+/* v0.10.18 – Versionshinweis ausschließlich auf mobilen Touch-Geräten */
+.mobile-dashboard-version {
+  display: none !important;
+}
+
+@media (max-width: 820px) and (hover: none) and (pointer: coarse) {
+  #dashboard {
+    position: relative;
+  }
+
+  .mobile-dashboard-version {
+    display: grid !important;
+    justify-items: end;
+    gap: 1px;
+    margin: -2px 2px 8px auto;
+    width: max-content;
+    color: var(--muted);
+    text-align: right;
+    line-height: 1.2;
+  }
+
+  .mobile-dashboard-version span {
+    font-size: 10px;
+    font-weight: 600;
+  }
+
+  .mobile-dashboard-version small {
+    font-size: 8px;
+    font-weight: 400;
+    opacity: .72;
+  }
+}
