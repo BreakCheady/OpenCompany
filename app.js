@@ -1495,7 +1495,7 @@ function retailSaleContext() {
   const price = enteredPrice > 0 ? enteredPrice : referencePrice;
 
   const priceRatio = referencePrice > 0 ? price / referencePrice : 1;
-  const demandFactor = Math.max(0.10, Math.min(2.00, 1 - 0.375 * (priceRatio - 1)));
+  const demandFactor = Math.max(0.10, Math.min(2.00, 1 - (priceRatio - 1)));
   const unitsPerHour = baseUnitsPerHour > 0
     ? Math.max(1, Math.floor(baseUnitsPerHour * demandFactor))
     : 0;
