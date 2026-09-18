@@ -62,10 +62,10 @@ const minimumInputQuality = product => Math.max(1, productQuality(product) - 1);
 
 
 const COMPANY_XP_TOTALS = [
-  0,250,600,1050,1650,2450,3450,4700,6200,7950,9950,
-  12450,15450,18950,22950,27450,32450,38450,45450,53450,
-  62450,72450,83950,96950,111450,127450,145450,165450,
-  187450,211450,237450
+  0,0,250,600,1050,1650,2450,3450,4700,6200,7950,
+  9950,12450,15450,18950,22950,27450,32450,38450,45450,
+  53450,62450,72450,83950,96950,111450,127450,145450,
+  165450,187450,211450
 ];
 
 function buildingSlotsForLevel(level) {
@@ -73,7 +73,7 @@ function buildingSlotsForLevel(level) {
 }
 
 function xpProgressContext(company = state.company) {
-  const level = Math.max(0, Math.min(30, Number(company?.company_level || 0)));
+  const level = Math.max(1, Math.min(30, Number(company?.company_level || 1)));
   const totalXp = Math.max(0, Number(company?.experience_points || 0));
   const currentBase = COMPANY_XP_TOTALS[level] || 0;
   const nextTotal = level >= 30 ? currentBase : COMPANY_XP_TOTALS[level + 1];
