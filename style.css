@@ -2391,3 +2391,17 @@ body.game-dialog-open { overflow: hidden; }
   color: #6f5600;
 }
 
+
+
+/* v0.10.16 – Kreditanfrage abbrechen */
+.bond-cancel-request-btn {
+  background: var(--danger) !important;
+  color: #fff !important;
+  border-color: var(--danger) !important;
+  white-space: nowrap;
+}
+
+.bond-cancel-request-btn:hover {
+  background: #a92b24 !important;
+  border-color: #a92b24 !important;
+}

@@ -2382,6 +2382,9 @@ function renderBonds() {
     <td>${num(r.daily_interest_rate)}%</td>
     <td>${bondStatusLabel(r.status)}</td>
     <td>${formatBondDate(r.created_at)}</td>
+    <td>${r.status === 'open'
+      ? `<button type="button" class="bond-cancel-request-btn" onclick="cancelBondRequest('${r.id}', ${Number(r.funded_amount || 0)})">Abbrechen</button>`
+      : '–'}</td>
   </tr>`);
 
   const marketRows = openRequests.map(r => `<tr>
@@ -2448,7 +2451,7 @@ function renderBonds() {
 
       <section class="bond-section">
         <h3>Meine Kreditanfragen</h3>
-        <div class="table-wrap">${renderTable(['Anfrage','Finanziert','Rest','Zins','Status','Erstellt'], myRequestRows)}</div>
+        <div class="table-wrap">${renderTable(['Anfrage','Finanziert','Rest','Zins','Status','Erstellt','Aktion'], myRequestRows)}</div>
       </section>
     </div>
 
@@ -2501,6 +2504,27 @@ function renderBonds() {
     if (error) gameAlert(error.message); else await loadCompany();
   });
 }
+
+window.cancelBondRequest = async function(requestId, fundedAmount = 0) {
+  const funded = Number(fundedAmount || 0);
+  const message = funded > 0
+    ? `Kreditanfrage wirklich abbrechen? Bereits finanzierte ${money(funded)} bleiben als bestehender Kredit aktiv. Nur der noch offene Rest wird geschlossen.`
+    : 'Kreditanfrage wirklich abbrechen? Die Anfrage wird geschlossen und kann danach nicht weiter finanziert werden.';
+
+  if (!await gameConfirm(message, 'Kreditanfrage abbrechen')) return;
+
+  const { error } = await sb.rpc('cancel_bond_request', {
+    p_company_id: state.company.id,
+    p_request_id: requestId
+  });
+
+  if (error) {
+    await gameAlert(error.message);
+    return;
+  }
+
+  await loadCompany();
+};
 
 window.investBondRequest = async function(requestId) {
   const input = document.getElementById(`bondInvest-${requestId}`);
