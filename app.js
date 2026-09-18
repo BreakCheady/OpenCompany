@@ -273,22 +273,29 @@ function transactionAmountClass(type) {
 
 function buildingLevelMultiplier(level) {
   const lvl = Math.max(1, Number(level || 1));
-  let factor = 1;
-  if (lvl >= 2) factor *= 2;
-  if (lvl >= 3) factor *= 1.95;
-  if (lvl >= 4) factor *= 1.90;
-  if (lvl >= 5) factor *= 1.85;
-  if (lvl >= 6) factor *= Math.pow(1.0366, lvl - 5);
-  return factor;
+  if (lvl <= 1) return 1;
+  return 1 + 0.25 * (lvl - 1) * (lvl + 2);
+}
+
+function buildingUpgradeCost(baseCost, targetLevel) {
+  const base = Math.max(0, Number(baseCost || 0));
+  const level = Math.max(1, Number(targetLevel || 1));
+
+  if (level <= 1) return base;
+
+  const addedCapacity = Math.max(
+    0,
+    buildingLevelMultiplier(level) - buildingLevelMultiplier(level - 1)
+  );
+
+  return base * addedCapacity * 1.75;
 }
 
 function buildingUpgradePercent(nextLevel) {
-  if (nextLevel === 2) return 100;
-  if (nextLevel === 3) return 95;
-  if (nextLevel === 4) return 90;
-  if (nextLevel === 5) return 85;
-  if (nextLevel >= 6) return 3.66;
-  return 0;
+  const level = Math.max(2, Number(nextLevel || 2));
+  const current = buildingLevelMultiplier(level - 1);
+  const next = buildingLevelMultiplier(level);
+  return current > 0 ? ((next / current) - 1) * 100 : 0;
 }
 
 function buildingConstructionHours(targetLevel) {
@@ -1387,7 +1394,7 @@ function renderBuildings() {
       const capacity = Number(bt.base_units_per_hour || 0) * multiplier;
       const nextLevel = level + 1;
       const nextPercent = buildingUpgradePercent(nextLevel);
-      const nextCost = Number(bt.construction_cost || 0) * buildingLevelMultiplier(nextLevel);
+      const nextCost = buildingUpgradeCost(bt.construction_cost, nextLevel);
       const nextBuildHours = buildingConstructionHours(nextLevel);
 
       if (isUnderConstruction) {
@@ -3116,7 +3123,7 @@ window.upgradeBuilding = async function(buildingId, buildingTypeId) {
   const building = state.buildings.find(b => b.id === buildingId);
   const nextLevel = Number(building?.level || 1) + 1;
   const increase = buildingUpgradePercent(nextLevel);
-  const nextCost = Number(bt?.construction_cost || 0) * buildingLevelMultiplier(nextLevel);
+  const nextCost = buildingUpgradeCost(bt?.construction_cost, nextLevel);
 
   const buildHours = buildingConstructionHours(nextLevel);
   const finishText = buildingConstructionFinishText(buildHours);
@@ -3152,7 +3159,7 @@ window.cancelBuildingConstruction = async function(buildingId, buildingTypeId) {
   const isNewBuild = Number(building.level || 1) === 1 && targetLevel === 1;
   const constructionCost = targetLevel === 1
     ? Number(bt.construction_cost || 0)
-    : Number(bt.construction_cost || 0) * buildingLevelMultiplier(targetLevel);
+    : buildingUpgradeCost(bt.construction_cost, targetLevel);
   const refund = constructionCost * 0.95;
 
   const actionText = isNewBuild
@@ -3192,7 +3199,7 @@ window.downgradeBuilding = async function(buildingId, buildingTypeId) {
 
   const refundableCost = isDemolition
     ? Number(bt.construction_cost || 0)
-    : Number(bt.construction_cost || 0) * buildingLevelMultiplier(level);
+    : buildingUpgradeCost(bt.construction_cost, level);
   const refund = refundableCost * 0.95;
 
   const warning = isDemolition
