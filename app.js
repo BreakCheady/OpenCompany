@@ -2434,7 +2434,6 @@ function renderBonds() {
     <div class="bond-grid">
       <section class="bond-section">
         <h3>Anleihen anfragen</h3>
-        <p class="muted">1 Anleihe = 5.000 OC$. Mindestzins 0,50% täglich. Das Kreditlimit entspricht 99% des Gebäudewerts, abgerundet auf 5.000 OC$.</p>
         <form id="bondRequestForm" class="bond-request-form">
           <label>Anzahl Anleihen
             <input type="number" id="bondRequestCount" min="1" step="1" value="1">
