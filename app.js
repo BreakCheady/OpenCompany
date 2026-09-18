@@ -1699,7 +1699,8 @@ function renderRetailSale() {
   const hasStock = ctx.product && qty > 0 && wholeUnits && ctx.available + 1e-9 >= qty;
   const saleHours = ctx.unitsPerHour > 0 ? qty / ctx.unitsPerHour : 0;
   const hasPrice = ctx.productionCost > 0 && Number(ctx.price || 0) > 0;
-  const ready = !!ctx.product && !!ctx.building && !ctx.runningJob && hasStock && hasPrice && saleHours > 0;
+  const demandOk = Number(ctx.demandFactor || 0) >= 0.70;
+  const ready = !!ctx.product && !!ctx.building && !ctx.runningJob && hasStock && hasPrice && saleHours > 0 && demandOk;
 
   button.classList.remove('retail-cancel-mode');
   select.disabled = !!ctx.runningJob;
@@ -1767,7 +1768,7 @@ function renderRetailSale() {
     `<div class="kv"><span>Ausgewählte Menge</span><strong>${qty > 0 ? `${num(qty)} Einheiten` : '–'}</strong></div>`,
     `<div class="kv"><span>Referenzpreis</span><strong>${money(ctx.referencePrice)} / Einheit</strong></div>`,
     `<div class="kv"><span>Gewählter Verkaufspreis</span><strong>${money(ctx.price)} / Einheit</strong></div>`,
-    `<div class="kv"><span>Preisbedingte Nachfrage</span><strong>${Math.round(ctx.demandFactor * 100)}%</strong></div>`,
+    `<div class="kv"><span>Preisbedingte Nachfrage</span><strong class="${ctx.demandFactor >= 0.70 ? 'retail-ready' : 'missing-building-warning'}">${Math.round(ctx.demandFactor * 100)}%</strong></div>`,
     `<div class="kv"><span>Verkaufsdauer</span><strong>${ctx.building && saleHours > 0 ? formatProductionDuration(saleHours) : '–'}</strong></div>`,
     `<div class="kv"><span>Voraussichtliches Ende</span><strong>${ctx.building && saleHours > 0 ? formatProductionFinish(saleHours) : '–'}</strong></div>`,
     `<div class="kv"><span>Erwarteter Erlös</span><strong class="retail-revenue-positive">${money(expectedRevenue)}</strong></div>`,
@@ -1786,6 +1787,8 @@ function renderRetailSale() {
     button.textContent = 'Nicht genügend Bestand';
   } else if (!hasPrice) {
     button.textContent = 'Produktionskosten fehlen';
+  } else if (!demandOk) {
+    button.textContent = 'Mindestens 70% Nachfrage erforderlich';
   } else {
     button.textContent = 'Im Handel verkaufen';
   }
@@ -3368,6 +3371,12 @@ document.getElementById('retailSaleForm').addEventListener('submit', async e => 
 
   const parsedQuantity = retailQuantityFromInput(document.getElementById('retailQty').value);
   const quantity = Number(parsedQuantity.units || 0);
+
+  if (Number(ctx.demandFactor || 0) < 0.70) {
+    await gameAlert('Die Nachfrage muss mindestens 70% betragen.');
+    renderRetailSale();
+    return;
+  }
 
   if (!ctx.product || !ctx.building || !Number.isFinite(quantity) || quantity <= 0 || !Number.isInteger(quantity)) {
     renderRetailSale();
