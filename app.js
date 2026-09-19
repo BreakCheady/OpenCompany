@@ -29,13 +29,12 @@ const state = {
   marketQualityFilter: 'all',
   researchSelectedProductId: null,
   selectedMarketOrderIds: [],
-  financePeriod: 'day',
+  financePeriod: 'week',
   financePeriodOffset: 0,
   contracts: [],
   companyDirectory: [],
   companyDebt: 0,
   companyValueChange: 0,
-  companyRanking: null,
   bondDashboard: null,
   recoveringPassword: false
 };
@@ -63,10 +62,10 @@ const minimumInputQuality = product => Math.max(1, productQuality(product) - 1);
 
 
 const COMPANY_XP_TOTALS = [
-  0,0,250,600,1050,1650,2450,3450,4700,6200,7950,
-  9950,12450,15450,18950,22950,27450,32450,38450,45450,
-  53450,62450,72450,83950,96950,111450,127450,145450,
-  165450,187450,211450
+  0,250,600,1050,1650,2450,3450,4700,6200,7950,9950,
+  12450,15450,18950,22950,27450,32450,38450,45450,53450,
+  62450,72450,83950,96950,111450,127450,145450,165450,
+  187450,211450,237450
 ];
 
 function buildingSlotsForLevel(level) {
@@ -74,7 +73,7 @@ function buildingSlotsForLevel(level) {
 }
 
 function xpProgressContext(company = state.company) {
-  const level = Math.max(1, Math.min(30, Number(company?.company_level || 1)));
+  const level = Math.max(0, Math.min(30, Number(company?.company_level || 0)));
   const totalXp = Math.max(0, Number(company?.experience_points || 0));
   const currentBase = COMPANY_XP_TOTALS[level] || 0;
   const nextTotal = level >= 30 ? currentBase : COMPANY_XP_TOTALS[level + 1];
@@ -273,29 +272,22 @@ function transactionAmountClass(type) {
 
 function buildingLevelMultiplier(level) {
   const lvl = Math.max(1, Number(level || 1));
-  if (lvl <= 1) return 1;
-  return 1 + 0.25 * (lvl - 1) * (lvl + 2);
-}
-
-function buildingUpgradeCost(baseCost, targetLevel) {
-  const base = Math.max(0, Number(baseCost || 0));
-  const level = Math.max(1, Number(targetLevel || 1));
-
-  if (level <= 1) return base;
-
-  const addedCapacity = Math.max(
-    0,
-    buildingLevelMultiplier(level) - buildingLevelMultiplier(level - 1)
-  );
-
-  return base * addedCapacity * 1.75;
+  let factor = 1;
+  if (lvl >= 2) factor *= 2;
+  if (lvl >= 3) factor *= 1.95;
+  if (lvl >= 4) factor *= 1.90;
+  if (lvl >= 5) factor *= 1.85;
+  if (lvl >= 6) factor *= Math.pow(1.0366, lvl - 5);
+  return factor;
 }
 
 function buildingUpgradePercent(nextLevel) {
-  const level = Math.max(2, Number(nextLevel || 2));
-  const current = buildingLevelMultiplier(level - 1);
-  const next = buildingLevelMultiplier(level);
-  return current > 0 ? ((next / current) - 1) * 100 : 0;
+  if (nextLevel === 2) return 100;
+  if (nextLevel === 3) return 95;
+  if (nextLevel === 4) return 90;
+  if (nextLevel === 5) return 85;
+  if (nextLevel >= 6) return 3.66;
+  return 0;
 }
 
 function buildingConstructionHours(targetLevel) {
@@ -455,16 +447,14 @@ function companyValueChangeDisplay(currentValue, changeValue) {
 async function refreshCompanyValueSnapshot() {
   if (!sb || !state.company?.id || document.visibilityState === 'hidden') return;
   const cid = state.company.id;
-  const [companyResult, historyResult, rankingResult] = await Promise.all([
+  const [companyResult, historyResult] = await Promise.all([
     sb.from('companies').select('company_value').eq('id',cid).single(),
-    sb.from('company_valuation_history').select('change_amount,calculated_at').eq('company_id',cid).order('valuation_date',{ascending:false}).limit(1),
-    sb.rpc('get_company_ranking', { p_company_id: cid })
+    sb.from('company_valuation_history').select('change_amount,calculated_at').eq('company_id',cid).order('valuation_date',{ascending:false}).limit(1)
   ]);
 
   if (companyResult.error || historyResult.error) return;
   state.company.company_value = Number(companyResult.data?.company_value || state.company.company_value || 0);
   state.companyValueChange = Number(historyResult.data?.[0]?.change_amount || 0);
-  if (!rankingResult.error) state.companyRanking = rankingResult.data || null;
 
   const valueEl = document.getElementById('statValue');
   const changeEl = document.getElementById('statValueChange');
@@ -474,7 +464,6 @@ async function refreshCompanyValueSnapshot() {
     changeEl.textContent = companyValueChangeDisplay(state.company.company_value, change);
     changeEl.className = `company-value-change ${change > 0 ? 'company-value-change-positive' : change < 0 ? 'company-value-change-negative' : 'company-value-change-zero'}`;
   }
-  renderCompanyRanking();
 }
 
 function updateCompanyBalanceUI(balance) {
@@ -641,32 +630,6 @@ function isCompanyOnline() {
   return Date.now() - new Date(state.company.last_seen_at).getTime() < 120000;
 }
 
-function companyRankingDisplay() {
-  const ranking = state.companyRanking;
-  const rank = Number(ranking?.rank || 0);
-  if (!rank) return 'Noch nicht berechnet';
-
-  const change = Number(ranking?.rank_change || 0);
-  const movement = change > 0
-    ? ` <span class="company-value-change company-value-change-positive">↑ +${change}</span>`
-    : change < 0
-      ? ` <span class="company-value-change company-value-change-negative">↓ ${change}</span>`
-      : '';
-
-  return `Platz ${rank}${movement}`;
-}
-
-function renderCompanyRanking() {
-  const el = document.getElementById('companyRankingValue');
-  if (!el) return;
-  el.innerHTML = companyRankingDisplay();
-  if (state.companyRanking?.ranking_date) {
-    el.title = `Ranglistenstand: ${new Date(`${state.companyRanking.ranking_date}T12:00:00`).toLocaleDateString('de-DE')}`;
-  } else {
-    el.removeAttribute('title');
-  }
-}
-
 function renderCompanyStatus() {
   const online = isCompanyOnline();
   document.querySelectorAll('.company-online-status').forEach(statusEl => {
@@ -797,11 +760,10 @@ async function loadGameData() {
     sb.rpc('list_companies'),
     sb.rpc('get_company_debt', { p_company_id: cid }),
     sb.rpc('get_bond_dashboard', { p_company_id: cid }),
-    sb.rpc('get_company_ranking', { p_company_id: cid }),
     sb.from('company_valuation_history').select('valuation_date,company_value,previous_company_value,change_amount,calculated_at').eq('company_id',cid).order('valuation_date',{ascending:false}).limit(1)
   ]);
 
-  const labels = ['Produkte','Alle Produkte','Produktlager','Materialien','Materiallager','Rezepte','Gebäudetypen','Gebäude','Produktionen','Handelsverkäufe','Finanzen','Marktorders','Marktkäufe','Verträge','Firmenverzeichnis','Kreditschulden','Anleihen','Ranking','Unternehmenswert-Verlauf'];
+  const labels = ['Produkte','Alle Produkte','Produktlager','Materialien','Materiallager','Rezepte','Gebäudetypen','Gebäude','Produktionen','Handelsverkäufe','Finanzen','Marktorders','Marktkäufe','Verträge','Firmenverzeichnis','Kreditschulden','Anleihen','Unternehmenswert-Verlauf'];
   const errors = results.map((r,i)=>r.error ? { label: labels[i], error:r.error } : null).filter(Boolean);
   if (errors.length) {
     console.error(errors);
@@ -810,7 +772,7 @@ async function loadGameData() {
   }
   clearGameDataError();
 
-  const [products, allProducts, inventory, materials, materialInventory, recipes, buildingTypes, buildings, productionJobs, retailSaleJobs, tx, orders, marketTrades, contracts, directory, companyDebt, bondDashboard, companyRanking, valuationHistory] = results;
+  const [products, allProducts, inventory, materials, materialInventory, recipes, buildingTypes, buildings, productionJobs, retailSaleJobs, tx, orders, marketTrades, contracts, directory, companyDebt, bondDashboard, valuationHistory] = results;
   state.products = products.data;
   state.allProducts = allProducts.data;
   state.inventory = inventory.data;
@@ -828,7 +790,6 @@ async function loadGameData() {
   state.companyDirectory = directory.data || [];
   state.companyDebt = Number(companyDebt.data || 0);
   state.bondDashboard = bondDashboard.data || null;
-  state.companyRanking = companyRanking.data || null;
   state.companyValueChange = Number(valuationHistory.data?.[0]?.change_amount || 0);
   renderAll();
 }
@@ -1394,7 +1355,7 @@ function renderBuildings() {
       const capacity = Number(bt.base_units_per_hour || 0) * multiplier;
       const nextLevel = level + 1;
       const nextPercent = buildingUpgradePercent(nextLevel);
-      const nextCost = buildingUpgradeCost(bt.construction_cost, nextLevel);
+      const nextCost = Number(bt.construction_cost || 0) * buildingLevelMultiplier(nextLevel);
       const nextBuildHours = buildingConstructionHours(nextLevel);
 
       if (isUnderConstruction) {
@@ -1502,7 +1463,7 @@ function retailSaleContext() {
   const price = enteredPrice > 0 ? enteredPrice : referencePrice;
 
   const priceRatio = referencePrice > 0 ? price / referencePrice : 1;
-  const demandFactor = Math.max(0.10, Math.min(2.00, 1 - (priceRatio - 1)));
+  const demandFactor = Math.max(0.10, Math.min(2.00, 1 - 0.375 * (priceRatio - 1)));
   const unitsPerHour = baseUnitsPerHour > 0
     ? Math.max(1, Math.floor(baseUnitsPerHour * demandFactor))
     : 0;
@@ -1738,8 +1699,7 @@ function renderRetailSale() {
   const hasStock = ctx.product && qty > 0 && wholeUnits && ctx.available + 1e-9 >= qty;
   const saleHours = ctx.unitsPerHour > 0 ? qty / ctx.unitsPerHour : 0;
   const hasPrice = ctx.productionCost > 0 && Number(ctx.price || 0) > 0;
-  const demandOk = Number(ctx.demandFactor || 0) >= 0.70;
-  const ready = !!ctx.product && !!ctx.building && !ctx.runningJob && hasStock && hasPrice && saleHours > 0 && demandOk;
+  const ready = !!ctx.product && !!ctx.building && !ctx.runningJob && hasStock && hasPrice && saleHours > 0;
 
   button.classList.remove('retail-cancel-mode');
   select.disabled = !!ctx.runningJob;
@@ -1807,7 +1767,7 @@ function renderRetailSale() {
     `<div class="kv"><span>Ausgewählte Menge</span><strong>${qty > 0 ? `${num(qty)} Einheiten` : '–'}</strong></div>`,
     `<div class="kv"><span>Referenzpreis</span><strong>${money(ctx.referencePrice)} / Einheit</strong></div>`,
     `<div class="kv"><span>Gewählter Verkaufspreis</span><strong>${money(ctx.price)} / Einheit</strong></div>`,
-    `<div class="kv"><span>Preisbedingte Nachfrage</span><strong class="${ctx.demandFactor >= 0.70 ? 'retail-ready' : 'missing-building-warning'}">${Math.round(ctx.demandFactor * 100)}%</strong></div>`,
+    `<div class="kv"><span>Preisbedingte Nachfrage</span><strong>${Math.round(ctx.demandFactor * 100)}%</strong></div>`,
     `<div class="kv"><span>Verkaufsdauer</span><strong>${ctx.building && saleHours > 0 ? formatProductionDuration(saleHours) : '–'}</strong></div>`,
     `<div class="kv"><span>Voraussichtliches Ende</span><strong>${ctx.building && saleHours > 0 ? formatProductionFinish(saleHours) : '–'}</strong></div>`,
     `<div class="kv"><span>Erwarteter Erlös</span><strong class="retail-revenue-positive">${money(expectedRevenue)}</strong></div>`,
@@ -1826,8 +1786,6 @@ function renderRetailSale() {
     button.textContent = 'Nicht genügend Bestand';
   } else if (!hasPrice) {
     button.textContent = 'Produktionskosten fehlen';
-  } else if (!demandOk) {
-    button.textContent = 'Mindestens 70% Nachfrage erforderlich';
   } else {
     button.textContent = 'Im Handel verkaufen';
   }
@@ -2248,12 +2206,9 @@ function renderFinanceSummary() {
 
   const revenue = netSales + fees + retailSales + buildingRefunds + bondInterestIncome;
 
-  // Produktionskosten im Finanztab = nur direkte, beim Produktionsstart
-  // tatsächlich angefallene Cash-Kosten (z. B. Personal / Forschungs-Grundkosten).
-  // Der Einstandswert bereits vorhandener Lagerware steckt im finished_unit_cost,
-  // darf hier aber nicht erneut als Aufwand gezählt werden.
+  // Produktionskosten = tatsächlich verbrauchte Beschaffungskosten + Personalkosten.
   const productionCosts = jobs.reduce(
-    (sum, j) => sum + Number(j.production_cash_cost || 0),
+    (sum, j) => sum + (Number(j.finished_unit_cost || 0) * Number(j.output_quantity || 0)),
     0
   );
 
@@ -2389,9 +2344,6 @@ function renderBonds() {
     <td>${num(r.daily_interest_rate)}%</td>
     <td>${bondStatusLabel(r.status)}</td>
     <td>${formatBondDate(r.created_at)}</td>
-    <td>${r.status === 'open'
-      ? `<button type="button" class="bond-cancel-request-btn" onclick="cancelBondRequest('${r.id}', ${Number(r.funded_amount || 0)})">Abbrechen</button>`
-      : '–'}</td>
   </tr>`);
 
   const marketRows = openRequests.map(r => `<tr>
@@ -2444,6 +2396,7 @@ function renderBonds() {
     <div class="bond-grid">
       <section class="bond-section">
         <h3>Anleihen anfragen</h3>
+        <p class="muted">1 Anleihe = 5.000 OC$. Mindestzins 0,50% täglich. Das Kreditlimit entspricht 99% des Gebäudewerts, abgerundet auf 5.000 OC$.</p>
         <form id="bondRequestForm" class="bond-request-form">
           <label>Anzahl Anleihen
             <input type="number" id="bondRequestCount" min="1" step="1" value="1">
@@ -2458,7 +2411,7 @@ function renderBonds() {
 
       <section class="bond-section">
         <h3>Meine Kreditanfragen</h3>
-        <div class="table-wrap">${renderTable(['Anfrage','Finanziert','Rest','Zins','Status','Erstellt','Aktion'], myRequestRows)}</div>
+        <div class="table-wrap">${renderTable(['Anfrage','Finanziert','Rest','Zins','Status','Erstellt'], myRequestRows)}</div>
       </section>
     </div>
 
@@ -2512,27 +2465,6 @@ function renderBonds() {
   });
 }
 
-window.cancelBondRequest = async function(requestId, fundedAmount = 0) {
-  const funded = Number(fundedAmount || 0);
-  const message = funded > 0
-    ? `Kreditanfrage wirklich abbrechen? Bereits finanzierte ${money(funded)} bleiben als bestehender Kredit aktiv. Nur der noch offene Rest wird geschlossen.`
-    : 'Kreditanfrage wirklich abbrechen? Die Anfrage wird geschlossen und kann danach nicht weiter finanziert werden.';
-
-  if (!await gameConfirm(message, 'Kreditanfrage abbrechen')) return;
-
-  const { error } = await sb.rpc('cancel_bond_request', {
-    p_company_id: state.company.id,
-    p_request_id: requestId
-  });
-
-  if (error) {
-    await gameAlert(error.message);
-    return;
-  }
-
-  await loadCompany();
-};
-
 window.investBondRequest = async function(requestId) {
   const input = document.getElementById(`bondInvest-${requestId}`);
   const amount = Number(input?.value || 0);
@@ -2573,6 +2505,23 @@ function researchInventoryContext() {
   return { product, quantity:summary.quantity, averageUnitCost:summary.averageUnitCost };
 }
 
+function researchInvestmentValue(quantity, researchProduct) {
+  if (!researchProduct || quantity <= 0) return 0;
+  let remaining = Math.max(0, Number(quantity || 0));
+  let value = 0;
+  const lots = productInventoryLots(researchProduct.id)
+    .filter(row => Number(row.quantity || 0) > 0)
+    .sort((a,b) => Number(a.quality_level || 1) - Number(b.quality_level || 1) || String(a.id).localeCompare(String(b.id)));
+
+  for (const lot of lots) {
+    if (remaining <= 0) break;
+    const take = Math.min(remaining, Number(lot.quantity || 0));
+    value += take * Number(lot.average_unit_cost || 0);
+    remaining -= take;
+  }
+  return value;
+}
+
 function renderResearch() {
   const ctx = researchInventoryContext();
   const productSelect = document.getElementById('researchProduct');
@@ -2605,6 +2554,9 @@ function renderResearch() {
   const requested=Math.max(0,Math.floor(Number(qtyInput.value||0)));
   const maxInvestment=Math.min(availableWhole,Math.floor(remaining));
   const valid=!!selected && requested>=1 && requested<=maxInvestment;
+  const investmentValue=researchInvestmentValue(Math.min(requested,availableWhole),ctx.product);
+  const patentMin=investmentValue*0.80;
+  const patentMax=investmentValue*1.10;
 
   document.getElementById('researchUnitsAvailable').textContent=`${num(availableWhole)} Forschungseinheiten`;
   document.getElementById('researchUnitAverageCost').textContent=money(ctx.averageUnitCost);
@@ -2614,7 +2566,8 @@ function renderResearch() {
     <div class="kv"><span>Wertbonus</span><strong>+${Math.round((qualityMultiplier(quality)-1)*100)}%</strong></div>
     <div class="kv"><span>Fortschritt zu Q${quality+1}</span><strong>${num(progress)} / ${num(requirement)}</strong></div>
     <div class="kv"><span>Noch benötigt</span><strong>${num(remaining)} Forschungseinheiten</strong></div>
-    <div class="kv"><span>Geplante Investition</span><strong>${num(requested)} Forschungseinheiten</strong></div>` : '';
+    <div class="kv"><span>Geplante Investition</span><strong>${num(requested)} Forschungseinheiten</strong></div>
+    <div class="kv"><span>Patentwertsteigerung (80–110%)</span><strong>${requested > 0 ? `${money(patentMin)} – ${money(patentMax)}` : money(0)}</strong></div>` : '';
   submit.disabled=!valid;
   if (maxBtn) maxBtn.disabled=maxInvestment<=0;
 
@@ -2771,7 +2724,6 @@ function renderAll() {
   const companyRows = [
     `<div class="kv"><span>Name</span><strong>${c.name}</strong></div>`,
     `<div class="kv"><span>Status</span><strong class="company-online-status presence-status"></strong></div>`,
-    `<div class="kv"><span>Ranking</span><strong id="companyRankingValue">${companyRankingDisplay()}</strong></div>`,
     `<div class="kv"><span>Level</span><strong>${num(c.company_level)}</strong></div>`,
     `<div class="kv"><span>Erfahrung</span><strong>${xpCtx.level >= 30 ? `${num(xpCtx.totalXp)} XP · Max-Level` : `${num(xpCtx.progress)} / ${num(xpCtx.needed)} XP`}</strong></div>`,
     `<div class="xp-progress"><span style="width:${xpCtx.percent}%"></span></div>`,
@@ -2817,7 +2769,9 @@ function renderAll() {
   if (visibleProducts.some(p => p.id === previousProductionProduct)) {
     productionProductSelect.value = previousProductionProduct;
   }
-  renderMarketSellItems();
+  const sellOpts = productOptionsGroupedByBuilding(stockedProducts());
+  document.getElementById('sellProduct').innerHTML = sellOpts || '<option value="">Keine Produkte im Lager</option>';
+  updateSellQualityOptions();
   renderProductionRecipe();
   renderBuildings();
   renderRetailSale();
@@ -3123,7 +3077,7 @@ window.upgradeBuilding = async function(buildingId, buildingTypeId) {
   const building = state.buildings.find(b => b.id === buildingId);
   const nextLevel = Number(building?.level || 1) + 1;
   const increase = buildingUpgradePercent(nextLevel);
-  const nextCost = buildingUpgradeCost(bt?.construction_cost, nextLevel);
+  const nextCost = Number(bt?.construction_cost || 0) * buildingLevelMultiplier(nextLevel);
 
   const buildHours = buildingConstructionHours(nextLevel);
   const finishText = buildingConstructionFinishText(buildHours);
@@ -3159,7 +3113,7 @@ window.cancelBuildingConstruction = async function(buildingId, buildingTypeId) {
   const isNewBuild = Number(building.level || 1) === 1 && targetLevel === 1;
   const constructionCost = targetLevel === 1
     ? Number(bt.construction_cost || 0)
-    : buildingUpgradeCost(bt.construction_cost, targetLevel);
+    : Number(bt.construction_cost || 0) * buildingLevelMultiplier(targetLevel);
   const refund = constructionCost * 0.95;
 
   const actionText = isNewBuild
@@ -3199,7 +3153,7 @@ window.downgradeBuilding = async function(buildingId, buildingTypeId) {
 
   const refundableCost = isDemolition
     ? Number(bt.construction_cost || 0)
-    : buildingUpgradeCost(bt.construction_cost, level);
+    : Number(bt.construction_cost || 0) * buildingLevelMultiplier(level);
   const refund = refundableCost * 0.95;
 
   const warning = isDemolition
@@ -3234,122 +3188,31 @@ buildingBuilderBtn?.addEventListener('click', () => {
 buildingCategoryFilter?.addEventListener('change', renderBuildingCatalog);
 
 // Market
-function stockedMaterials() {
-  return state.materials.filter(material =>
-    materialInventoryLots(material.id).some(lot => Number(lot.quantity || 0) > 0)
-  );
-}
-
-function renderMarketSellItems() {
-  const typeSelect = document.getElementById('sellItemType');
-  const itemSelect = document.getElementById('sellProduct');
-  const qtyInput = document.getElementById('sellQty');
-  if (!typeSelect || !itemSelect) return;
-
-  const type = typeSelect.value || 'product';
-  const previous = itemSelect.value;
-
-  if (type === 'material') {
-    const materials = stockedMaterials().sort((a, b) => a.name.localeCompare(b.name, 'de-DE'));
-    itemSelect.innerHTML = materials.length
-      ? materials.map(material => `<option value="${material.id}">${material.name}</option>`).join('')
-      : '<option value="">Keine Rohstoffe im Lager</option>';
-
-    if (materials.some(material => material.id === previous)) itemSelect.value = previous;
-
-    if (qtyInput) {
-      qtyInput.min = '0.01';
-      qtyInput.step = '0.01';
-    }
-  } else {
-    const products = stockedProducts();
-    itemSelect.innerHTML = productOptionsGroupedByBuilding(products) || '<option value="">Keine Produkte im Lager</option>';
-
-    if (products.some(product => product.id === previous)) itemSelect.value = previous;
-
-    if (qtyInput) {
-      qtyInput.min = '1';
-      qtyInput.step = '1';
-    }
-  }
-
-  updateSellQualityOptions();
-}
-
 function updateSellQualityOptions() {
-  const type = document.getElementById('sellItemType')?.value || 'product';
-  const itemId = document.getElementById('sellProduct')?.value;
-  const qualitySelect = document.getElementById('sellQuality');
-  const priceInput = document.getElementById('sellPrice');
+  const productId=document.getElementById('sellProduct')?.value;
+  const qualitySelect=document.getElementById('sellQuality');
+  const priceInput=document.getElementById('sellPrice');
   if (!qualitySelect) return;
-
-  const lots = type === 'material'
-    ? materialInventoryLots(itemId).filter(lot => Number(lot.quantity || 0) > 0)
-    : availableProductQualities(itemId);
-
-  const previous = qualitySelect.value;
-
-  qualitySelect.innerHTML = lots.length
-    ? [...lots]
-        .sort((a, b) => Number(a.quality_level || 1) - Number(b.quality_level || 1))
-        .map(lot => `<option value="${Number(lot.quality_level || 1)}">Q${Number(lot.quality_level || 1)} – ${num(lot.quantity)} verfügbar</option>`)
-        .join('')
-    : '<option value="1">Q1 – 0 verfügbar</option>';
-
-  if (lots.some(lot => String(lot.quality_level || 1) === String(previous))) {
-    qualitySelect.value = previous;
-  }
-
-  const quality = Number(qualitySelect.value || 1);
-  const lot = lots.find(row => Number(row.quality_level || 1) === quality);
-
-  if (priceInput && lot && Number(lot.average_unit_cost || 0) > 0) {
-    priceInput.value = (Number(lot.average_unit_cost) * 2 * qualityMultiplier(quality)).toFixed(2);
-  }
+  const lots=availableProductQualities(productId);
+  const previous=qualitySelect.value;
+  qualitySelect.innerHTML=lots.length ? lots.map(l=>`<option value="${Number(l.quality_level||1)}">Q${Number(l.quality_level||1)} – ${num(l.quantity)} verfügbar</option>`).join('') : '<option value="1">Q1 – 0 verfügbar</option>';
+  if (lots.some(l=>String(l.quality_level)===String(previous))) qualitySelect.value=previous;
+  const lot=productLot(productId,Number(qualitySelect.value||1));
+  if (priceInput && lot && Number(lot.average_unit_cost||0)>0) priceInput.value=(Number(lot.average_unit_cost)*2*qualityMultiplier(qualitySelect.value)).toFixed(2);
 }
 
 document.getElementById('sellOrderForm').addEventListener('submit', async e => {
   e.preventDefault();
-
-  const type = document.getElementById('sellItemType')?.value || 'product';
-  const itemId = document.getElementById('sellProduct')?.value;
-  const quality = Number(document.getElementById('sellQuality')?.value || 1);
-  const quantity = Number(document.getElementById('sellQty')?.value);
-  const price = Number(document.getElementById('sellPrice')?.value);
-
-  if (!itemId) {
-    await gameAlert(type === 'material'
-      ? 'Kein Rohstoffbestand zum Verkaufen vorhanden.'
-      : 'Kein Produktbestand zum Verkaufen vorhanden.');
-    return;
-  }
-
-  const rpcName = type === 'material'
-    ? 'place_material_sell_order_quality'
-    : 'place_sell_order_quality';
-
-  const rpcArgs = type === 'material'
-    ? {
-        p_company_id: state.company.id,
-        p_material_id: itemId,
-        p_quality: quality,
-        p_quantity: quantity,
-        p_price: price
-      }
-    : {
-        p_company_id: state.company.id,
-        p_product_id: itemId,
-        p_quality: quality,
-        p_quantity: quantity,
-        p_price: price
-      };
-
-  const { error } = await sb.rpc(rpcName, rpcArgs);
-  if (error) gameAlert(error.message);
-  else await loadCompany();
+  const { error }=await sb.rpc('place_sell_order_quality',{
+    p_company_id:state.company.id,
+    p_product_id:document.getElementById('sellProduct').value,
+    p_quality:Number(document.getElementById('sellQuality').value||1),
+    p_quantity:Number(document.getElementById('sellQty').value),
+    p_price:Number(document.getElementById('sellPrice').value)
+  });
+  if(error) gameAlert(error.message); else await loadCompany();
 });
 
-document.getElementById('sellItemType')?.addEventListener('change', renderMarketSellItems);
 document.getElementById('sellProduct')?.addEventListener('change', updateSellQualityOptions);
 document.getElementById('sellQuality')?.addEventListener('change', updateSellQualityOptions);
 document.getElementById('retailProduct').addEventListener('change', () => {
@@ -3434,12 +3297,6 @@ document.getElementById('retailSaleForm').addEventListener('submit', async e => 
 
   const parsedQuantity = retailQuantityFromInput(document.getElementById('retailQty').value);
   const quantity = Number(parsedQuantity.units || 0);
-
-  if (Number(ctx.demandFactor || 0) < 0.70) {
-    await gameAlert('Die Nachfrage muss mindestens 70% betragen.');
-    renderRetailSale();
-    return;
-  }
 
   if (!ctx.product || !ctx.building || !Number.isFinite(quantity) || quantity <= 0 || !Number.isInteger(quantity)) {
     renderRetailSale();
