@@ -2206,9 +2206,10 @@ function renderFinanceSummary() {
 
   const revenue = netSales + fees + retailSales + buildingRefunds + bondInterestIncome;
 
-  // Produktionskosten = tatsächlich verbrauchte Beschaffungskosten + Personalkosten.
+  // Produktionskosten = direkte Produktionskosten ohne erneute Beschaffungskosten.
+  // Material- und Vorproduktkäufe werden separat unter "Marktkäufe" erfasst.
   const productionCosts = jobs.reduce(
-    (sum, j) => sum + (Number(j.finished_unit_cost || 0) * Number(j.output_quantity || 0)),
+    (sum, j) => sum + Number(j.production_cash_cost || 0),
     0
   );
 
