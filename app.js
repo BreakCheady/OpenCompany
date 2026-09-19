@@ -2422,7 +2422,6 @@ function renderBonds() {
 
     <section class="bond-section">
       <h3>Meine aufgenommenen Kredite</h3>
-      <p class="muted">Tilgung ist je Kreditanteil 14 Tage nach Finanzierung möglich. Ohne aktive Tilgung läuft die tägliche Zahlung weiter, bis insgesamt 105% des ursprünglichen Kreditanteils beim Kreditgeber angekommen sind.</p>
       <div class="table-wrap">${renderTable(['Kreditgeber','Ursprünglich','Restschuld','Zins','Erhalten / Ziel','Tilgbar ab','Status','Tilgung'], borrowedRows)}</div>
     </section>
 
