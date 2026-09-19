@@ -2376,66 +2376,43 @@ body.game-dialog-open { overflow: hidden; }
   }
 }
 
-/* v0.10.15 – Anfragevolumen bei Anleihen gelb hervorheben */
-.bond-request-preview {
-  background: #fff8d8 !important;
-  border-color: #e4b928 !important;
-  border-width: 2px;
+/* v0.10.25 – Mobile Dashboard: Panels nicht abschneiden + Tabellen horizontal wischbar */
+#dashboard .grid.two > * {
+  min-width: 0;
 }
 
-.bond-request-preview span {
-  color: #7a6416;
+#dashboard .table-wrap,
+#finance .table-wrap {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+  touch-action: pan-x pan-y;
 }
 
-.bond-request-preview strong {
-  color: #6f5600;
-}
-
-
-
-/* v0.10.16 – Kreditanfrage abbrechen */
-.bond-cancel-request-btn {
-  background: var(--danger) !important;
-  color: #fff !important;
-  border-color: var(--danger) !important;
-  white-space: nowrap;
-}
-
-.bond-cancel-request-btn:hover {
-  background: #a92b24 !important;
-  border-color: #a92b24 !important;
-}
-
-
-/* v0.10.18 – Versionshinweis ausschließlich auf mobilen Touch-Geräten */
-.mobile-dashboard-version {
-  display: none !important;
-}
-
-@media (max-width: 820px) and (hover: none) and (pointer: coarse) {
-  #dashboard {
-    position: relative;
+@media (max-width: 820px) {
+  #dashboard .grid.two {
+    width: 100%;
+    min-width: 0;
   }
 
-  .mobile-dashboard-version {
-    display: grid !important;
-    justify-items: end;
-    gap: 1px;
-    margin: -2px 2px 8px auto;
+  #dashboard .grid.two > .panel {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
+  }
+
+  #dashboard #recentTransactions {
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+  }
+
+  #dashboard #recentTransactions table {
     width: max-content;
-    color: var(--muted);
-    text-align: right;
-    line-height: 1.2;
-  }
-
-  .mobile-dashboard-version span {
-    font-size: 10px;
-    font-weight: 600;
-  }
-
-  .mobile-dashboard-version small {
-    font-size: 8px;
-    font-weight: 400;
-    opacity: .72;
+    min-width: 560px;
   }
 }

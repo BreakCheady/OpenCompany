@@ -1,86 +1,173 @@
-# OpenCompany MVP
+# OpenCompany
 
-Browserbasierter Multiplayer-MVP für OpenCompany mit GitHub Pages + Supabase/PostgreSQL.
+**Aktuelle Version: 0.10.32**
 
-## Enthalten
+OpenCompany ist eine browserbasierte Multiplayer-Unternehmenssimulation mit **GitHub Pages** als Frontend und **Supabase/PostgreSQL** als Backend.
 
-- Login / Registrierung über Supabase Auth
-- Unternehmensgründung
-- Startprodukt und Lager
-- Mitarbeiter einstellen
-- Produktion mit Kosten und Lagerzugang
-- Marktorders und Käufe zwischen Firmen
-- Finanztransaktionen
-- Aktienklasse und Gründungsbeteiligung
-- Row Level Security und serverseitige PostgreSQL-RPC-Funktionen
+## Aktueller Funktionsumfang
 
-## 1. Supabase-Projekt anlegen
+- Registrierung, Login und Passwort-Wiederherstellung über Supabase Auth
+- Unternehmensgründung, Umbenennung, Zurücksetzen und Account-Löschung
+- Unternehmenslevel, Erfahrungspunkte und freischaltbare Spielbereiche
+- Unternehmenswert und Unternehmensranking
+- Gebäude mit Bauzeiten, Upgrades, Downgrades und Gebäudeplätzen
+- Produktionssystem mit zeitbasierter Produktion und Teilabruf fertiger Mengen
+- Rohstoffe, Produktionsrezepte und Vorprodukte
+- Gemeinsames Lager für Materialien und Produkte
+- Produktqualitäten und qualitätsabhängige Produktion, Handel und Forschung
+- Produktforschung mit Forschungseinheiten und Patentwert
+- Markt für Produkte und Rohstoffe
+- NPC-Marktversorgung und regelmäßige Marktaktualisierungen
+- Mehrfachauswahl und zentraler Kauf von Marktangeboten
+- Stornierbare Marktorders
+- Einzelhandel mit frei wählbaren Verkaufspreisen und zeitbasierten Verkäufen
+- Direkte Verträge zwischen Spielerunternehmen
+- Finanzbewegungen mit Tages-, Wochen- und Monatsauswertung
+- Anleihen- und Kreditsystem zwischen Unternehmen
+- NPC-Aktivität im Anleihenmarkt
+- Automatische Zinsabrechnung
+- Realtime- und Polling-Updates für relevante Unternehmensdaten
+- Row Level Security (RLS) und serverseitige PostgreSQL-RPC-Funktionen
 
-1. Auf https://supabase.com ein neues Projekt erstellen.
-2. Im SQL Editor den kompletten Inhalt von `supabase/schema.sql` ausführen.
-3. In **Project Settings → API** folgende Werte kopieren:
-   - Project URL
-   - anon / public key
-4. In `js/config.js` eintragen:
+## Technischer Aufbau
+
+Das Projekt besteht aus einem statischen Browser-Frontend und einem Supabase-Backend.
+
+### Frontend
+
+Die wichtigsten Dateien sind:
+
+- `index.html` – Aufbau und Ansichten der Anwendung
+- `style.css` – Layout, responsive Darstellung und Komponenten-Styling
+- `app.js` – Spiellogik im Browser, Datenladen, Rendering und RPC-Aufrufe
+- `config.js` – Supabase-Projektkonfiguration
+- `opencompany-logo.png` – OpenCompany-Logo
+
+Das Frontend verwendet `@supabase/supabase-js` direkt im Browser.
+
+### Backend
+
+Supabase stellt unter anderem bereit:
+
+- PostgreSQL-Datenbank
+- Authentifizierung
+- Row Level Security
+- PostgreSQL-RPC-Funktionen für kritische Spielaktionen
+- Realtime-Funktionen
+- geplante Datenbankjobs für wiederkehrende Spielprozesse
+
+Kritische Spielaktionen werden serverseitig ausgeführt. Der Browser soll Geldbestände, Lagerbestände, Produktionsprozesse oder andere geschäftskritische Daten nicht direkt manipulieren.
+
+## Zentrale Spielbereiche
+
+### Unternehmen
+
+Spieler besitzen ein Unternehmen mit unter anderem:
+
+- Kontostand
+- Unternehmenswert
+- Unternehmenslevel
+- Erfahrungspunkten
+- Reputation
+- Patentwert
+- Gebäuden und Lagerbeständen
+
+### Produktion
+
+Produkte benötigen abhängig vom Rezept Materialien oder Vorprodukte. Produktionsleistung und verfügbare Kapazität hängen von den vorhandenen Produktionsgebäuden und deren Ausbaustufen ab.
+
+Laufende Produktionsaufträge können zeitabhängig abgearbeitet und fertige Einheiten teilweise abgeholt werden.
+
+### Gebäude
+
+Gebäude bilden die Grundlage für Produktion, Einzelhandel und Forschung. Gebäude können errichtet, ausgebaut und zurückgestuft werden. Die Zahl verfügbarer Gebäudeplätze wächst mit dem Unternehmenslevel.
+
+### Markt & Handel
+
+Unternehmen können Produkte und Materialien über Marktorders handeln. Zusätzlich versorgen NPC-Unternehmen den Markt regelmäßig mit Angeboten.
+
+Der Marktkauf unterstützt die Auswahl mehrerer Angebote und kann automatisch die günstigsten verfügbaren Positionen berücksichtigen.
+
+### Einzelhandel
+
+Produkte können über passende Verkaufsgebäude direkt im Handel verkauft werden. Verkaufspreis, Menge und Verkaufsdauer beeinflussen den Prozess.
+
+### Verträge
+
+Spielerunternehmen können direkte Kauf- und Verkaufsverträge miteinander abschließen. Verträge unterstützen Produkte, Materialien und Qualitätsstufen.
+
+### Forschung
+
+Forschungseinheiten können in Produkte investiert werden, um deren Qualität weiterzuentwickeln. Forschung trägt außerdem zum Patentwert des Unternehmens bei.
+
+### Finanzen und Anleihen
+
+Der Finanzbereich zeigt Einnahmen, Kosten und Ergebnis für unterschiedliche Zeiträume.
+
+Das Anleihensystem ermöglicht Finanzierung zwischen Unternehmen. Dazu gehören unter anderem:
+
+- Anleiheanfragen
+- Investitionen anderer Unternehmen
+- tägliche Verzinsung
+- Rückzahlungen
+- Sicherheiten- und Kreditgrenzen
+- NPC-Teilnahme am Anleihenmarkt
+
+## Supabase-Sicherheitsmodell
+
+Die Anwendung verwendet RLS und serverseitige Funktionen, um kritische Änderungen zu schützen.
+
+Beispiele für öffentliche RPC-Endpunkte sind unter anderem:
+
+- `bootstrap_company`
+- `build_building`
+- `start_production_v2`
+- `claim_production_output`
+- `place_sell_order_quality`
+- `buy_selected_market_orders`
+- `create_contract_quality`
+- `invest_product_research`
+- `create_bond_request`
+- `invest_in_bond_request`
+
+Die eigentliche Geschäftslogik liegt weitgehend in geschützten Datenbankfunktionen.
+
+> Der Supabase `service_role`-Key darf niemals im Browser oder im öffentlichen Repository gespeichert werden.
+
+## Konfiguration
+
+In `config.js` werden die öffentlichen Supabase-Zugangsdaten hinterlegt:
 
 ```js
 window.OPENCOMPANY_CONFIG = {
   SUPABASE_URL: "https://DEIN-PROJEKT.supabase.co",
-  SUPABASE_ANON_KEY: "DEIN_ANON_KEY"
+  SUPABASE_ANON_KEY: "DEIN_PUBLIC_KEY"
 };
 ```
 
-Wichtig: Der `anon` Key darf im Frontend stehen. Niemals den `service_role` Key in GitHub oder Browser-Code eintragen.
+Der öffentliche Browser-Key darf im Frontend verwendet werden. Geheime Server-Schlüssel gehören nicht in das Repository.
 
-## 2. Auth konfigurieren
+## Lokal testen
 
-Für einen schnellen Test kannst du in Supabase unter **Authentication → Providers → Email** die E-Mail-Bestätigung deaktivieren. Für einen öffentlichen Betrieb sollte sie aktiviert sein.
-
-Unter **Authentication → URL Configuration** später deine GitHub-Pages-URL als Site URL eintragen, z. B.:
-
-`https://DEINNAME.github.io/opencompany/`
-
-## 3. Lokal testen
-
-Ein einfacher lokaler Webserver reicht:
+Ein einfacher lokaler Webserver reicht aus:
 
 ```bash
 python3 -m http.server 8080
 ```
 
-Dann `http://localhost:8080` öffnen.
+Danach kann die Anwendung unter `http://localhost:8080` geöffnet werden.
 
-## 4. Mit GitHub Pages veröffentlichen
+## Deployment
 
-1. Neues GitHub-Repository erstellen, z. B. `opencompany`.
-2. Alle Dateien dieses Ordners hochladen.
-3. Repository → **Settings → Pages**.
-4. **Deploy from a branch** wählen.
-5. Branch `main`, Ordner `/ (root)` auswählen.
-6. Speichern.
+Das Frontend kann direkt über GitHub Pages veröffentlicht werden.
 
-Danach stellt GitHub die öffentliche URL bereit.
+1. Repository in GitHub öffnen.
+2. Unter **Settings → Pages** die Veröffentlichung vom Branch `main` aktivieren.
+3. Als Verzeichnis `/ (root)` verwenden.
+4. In Supabase unter **Authentication → URL Configuration** die produktive Site-URL und die erlaubten Redirect-URLs konfigurieren.
 
-## Sicherheitsmodell
+## Versionsstand
 
-Kritische Spielaktionen werden nicht direkt per `INSERT`/`UPDATE` aus dem Browser ausgeführt. Das Frontend ruft PostgreSQL-Funktionen auf:
+Diese README beschreibt den Funktionsstand von **OpenCompany 0.10.32**.
 
-- `bootstrap_company`
-- `hire_employee`
-- `produce_product`
-- `place_sell_order`
-- `buy_market_order`
-
-Diese Funktionen prüfen Besitzrechte und führen Geld-/Lageränderungen innerhalb der Datenbank aus. RLS verhindert direkte Schreibzugriffe auf die Tabellen.
-
-## Nächste sinnvolle Ausbaustufen
-
-- echtes Orderbuch für Kauf- und Verkaufsorders
-- Produktionsrezepte und Rohstoffe
-- Gebäude/Fabriken
-- Gehaltsabrechnung pro Spieltag
-- Verträge
-- Aktienhandel / IPO
-- Realtime-Marktupdates
-- Admin-/Moderationsebene
-- Edge Functions oder eigenes Backend für komplexere Spielzyklen
+Die Datenbankmigrationen und die sichtbare Anwendungsversion sollten bei Releases gemeinsam geprüft werden, damit Frontend, Backend und Dokumentation denselben Stand widerspiegeln.
