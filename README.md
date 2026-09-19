@@ -1,6 +1,6 @@
 # OpenCompany
 
-**Aktuelle Version: 0.10.32**
+**Aktuelle Version: 0.10.33**
 
 OpenCompany ist eine browserbasierte Multiplayer-Unternehmenssimulation mit **GitHub Pages** als Frontend und **Supabase/PostgreSQL** als Backend.
 
@@ -168,6 +168,6 @@ Das Frontend kann direkt über GitHub Pages veröffentlicht werden.
 
 ## Versionsstand
 
-Diese README beschreibt den Funktionsstand von **OpenCompany 0.10.32**.
+Diese README beschreibt den Funktionsstand von **OpenCompany 0.10.33**.
 
 Die Datenbankmigrationen und die sichtbare Anwendungsversion sollten bei Releases gemeinsam geprüft werden, damit Frontend, Backend und Dokumentation denselben Stand widerspiegeln.

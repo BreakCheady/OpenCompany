@@ -29,7 +29,7 @@ const state = {
   marketQualityFilter: 'all',
   researchSelectedProductId: null,
   selectedMarketOrderIds: [],
-  financePeriod: 'week',
+  financePeriod: 'day',
   financePeriodOffset: 0,
   contracts: [],
   companyDirectory: [],
