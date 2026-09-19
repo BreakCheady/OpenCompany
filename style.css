@@ -1130,7 +1130,7 @@ td button {
 }
 
 
-/* v0.1.48 – laufende Produktion */
+/* v0.10.32 – laufende Produktion */
 .production-running {
   background: #fff8d8 !important;
   border: 2px solid #e4b928 !important;
@@ -1145,7 +1145,7 @@ td button {
   color: #7a6416;
 }
 
-/* v0.1.48 – Finanzübersicht */
+/* v0.10.32 – Finanzübersicht */
 .finance-head {
   align-items: center;
   gap: 16px;
@@ -1237,7 +1237,7 @@ td button {
 }
 
 
-/* v0.1.49 – Finanzübersicht mit Tag/Woche/Monat und sonstigen Kosten */
+/* v0.10.32 – Finanzübersicht mit Tag/Woche/Monat und sonstigen Kosten */
 .finance-summary {
   grid-template-columns: repeat(6, minmax(0, 1fr));
 }
@@ -1273,7 +1273,7 @@ td button {
 }
 
 
-/* v0.1.50 – Kosten rot, Gewinn/Verlust farblich hervorgehoben */
+/* v0.10.32 – Kosten rot, Gewinn/Verlust farblich hervorgehoben */
 .finance-cost-card strong {
   color: var(--danger);
 }
@@ -1311,7 +1311,7 @@ td button {
 }
 
 
-/* v0.1.51 – Zeitraum klar sichtbar + Kalenderwoche Montag bis Sonntag */
+/* v0.10.32 – Zeitraum klar sichtbar + Kalenderwoche Montag bis Sonntag */
 .finance-period-btn.active {
   background: #e8f2ff !important;
   color: #245b96 !important;
@@ -1343,7 +1343,7 @@ td button {
 }
 
 
-/* v0.1.52 – Markt & Handel */
+/* v0.10.32 – Markt & Handel */
 .retail-sale-details {
   display: grid;
   gap: 8px;
@@ -1380,7 +1380,7 @@ td button {
 }
 
 
-/* v0.1.53 – Gebäudeverwaltung */
+/* v0.10.32 – Gebäudeverwaltung */
 .building-panel-head {
   align-items: flex-start;
   gap: 16px;
@@ -1489,7 +1489,7 @@ td button {
 }
 
 
-/* v0.1.54 – während Nutzung nur Status anzeigen */
+/* v0.10.32 – während Nutzung nur Status anzeigen */
 #buildingsTable .building-running-btn:disabled {
   opacity: 1;
   cursor: default;
@@ -1499,7 +1499,7 @@ td button {
 }
 
 
-/* v0.1.56 – zeitbasierter Handelsverkauf */
+/* v0.10.32 – zeitbasierter Handelsverkauf */
 .retail-sale-details .retail-ready {
   color: var(--success);
 }
@@ -1511,7 +1511,7 @@ td button {
 }
 
 
-/* v0.1.60 – Teilabruf laufender Produktion */
+/* v0.10.32 – Teilabruf laufender Produktion */
 .production-running-main {
   display: flex;
   align-items: center;
@@ -1565,13 +1565,13 @@ td button {
 }
 
 
-/* v0.1.61 – Lagerbereiche untereinander */
+/* v0.10.32 – Lagerbereiche untereinander */
 #storage > .panel + .panel {
   margin-top: 16px;
 }
 
 
-/* v0.1.62 – Handelsmenge nur ganzzahlig + MAX/24H */
+/* v0.10.32 – Handelsmenge nur ganzzahlig + MAX/24H */
 .retail-actions {
   display: flex;
   gap: 8px;
@@ -1591,7 +1591,7 @@ td button {
 }
 
 
-/* v0.1.63 – Erlöse während laufendem Handelsverkauf einsammeln */
+/* v0.10.32 – Erlöse während laufendem Handelsverkauf einsammeln */
 .retail-running-box {
   display: grid;
   gap: 8px;
@@ -1665,7 +1665,7 @@ td button {
 }
 
 
-/* v0.1.64 – fehlende Produktionsinputs direkt kaufen */
+/* v0.10.32 – fehlende Produktionsinputs direkt kaufen */
 .production-buy-input-btn {
   background: var(--success) !important;
   color: #fff !important;
@@ -1679,13 +1679,13 @@ td button {
 }
 
 
-/* v0.1.65 – neutrale Nullkosten */
+/* v0.10.32 – neutrale Nullkosten */
 .production-cost-zero {
   color: inherit;
 }
 
 
-/* v0.1.67 – Startwerte während laufender Prozesse eingefroren */
+/* v0.10.32 – Startwerte während laufender Prozesse eingefroren */
 #productionProduct:disabled,
 #productionUnits:disabled,
 #retailProduct:disabled,
@@ -1695,7 +1695,7 @@ td button {
 }
 
 
-/* v0.1.69 – Unternehmensübersicht */
+/* v0.10.32 – Unternehmensübersicht */
 #companyDetails table td,
 #companyDetails table th {
   white-space: nowrap;
@@ -1708,7 +1708,7 @@ td button {
 }
 
 
-/* v0.1.70 – Schuldenformatierung */
+/* v0.10.32 – Schuldenformatierung */
 #companyDetails .company-debt-negative {
   color: var(--danger);
   font-weight: 700;
@@ -1720,7 +1720,7 @@ td button {
 }
 
 
-/* v0.1.71 – Forschungsgrundlage */
+/* v0.10.32 – Forschungsgrundlage */
 .research-placeholder {
   display: grid;
   gap: 0;
@@ -1728,7 +1728,7 @@ td button {
 }
 
 
-/* v0.1.72 – Forschungsinvestitionen */
+/* v0.10.32 – Forschungsinvestitionen */
 .research-investment-form {
   display: flex;
   align-items: end;
@@ -1754,7 +1754,7 @@ td button {
 }
 
 
-/* v0.1.73 – Finanzen: Bewegungen links, Übersicht rechts */
+/* v0.10.32 – Finanzen: Bewegungen links, Übersicht rechts */
 .finance-layout {
   display: grid;
   grid-template-columns: minmax(0, 1.65fr) minmax(320px, .85fr);
@@ -1788,7 +1788,7 @@ td button {
 }
 
 
-/* v0.2.0 – Forschungssystem */
+/* v0.10.32 – Forschungssystem */
 .research-overview,
 .research-investment-preview {
   display: grid;
@@ -1819,21 +1819,21 @@ td button {
 
 
 
-/* v0.2.2 – fehlendes Gebäude: separater Hinweis kräftig rot, nicht fett */
+/* v0.10.32 – fehlendes Gebäude: separater Hinweis kräftig rot, nicht fett */
 .missing-building-warning {
   color: #b00020 !important;
   font-weight: 400 !important;
 }
 
 
-/* v0.2.4 – kompakte Hinweise im Unternehmensbereich */
+/* v0.10.32 – kompakte Hinweise im Unternehmensbereich */
 .account-danger-note {
   font-size: 9px !important;
   line-height: 1.35;
 }
 
 
-/* v0.2.5 – Finanzzeiträume vor/zurück navigieren */
+/* v0.10.32 – Finanzzeiträume vor/zurück navigieren */
 .finance-period-navigation {
   display: flex;
   align-items: center;
@@ -1875,7 +1875,7 @@ td button {
 }
 
 
-/* v0.3.2 – tägliche Unternehmenswert-Veränderung */
+/* v0.10.32 – tägliche Unternehmenswert-Veränderung */
 .company-value-line {
   display: flex;
   align-items: baseline;
@@ -1902,7 +1902,7 @@ td button {
 }
 
 
-/* v0.3.4 – In-Game-Dialoge statt Browser-Popups */
+/* v0.10.32 – In-Game-Dialoge statt Browser-Popups */
 .game-dialog-overlay {
   position: fixed;
   inset: 0;
@@ -1933,14 +1933,14 @@ td button {
 body.game-dialog-open { overflow: hidden; }
 
 
-/* v0.3.5 – Produktwahl bleibt trotz laufender Produktion aktiv */
+/* v0.10.32 – Produktwahl bleibt trotz laufender Produktion aktiv */
 #productionProduct {
   opacity: 1;
   cursor: pointer;
 }
 
 
-/* v0.3.9 – Marktfilter */
+/* v0.10.32 – Marktfilter */
 .market-orders-head {
   align-items: flex-end;
   gap: 16px;
@@ -1986,7 +1986,7 @@ body.game-dialog-open { overflow: hidden; }
 }
 
 
-/* v0.4.0 – zentraler Marktkauf */
+/* v0.10.32 – zentraler Marktkauf */
 .market-filter-controls #marketBuyQty {
   min-width: 100px;
   max-width: 120px;
@@ -1997,7 +1997,7 @@ body.game-dialog-open { overflow: hidden; }
 }
 
 
-/* v0.4.1 – auswählbare Marktpositionen und Live-Kosten */
+/* v0.10.32 – auswählbare Marktpositionen und Live-Kosten */
 .market-order-row {
   cursor: pointer;
 }
@@ -2040,13 +2040,13 @@ body.game-dialog-open { overflow: hidden; }
 }
 
 
-/* v0.4.2 – Mehrfachauswahl Marktorders */
+/* v0.10.32 – Mehrfachauswahl Marktorders */
 .market-order-row.selected td:first-child {
   box-shadow: inset 4px 0 0 var(--accent, #2563eb);
 }
 
 
-/* v0.4.6 – Unternehmensname bearbeiten */
+/* v0.10.32 – Unternehmensname bearbeiten */
 .company-name-edit-wrap {
   display: inline-flex;
   align-items: center;
@@ -2069,7 +2069,7 @@ body.game-dialog-open { overflow: hidden; }
 }
 
 
-/* v0.4.9 – gemeinsames Lager */
+/* v0.10.32 – gemeinsames Lager */
 .storage-panel-head {
   align-items: flex-end;
   gap: 16px;
@@ -2115,7 +2115,7 @@ body.game-dialog-open { overflow: hidden; }
 }
 
 
-/* v0.4.15 – mobile Navigation zuverlässig am Viewport fixieren */
+/* v0.10.32 – mobile Navigation zuverlässig am Viewport fixieren */
 @media (max-width: 820px) {
   html,
   body {
@@ -2178,7 +2178,7 @@ body.game-dialog-open { overflow: hidden; }
 }
 
 
-/* Version 0.6.0 – Qualitäts- und Forschungsdarstellung */
+/* Version 0.10.32 – Qualitäts- und Forschungsdarstellung */
 .research-product-table { margin-top: 18px; }
 .research-product-table td strong { white-space: nowrap; }
 #sellQuality, #retailQuality, #marketQualityFilter, #researchProduct { min-width: 110px; }
@@ -2188,7 +2188,7 @@ body.game-dialog-open { overflow: hidden; }
 }
 
 
-/* v0.6.8 – kompaktere Marktfilter */
+/* v0.10.32 – kompaktere Marktfilter */
 @media (min-width: 761px) {
   .market-filter-controls {
     gap: 8px;
@@ -2223,7 +2223,7 @@ body.game-dialog-open { overflow: hidden; }
 }
 
 
-/* v0.6.9 – mehr Abstand zwischen Marktfiltern und Aktionen */
+/* v0.10.32 – mehr Abstand zwischen Marktfiltern und Aktionen */
 @media (min-width: 761px) {
   .market-filter-controls {
     gap: 14px;
@@ -2244,7 +2244,7 @@ body.game-dialog-open { overflow: hidden; }
 }
 
 
-/* v0.8.0 – Unternehmenslevel, XP und Gebäudeplätze */
+/* v0.10.32 – Unternehmenslevel, XP und Gebäudeplätze */
 .nav-item.feature-locked {
   opacity: 0.58;
 }
@@ -2274,7 +2274,7 @@ body.game-dialog-open { overflow: hidden; }
 }
 
 
-/* v1.0.0 – Anleihen & Kredite */
+/* v0.10.32 – Anleihen & Kredite */
 .bond-finance-panel {
   margin-top: 18px;
 }
@@ -2376,7 +2376,7 @@ body.game-dialog-open { overflow: hidden; }
   }
 }
 
-/* v0.10.25 – Mobile Dashboard: Panels nicht abschneiden + Tabellen horizontal wischbar */
+/* v0.10.32 – Mobile Dashboard: Panels nicht abschneiden + Tabellen horizontal wischbar */
 #dashboard .grid.two > * {
   min-width: 0;
 }
