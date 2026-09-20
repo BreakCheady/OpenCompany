@@ -3222,9 +3222,7 @@ function renderSellOrderPreview() {
   const withinNpcLimit = ctx.referencePrice > 0 && ctx.price > 0 && ctx.price <= ctx.referencePrice + 1e-9;
 
   preview.innerHTML = `
-    <div class="kv"><span>NPC-Kaufgrenze (100%)</span><strong>${money(ctx.referencePrice)} / Einheit</strong></div>
     <div class="kv"><span>Gewählter Orderpreis</span><strong>${money(ctx.price)} / Einheit</strong></div>
-    <div class="kv"><span>NPC-Kauf möglich</span><strong class="${withinNpcLimit ? 'retail-ready' : 'missing-building-warning'}">${withinNpcLimit ? 'Ja – innerhalb der Kaufgrenze' : 'Nein – Preis über Kaufgrenze'}</strong></div>
     <div class="kv"><span>Bruttoerlös</span><strong>${money(gross)}</strong></div>
     <div class="kv"><span>Marktgebühr (5%)</span><strong class="retail-cancel-fee">${fee > 0 ? `-${money(fee)}` : money(0)}</strong></div>
     <div class="kv"><span>Nettoerlös</span><strong class="retail-revenue-positive">${money(net)}</strong></div>
