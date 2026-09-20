@@ -3347,18 +3347,21 @@ document.getElementById('retailPrice')?.addEventListener('input', event => {
   event.target.dataset.manualPrice = '1';
 
   const qtyInput = document.getElementById('retailQty');
-  const fixedQuantity = qtyInput?.dataset.quantityMode === 'fixed'
-    ? qtyInput.value
-    : null;
+  const hadRememberedExpression = !!qtyInput?.dataset.quantityExpression;
 
-  recalculateRetailQuantityFromRememberedExpression();
-
-  if (fixedQuantity !== null && qtyInput) {
-    qtyInput.value = fixedQuantity;
+  if (hadRememberedExpression) {
+    recalculateRetailQuantityFromRememberedExpression();
+  } else if (qtyInput) {
+    const ctx = retailSaleContext();
+    const requested = Math.max(0, Math.floor(Number(qtyInput.value || 0)));
+    const available = Math.max(0, Math.floor(ctx.available || 0));
+    const maxUnits24h = Math.max(0, Math.floor((ctx.unitsPerHour || 0) * 24));
+    qtyInput.value = formatRetailQuantityInput(Math.min(requested, available, maxUnits24h));
+    qtyInput.dataset.quantityMode = 'fixed';
   }
 
-  // renderRetailSale berechnet mit der neuen Verkaufsrate automatisch
-  // Verkaufsdauer und voraussichtliches Ende neu.
+  // Preisänderungen können die Nachfrage und damit die Verkaufsrate verändern.
+  // Die Menge wird deshalb automatisch auf maximal 24 Stunden Verkaufsdauer begrenzt.
   renderRetailSale();
 });
 document.getElementById('retailMaxBtn').addEventListener('click', () => {
