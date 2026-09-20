@@ -1566,7 +1566,8 @@ function recalculateRetailQuantityFromRememberedExpression() {
 
   const ctx = retailSaleContext();
   const available = Math.max(0, Math.floor(ctx.available || 0));
-  qtyInput.value = formatRetailQuantityInput(Math.min(parsed.units, available));
+  const maxUnits24h = Math.max(0, Math.floor((ctx.unitsPerHour || 0) * 24));
+  qtyInput.value = formatRetailQuantityInput(Math.min(parsed.units, available, maxUnits24h));
   return true;
 }
 
@@ -1698,8 +1699,9 @@ function renderRetailSale() {
   const wholeUnits = Number.isInteger(qty);
   const hasStock = ctx.product && qty > 0 && wholeUnits && ctx.available + 1e-9 >= qty;
   const saleHours = ctx.unitsPerHour > 0 ? qty / ctx.unitsPerHour : 0;
+  const within24h = saleHours > 0 && saleHours <= 24;
   const hasPrice = ctx.productionCost > 0 && Number(ctx.price || 0) > 0;
-  const ready = !!ctx.product && !!ctx.building && !ctx.runningJob && hasStock && hasPrice && saleHours > 0;
+  const ready = !!ctx.product && !!ctx.building && !ctx.runningJob && hasStock && hasPrice && within24h;
 
   button.classList.remove('retail-cancel-mode');
   select.disabled = !!ctx.runningJob;
@@ -1786,6 +1788,8 @@ function renderRetailSale() {
     button.textContent = 'Nicht genügend Bestand';
   } else if (!hasPrice) {
     button.textContent = 'Produktionskosten fehlen';
+  } else if (!within24h) {
+    button.textContent = 'Maximal 24 Std. Verkaufsdauer';
   } else {
     button.textContent = 'Im Handel verkaufen';
   }
@@ -3414,6 +3418,12 @@ document.getElementById('retailSaleForm').addEventListener('submit', async e => 
   }
 
   const saleHours = ctx.unitsPerHour > 0 ? quantity / ctx.unitsPerHour : 0;
+  if (saleHours <= 0 || saleHours > 24) {
+    await gameAlert('Die maximale Verkaufsdauer beträgt 24 Stunden.');
+    renderRetailSale();
+    return;
+  }
+
   const { error } = await sb.rpc('start_retail_sale_quality_v2', {
     p_company_id: state.company.id,
     p_product_id: ctx.product.id,
