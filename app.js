@@ -2769,9 +2769,7 @@ function renderAll() {
   if (visibleProducts.some(p => p.id === previousProductionProduct)) {
     productionProductSelect.value = previousProductionProduct;
   }
-  const sellOpts = productOptionsGroupedByBuilding(stockedProducts());
-  document.getElementById('sellProduct').innerHTML = sellOpts || '<option value="">Keine Produkte im Lager</option>';
-  updateSellQualityOptions();
+  updateSellItemOptions();
   renderProductionRecipe();
   renderBuildings();
   renderRetailSale();
@@ -3188,33 +3186,147 @@ buildingBuilderBtn?.addEventListener('click', () => {
 buildingCategoryFilter?.addEventListener('change', renderBuildingCatalog);
 
 // Market
+function sellOrderContext() {
+  const type = document.getElementById('sellItemType')?.value || 'product';
+  const itemId = document.getElementById('sellProduct')?.value;
+  const quality = Number(document.getElementById('sellQuality')?.value || 1);
+  const quantity = Math.max(0, Number(document.getElementById('sellQty')?.value || 0));
+  const price = Math.max(0, Number(document.getElementById('sellPrice')?.value || 0));
+
+  if (type === 'material') {
+    const item = state.materials.find(m => m.id === itemId);
+    const lot = materialInventoryLots(itemId).find(l => Number(l.quality_level || 1) === quality);
+    const referencePrice = Number(item?.base_cost || 0) * qualityMultiplier(quality);
+    return { type, item, lot, quality, quantity, price, referencePrice };
+  }
+
+  const item = state.products.find(p => p.id === itemId);
+  const lot = productLot(itemId, quality);
+  const referencePrice = Number(item?.suggested_retail_price || 0) * qualityMultiplier(quality);
+  return { type, item, lot, quality, quantity, price, referencePrice };
+}
+
+function renderSellOrderPreview() {
+  const preview = document.getElementById('sellOrderPreview');
+  if (!preview) return;
+
+  const ctx = sellOrderContext();
+  if (!ctx.item) {
+    preview.innerHTML = '<p class="muted">Kein passender Lagerbestand für eine Marktorder vorhanden.</p>';
+    return;
+  }
+
+  const gross = ctx.quantity * ctx.price;
+  const fee = gross * 0.05;
+  const net = gross - fee;
+  const withinNpcLimit = ctx.referencePrice > 0 && ctx.price > 0 && ctx.price <= ctx.referencePrice + 1e-9;
+
+  preview.innerHTML = `
+    <div class="kv"><span>NPC-Kaufgrenze (100%)</span><strong>${money(ctx.referencePrice)} / Einheit</strong></div>
+    <div class="kv"><span>Gewählter Orderpreis</span><strong>${money(ctx.price)} / Einheit</strong></div>
+    <div class="kv"><span>NPC-Kauf möglich</span><strong class="${withinNpcLimit ? 'retail-ready' : 'missing-building-warning'}">${withinNpcLimit ? 'Ja – innerhalb der Kaufgrenze' : 'Nein – Preis über Kaufgrenze'}</strong></div>
+    <div class="kv"><span>Bruttoerlös</span><strong>${money(gross)}</strong></div>
+    <div class="kv"><span>Marktgebühr (5%)</span><strong class="retail-cancel-fee">${fee > 0 ? `-${money(fee)}` : money(0)}</strong></div>
+    <div class="kv"><span>Nettoerlös</span><strong class="retail-revenue-positive">${money(net)}</strong></div>
+  `;
+}
+
 function updateSellQualityOptions() {
-  const productId=document.getElementById('sellProduct')?.value;
-  const qualitySelect=document.getElementById('sellQuality');
-  const priceInput=document.getElementById('sellPrice');
+  const type = document.getElementById('sellItemType')?.value || 'product';
+  const itemId = document.getElementById('sellProduct')?.value;
+  const qualitySelect = document.getElementById('sellQuality');
+  const priceInput = document.getElementById('sellPrice');
   if (!qualitySelect) return;
-  const lots=availableProductQualities(productId);
-  const previous=qualitySelect.value;
-  qualitySelect.innerHTML=lots.length ? lots.map(l=>`<option value="${Number(l.quality_level||1)}">Q${Number(l.quality_level||1)} – ${num(l.quantity)} verfügbar</option>`).join('') : '<option value="1">Q1 – 0 verfügbar</option>';
-  if (lots.some(l=>String(l.quality_level)===String(previous))) qualitySelect.value=previous;
-  const lot=productLot(productId,Number(qualitySelect.value||1));
-  if (priceInput && lot && Number(lot.average_unit_cost||0)>0) priceInput.value=(Number(lot.average_unit_cost)*2*qualityMultiplier(qualitySelect.value)).toFixed(2);
+
+  const lots = type === 'material'
+    ? materialInventoryLots(itemId).filter(l => Number(l.quantity || 0) > 0)
+    : availableProductQualities(itemId);
+
+  const previous = qualitySelect.value;
+  qualitySelect.innerHTML = lots.length
+    ? lots
+        .sort((a,b) => Number(a.quality_level || 1) - Number(b.quality_level || 1))
+        .map(l => `<option value="${Number(l.quality_level || 1)}">Q${Number(l.quality_level || 1)} – ${num(l.quantity)} verfügbar</option>`)
+        .join('')
+    : '<option value="1">Q1 – 0 verfügbar</option>';
+
+  if (lots.some(l => String(l.quality_level) === String(previous))) {
+    qualitySelect.value = previous;
+  }
+
+  const ctx = sellOrderContext();
+  if (priceInput && ctx.referencePrice > 0) {
+    priceInput.value = ctx.referencePrice.toFixed(2);
+  }
+  renderSellOrderPreview();
+}
+
+function updateSellItemOptions() {
+  const type = document.getElementById('sellItemType')?.value || 'product';
+  const select = document.getElementById('sellProduct');
+  if (!select) return;
+
+  const previous = select.value;
+
+  if (type === 'material') {
+    const availableMaterials = state.materials
+      .filter(material => materialInventoryLots(material.id).some(l => Number(l.quantity || 0) > 0))
+      .sort((a,b) => a.name.localeCompare(b.name, 'de-DE'));
+
+    select.innerHTML = availableMaterials.length
+      ? availableMaterials.map(m => `<option value="${m.id}">${m.name}</option>`).join('')
+      : '<option value="">Keine Rohstoffe im Lager</option>';
+
+    if (availableMaterials.some(m => m.id === previous)) select.value = previous;
+  } else {
+    const products = stockedProducts();
+    select.innerHTML = productOptionsGroupedByBuilding(products) || '<option value="">Keine Produkte im Lager</option>';
+    if (products.some(p => p.id === previous)) select.value = previous;
+  }
+
+  updateSellQualityOptions();
 }
 
 document.getElementById('sellOrderForm').addEventListener('submit', async e => {
   e.preventDefault();
-  const { error }=await sb.rpc('place_sell_order_quality',{
-    p_company_id:state.company.id,
-    p_product_id:document.getElementById('sellProduct').value,
-    p_quality:Number(document.getElementById('sellQuality').value||1),
-    p_quantity:Number(document.getElementById('sellQty').value),
-    p_price:Number(document.getElementById('sellPrice').value)
-  });
-  if(error) gameAlert(error.message); else await loadCompany();
+
+  const ctx = sellOrderContext();
+  if (!ctx.item || !ctx.lot || ctx.quantity <= 0 || ctx.price <= 0) {
+    renderSellOrderPreview();
+    return;
+  }
+
+  const args = ctx.type === 'material'
+    ? {
+        p_company_id: state.company.id,
+        p_material_id: ctx.item.id,
+        p_quality: ctx.quality,
+        p_quantity: ctx.quantity,
+        p_price: ctx.price
+      }
+    : {
+        p_company_id: state.company.id,
+        p_product_id: ctx.item.id,
+        p_quality: ctx.quality,
+        p_quantity: ctx.quantity,
+        p_price: ctx.price
+      };
+
+  const rpc = ctx.type === 'material'
+    ? 'place_material_sell_order_quality'
+    : 'place_sell_order_quality';
+
+  const { error } = await sb.rpc(rpc, args);
+  if (error) gameAlert(error.message);
+  else await loadCompany();
 });
 
+document.getElementById('sellItemType')?.addEventListener('change', updateSellItemOptions);
 document.getElementById('sellProduct')?.addEventListener('change', updateSellQualityOptions);
 document.getElementById('sellQuality')?.addEventListener('change', updateSellQualityOptions);
+document.getElementById('sellQty')?.addEventListener('input', renderSellOrderPreview);
+document.getElementById('sellPrice')?.addEventListener('input', renderSellOrderPreview);
+
 document.getElementById('retailProduct').addEventListener('change', () => {
   const priceInput = document.getElementById('retailPrice');
   if (priceInput) delete priceInput.dataset.manualPrice;
