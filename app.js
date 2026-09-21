@@ -1995,10 +1995,32 @@ function renderBuildings() {
   }
 
   const filter = state.buildingOverviewFilter || 'all';
+  const categoryOrder = {
+    production: 1,
+    research: 2,
+    retail: 3
+  };
+
   const html = state.buildings
     .filter(building => {
       const type = state.buildingTypes.find(bt => bt.id === building.building_type_id);
       return filter === 'all' || type?.building_category === filter;
+    })
+    .sort((a, b) => {
+      const typeA = state.buildingTypes.find(bt => bt.id === a.building_type_id);
+      const typeB = state.buildingTypes.find(bt => bt.id === b.building_type_id);
+      const catA = categoryOrder[typeA?.building_category] ?? 99;
+      const catB = categoryOrder[typeB?.building_category] ?? 99;
+
+      if (catA !== catB) return catA - catB;
+
+      const nameA = typeA?.name || '';
+      const nameB = typeB?.name || '';
+      const byName = nameA.localeCompare(nameB, 'de-DE');
+      if (byName !== 0) return byName;
+
+      return new Date(a.built_at || 0) - new Date(b.built_at || 0)
+        || String(a.id).localeCompare(String(b.id));
     })
     .map(building => {
       const bt = state.buildingTypes.find(type => type.id === building.building_type_id);
