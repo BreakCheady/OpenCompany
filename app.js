@@ -656,6 +656,174 @@ function bindNavigation() {
 }
 bindNavigation();
 
+
+function urlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - base64String.length % 4) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const rawData = atob(base64);
+  return Uint8Array.from([...rawData].map(char => char.charCodeAt(0)));
+}
+
+function pushSupported() {
+  return 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+}
+
+function setPushStatus(text, type='') {
+  const el = document.getElementById('pushStatus');
+  if (!el) return;
+  msg(el, text, type);
+}
+
+async function getPushRegistration() {
+  if (!pushSupported()) return null;
+  await navigator.serviceWorker.register('service-worker.js');
+  return navigator.serviceWorker.ready;
+}
+
+async function savePushPreferences() {
+  if (!sb || !state.session?.user?.id) return;
+  const production = document.getElementById('pushProductionEnabled');
+  const retail = document.getElementById('pushRetailEnabled');
+  if (!production || !retail) return;
+
+  const { error } = await sb.from('push_preferences').upsert({
+    user_id: state.session.user.id,
+    production_enabled: production.checked,
+    retail_enabled: retail.checked,
+    updated_at: new Date().toISOString()
+  }, { onConflict: 'user_id' });
+
+  if (error) {
+    setPushStatus(`Einstellungen konnten nicht gespeichert werden: ${error.message}`, 'error');
+  } else {
+    setPushStatus('Benachrichtigungseinstellungen gespeichert.', 'success');
+  }
+}
+
+async function enablePushNotifications() {
+  if (!pushSupported()) {
+    setPushStatus('Dieser Browser unterstützt keine Push-Benachrichtigungen.', 'error');
+    return false;
+  }
+
+  const permission = await Notification.requestPermission();
+  if (permission !== 'granted') {
+    setPushStatus(
+      permission === 'denied'
+        ? 'Benachrichtigungen sind im Browser blockiert.'
+        : 'Benachrichtigungen wurden nicht aktiviert.',
+      'error'
+    );
+    return false;
+  }
+
+  const { data: configData, error: configError } = await sb
+    .from('push_config')
+    .select('vapid_public_key')
+    .eq('singleton', true)
+    .maybeSingle();
+
+  if (configError || !configData?.vapid_public_key) {
+    setPushStatus('Push-Konfiguration konnte nicht geladen werden.', 'error');
+    return false;
+  }
+
+  const registration = await getPushRegistration();
+  let subscription = await registration.pushManager.getSubscription();
+
+  if (!subscription) {
+    subscription = await registration.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlBase64ToUint8Array(configData.vapid_public_key)
+    });
+  }
+
+  const json = subscription.toJSON();
+  const { error: saveError } = await sb.from('push_subscriptions').upsert({
+    user_id: state.session.user.id,
+    endpoint: subscription.endpoint,
+    p256dh: json.keys?.p256dh,
+    auth: json.keys?.auth,
+    user_agent: navigator.userAgent,
+    enabled: true,
+    updated_at: new Date().toISOString()
+  }, { onConflict: 'endpoint' });
+
+  if (saveError) {
+    setPushStatus(`Push-Abo konnte nicht gespeichert werden: ${saveError.message}`, 'error');
+    return false;
+  }
+
+  await savePushPreferences();
+  setPushStatus('Push-Benachrichtigungen sind auf diesem Gerät aktiv.', 'success');
+  return true;
+}
+
+async function disablePushNotifications() {
+  if (!pushSupported() || !state.session?.user?.id) return;
+
+  const registration = await getPushRegistration();
+  const subscription = await registration.pushManager.getSubscription();
+
+  if (subscription) {
+    await sb.from('push_subscriptions')
+      .delete()
+      .eq('user_id', state.session.user.id)
+      .eq('endpoint', subscription.endpoint);
+    await subscription.unsubscribe();
+  }
+
+  setPushStatus('Push-Benachrichtigungen sind auf diesem Gerät deaktiviert.');
+}
+
+async function loadPushSettings() {
+  const pushToggle = document.getElementById('pushEnabled');
+  const productionToggle = document.getElementById('pushProductionEnabled');
+  const retailToggle = document.getElementById('pushRetailEnabled');
+  if (!pushToggle || !productionToggle || !retailToggle || !state.session?.user?.id) return;
+
+  if (!pushSupported()) {
+    pushToggle.checked = false;
+    pushToggle.disabled = true;
+    productionToggle.disabled = true;
+    retailToggle.disabled = true;
+    setPushStatus('Dieser Browser unterstützt keine Push-Benachrichtigungen.', 'error');
+    return;
+  }
+
+  const [{ data: prefs, error: prefError }, registration] = await Promise.all([
+    sb.from('push_preferences')
+      .select('production_enabled,retail_enabled')
+      .eq('user_id', state.session.user.id)
+      .maybeSingle(),
+    getPushRegistration()
+  ]);
+
+  if (prefError) console.warn('Push-Einstellungen:', prefError.message);
+
+  productionToggle.checked = prefs?.production_enabled ?? true;
+  retailToggle.checked = prefs?.retail_enabled ?? true;
+
+  const subscription = await registration.pushManager.getSubscription();
+  const active = Notification.permission === 'granted' && !!subscription;
+  pushToggle.checked = active;
+
+  if (Notification.permission === 'denied') {
+    setPushStatus('Benachrichtigungen sind im Browser blockiert.', 'error');
+  } else if (active) {
+    setPushStatus('Push-Benachrichtigungen sind auf diesem Gerät aktiv.', 'success');
+  } else {
+    setPushStatus('Push-Benachrichtigungen sind auf diesem Gerät nicht aktiviert.');
+  }
+}
+
+function openViewFromHash() {
+  const view = location.hash.replace(/^#/, '');
+  if (!view) return;
+  const btn = document.querySelector(`.nav-item[data-view="${view}"]`);
+  if (btn && state.company) btn.click();
+}
+
 async function init() {
   if (!sb) return;
 
@@ -737,6 +905,8 @@ async function loadCompany() {
 
     startCompanyBalanceWatcher();
     await loadGameData();
+    await loadPushSettings();
+    openViewFromHash();
   }
 }
 
@@ -3763,6 +3933,30 @@ document.getElementById('contractForm').addEventListener('submit',async e=>{
 window.acceptContract=async id=>{ const {error}=await sb.rpc('accept_contract',{p_contract_id:id}); if(error) gameAlert(error.message); else await loadCompany(); };
 window.fulfillContract=async id=>{ const {error}=await sb.rpc('fulfill_contract',{p_contract_id:id}); if(error) gameAlert(error.message); else await loadCompany(); };
 window.cancelContract=async id=>{ const {error}=await sb.rpc('cancel_contract',{p_contract_id:id}); if(error) gameAlert(error.message); else await loadCompany(); };
+
+
+document.getElementById('pushEnabled')?.addEventListener('change', async event => {
+  const enabled = event.target.checked;
+  event.target.disabled = true;
+  try {
+    if (enabled) {
+      const ok = await enablePushNotifications();
+      event.target.checked = ok;
+    } else {
+      await disablePushNotifications();
+    }
+  } catch (error) {
+    console.error('Push:', error);
+    event.target.checked = !enabled;
+    setPushStatus(`Push-Benachrichtigungen konnten nicht geändert werden: ${error.message || error}`, 'error');
+  } finally {
+    event.target.disabled = false;
+  }
+});
+
+document.getElementById('pushProductionEnabled')?.addEventListener('change', savePushPreferences);
+document.getElementById('pushRetailEnabled')?.addEventListener('change', savePushPreferences);
+window.addEventListener('hashchange', openViewFromHash);
 
 document.addEventListener('visibilitychange', async () => {
   if (document.visibilityState === 'visible') {
