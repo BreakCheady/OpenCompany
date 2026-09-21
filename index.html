@@ -7,7 +7,7 @@
   <title>OpenCompany</title>
   <link rel="icon" type="image/png" href="favicon.png">
   <link rel="shortcut icon" href="favicon.ico">
-  <link rel="stylesheet" href="style.css?v=0.10.46">
+  <link rel="stylesheet" href="style.css?v=0.10.47">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
@@ -353,24 +353,16 @@
           <h2>Einstellungen</h2>
           <div class="kv">
             <span>Version</span>
-            <strong>0.10.46</strong>
+            <strong>0.10.47</strong>
           </div>
         </article>
 
         <article class="panel">
           <h2>Benachrichtigungen</h2>
-          <p class="muted">Erhalte Browser-Push-Benachrichtigungen, auch wenn OpenCompany gerade nicht geöffnet ist.</p>
+          <p class="muted">Erhalte Browser-Push-Benachrichtigungen, auch wenn OpenCompany gerade nicht geöffnet ist. Aktiviert werden automatisch Benachrichtigungen für abgeschlossene Produktionen und Handelsverkäufe.</p>
           <div class="kv">
             <span>Push-Benachrichtigungen auf diesem Gerät</span>
             <label><input id="pushEnabled" type="checkbox"> Aktiviert</label>
-          </div>
-          <div class="kv">
-            <span>Produktion abgeschlossen</span>
-            <label><input id="pushProductionEnabled" type="checkbox" checked> Aktiviert</label>
-          </div>
-          <div class="kv">
-            <span>Handelsverkauf abgeschlossen</span>
-            <label><input id="pushRetailEnabled" type="checkbox" checked> Aktiviert</label>
           </div>
           <p id="pushStatus" class="status"></p>
         </article>

@@ -680,23 +680,18 @@ async function getPushRegistration() {
   return navigator.serviceWorker.ready;
 }
 
-async function savePushPreferences() {
+async function savePushPreferences(enabled = true) {
   if (!sb || !state.session?.user?.id) return;
-  const production = document.getElementById('pushProductionEnabled');
-  const retail = document.getElementById('pushRetailEnabled');
-  if (!production || !retail) return;
 
   const { error } = await sb.from('push_preferences').upsert({
     user_id: state.session.user.id,
-    production_enabled: production.checked,
-    retail_enabled: retail.checked,
+    production_enabled: enabled,
+    retail_enabled: enabled,
     updated_at: new Date().toISOString()
   }, { onConflict: 'user_id' });
 
   if (error) {
     setPushStatus(`Einstellungen konnten nicht gespeichert werden: ${error.message}`, 'error');
-  } else {
-    setPushStatus('Benachrichtigungseinstellungen gespeichert.', 'success');
   }
 }
 
@@ -754,7 +749,7 @@ async function enablePushNotifications() {
     return false;
   }
 
-  await savePushPreferences();
+  await savePushPreferences(true);
   setPushStatus('Push-Benachrichtigungen sind auf diesem Gerät aktiv.', 'success');
   return true;
 }
@@ -773,40 +768,29 @@ async function disablePushNotifications() {
     await subscription.unsubscribe();
   }
 
+  await savePushPreferences(false);
   setPushStatus('Push-Benachrichtigungen sind auf diesem Gerät deaktiviert.');
 }
 
 async function loadPushSettings() {
   const pushToggle = document.getElementById('pushEnabled');
-  const productionToggle = document.getElementById('pushProductionEnabled');
-  const retailToggle = document.getElementById('pushRetailEnabled');
-  if (!pushToggle || !productionToggle || !retailToggle || !state.session?.user?.id) return;
+  if (!pushToggle || !state.session?.user?.id) return;
 
   if (!pushSupported()) {
     pushToggle.checked = false;
     pushToggle.disabled = true;
-    productionToggle.disabled = true;
-    retailToggle.disabled = true;
     setPushStatus('Dieser Browser unterstützt keine Push-Benachrichtigungen.', 'error');
     return;
   }
 
-  const [{ data: prefs, error: prefError }, registration] = await Promise.all([
-    sb.from('push_preferences')
-      .select('production_enabled,retail_enabled')
-      .eq('user_id', state.session.user.id)
-      .maybeSingle(),
-    getPushRegistration()
-  ]);
-
-  if (prefError) console.warn('Push-Einstellungen:', prefError.message);
-
-  productionToggle.checked = prefs?.production_enabled ?? true;
-  retailToggle.checked = prefs?.retail_enabled ?? true;
-
+  const registration = await getPushRegistration();
   const subscription = await registration.pushManager.getSubscription();
   const active = Notification.permission === 'granted' && !!subscription;
   pushToggle.checked = active;
+
+  if (active) {
+    await savePushPreferences(true);
+  }
 
   if (Notification.permission === 'denied') {
     setPushStatus('Benachrichtigungen sind im Browser blockiert.', 'error');
@@ -3954,8 +3938,6 @@ document.getElementById('pushEnabled')?.addEventListener('change', async event =
   }
 });
 
-document.getElementById('pushProductionEnabled')?.addEventListener('change', savePushPreferences);
-document.getElementById('pushRetailEnabled')?.addEventListener('change', savePushPreferences);
 window.addEventListener('hashchange', openViewFromHash);
 
 document.addEventListener('visibilitychange', async () => {
