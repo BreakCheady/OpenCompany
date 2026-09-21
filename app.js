@@ -4032,6 +4032,20 @@ window.cancelContract=async id=>{ const {error}=await sb.rpc('cancel_contract',{
 
 
 
+document.addEventListener('click', event => {
+  const button = event.target.closest('.password-toggle');
+  if (!button) return;
+
+  const input = document.getElementById(button.dataset.passwordTarget || '');
+  if (!input) return;
+
+  const show = input.type === 'password';
+  input.type = show ? 'text' : 'password';
+  button.setAttribute('aria-label', show ? 'Passwort verbergen' : 'Passwort anzeigen');
+  button.setAttribute('title', show ? 'Passwort verbergen' : 'Passwort anzeigen');
+  button.textContent = show ? '🙈' : '👁';
+});
+
 document.getElementById('accountEditBtn')?.addEventListener('click', () => {
   setAccountEditMode(true);
 });

@@ -7,8 +7,13 @@
   <title>OpenCompany</title>
   <link rel="icon" type="image/png" href="favicon.png">
   <link rel="shortcut icon" href="favicon.ico">
-  <link rel="stylesheet" href="style.css?v=0.10.48">
+  <link rel="stylesheet" href="style.css?v=0.10.49">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    .password-field{display:flex;align-items:center;gap:.5rem}
+    .password-field input{flex:1 1 auto;min-width:0}
+    .password-toggle{flex:0 0 auto;min-width:2.5rem;padding:.55rem .7rem;line-height:1;font-size:1rem}
+  </style>
 </head>
 <body>
 <div class="app-shell">
@@ -48,7 +53,7 @@
     <section id="authView" class="panel auth-panel">
       <h2>Login / Registrierung</h2>
       <div class="grid two">
-        <form id="loginForm"><h3>Anmelden</h3><label>E-Mail<input type="email" id="loginEmail" required></label><label>Passwort<input type="password" id="loginPassword" minlength="6" required></label><button type="submit">Anmelden</button><button type="button" id="forgotPasswordBtn" class="ghost">Passwort vergessen?</button></form>
+        <form id="loginForm"><h3>Anmelden</h3><label>E-Mail<input type="email" id="loginEmail" required></label><label>Passwort<span class="password-field"><input type="password" id="loginPassword" minlength="6" required><button type="button" class="password-toggle" data-password-target="loginPassword" aria-label="Passwort anzeigen" title="Passwort anzeigen">👁</button></span></label><button type="submit">Anmelden</button><button type="button" id="forgotPasswordBtn" class="ghost">Passwort vergessen?</button></form>
         <form id="signupForm"><h3>Registrieren</h3><label>E-Mail<input type="email" id="signupEmail" required></label><label>Passwort<input type="password" id="signupPassword" minlength="6" required></label><button type="submit">Account erstellen</button></form>
       </div>
       <p id="authMessage" class="status"></p>
@@ -353,7 +358,7 @@
           <h2>Einstellungen</h2>
           <div class="kv">
             <span>Version</span>
-            <strong>0.10.48</strong>
+            <strong>0.10.49</strong>
           </div>
         </article>
 
@@ -378,11 +383,17 @@
             </label>
             <label>
               Neues Passwort
-              <input id="accountNewPassword" type="password" autocomplete="new-password" placeholder="Neues Passwort">
+              <span class="password-field">
+                <input id="accountNewPassword" type="password" autocomplete="new-password" placeholder="Neues Passwort">
+                <button type="button" class="password-toggle" data-password-target="accountNewPassword" aria-label="Passwort anzeigen" title="Passwort anzeigen">👁</button>
+              </span>
             </label>
             <label>
               Neues Passwort bestätigen
-              <input id="accountNewPasswordConfirm" type="password" autocomplete="new-password" placeholder="Passwort wiederholen">
+              <span class="password-field">
+                <input id="accountNewPasswordConfirm" type="password" autocomplete="new-password" placeholder="Passwort wiederholen">
+                <button type="button" class="password-toggle" data-password-target="accountNewPasswordConfirm" aria-label="Passwort anzeigen" title="Passwort anzeigen">👁</button>
+              </span>
             </label>
             <div class="actions">
               <button type="submit">Speichern</button>
