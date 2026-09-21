@@ -7,7 +7,7 @@
   <title>OpenCompany</title>
   <link rel="icon" type="image/png" href="favicon.png">
   <link rel="shortcut icon" href="favicon.ico">
-  <link rel="stylesheet" href="style.css?v=0.10.52">
+  <link rel="stylesheet" href="style.css?v=0.10.53">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     .password-field{display:flex;align-items:center;gap:.5rem}
@@ -45,9 +45,9 @@
     <nav>
       <button class="nav-item active" data-view="dashboard">Dashboard</button>
       <button class="nav-item" data-view="company">Unternehmen</button>
-      <button class="nav-item" data-view="production">Produktion</button>
+      <button class="nav-item" data-view="production">Gebäude</button>
       <button class="nav-item" data-view="storage">Lager</button>
-      <button class="nav-item" data-view="market">Markt &amp; Handel</button>
+      <button class="nav-item" data-view="market">Warenbörse</button>
       <button class="nav-item" data-view="contracts">Verträge</button>
       <button class="nav-item" data-view="finance">Finanzen</button>
       <button class="nav-item" data-view="research">Forschung</button>
@@ -121,8 +121,8 @@
         <article class="panel">
           <div class="panel-head building-panel-head">
             <div>
-              <h2>Gebäude &amp; Produktion</h2>
-              <p class="muted">Wähle ein konkretes Gebäude aus. Jeder Auftrag läuft anschließend genau in diesem Gebäude.</p>
+              <h2>Gebäude</h2>
+              <p class="muted">Wähle ein konkretes Gebäude aus. Produktion und Handelsverkauf werden direkt diesem Gebäude zugeordnet.</p>
             </div>
             <button type="button" id="openBuildingBuilderBtn" class="building-builder-open-btn">Bauen</button>
           </div>
@@ -180,6 +180,34 @@
           <h3>Produktionsrezept</h3>
           <div id="productionRecipe" class="table-wrap"></div>
         </article>
+
+        <article class="panel hidden" id="retailControlPanel">
+          <div class="panel-head">
+            <div>
+              <h2 id="retailSelectedHeading">Im Handel verkaufen</h2>
+              <p id="retailSelectedHint" class="muted">Wähle oben ein Verkaufsgebäude aus.</p>
+            </div>
+          </div>
+          <form id="retailSaleForm">
+            <label>Produkt<select id="retailProduct"></select></label>
+            <label>Qualität<select id="retailQuality"></select></label>
+            <label>Preis je Einheit
+              <input type="number" id="retailPrice" min="0.01" step="0.01" value="1">
+            </label>
+            <label>Menge
+              <input type="text" id="retailQty" value="1"
+                autocomplete="off" autocapitalize="none" spellcheck="false"
+                placeholder="z. B. 120, 6hrs oder 6pm">
+            </label>
+            <div class="retail-actions">
+              <button type="button" id="retailMaxBtn" class="ghost">MAX</button>
+              <button type="button" id="retail24Btn" class="ghost">24H</button>
+              <button type="submit" id="retailSaleBtn" class="retail-sale-submit">Im Handel verkaufen</button>
+            </div>
+            <div id="retailSaleDetails" class="retail-sale-details"></div>
+          </form>
+          <p class="muted retail-sale-note">Du kannst eine Stückzahl, eine Dauer wie <strong>6hrs</strong> oder eine Zielzeit wie <strong>6pm</strong> eingeben. Der Verkauf läuft im oben ausgewählten Verkaufsgebäude.</p>
+        </article>
       </div>
 
       <div id="storage" class="view">
@@ -228,29 +256,6 @@
           </form>
           <div id="sellOrderPreview" class="retail-sale-details"></div>
           <p class="muted market-fee-note">Du kannst Produkte und Rohstoffe aus deinem Lager anbieten. Bei erfolgreichen Marktverkäufen werden 5% Marktgebühr vom Verkaufserlös abgezogen.</p>
-        </article>
-
-        <article class="panel">
-          <h2>Produkt im Handel verkaufen</h2>
-          <form id="retailSaleForm">
-            <label>Produkt<select id="retailProduct"></select></label>
-            <label>Qualität<select id="retailQuality"></select></label>
-            <label>Preis je Einheit
-              <input type="number" id="retailPrice" min="0.01" step="0.01" value="1">
-            </label>
-            <label>Menge
-              <input type="text" id="retailQty" value="1"
-                autocomplete="off" autocapitalize="none" spellcheck="false"
-                placeholder="z. B. 120, 6hrs oder 6pm">
-            </label>
-            <div class="retail-actions">
-              <button type="button" id="retailMaxBtn" class="ghost">MAX</button>
-              <button type="button" id="retail24Btn" class="ghost">24H</button>
-              <button type="submit" id="retailSaleBtn" class="retail-sale-submit">Im Handel verkaufen</button>
-            </div>
-            <div id="retailSaleDetails" class="retail-sale-details"></div>
-          </form>
-          <p class="muted retail-sale-note">Du kannst eine Stückzahl, eine Dauer wie <strong>6hrs</strong> oder eine Zielzeit wie <strong>6pm</strong> eingeben. Für den Handelsverkauf wird das passende Verkaufsgebäude benötigt.</p>
         </article>
 
         <article class="panel">
@@ -390,7 +395,7 @@
           <h2>Einstellungen</h2>
           <div class="kv">
             <span>Version</span>
-            <strong>0.10.52</strong>
+            <strong>0.10.53</strong>
           </div>
         </article>
 

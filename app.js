@@ -221,22 +221,7 @@ function retailSelectableProducts() {
       .sort((a,b) => a.name.localeCompare(b.name,'de-DE'));
   }
 
-  const runningJobs = state.retailSaleJobs.filter(job => job.status === 'running');
-  const runningProductIds = new Set(runningJobs.map(job => job.product_id));
-  const products = [...stockedProducts().filter(product => product.required_retail_building_type_id)];
-
-  runningJobs.forEach(job => {
-    const product = state.products.find(p => p.id === job.product_id);
-    if (product && !products.some(p => p.id === product.id)) products.push(product);
-  });
-
-  return products.filter(product => {
-    const buildingTypeId = product.required_retail_building_type_id;
-    const buildings = activeBuildingsOfType(buildingTypeId);
-    if (!buildings.length) return true;
-    if (buildingTypeHasFreeSlot(buildingTypeId, runningJobs)) return true;
-    return runningProductIds.has(product.id);
-  });
+  return [];
 }
 
 function operationalProductIdentitySet() {
@@ -1758,7 +1743,7 @@ function renderBuildings() {
           <button type="button" class="ghost" onclick="event.stopPropagation();downgradeBuilding('${building.id}','${bt.id}')">${level<=1?'Abreißen':'Abstufen'}</button>`;
       }
 
-      const click = underConstruction ? '' : (isRetail ? `onclick="openRetailBuilding('${building.id}', true)"` : `onclick="selectBuildingCard('${building.id}')"`);
+      const click = underConstruction ? '' : (isRetail ? `onclick="openRetailBuilding('${building.id}')"` : `onclick="selectBuildingCard('${building.id}')"`);
       return `<div class="building-card ${selected?'selected':''} ${underConstruction?'under-construction':''}" ${click}>
         <div class="building-card-head"><div>
           <div class="building-card-title">${bt.name} #${number}</div>
@@ -1779,17 +1764,31 @@ function renderBuildings() {
 
   const selected = state.buildings.find(b => b.id === state.selectedBuildingId) || null;
   const selectedType = selected ? state.buildingTypes.find(bt => bt.id === selected.building_type_id) : null;
-  const control = document.getElementById('productionControlPanel');
-  if (control) control.classList.toggle('hidden', !selected || selectedType?.building_category === 'retail');
+  const isRetailSelected = selectedType?.building_category === 'retail';
+
+  const productionControl = document.getElementById('productionControlPanel');
+  const retailControl = document.getElementById('retailControlPanel');
+  if (productionControl) productionControl.classList.toggle('hidden', !selected || isRetailSelected);
+  if (retailControl) retailControl.classList.toggle('hidden', !selected || !isRetailSelected);
 
   const heading = document.getElementById('productionSelectedHeading');
   const hint = document.getElementById('productionSelectedHint');
-  if (heading && hint && selected && selectedType) {
+  if (heading && hint && selected && selectedType && !isRetailSelected) {
     heading.textContent = `${selectedType.name} #${buildingDisplayNumber(selected)} · Produktion`;
     const running = state.productionJobs.find(j => j.building_id === selected.id && j.status === 'running');
     hint.textContent = running
       ? 'Dieses Gebäude hat bereits einen laufenden Produktionsauftrag.'
       : 'Dieses Gebäude ist frei. Wähle ein Produkt und starte die Produktion.';
+  }
+
+  const retailHeading = document.getElementById('retailSelectedHeading');
+  const retailHint = document.getElementById('retailSelectedHint');
+  if (retailHeading && retailHint && selected && selectedType && isRetailSelected) {
+    retailHeading.textContent = `${selectedType.name} #${buildingDisplayNumber(selected)} · Handelsverkauf`;
+    const running = state.retailSaleJobs.find(j => j.building_id === selected.id && j.status === 'running');
+    retailHint.textContent = running
+      ? 'Dieses Geschäft hat bereits einen laufenden Verkaufsauftrag.'
+      : 'Dieses Geschäft ist frei. Wähle Produkt, Preis und Menge.';
   }
 
   renderBuildingCatalog();
@@ -1802,21 +1801,25 @@ window.selectBuildingCard = function(buildingId) {
   if (type?.building_category === 'retail') return openRetailBuilding(buildingId);
 
   state.selectedBuildingId = buildingId;
+  state.selectedRetailBuildingId = null;
   updateProductionProductsForSelectedBuilding();
   renderBuildings();
   renderProductionRecipe();
 };
 
-window.openRetailBuilding = function(buildingId, stayInProduction = false) {
+window.openRetailBuilding = function(buildingId) {
   const building = state.buildings.find(b => b.id === buildingId);
   if (!building || building.status !== 'active') return;
   const type = state.buildingTypes.find(bt => bt.id === building.building_type_id);
   if (type?.building_category !== 'retail') return;
 
+  state.selectedBuildingId = buildingId;
   state.selectedRetailBuildingId = buildingId;
+  updateProductionProductsForSelectedBuilding();
   renderBuildings();
   renderRetailSale();
-  if (!stayInProduction) document.querySelector('.nav-item[data-view="market"]')?.click();
+
+  document.querySelector('.nav-item[data-view="production"]')?.click();
 };
 
 function retailSaleContext() {
@@ -1831,13 +1834,6 @@ function retailSaleContext() {
   ) || null;
 
   if (building && product && building.building_type_id !== product.required_retail_building_type_id) building = null;
-
-  if (!building && buildingType) {
-    const matching = state.buildings.filter(b => b.building_type_id === buildingType.id && b.status === 'active');
-    building = matching.find(candidate =>
-      !state.retailSaleJobs.some(job => job.building_id === candidate.id && job.status === 'running')
-    ) || matching[0] || null;
-  }
 
   const runningJob = building
     ? state.retailSaleJobs.find(job => job.building_id === building.id && job.status === 'running') || null
@@ -1999,14 +1995,6 @@ function retailSaleProgress(job) {
 }
 
 function renderRetailSale() {
-  if (!state.selectedRetailBuildingId) {
-    const firstRetail = state.buildings.find(building => {
-      const type = state.buildingTypes.find(bt => bt.id === building.building_type_id);
-      return building.status === 'active' && type?.building_category === 'retail';
-    });
-    if (firstRetail) state.selectedRetailBuildingId = firstRetail.id;
-  }
-
   const select = document.getElementById('retailProduct');
   const details = document.getElementById('retailSaleDetails');
   const button = document.getElementById('retailSaleBtn');
