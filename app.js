@@ -721,6 +721,306 @@ bindNavigation();
 
 
 
+
+const customSelectState = {
+  openSelect: null,
+  menu: null,
+  focusedIndex: -1,
+  observer: null
+};
+
+function customSelectLabel(select) {
+  const option = select?.selectedOptions?.[0] || select?.options?.[select.selectedIndex] || null;
+  return option?.textContent?.trim() || 'Bitte wählen';
+}
+
+function ensureCustomSelectMenu() {
+  if (customSelectState.menu) return customSelectState.menu;
+
+  const menu = document.createElement('div');
+  menu.id = 'ocSelectMenu';
+  menu.className = 'oc-select-menu hidden';
+  menu.setAttribute('role', 'listbox');
+  document.body.appendChild(menu);
+
+  menu.addEventListener('click', event => {
+    const optionButton = event.target.closest('.oc-select-option');
+    if (!optionButton || optionButton.disabled) return;
+
+    const select = customSelectState.openSelect;
+    if (!select) return;
+
+    const index = Number(optionButton.dataset.optionIndex);
+    const option = select.options[index];
+    if (!option || option.disabled) return;
+
+    select.selectedIndex = index;
+    select.dispatchEvent(new Event('change', { bubbles: true }));
+    syncCustomSelect(select);
+    closeCustomSelect();
+  });
+
+  customSelectState.menu = menu;
+  return menu;
+}
+
+function customSelectWrapper(select) {
+  return select?.closest?.('.oc-select') || null;
+}
+
+function customSelectTrigger(select) {
+  return customSelectWrapper(select)?.querySelector('.oc-select-trigger') || null;
+}
+
+function buildCustomSelectOptions(select) {
+  const menu = ensureCustomSelectMenu();
+  menu.innerHTML = '';
+  menu.setAttribute('aria-label', select.getAttribute('aria-label') || select.id || 'Auswahl');
+
+  let flatOptionIndex = 0;
+  const children = Array.from(select.children);
+
+  if (!select.options.length) {
+    menu.innerHTML = '<div class="oc-select-empty">Keine Auswahl verfügbar</div>';
+    return [];
+  }
+
+  const optionButtons = [];
+
+  const appendOption = option => {
+    const index = Array.from(select.options).indexOf(option);
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'oc-select-option';
+    button.dataset.optionIndex = String(index);
+    button.setAttribute('role', 'option');
+    button.setAttribute('aria-selected', option.selected ? 'true' : 'false');
+    button.disabled = option.disabled || select.disabled;
+    button.innerHTML = `<span>${escapeHtml(option.textContent?.trim() || '')}</span><span class="oc-select-check">✓</span>`;
+    if (option.selected) button.classList.add('selected');
+    menu.appendChild(button);
+    optionButtons.push(button);
+    flatOptionIndex++;
+  };
+
+  children.forEach(child => {
+    if (child.tagName === 'OPTGROUP') {
+      const heading = document.createElement('div');
+      heading.className = 'oc-select-group';
+      heading.textContent = child.label || '';
+      menu.appendChild(heading);
+      Array.from(child.children).forEach(option => appendOption(option));
+    } else if (child.tagName === 'OPTION') {
+      appendOption(child);
+    }
+  });
+
+  return optionButtons;
+}
+
+function positionCustomSelectMenu(select) {
+  const trigger = customSelectTrigger(select);
+  const menu = ensureCustomSelectMenu();
+  if (!trigger || menu.classList.contains('hidden')) return;
+
+  const rect = trigger.getBoundingClientRect();
+  const viewportHeight = window.innerHeight;
+  const gap = 6;
+
+  if (window.innerWidth <= 720) {
+    menu.style.top = `${Math.min(rect.bottom + gap, viewportHeight - 80)}px`;
+    menu.style.bottom = 'auto';
+    menu.style.width = 'auto';
+    return;
+  }
+
+  const width = Math.max(rect.width, 220);
+  menu.style.width = `${Math.min(width, window.innerWidth - 20)}px`;
+  menu.style.left = `${Math.max(10, Math.min(rect.left, window.innerWidth - width - 10))}px`;
+
+  const estimatedHeight = Math.min(menu.scrollHeight || 320, 420, viewportHeight * .52);
+  const roomBelow = viewportHeight - rect.bottom - gap;
+  const roomAbove = rect.top - gap;
+
+  if (roomBelow >= Math.min(estimatedHeight, 180) || roomBelow >= roomAbove) {
+    menu.style.top = `${rect.bottom + gap}px`;
+    menu.style.bottom = 'auto';
+  } else {
+    menu.style.top = 'auto';
+    menu.style.bottom = `${viewportHeight - rect.top + gap}px`;
+  }
+}
+
+function openCustomSelect(select) {
+  if (!select || select.disabled) return;
+
+  if (customSelectState.openSelect && customSelectState.openSelect !== select) {
+    closeCustomSelect();
+  }
+
+  syncCustomSelect(select);
+  customSelectState.openSelect = select;
+
+  const trigger = customSelectTrigger(select);
+  const menu = ensureCustomSelectMenu();
+  const buttons = buildCustomSelectOptions(select);
+
+  trigger?.setAttribute('aria-expanded', 'true');
+  menu.classList.remove('hidden');
+  positionCustomSelectMenu(select);
+
+  const selectedButtonIndex = buttons.findIndex(button => button.classList.contains('selected') && !button.disabled);
+  customSelectState.focusedIndex = selectedButtonIndex >= 0
+    ? selectedButtonIndex
+    : buttons.findIndex(button => !button.disabled);
+
+  buttons.forEach((button, i) => button.classList.toggle('focused', i === customSelectState.focusedIndex));
+  buttons[customSelectState.focusedIndex]?.scrollIntoView({ block: 'nearest' });
+}
+
+function closeCustomSelect() {
+  const select = customSelectState.openSelect;
+  const trigger = customSelectTrigger(select);
+  trigger?.setAttribute('aria-expanded', 'false');
+
+  const menu = ensureCustomSelectMenu();
+  menu.classList.add('hidden');
+  menu.style.top = '';
+  menu.style.bottom = '';
+  menu.style.left = '';
+  menu.style.width = '';
+
+  customSelectState.openSelect = null;
+  customSelectState.focusedIndex = -1;
+}
+
+function moveCustomSelectFocus(direction) {
+  const menu = ensureCustomSelectMenu();
+  const buttons = Array.from(menu.querySelectorAll('.oc-select-option'));
+  if (!buttons.length) return;
+
+  let index = customSelectState.focusedIndex;
+  for (let tries = 0; tries < buttons.length; tries++) {
+    index = (index + direction + buttons.length) % buttons.length;
+    if (!buttons[index].disabled) break;
+  }
+
+  customSelectState.focusedIndex = index;
+  buttons.forEach((button, i) => button.classList.toggle('focused', i === index));
+  buttons[index]?.scrollIntoView({ block: 'nearest' });
+}
+
+function syncCustomSelect(select) {
+  if (!select || !select.classList?.contains('oc-select-native')) return;
+
+  const trigger = customSelectTrigger(select);
+  if (!trigger) return;
+
+  const text = trigger.querySelector('.oc-select-trigger-text');
+  if (text) text.textContent = customSelectLabel(select);
+
+  trigger.disabled = select.disabled;
+  trigger.setAttribute('aria-disabled', select.disabled ? 'true' : 'false');
+
+  if (customSelectState.openSelect === select) {
+    buildCustomSelectOptions(select);
+    positionCustomSelectMenu(select);
+  }
+}
+
+function enhanceCustomSelect(select) {
+  if (!select || select.dataset.ocSelectEnhanced === '1') {
+    if (select) syncCustomSelect(select);
+    return;
+  }
+
+  select.dataset.ocSelectEnhanced = '1';
+  select.classList.add('oc-select-native');
+
+  const wrapper = document.createElement('div');
+  wrapper.className = 'oc-select';
+
+  select.parentNode.insertBefore(wrapper, select);
+  wrapper.appendChild(select);
+
+  const trigger = document.createElement('button');
+  trigger.type = 'button';
+  trigger.className = 'oc-select-trigger';
+  trigger.setAttribute('aria-haspopup', 'listbox');
+  trigger.setAttribute('aria-expanded', 'false');
+  trigger.innerHTML = '<span class="oc-select-trigger-text"></span><span class="oc-select-chevron" aria-hidden="true"></span>';
+  wrapper.appendChild(trigger);
+
+  trigger.addEventListener('click', event => {
+    event.preventDefault();
+    if (customSelectState.openSelect === select) closeCustomSelect();
+    else openCustomSelect(select);
+  });
+
+  trigger.addEventListener('keydown', event => {
+    if (select.disabled) return;
+
+    if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+      event.preventDefault();
+      if (customSelectState.openSelect !== select) openCustomSelect(select);
+      else moveCustomSelectFocus(event.key === 'ArrowDown' ? 1 : -1);
+      return;
+    }
+
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      if (customSelectState.openSelect !== select) {
+        openCustomSelect(select);
+      } else {
+        const button = ensureCustomSelectMenu().querySelectorAll('.oc-select-option')[customSelectState.focusedIndex];
+        button?.click();
+      }
+      return;
+    }
+
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      closeCustomSelect();
+    }
+  });
+
+  select.addEventListener('change', () => syncCustomSelect(select));
+
+  const observer = new MutationObserver(() => syncCustomSelect(select));
+  observer.observe(select, {
+    childList: true,
+    subtree: true,
+    attributes: true,
+    attributeFilter: ['disabled', 'selected', 'label']
+  });
+
+  syncCustomSelect(select);
+}
+
+function enhanceAllCustomSelects(root = document) {
+  root.querySelectorAll?.('select').forEach(enhanceCustomSelect);
+}
+
+document.addEventListener('click', event => {
+  if (!customSelectState.openSelect) return;
+  const wrapper = customSelectWrapper(customSelectState.openSelect);
+  const menu = ensureCustomSelectMenu();
+  if (wrapper?.contains(event.target) || menu.contains(event.target)) return;
+  closeCustomSelect();
+});
+
+document.addEventListener('keydown', event => {
+  if (event.key === 'Escape' && customSelectState.openSelect) closeCustomSelect();
+});
+
+window.addEventListener('resize', () => {
+  if (customSelectState.openSelect) positionCustomSelectMenu(customSelectState.openSelect);
+});
+
+window.addEventListener('scroll', () => {
+  if (customSelectState.openSelect) closeCustomSelect();
+}, true);
+
 function setAccountStatus(text, type='') {
   const el = document.getElementById('accountStatus');
   if (!el) return;
@@ -983,6 +1283,7 @@ function openViewFromHash() {
 }
 
 async function init() {
+  enhanceAllCustomSelects(document);
   if (!sb) return;
 
   sb.auth.onAuthStateChange(async (event, session) => {
@@ -3592,6 +3893,8 @@ document.querySelectorAll('.building-overview-filter').forEach(button => {
     state.buildingOverviewFilter = button.dataset.buildingFilter || 'all';
     renderBuildings();
   });
+  enhanceAllCustomSelects(document);
+  document.querySelectorAll('select.oc-select-native').forEach(syncCustomSelect);
 });
 
 // Market
@@ -4172,5 +4475,18 @@ document.addEventListener('visibilitychange', async () => {
     }
   }
 });
+
+
+const customSelectDocumentObserver = new MutationObserver(mutations => {
+  for (const mutation of mutations) {
+    mutation.addedNodes.forEach(node => {
+      if (!(node instanceof Element)) return;
+      if (node.matches?.('select')) enhanceCustomSelect(node);
+      enhanceAllCustomSelects(node);
+    });
+  }
+});
+customSelectDocumentObserver.observe(document.documentElement, { childList: true, subtree: true });
+
 
 init();

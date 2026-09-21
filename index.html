@@ -7,7 +7,7 @@
   <title>OpenCompany</title>
   <link rel="icon" type="image/png" href="favicon.png">
   <link rel="shortcut icon" href="favicon.ico">
-  <link rel="stylesheet" href="style.css?v=0.10.53">
+  <link rel="stylesheet" href="style.css?v=0.10.54">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     .password-field{display:flex;align-items:center;gap:.5rem}
@@ -36,6 +36,138 @@
     .building-card-progress span{display:block;height:100%;background:#2f8ce5}
     .production-building-empty{padding:1.25rem;text-align:center;border:1px dashed #b9c7d8;border-radius:12px;color:#617087}
     @media(max-width:720px){.building-card-grid{grid-template-columns:1fr}.building-overview-toolbar{display:grid;grid-template-columns:1fr 1fr}}
+
+    .oc-select{position:relative;width:100%}
+    .oc-select-native{
+      position:absolute!important;
+      width:1px!important;
+      height:1px!important;
+      opacity:0!important;
+      pointer-events:none!important;
+      overflow:hidden!important;
+      clip:rect(0 0 0 0)!important;
+      white-space:nowrap!important;
+    }
+    .oc-select-trigger{
+      width:100%;
+      min-height:42px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:.75rem;
+      padding:.62rem .8rem;
+      border:1px solid #c9d5e4;
+      border-radius:10px;
+      background:#fff;
+      color:inherit;
+      text-align:left;
+      font:inherit;
+      font-weight:500;
+      cursor:pointer;
+      box-shadow:none;
+    }
+    .oc-select-trigger:hover{border-color:#8fb8ec}
+    .oc-select-trigger:focus-visible{
+      outline:2px solid rgba(23,105,210,.25);
+      outline-offset:2px;
+      border-color:#1769d2;
+    }
+    .oc-select-trigger:disabled{
+      opacity:.55;
+      cursor:not-allowed;
+      background:#f3f6f9;
+    }
+    .oc-select-trigger-text{
+      min-width:0;
+      overflow:hidden;
+      text-overflow:ellipsis;
+      white-space:nowrap;
+    }
+    .oc-select-chevron{
+      flex:0 0 auto;
+      width:.55rem;
+      height:.55rem;
+      border-right:2px solid currentColor;
+      border-bottom:2px solid currentColor;
+      transform:rotate(45deg) translateY(-2px);
+      transition:transform .15s ease;
+      opacity:.7;
+    }
+    .oc-select-trigger[aria-expanded="true"] .oc-select-chevron{
+      transform:rotate(225deg) translate(-1px,-1px);
+    }
+    .oc-select-menu{
+      position:fixed;
+      z-index:10000;
+      min-width:180px;
+      max-width:min(92vw,680px);
+      max-height:min(52vh,420px);
+      overflow:auto;
+      overscroll-behavior:contain;
+      background:#fff;
+      border:1px solid #c9d5e4;
+      border-radius:12px;
+      box-shadow:0 14px 38px rgba(27,48,78,.22);
+      padding:.35rem;
+    }
+    .oc-select-menu.hidden{display:none!important}
+    .oc-select-group{
+      padding:.55rem .7rem .35rem;
+      color:#44566e;
+      font-size:.78rem;
+      font-weight:800;
+      text-transform:none;
+      letter-spacing:.01em;
+      border-top:1px solid #edf1f5;
+      margin-top:.25rem;
+    }
+    .oc-select-group:first-child{border-top:0;margin-top:0}
+    .oc-select-option{
+      width:100%;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:.8rem;
+      min-height:40px;
+      padding:.55rem .7rem;
+      border:0;
+      border-radius:8px;
+      background:transparent;
+      color:inherit;
+      text-align:left;
+      font:inherit;
+      cursor:pointer;
+    }
+    .oc-select-option:hover,
+    .oc-select-option.focused{background:#eef5ff}
+    .oc-select-option.selected{
+      background:#1769d2;
+      color:#fff;
+      font-weight:700;
+    }
+    .oc-select-option:disabled{
+      opacity:.45;
+      cursor:not-allowed;
+      background:transparent;
+    }
+    .oc-select-check{opacity:0;flex:0 0 auto}
+    .oc-select-option.selected .oc-select-check{opacity:1}
+    .oc-select-empty{
+      padding:.8rem;
+      color:#6d7b8e;
+      font-size:.9rem;
+    }
+    @media(max-width:720px){
+      .oc-select-trigger{min-height:46px}
+      .oc-select-menu{
+        left:10px!important;
+        right:10px!important;
+        width:auto!important;
+        max-width:none;
+        max-height:55vh;
+      }
+      .oc-select-option{min-height:46px;padding:.7rem .8rem}
+    }
   </style>
 </head>
 <body>
@@ -395,7 +527,7 @@
           <h2>Einstellungen</h2>
           <div class="kv">
             <span>Version</span>
-            <strong>0.10.53</strong>
+            <strong>0.10.54</strong>
           </div>
         </article>
 
