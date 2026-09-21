@@ -1952,52 +1952,6 @@ function retailSaleProgress(job) {
   };
 }
 
-function retailRunningJobsHtml(excludeJobId = null) {
-  const jobs = state.retailSaleJobs.filter(
-    job => job.status === 'running' && job.id !== excludeJobId
-  );
-  if (!jobs.length) return '';
-
-  return `
-    <div class="retail-running-box">
-      <div class="retail-running-head">
-        <div>
-          <strong>Laufende Handelsverkäufe</strong>
-          <span>${jobs.length} parallele${jobs.length === 1 ? 'r' : ''} Verkaufsauftrag${jobs.length === 1 ? '' : 'e'}</span>
-        </div>
-      </div>
-      ${jobs.map(job => {
-        const product = state.products.find(p => p.id === job.product_id);
-        const building = state.buildings.find(b => b.id === job.building_id);
-        const buildingType = state.buildingTypes.find(bt => bt.id === building?.building_type_id);
-        const progress = retailSaleProgress(job);
-        const finish = new Date(job.finishes_at);
-        const remainingUnits = Math.max(0, Number(job.quantity || 0) - progress.sold);
-        const snapshot = job.start_snapshot || {};
-        const unitPrice = Number(snapshot.unitPrice ?? (Number(job.total_value || 0) / Math.max(1, Number(job.quantity || 1))));
-
-        return `
-          <div class="retail-running-box">
-            <div class="retail-running-head">
-              <div>
-                <strong>${product?.name || 'Produkt'} · Q${Number(job.quality_level || 1)}</strong>
-                <span>${buildingType?.name || 'Verkaufsgebäude'} · ${num(remainingUnits)} noch offen · Ende ${finish.toLocaleString('de-DE', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' })} Uhr</span>
-              </div>
-              <div class="retail-actions">
-                <button type="button" class="retail-collect-btn" ${progress.claimableUnits <= 0 ? 'disabled' : ''} onclick="collectRetailRevenue('${job.id}')">Einsammeln</button>
-                <button type="button" class="ghost" onclick="cancelRetailSale('${job.id}')">Abbrechen</button>
-              </div>
-            </div>
-            <div class="kv"><span>Verkaufspreis</span><strong>${money(unitPrice)} / Einheit</strong></div>
-            <div class="kv"><span>Bereits verkauft</span><strong>${num(progress.sold)}</strong></div>
-            <div class="kv"><span>Einsammelbarer Erlös</span><strong class="retail-revenue-positive">${money(progress.claimableRevenue)}</strong></div>
-          </div>
-        `;
-      }).join('')}
-    </div>
-  `;
-}
-
 function renderRetailSale() {
   const select = document.getElementById('retailProduct');
   const details = document.getElementById('retailSaleDetails');
@@ -2121,8 +2075,7 @@ function renderRetailSale() {
         <div class="kv"><span>Einsammelbarer Erlös</span><strong class="retail-revenue-positive">${money(progress.claimableRevenue)}</strong></div>
         <div class="kv"><span>Erwarteter Erlös (offen)</span><strong>${money(progress.openRevenue)}</strong></div>
         <div class="kv"><span>Abbruchgebühr</span><strong class="retail-cancel-fee">-${money(progress.cancellationFee)}</strong></div>
-      </div>
-      ${retailRunningJobsHtml(job.id)}`;
+      </div>`;
 
     button.disabled = false;
     button.textContent = 'Verkauf abbrechen';
@@ -2148,9 +2101,8 @@ function renderRetailSale() {
     `<div class="kv"><span>Verkaufsdauer</span><strong>${ctx.building && saleHours > 0 ? formatProductionDuration(saleHours) : '–'}</strong></div>`,
     `<div class="kv"><span>Voraussichtliches Ende</span><strong>${ctx.building && saleHours > 0 ? formatProductionFinish(saleHours) : '–'}</strong></div>`,
     `<div class="kv"><span>Erwarteter Erlös</span><strong class="retail-revenue-positive">${money(expectedRevenue)}</strong></div>`,
-    `<div class="kv"><span>Abbruchgebühr</span><strong class="retail-cancel-fee">${expectedRevenue > 0 ? `-${money(cancellationFee)}` : money(0)}</strong></div>`,
-    retailRunningJobsHtml()
-  ].join('') : (`<p class="muted">Es befinden sich keine Produkte für den Handelsverkauf im Lager.</p>${retailRunningJobsHtml()}`);
+    `<div class="kv"><span>Abbruchgebühr</span><strong class="retail-cancel-fee">${expectedRevenue > 0 ? `-${money(cancellationFee)}` : money(0)}</strong></div>`
+  ].join('') : '<p class="muted">Es befinden sich keine Produkte für den Handelsverkauf im Lager.</p>';
 
   button.disabled = !ready;
 
