@@ -796,7 +796,12 @@ function buildCustomSelectOptions(select) {
     button.setAttribute('role', 'option');
     button.setAttribute('aria-selected', option.selected ? 'true' : 'false');
     button.disabled = option.disabled || select.disabled;
-    button.innerHTML = `<span>${escapeHtml(option.textContent?.trim() || '')}</span><span class="oc-select-check">✓</span>`;
+    const label = document.createElement('span');
+    label.textContent = option.textContent?.trim() || '';
+    const check = document.createElement('span');
+    check.className = 'oc-select-check';
+    check.textContent = '✓';
+    button.append(label, check);
     if (option.selected) button.classList.add('selected');
     menu.appendChild(button);
     optionButtons.push(button);
@@ -858,11 +863,10 @@ function openCustomSelect(select) {
     closeCustomSelect();
   }
 
-  syncCustomSelect(select);
-  customSelectState.openSelect = select;
-
   const trigger = customSelectTrigger(select);
   const menu = ensureCustomSelectMenu();
+  customSelectState.openSelect = select;
+  syncCustomSelect(select);
   const buttons = buildCustomSelectOptions(select);
 
   trigger?.setAttribute('aria-expanded', 'true');
@@ -922,7 +926,7 @@ function syncCustomSelect(select) {
   trigger.disabled = select.disabled;
   trigger.setAttribute('aria-disabled', select.disabled ? 'true' : 'false');
 
-  if (customSelectState.openSelect === select) {
+  if (customSelectState.openSelect === select && customSelectState.menu && !customSelectState.menu.classList.contains('hidden')) {
     buildCustomSelectOptions(select);
     positionCustomSelectMenu(select);
   }
