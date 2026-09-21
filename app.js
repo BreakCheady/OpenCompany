@@ -2062,12 +2062,12 @@ function renderBuildings() {
         actions = `<button type="button" class="ghost" onclick="event.stopPropagation();cancelBuildingConstruction('${building.id}','${bt.id}')">Bau abbrechen</button>`;
       } else if (isRetail) {
         actions = `<button type="button" onclick="event.stopPropagation();openRetailBuilding('${building.id}')">${inUse ? 'Verkauf öffnen' : 'Im Handel verwenden'}</button>`;
-        if (!inUse) actions += `<button type="button" class="ghost" onclick="event.stopPropagation();upgradeBuilding('${building.id}','${bt.id}')">Ausbauen</button>
-          <button type="button" class="ghost" onclick="event.stopPropagation();downgradeBuilding('${building.id}','${bt.id}')">${level<=1?'Abreißen':'Abstufen'}</button>`;
+        if (!inUse) actions += `<button type="button" class="building-upgrade-btn" onclick="event.stopPropagation();upgradeBuilding('${building.id}','${bt.id}')">Ausbauen</button>
+          <button type="button" class="building-demolish-btn" onclick="event.stopPropagation();downgradeBuilding('${building.id}','${bt.id}')">${level<=1?'Abreißen':'Abstufen'}</button>`;
       } else {
         actions = `<button type="button" onclick="event.stopPropagation();selectBuildingCard('${building.id}')">${inUse ? 'Auftrag öffnen' : 'Auswählen'}</button>`;
-        if (!inUse) actions += `<button type="button" class="ghost" onclick="event.stopPropagation();upgradeBuilding('${building.id}','${bt.id}')">Ausbauen</button>
-          <button type="button" class="ghost" onclick="event.stopPropagation();downgradeBuilding('${building.id}','${bt.id}')">${level<=1?'Abreißen':'Abstufen'}</button>`;
+        if (!inUse) actions += `<button type="button" class="building-upgrade-btn" onclick="event.stopPropagation();upgradeBuilding('${building.id}','${bt.id}')">Ausbauen</button>
+          <button type="button" class="${level<=1?'building-demolish-btn':'ghost'}" onclick="event.stopPropagation();downgradeBuilding('${building.id}','${bt.id}')">${level<=1?'Abreißen':'Abstufen'}</button>`;
       }
 
       const click = underConstruction ? '' : (isRetail ? `onclick="openRetailBuilding('${building.id}')"` : `onclick="selectBuildingCard('${building.id}')"`);

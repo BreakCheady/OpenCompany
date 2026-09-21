@@ -7,7 +7,7 @@
   <title>OpenCompany</title>
   <link rel="icon" type="image/png" href="favicon.png">
   <link rel="shortcut icon" href="favicon.ico">
-  <link rel="stylesheet" href="style.css?v=0.10.56">
+  <link rel="stylesheet" href="style.css?v=0.10.58">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     .password-field{display:flex;align-items:center;gap:.5rem}
@@ -32,6 +32,24 @@
     .building-card-job strong{display:block}
     .building-card-actions{display:flex;gap:.5rem;flex-wrap:wrap;margin-top:.9rem}
     .building-card-actions button{flex:1 1 auto}
+    .building-upgrade-btn{
+      background:#1f9d55!important;
+      border-color:#1f9d55!important;
+      color:#fff!important;
+    }
+    .building-upgrade-btn:hover{
+      background:#178447!important;
+      border-color:#178447!important;
+    }
+    .building-demolish-btn{
+      background:#d64545!important;
+      border-color:#d64545!important;
+      color:#fff!important;
+    }
+    .building-demolish-btn:hover{
+      background:#bb3434!important;
+      border-color:#bb3434!important;
+    }
     .building-card-progress{height:6px;border-radius:999px;background:#e3e9f1;overflow:hidden;margin:.65rem 0}
     .building-card-progress span{display:block;height:100%;background:#2f8ce5}
     .production-building-empty{padding:1.25rem;text-align:center;border:1px dashed #b9c7d8;border-radius:12px;color:#617087}
@@ -527,7 +545,7 @@
           <h2>Einstellungen</h2>
           <div class="kv">
             <span>Version</span>
-            <strong>0.10.56</strong>
+            <strong>0.10.58</strong>
           </div>
         </article>
 
@@ -574,7 +592,7 @@
 
         <article class="panel">
           <h2>Benachrichtigungen</h2>
-          <p class="muted">Erhalte Browser-Push-Benachrichtigungen, auch wenn OpenCompany gerade nicht geöffnet ist. Aktiviert werden automatisch Benachrichtigungen für abgeschlossene Produktionen und Handelsverkäufe.</p>
+          
           <div class="kv">
             <span>Push-Benachrichtigungen auf diesem Gerät</span>
             <label><input id="pushEnabled" type="checkbox"> Aktiviert</label>
