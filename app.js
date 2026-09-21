@@ -161,6 +161,68 @@ function stockedProducts() {
   return state.products.filter(product => hasProductInventory(product.id));
 }
 
+function activeBuildingsOfType(buildingTypeId) {
+  if (!buildingTypeId) return [];
+  return state.buildings.filter(
+    building => building.building_type_id === buildingTypeId && building.status === 'active'
+  );
+}
+
+function buildingTypeHasFreeSlot(buildingTypeId, jobs) {
+  const buildings = activeBuildingsOfType(buildingTypeId);
+  if (!buildings.length) return false;
+
+  return buildings.some(building =>
+    !jobs.some(job => job.status === 'running' && job.building_id === building.id)
+  );
+}
+
+function productionSelectableProducts() {
+  const products = operationalProducts();
+  const runningJobs = state.productionJobs.filter(job => job.status === 'running');
+  const runningProductIds = new Set(runningJobs.map(job => job.product_id));
+
+  return products.filter(product => {
+    const buildingTypeId = product.required_building_type_id;
+    const buildings = activeBuildingsOfType(buildingTypeId);
+
+    // Bestehendes Verhalten beibehalten, wenn kein aktives Produktionsgebäude vorhanden ist.
+    if (!buildings.length) return true;
+
+    // Sobald mindestens ein Gebäude dieses Typs frei ist, sind wieder alle
+    // grundsätzlich verfügbaren Produkte dieses Gebäudetyps auswählbar.
+    if (buildingTypeHasFreeSlot(buildingTypeId, runningJobs)) return true;
+
+    // Sind alle Gebäude dieses Typs belegt, nur die tatsächlich laufenden Produkte zeigen.
+    return runningProductIds.has(product.id);
+  });
+}
+
+function retailSelectableProducts() {
+  const runningJobs = state.retailSaleJobs.filter(job => job.status === 'running');
+  const runningProductIds = new Set(runningJobs.map(job => job.product_id));
+
+  const products = [...stockedProducts().filter(product => product.required_retail_building_type_id)];
+  runningJobs.forEach(job => {
+    const product = state.products.find(p => p.id === job.product_id);
+    if (product && !products.some(p => p.id === product.id)) products.push(product);
+  });
+
+  return products.filter(product => {
+    const buildingTypeId = product.required_retail_building_type_id;
+    const buildings = activeBuildingsOfType(buildingTypeId);
+
+    // Produkte ohne vorhandenes Verkaufsgebäude bleiben wie bisher sichtbar,
+    // damit der Hinweis auf das fehlende Gebäude erhalten bleibt.
+    if (!buildings.length) return true;
+
+    if (buildingTypeHasFreeSlot(buildingTypeId, runningJobs)) return true;
+
+    // Sind alle passenden Verkaufsgebäude belegt, nur laufende Verkäufe anbieten.
+    return runningProductIds.has(product.id);
+  });
+}
+
 function operationalProductIdentitySet() {
   return new Set(operationalProducts().map(product => `${product.name}::${product.category}`));
 }
@@ -1947,15 +2009,8 @@ function renderRetailSale() {
   const h24Btn = document.getElementById('retail24Btn');
   if (!select || !details || !button || !qtyInput) return;
 
-  const stockedRetailProducts = stockedProducts().filter(p => p.required_retail_building_type_id);
   const runningRetailJobs = state.retailSaleJobs.filter(job => job.status === 'running');
-  const runningRetailProducts = runningRetailJobs
-    .map(job => state.products.find(p => p.id === job.product_id))
-    .filter(Boolean);
-  const retailProducts = [...stockedRetailProducts];
-  runningRetailProducts.forEach(product => {
-    if (!retailProducts.some(p => p.id === product.id)) retailProducts.push(product);
-  });
+  const retailProducts = retailSelectableProducts();
   const previous = select.value;
 
   select.innerHTML = retailProducts.length
@@ -3086,11 +3141,11 @@ function renderAll() {
   renderBonds();
   renderStorage();
 
-  const visibleProducts = operationalProducts();
+  const visibleProducts = productionSelectableProducts();
   const opts = productOptionsGroupedByBuilding(visibleProducts);
   const productionProductSelect = document.getElementById('productionProduct');
   const previousProductionProduct = productionProductSelect.value;
-  productionProductSelect.innerHTML = opts;
+  productionProductSelect.innerHTML = opts || '<option value="">Keine Produktion verfügbar</option>';
   if (visibleProducts.some(p => p.id === previousProductionProduct)) {
     productionProductSelect.value = previousProductionProduct;
   }
