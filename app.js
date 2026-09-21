@@ -657,6 +657,117 @@ function bindNavigation() {
 bindNavigation();
 
 
+
+function setAccountStatus(text, type='') {
+  const el = document.getElementById('accountStatus');
+  if (!el) return;
+  msg(el, text, type);
+}
+
+function renderAccountSettings() {
+  const emailEl = document.getElementById('accountEmail');
+  const emailInput = document.getElementById('accountNewEmail');
+  const userEmail = state.session?.user?.email || '';
+
+  if (emailEl) emailEl.textContent = userEmail || 'Keine E-Mail hinterlegt';
+  if (emailInput && !emailInput.value) emailInput.value = userEmail;
+}
+
+function setAccountEditMode(editing) {
+  const summary = document.getElementById('accountDataSummary');
+  const form = document.getElementById('accountEditForm');
+  if (!summary || !form) return;
+
+  summary.classList.toggle('hidden', editing);
+  form.classList.toggle('hidden', !editing);
+
+  if (editing) {
+    const emailInput = document.getElementById('accountNewEmail');
+    const passwordInput = document.getElementById('accountNewPassword');
+    const confirmInput = document.getElementById('accountNewPasswordConfirm');
+
+    if (emailInput) emailInput.value = state.session?.user?.email || '';
+    if (passwordInput) passwordInput.value = '';
+    if (confirmInput) confirmInput.value = '';
+    setAccountStatus('');
+    emailInput?.focus();
+  }
+}
+
+async function updateAccountData(event) {
+  event.preventDefault();
+
+  const emailInput = document.getElementById('accountNewEmail');
+  const passwordInput = document.getElementById('accountNewPassword');
+  const confirmInput = document.getElementById('accountNewPasswordConfirm');
+  const submitButton = event.currentTarget.querySelector('button[type="submit"]');
+
+  const currentEmail = state.session?.user?.email || '';
+  const newEmail = String(emailInput?.value || '').trim();
+  const newPassword = String(passwordInput?.value || '');
+  const confirmPassword = String(confirmInput?.value || '');
+
+  const emailChanged = !!newEmail && newEmail.toLowerCase() !== currentEmail.toLowerCase();
+  const passwordChanged = newPassword.length > 0;
+
+  if (!emailChanged && !passwordChanged) {
+    setAccountStatus('Es wurden keine Änderungen vorgenommen.', 'error');
+    return;
+  }
+
+  if (passwordChanged && newPassword !== confirmPassword) {
+    setAccountStatus('Die beiden Passwörter stimmen nicht überein.', 'error');
+    return;
+  }
+
+  if (passwordChanged && newPassword.length < 6) {
+    setAccountStatus('Das neue Passwort muss mindestens 6 Zeichen lang sein.', 'error');
+    return;
+  }
+
+  const updates = {};
+  if (emailChanged) updates.email = newEmail;
+  if (passwordChanged) updates.password = newPassword;
+
+  if (submitButton) submitButton.disabled = true;
+  setAccountStatus('Account-Daten werden geändert …');
+
+  try {
+    const { data, error } = await sb.auth.updateUser(updates);
+    if (error) throw error;
+
+    if (data?.user) {
+      state.session = {
+        ...state.session,
+        user: data.user
+      };
+    }
+
+    const { data: refreshed } = await sb.auth.getSession();
+    if (refreshed?.session) state.session = refreshed.session;
+
+    renderAccountSettings();
+
+    if (emailChanged) {
+      setAccountStatus(
+        'Änderung gespeichert. Falls E-Mail-Bestätigung aktiviert ist, bestätige bitte die neue Adresse über die zugesandte E-Mail.',
+        'success'
+      );
+    } else {
+      setAccountStatus('Passwort erfolgreich geändert.', 'success');
+    }
+
+    if (passwordInput) passwordInput.value = '';
+    if (confirmInput) confirmInput.value = '';
+
+    setTimeout(() => setAccountEditMode(false), 1800);
+  } catch (error) {
+    setAccountStatus(error?.message || 'Account-Daten konnten nicht geändert werden.', 'error');
+  } finally {
+    if (submitButton) submitButton.disabled = false;
+  }
+}
+
 function urlBase64ToUint8Array(base64String) {
   const padding = '='.repeat((4 - base64String.length % 4) % 4);
   const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
@@ -890,6 +1001,7 @@ async function loadCompany() {
     startCompanyBalanceWatcher();
     await loadGameData();
     await loadPushSettings();
+    renderAccountSettings();
     openViewFromHash();
   }
 }
@@ -3918,6 +4030,17 @@ window.acceptContract=async id=>{ const {error}=await sb.rpc('accept_contract',{
 window.fulfillContract=async id=>{ const {error}=await sb.rpc('fulfill_contract',{p_contract_id:id}); if(error) gameAlert(error.message); else await loadCompany(); };
 window.cancelContract=async id=>{ const {error}=await sb.rpc('cancel_contract',{p_contract_id:id}); if(error) gameAlert(error.message); else await loadCompany(); };
 
+
+
+document.getElementById('accountEditBtn')?.addEventListener('click', () => {
+  setAccountEditMode(true);
+});
+
+document.getElementById('accountEditCancelBtn')?.addEventListener('click', () => {
+  setAccountEditMode(false);
+});
+
+document.getElementById('accountEditForm')?.addEventListener('submit', updateAccountData);
 
 document.getElementById('pushEnabled')?.addEventListener('change', async event => {
   const enabled = event.target.checked;

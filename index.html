@@ -7,7 +7,7 @@
   <title>OpenCompany</title>
   <link rel="icon" type="image/png" href="favicon.png">
   <link rel="shortcut icon" href="favicon.ico">
-  <link rel="stylesheet" href="style.css?v=0.10.47">
+  <link rel="stylesheet" href="style.css?v=0.10.48">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
@@ -353,8 +353,43 @@
           <h2>Einstellungen</h2>
           <div class="kv">
             <span>Version</span>
-            <strong>0.10.47</strong>
+            <strong>0.10.48</strong>
           </div>
+        </article>
+
+        <article class="panel">
+          <h2>Account-Daten</h2>
+          <div id="accountDataSummary">
+            <div class="kv">
+              <span>E-Mail</span>
+              <strong id="accountEmail">–</strong>
+            </div>
+            <div class="kv">
+              <span>Passwort</span>
+              <strong>••••••••</strong>
+            </div>
+            <button type="button" id="accountEditBtn">Ändern</button>
+          </div>
+
+          <form id="accountEditForm" class="hidden">
+            <label>
+              Neue E-Mail
+              <input id="accountNewEmail" type="email" autocomplete="email" placeholder="Neue E-Mail-Adresse">
+            </label>
+            <label>
+              Neues Passwort
+              <input id="accountNewPassword" type="password" autocomplete="new-password" placeholder="Neues Passwort">
+            </label>
+            <label>
+              Neues Passwort bestätigen
+              <input id="accountNewPasswordConfirm" type="password" autocomplete="new-password" placeholder="Passwort wiederholen">
+            </label>
+            <div class="actions">
+              <button type="submit">Speichern</button>
+              <button type="button" id="accountEditCancelBtn" class="ghost">Abbrechen</button>
+            </div>
+            <p id="accountStatus" class="status"></p>
+          </form>
         </article>
 
         <article class="panel">
