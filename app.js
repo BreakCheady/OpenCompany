@@ -29,6 +29,9 @@ const state = {
   marketQualityFilter: 'all',
   researchSelectedProductId: null,
   selectedMarketOrderIds: [],
+  selectedBuildingId: null,
+  selectedRetailBuildingId: null,
+  buildingOverviewFilter: 'all',
   financePeriod: 'day',
   financePeriodOffset: 0,
   contracts: [],
@@ -199,10 +202,29 @@ function productionSelectableProducts() {
 }
 
 function retailSelectableProducts() {
+  const selectedBuilding = state.buildings.find(
+    building => building.id === state.selectedRetailBuildingId && building.status === 'active'
+  ) || null;
+
+  if (selectedBuilding) {
+    const runningJob = state.retailSaleJobs.find(
+      job => job.building_id === selectedBuilding.id && job.status === 'running'
+    ) || null;
+
+    if (runningJob) {
+      const runningProduct = state.products.find(product => product.id === runningJob.product_id);
+      return runningProduct ? [runningProduct] : [];
+    }
+
+    return stockedProducts()
+      .filter(product => product.required_retail_building_type_id === selectedBuilding.building_type_id)
+      .sort((a,b) => a.name.localeCompare(b.name,'de-DE'));
+  }
+
   const runningJobs = state.retailSaleJobs.filter(job => job.status === 'running');
   const runningProductIds = new Set(runningJobs.map(job => job.product_id));
-
   const products = [...stockedProducts().filter(product => product.required_retail_building_type_id)];
+
   runningJobs.forEach(job => {
     const product = state.products.find(p => p.id === job.product_id);
     if (product && !products.some(p => p.id === product.id)) products.push(product);
@@ -211,14 +233,8 @@ function retailSelectableProducts() {
   return products.filter(product => {
     const buildingTypeId = product.required_retail_building_type_id;
     const buildings = activeBuildingsOfType(buildingTypeId);
-
-    // Produkte ohne vorhandenes Verkaufsgebäude bleiben wie bisher sichtbar,
-    // damit der Hinweis auf das fehlende Gebäude erhalten bleibt.
     if (!buildings.length) return true;
-
     if (buildingTypeHasFreeSlot(buildingTypeId, runningJobs)) return true;
-
-    // Sind alle passenden Verkaufsgebäude belegt, nur laufende Verkäufe anbieten.
     return runningProductIds.has(product.id);
   });
 }
@@ -1109,6 +1125,8 @@ async function loadGameData() {
   state.recipes = recipes.data.filter(r => state.products.some(p => p.id === r.product_id));
   state.buildingTypes = buildingTypes.data;
   state.buildings = buildings.data;
+  if (state.selectedBuildingId && !state.buildings.some(b => b.id === state.selectedBuildingId)) state.selectedBuildingId = null;
+  if (state.selectedRetailBuildingId && !state.buildings.some(b => b.id === state.selectedRetailBuildingId)) state.selectedRetailBuildingId = null;
   state.productionJobs = productionJobs.data;
   state.retailSaleJobs = retailSaleJobs.data;
   state.transactions = tx.data;
@@ -1123,27 +1141,27 @@ async function loadGameData() {
 }
 
 function currentProductionContext() {
-  const productId = document.getElementById('productionProduct').value;
-  const product = state.products.find(p => p.id === productId);
-  const buildingType = state.buildingTypes.find(b => b.id === product?.required_building_type_id);
-
-  const matchingBuildings = buildingType
-    ? state.buildings.filter(cb => cb.building_type_id === buildingType.id && cb.status === 'active')
-    : [];
-
-  const runningJob = state.productionJobs.find(
-    job => job.product_id === productId && job.status === 'running'
+  const selectedBuilding = state.buildings.find(
+    building => building.id === state.selectedBuildingId && building.status === 'active'
   ) || null;
 
-  const runningBuilding = runningJob
-    ? matchingBuildings.find(building => building.id === runningJob.building_id)
+  const runningJob = selectedBuilding
+    ? state.productionJobs.find(job => job.building_id === selectedBuilding.id && job.status === 'running') || null
     : null;
 
-  const freeBuilding = matchingBuildings.find(building =>
-    !state.productionJobs.some(job => job.building_id === building.id && job.status === 'running')
-  ) || null;
+  const selectedProductId = document.getElementById('productionProduct')?.value || '';
+  const productId = runningJob?.product_id || selectedProductId;
+  const product = state.products.find(p => p.id === productId) || null;
+  const buildingType = selectedBuilding
+    ? state.buildingTypes.find(type => type.id === selectedBuilding.building_type_id) || null
+    : null;
 
-  const building = runningBuilding || freeBuilding || matchingBuildings[0] || null;
+  const buildingCanProduce = !!selectedBuilding
+    && !!product
+    && product.required_building_type_id === selectedBuilding.building_type_id
+    && buildingType?.building_category !== 'retail';
+
+  const building = buildingCanProduce ? selectedBuilding : null;
   const multiplier = building ? buildingLevelMultiplier(building.level) : 1;
   const baseProductRate = Number(product?.base_production_rate || 0);
   const unitsPerHour = buildingType && building && baseProductRate > 0
@@ -1151,15 +1169,10 @@ function currentProductionContext() {
     : 0;
 
   return {
-    productId,
-    product,
-    buildingType,
-    building,
-    multiplier,
-    unitsPerHour,
+    productId, product, buildingType, building, multiplier, unitsPerHour,
     runningJob,
-    freeBuilding,
-    matchingBuildingCount: matchingBuildings.length,
+    freeBuilding: building && !runningJob ? building : null,
+    matchingBuildingCount: building ? 1 : 0,
     baseProductRate,
     qualityLevel: productQuality(product),
     minInputQuality: minimumInputQuality(product)
@@ -1465,7 +1478,7 @@ function renderProductionRecipe() {
   if (runningJob) {
     productSelect.dataset.runningJobId = runningJob.id;
     unitsInput.value = runningJob.start_input_text || formatProductionUnitsInput(runningJob.output_quantity);
-    productSelect.disabled = false;
+    productSelect.disabled = true;
     unitsInput.disabled = true;
     if (maxBtn) maxBtn.disabled = true;
     if (h24Btn) h24Btn.disabled = true;
@@ -1660,6 +1673,20 @@ function renderBuildingCatalog() {
   );
 }
 
+function buildingDisplayNumber(building) {
+  const siblings = state.buildings
+    .filter(b => b.building_type_id === building.building_type_id)
+    .sort((a,b) => new Date(a.built_at || 0) - new Date(b.built_at || 0) || String(a.id).localeCompare(String(b.id)));
+  return Math.max(1, siblings.findIndex(b => b.id === building.id) + 1);
+}
+
+function buildingJobProgress(job) {
+  if (!job?.started_at || !job?.finishes_at) return 0;
+  const start = new Date(job.started_at).getTime();
+  const end = new Date(job.finishes_at).getTime();
+  return end > start ? Math.max(0, Math.min(100, (Date.now()-start)/(end-start)*100)) : 0;
+}
+
 function renderBuildings() {
   const slots = buildingSlotsForLevel(state.company?.company_level);
   const usedSlots = state.buildings.length;
@@ -1669,118 +1696,152 @@ function renderBuildings() {
     slotsEl.classList.toggle('building-slots-over', usedSlots > slots);
   }
 
-  const builtRows = state.buildings
+  const selectable = state.buildings.filter(building => {
+    const type = state.buildingTypes.find(bt => bt.id === building.building_type_id);
+    return building.status === 'active' && type?.building_category !== 'retail';
+  });
+  if (!state.buildings.some(b => b.id === state.selectedBuildingId) && selectable.length) {
+    state.selectedBuildingId = selectable[0].id;
+  }
+
+  const filter = state.buildingOverviewFilter || 'all';
+  const html = state.buildings
+    .filter(building => {
+      const type = state.buildingTypes.find(bt => bt.id === building.building_type_id);
+      return filter === 'all' || type?.building_category === filter;
+    })
     .map(building => {
       const bt = state.buildingTypes.find(type => type.id === building.building_type_id);
       if (!bt) return '';
 
-      const isUnderConstruction = building.status === 'inactive' && !!building.construction_complete_at;
+      const number = buildingDisplayNumber(building);
+      const selected = state.selectedBuildingId === building.id || state.selectedRetailBuildingId === building.id;
+      const underConstruction = building.status === 'inactive' && !!building.construction_complete_at;
+      const prodJob = state.productionJobs.find(j => j.building_id === building.id && j.status === 'running') || null;
+      const retailJob = state.retailSaleJobs.find(j => j.building_id === building.id && j.status === 'running') || null;
+      const job = prodJob || retailJob;
+      const product = job ? state.products.find(p => p.id === job.product_id) : null;
+      const inUse = !!job;
       const isRetail = bt.building_category === 'retail';
       const level = Number(building.level || 1);
-      const targetLevel = Number(building.construction_target_level || level);
-      const multiplier = buildingLevelMultiplier(level);
-      const staff = Math.round(Number(bt.employees_per_building || 0) * multiplier);
-      const capacity = Number(bt.base_units_per_hour || 0) * multiplier;
-      const nextLevel = level + 1;
-      const nextPercent = buildingUpgradePercent(nextLevel);
-      const nextCost = Number(bt.construction_cost || 0) * buildingLevelMultiplier(nextLevel);
-      const nextBuildHours = buildingConstructionHours(nextLevel);
 
-      if (isUnderConstruction) {
-        return `<tr>
-          <td>${bt.name}</td>
-          <td>${buildingCategoryLabel(bt.building_category)}</td>
-          <td>Level ${targetLevel}</td>
-          <td>–</td>
-          <td>–</td>
-          <td><span class="badge">${formatBuildingConstructionStatus(building)}</span></td>
-          <td>–</td>
-          <td>${buildingConstructionFinishDate(building)}</td>
-          <td class="building-actions">
-            <button
-              class="building-downgrade-btn"
-              onclick="cancelBuildingConstruction('${building.id}','${bt.id}')"
-            >Abbrechen</button>
-          </td>
-        </tr>`;
+      let statusClass = 'free', statusText = 'Frei';
+      if (underConstruction) { statusClass='building'; statusText='Im Bau / Ausbau'; }
+      else if (prodJob) { statusClass='running'; statusText='Produktion läuft'; }
+      else if (retailJob) { statusClass='running'; statusText='Verkauf läuft'; }
+
+      let jobHtml = '';
+      if (job) {
+        const finish = new Date(job.finishes_at);
+        const progress = buildingJobProgress(job);
+        const detail = prodJob
+          ? `${num(Math.max(0, Number(job.output_quantity||0)-Number(job.claimed_quantity||0)))} Einheiten offen`
+          : `${num(Math.max(0, Number(job.quantity||0)-retailSoldQuantity(job)))} Einheiten offen`;
+        jobHtml = `<div class="building-card-job">
+          <strong>${product?.name || 'Auftrag'} · Q${Number(job.quality_level || 1)}</strong>
+          <span class="building-card-meta">${detail}</span>
+          <div class="building-card-progress"><span style="width:${progress}%"></span></div>
+          <span class="building-card-meta">Ende ${finish.toLocaleString('de-DE',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})} Uhr</span>
+        </div>`;
       }
 
-      const productionRunning = state.productionJobs.some(
-        j => j.building_id === building.id && j.status === 'running'
-      );
-      const retailRunning = state.retailSaleJobs.some(
-        j => j.building_id === building.id && j.status === 'running'
-      );
-      const buildingInUse = productionRunning || retailRunning;
-      const runningLabel = isRetail ? 'Verkauf läuft' : 'Produktion läuft';
-      const reduceLabel = level <= 1 ? 'Abreißen' : 'Abstufen';
+      let actions = '';
+      if (underConstruction) {
+        actions = `<button type="button" class="ghost" onclick="event.stopPropagation();cancelBuildingConstruction('${building.id}','${bt.id}')">Bau abbrechen</button>`;
+      } else if (isRetail) {
+        actions = `<button type="button" onclick="event.stopPropagation();openRetailBuilding('${building.id}')">${inUse ? 'Verkauf öffnen' : 'Im Handel verwenden'}</button>`;
+        if (!inUse) actions += `<button type="button" class="ghost" onclick="event.stopPropagation();upgradeBuilding('${building.id}','${bt.id}')">Ausbauen</button>
+          <button type="button" class="ghost" onclick="event.stopPropagation();downgradeBuilding('${building.id}','${bt.id}')">${level<=1?'Abreißen':'Abstufen'}</button>`;
+      } else {
+        actions = `<button type="button" onclick="event.stopPropagation();selectBuildingCard('${building.id}')">${inUse ? 'Auftrag öffnen' : 'Auswählen'}</button>`;
+        if (!inUse) actions += `<button type="button" class="ghost" onclick="event.stopPropagation();upgradeBuilding('${building.id}','${bt.id}')">Ausbauen</button>
+          <button type="button" class="ghost" onclick="event.stopPropagation();downgradeBuilding('${building.id}','${bt.id}')">${level<=1?'Abreißen':'Abstufen'}</button>`;
+      }
 
-      const actionHtml = buildingInUse
-        ? `<button class="building-running-btn" disabled>${runningLabel}</button>`
-        : `
-          <button
-            class="building-upgrade-btn"
-            onclick="upgradeBuilding('${building.id}','${bt.id}')"
-          >Aufstufen</button>
-          <button
-            class="building-downgrade-btn"
-            onclick="downgradeBuilding('${building.id}','${bt.id}')"
-          >${reduceLabel}</button>
-        `;
+      const click = underConstruction ? '' : (isRetail ? `onclick="openRetailBuilding('${building.id}', true)"` : `onclick="selectBuildingCard('${building.id}')"`);
+      return `<div class="building-card ${selected?'selected':''} ${underConstruction?'under-construction':''}" ${click}>
+        <div class="building-card-head"><div>
+          <div class="building-card-title">${bt.name} #${number}</div>
+          <div class="building-card-meta">Level ${level} · ${buildingCategoryLabel(bt.building_category)}</div>
+        </div></div>
+        <span class="building-card-status ${statusClass}">${statusText}</span>
+        ${jobHtml}
+        <div class="building-card-actions">${actions}</div>
+      </div>`;
+    }).filter(Boolean).join('');
 
-      return `<tr>
-        <td>${bt.name}</td>
-        <td>${buildingCategoryLabel(bt.building_category)}</td>
-        <td>Level ${level}</td>
-        <td>Produktabhängig</td>
-        <td>${num(staff)}</td>
-        <td>Level ${nextLevel}: ${formatBuildingConstructionTime(nextBuildHours)}</td>
-        <td><span class="building-upgrade-cost">-${money(Math.abs(nextCost))}</span></td>
-        <td>–</td>
-        <td class="building-actions">${actionHtml}</td>
-      </tr>`;
-    })
-    .filter(Boolean);
+  const cards = document.getElementById('buildingCards');
+  if (cards) cards.innerHTML = html || '<div class="production-building-empty">In dieser Kategorie sind noch keine Gebäude vorhanden.</div>';
 
-  document.getElementById('buildingsTable').innerHTML = builtRows.length
-    ? renderTable(
-        ['Gebäude','Kategorie','Level','Kapazität / Std.','Mitarbeiter','Status / nächste Bauzeit','Aufstufungskosten','Fertig am','Aktionen'],
-        builtRows
-      )
-    : '<p class="muted building-empty-state">Noch keine Gebäude gebaut. Nutze oben „Bauen“, um dein erstes Gebäude zu errichten.</p>';
+  document.querySelectorAll('.building-overview-filter').forEach(button => {
+    button.classList.toggle('active', button.dataset.buildingFilter === filter);
+  });
+
+  const selected = state.buildings.find(b => b.id === state.selectedBuildingId) || null;
+  const selectedType = selected ? state.buildingTypes.find(bt => bt.id === selected.building_type_id) : null;
+  const control = document.getElementById('productionControlPanel');
+  if (control) control.classList.toggle('hidden', !selected || selectedType?.building_category === 'retail');
+
+  const heading = document.getElementById('productionSelectedHeading');
+  const hint = document.getElementById('productionSelectedHint');
+  if (heading && hint && selected && selectedType) {
+    heading.textContent = `${selectedType.name} #${buildingDisplayNumber(selected)} · Produktion`;
+    const running = state.productionJobs.find(j => j.building_id === selected.id && j.status === 'running');
+    hint.textContent = running
+      ? 'Dieses Gebäude hat bereits einen laufenden Produktionsauftrag.'
+      : 'Dieses Gebäude ist frei. Wähle ein Produkt und starte die Produktion.';
+  }
 
   renderBuildingCatalog();
 }
+
+window.selectBuildingCard = function(buildingId) {
+  const building = state.buildings.find(b => b.id === buildingId);
+  if (!building || building.status !== 'active') return;
+  const type = state.buildingTypes.find(bt => bt.id === building.building_type_id);
+  if (type?.building_category === 'retail') return openRetailBuilding(buildingId);
+
+  state.selectedBuildingId = buildingId;
+  updateProductionProductsForSelectedBuilding();
+  renderBuildings();
+  renderProductionRecipe();
+};
+
+window.openRetailBuilding = function(buildingId, stayInProduction = false) {
+  const building = state.buildings.find(b => b.id === buildingId);
+  if (!building || building.status !== 'active') return;
+  const type = state.buildingTypes.find(bt => bt.id === building.building_type_id);
+  if (type?.building_category !== 'retail') return;
+
+  state.selectedRetailBuildingId = buildingId;
+  renderBuildings();
+  renderRetailSale();
+  if (!stayInProduction) document.querySelector('.nav-item[data-view="market"]')?.click();
+};
 
 function retailSaleContext() {
   const productId = document.getElementById('retailProduct')?.value;
   const product = state.products.find(p => p.id === productId);
   const quality = Number(document.getElementById('retailQuality')?.value || 1);
   const inventory = productLot(productId, quality);
-  const buildingType = state.buildingTypes.find(
-    bt => bt.id === product?.required_retail_building_type_id
-  );
-  const matchingBuildings = buildingType
-    ? state.buildings.filter(b => b.building_type_id === buildingType.id && b.status === 'active')
-    : [];
+  const buildingType = state.buildingTypes.find(bt => bt.id === product?.required_retail_building_type_id);
 
-  const productRunningJobs = state.retailSaleJobs.filter(
-    job => job.product_id === productId && job.status === 'running'
-  );
-
-  const freeBuilding = matchingBuildings.find(building =>
-    !state.retailSaleJobs.some(job => job.building_id === building.id && job.status === 'running')
+  let building = state.buildings.find(
+    b => b.id === state.selectedRetailBuildingId && b.status === 'active'
   ) || null;
 
-  // Wie bei der Produktion: Solange ein passendes Gebäude frei ist,
-  // darf ein weiterer Handelsverkauf parallel gestartet werden.
-  const productRunningJob = freeBuilding ? null : (productRunningJobs[0] || null);
+  if (building && product && building.building_type_id !== product.required_retail_building_type_id) building = null;
 
-  const runningBuilding = productRunningJob
-    ? matchingBuildings.find(building => building.id === productRunningJob.building_id)
+  if (!building && buildingType) {
+    const matching = state.buildings.filter(b => b.building_type_id === buildingType.id && b.status === 'active');
+    building = matching.find(candidate =>
+      !state.retailSaleJobs.some(job => job.building_id === candidate.id && job.status === 'running')
+    ) || matching[0] || null;
+  }
+
+  const runningJob = building
+    ? state.retailSaleJobs.find(job => job.building_id === building.id && job.status === 'running') || null
     : null;
-
-  const building = freeBuilding || runningBuilding || matchingBuildings[0] || null;
 
   const multiplier = building ? buildingLevelMultiplier(building.level) : 1;
   const baseProductRetailRate = Number(product?.base_retail_rate || 0);
@@ -1793,30 +1854,15 @@ function retailSaleContext() {
   const priceInput = document.getElementById('retailPrice');
   const enteredPrice = Number(priceInput?.value || 0);
   const price = enteredPrice > 0 ? enteredPrice : referencePrice;
-
   const priceRatio = referencePrice > 0 ? price / referencePrice : 1;
   const demandFactor = Math.max(0.10, Math.min(2.00, 1 - 0.375 * (priceRatio - 1)));
-  const unitsPerHour = baseUnitsPerHour > 0
-    ? Math.max(1, Math.floor(baseUnitsPerHour * demandFactor))
-    : 0;
-
-  const runningJob = productRunningJob;
+  const unitsPerHour = baseUnitsPerHour > 0 ? Math.max(1, Math.floor(baseUnitsPerHour * demandFactor)) : 0;
 
   return {
-    product,
-    inventory,
-    buildingType,
-    building,
-    runningJob,
-    baseProductRetailRate,
-    baseUnitsPerHour,
-    unitsPerHour,
+    product, inventory, buildingType, building, runningJob,
+    baseProductRetailRate, baseUnitsPerHour, unitsPerHour,
     available: Number(inventory?.quantity || 0),
-    productionCost,
-    quality,
-    referencePrice,
-    price,
-    demandFactor
+    productionCost, quality, referencePrice, price, demandFactor
   };
 }
 
@@ -1953,6 +1999,14 @@ function retailSaleProgress(job) {
 }
 
 function renderRetailSale() {
+  if (!state.selectedRetailBuildingId) {
+    const firstRetail = state.buildings.find(building => {
+      const type = state.buildingTypes.find(bt => bt.id === building.building_type_id);
+      return building.status === 'active' && type?.building_category === 'retail';
+    });
+    if (firstRetail) state.selectedRetailBuildingId = firstRetail.id;
+  }
+
   const select = document.getElementById('retailProduct');
   const details = document.getElementById('retailSaleDetails');
   const button = document.getElementById('retailSaleBtn');
@@ -1978,7 +2032,9 @@ function renderRetailSale() {
 
   const retailLots = availableProductQualities(select.value);
   const previousQuality = qualitySelect?.value;
-  const selectedRunningJob = state.retailSaleJobs.find(job => job.status === 'running' && job.product_id === select.value);
+  const selectedRunningJob = state.selectedRetailBuildingId
+    ? state.retailSaleJobs.find(job => job.status === 'running' && job.building_id === state.selectedRetailBuildingId)
+    : state.retailSaleJobs.find(job => job.status === 'running' && job.product_id === select.value);
   if (qualitySelect) {
     const runningQuality = Number(selectedRunningJob?.quality_level || 1);
     qualitySelect.innerHTML = retailLots.length
@@ -3024,6 +3080,38 @@ function productOptionsGroupedByBuilding(products) {
     .join('');
 }
 
+function updateProductionProductsForSelectedBuilding() {
+  const select = document.getElementById('productionProduct');
+  if (!select) return;
+
+  const building = state.buildings.find(b => b.id === state.selectedBuildingId) || null;
+  const type = building ? state.buildingTypes.find(bt => bt.id === building.building_type_id) : null;
+  const runningJob = building
+    ? state.productionJobs.find(j => j.building_id === building.id && j.status === 'running') || null
+    : null;
+
+  let products = [];
+  if (building && building.status === 'active' && type?.building_category !== 'retail') {
+    if (runningJob) {
+      const p = state.products.find(product => product.id === runningJob.product_id);
+      if (p) products = [p];
+    } else {
+      products = operationalProducts().filter(
+        product => product.required_building_type_id === building.building_type_id
+      );
+    }
+  }
+
+  const previous = select.value;
+  select.innerHTML = products.length
+    ? products.sort((a,b)=>a.name.localeCompare(b.name,'de-DE'))
+      .map(product => `<option value="${product.id}">${product.name} (Q${productQuality(product)})</option>`).join('')
+    : '<option value="">Kein Produkt verfügbar</option>';
+
+  if (runningJob) select.value = runningJob.product_id;
+  else if (products.some(product => product.id === previous)) select.value = previous;
+}
+
 function renderAll() {
   const c = state.company;
   updateFeatureLocks();
@@ -3093,17 +3181,10 @@ function renderAll() {
   renderBonds();
   renderStorage();
 
-  const visibleProducts = productionSelectableProducts();
-  const opts = productOptionsGroupedByBuilding(visibleProducts);
-  const productionProductSelect = document.getElementById('productionProduct');
-  const previousProductionProduct = productionProductSelect.value;
-  productionProductSelect.innerHTML = opts || '<option value="">Keine Produktion verfügbar</option>';
-  if (visibleProducts.some(p => p.id === previousProductionProduct)) {
-    productionProductSelect.value = previousProductionProduct;
-  }
+  renderBuildings();
+  updateProductionProductsForSelectedBuilding();
   updateSellItemOptions();
   renderProductionRecipe();
-  renderBuildings();
   renderRetailSale();
   renderMarket();
   renderContracts();
@@ -3272,8 +3353,9 @@ document.getElementById('productionForm').addEventListener('submit', async e => 
     return;
   }
 
-  const { error } = await sb.rpc('start_production_v2',{
+  const { error } = await sb.rpc('start_production_on_building_v2',{
     p_company_id:state.company.id,
+    p_building_id:plan.building.id,
     p_product_id:document.getElementById('productionProduct').value,
     p_hours:plan.hours,
     p_input_text:document.getElementById('productionUnits').value,
@@ -3517,6 +3599,13 @@ buildingBuilderBtn?.addEventListener('click', () => {
 
 buildingCategoryFilter?.addEventListener('change', renderBuildingCatalog);
 
+document.querySelectorAll('.building-overview-filter').forEach(button => {
+  button.addEventListener('click', () => {
+    state.buildingOverviewFilter = button.dataset.buildingFilter || 'all';
+    renderBuildings();
+  });
+});
+
 // Market
 function sellOrderContext() {
   const type = document.getElementById('sellItemType')?.value || 'product';
@@ -3755,8 +3844,9 @@ document.getElementById('retailSaleForm').addEventListener('submit', async e => 
     return;
   }
 
-  const { error } = await sb.rpc('start_retail_sale_quality_v2', {
+  const { error } = await sb.rpc('start_retail_sale_on_building_v2', {
     p_company_id: state.company.id,
+    p_building_id: ctx.building.id,
     p_product_id: ctx.product.id,
     p_quality: ctx.quality,
     p_quantity: quantity,

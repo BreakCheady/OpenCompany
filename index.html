@@ -7,12 +7,35 @@
   <title>OpenCompany</title>
   <link rel="icon" type="image/png" href="favicon.png">
   <link rel="shortcut icon" href="favicon.ico">
-  <link rel="stylesheet" href="style.css?v=0.10.51">
+  <link rel="stylesheet" href="style.css?v=0.10.52">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     .password-field{display:flex;align-items:center;gap:.5rem}
     .password-field input{flex:1 1 auto;min-width:0}
     .password-toggle{flex:0 0 auto;min-width:2.5rem;padding:.55rem .7rem;line-height:1;font-size:1rem}
+    .building-overview-toolbar{display:flex;gap:.5rem;flex-wrap:wrap;margin:1rem 0}
+    .building-overview-filter{background:#eef4fb;color:inherit;border:1px solid #d5dfeb}
+    .building-overview-filter.active{background:#1769d2;color:#fff;border-color:#1769d2}
+    .building-card-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:1rem;margin:1rem 0 1.25rem}
+    .building-card{border:1px solid #d7e0eb;border-radius:14px;padding:1rem;background:rgba(255,255,255,.7);cursor:pointer;transition:.15s ease;min-width:0}
+    .building-card:hover{transform:translateY(-1px);border-color:#8fb8ec}
+    .building-card.selected{border:2px solid #1769d2;box-shadow:0 0 0 2px rgba(23,105,210,.08)}
+    .building-card.under-construction{opacity:.82;cursor:default}
+    .building-card-head{display:flex;justify-content:space-between;gap:.75rem;align-items:flex-start}
+    .building-card-title{font-weight:800;font-size:1.05rem}
+    .building-card-meta{font-size:.88rem;color:#617087;margin-top:.2rem}
+    .building-card-status{display:inline-flex;align-items:center;gap:.35rem;border-radius:999px;padding:.28rem .6rem;font-size:.82rem;font-weight:700;margin:.8rem 0}
+    .building-card-status.free{background:#d9f5df;color:#176b32}
+    .building-card-status.running{background:#fff0c6;color:#895400}
+    .building-card-status.building{background:#e8edf4;color:#536174}
+    .building-card-job{border-top:1px solid #e2e8f0;padding-top:.75rem;margin-top:.25rem}
+    .building-card-job strong{display:block}
+    .building-card-actions{display:flex;gap:.5rem;flex-wrap:wrap;margin-top:.9rem}
+    .building-card-actions button{flex:1 1 auto}
+    .building-card-progress{height:6px;border-radius:999px;background:#e3e9f1;overflow:hidden;margin:.65rem 0}
+    .building-card-progress span{display:block;height:100%;background:#2f8ce5}
+    .production-building-empty{padding:1.25rem;text-align:center;border:1px dashed #b9c7d8;border-radius:12px;color:#617087}
+    @media(max-width:720px){.building-card-grid{grid-template-columns:1fr}.building-overview-toolbar{display:grid;grid-template-columns:1fr 1fr}}
   </style>
 </head>
 <body>
@@ -24,7 +47,6 @@
       <button class="nav-item" data-view="company">Unternehmen</button>
       <button class="nav-item" data-view="production">Produktion</button>
       <button class="nav-item" data-view="storage">Lager</button>
-      <button class="nav-item" data-view="buildings">Gebäude</button>
       <button class="nav-item" data-view="market">Markt &amp; Handel</button>
       <button class="nav-item" data-view="contracts">Verträge</button>
       <button class="nav-item" data-view="finance">Finanzen</button>
@@ -97,7 +119,53 @@
 
       <div id="production" class="view">
         <article class="panel">
-          <h2>Produktion starten</h2>
+          <div class="panel-head building-panel-head">
+            <div>
+              <h2>Gebäude &amp; Produktion</h2>
+              <p class="muted">Wähle ein konkretes Gebäude aus. Jeder Auftrag läuft anschließend genau in diesem Gebäude.</p>
+            </div>
+            <button type="button" id="openBuildingBuilderBtn" class="building-builder-open-btn">Bauen</button>
+          </div>
+
+          <div id="buildingSlotsSummary" class="kv building-slots-summary">
+            <span>Gebäudeplätze</span><strong>0 / 4</strong>
+          </div>
+
+          <div class="building-overview-toolbar">
+            <button type="button" class="building-overview-filter active" data-building-filter="all">Alle</button>
+            <button type="button" class="building-overview-filter" data-building-filter="production">Produktion</button>
+            <button type="button" class="building-overview-filter" data-building-filter="retail">Handel</button>
+            <button type="button" class="building-overview-filter" data-building-filter="research">Forschung</button>
+          </div>
+
+          <div id="buildingCards" class="building-card-grid"></div>
+
+          <div id="buildingBuilder" class="building-builder hidden">
+            <div class="building-builder-toolbar">
+              <div>
+                <h3>Gebäude bauen</h3>
+                <p class="muted">Wähle eine Kategorie und errichte ein neues Gebäude.</p>
+              </div>
+              <label>Kategorie
+                <select id="buildingCategoryFilter">
+                  <option value="all">Alle</option>
+                  <option value="production">Produktion</option>
+                  <option value="retail">Verkauf</option>
+                  <option value="research">Forschung</option>
+                </select>
+              </label>
+            </div>
+            <div id="buildingCatalogTable" class="table-wrap"></div>
+          </div>
+        </article>
+
+        <article class="panel" id="productionControlPanel">
+          <div class="panel-head">
+            <div>
+              <h2 id="productionSelectedHeading">Produktionsauftrag</h2>
+              <p id="productionSelectedHint" class="muted">Wähle oben ein Produktionsgebäude aus.</p>
+            </div>
+          </div>
           <form id="productionForm">
             <label>Produkt<select id="productionProduct"></select></label>
             <label>Anzahl Einheiten<input type="text" id="productionUnits" value="1" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="z. B. 120, 6hrs oder 6pm"></label>
@@ -139,42 +207,6 @@
             <strong id="storageTotalValue">0 OC$</strong>
           </div>
           <div id="storageInventoryTable" class="table-wrap"></div>
-        </article>
-      </div>
-
-      <div id="buildings" class="view">
-        <article class="panel">
-          <div class="panel-head building-panel-head">
-            <div>
-              <h2>Gebäude</h2>
-            </div>
-            <button type="button" id="openBuildingBuilderBtn" class="building-builder-open-btn">Bauen</button>
-          </div>
-
-          <div id="buildingSlotsSummary" class="kv building-slots-summary">
-            <span>Gebäudeplätze</span>
-            <strong>0 / 4</strong>
-          </div>
-
-          <div id="buildingBuilder" class="building-builder hidden">
-            <div class="building-builder-toolbar">
-              <div>
-                <h3>Gebäude bauen</h3>
-                <p class="muted">Wähle eine Kategorie und errichte ein neues Gebäude.</p>
-              </div>
-              <label>Kategorie
-                <select id="buildingCategoryFilter">
-                  <option value="all">Alle</option>
-                  <option value="production">Produktion</option>
-                  <option value="retail">Verkauf</option>
-                  <option value="research">Forschung</option>
-                </select>
-              </label>
-            </div>
-            <div id="buildingCatalogTable" class="table-wrap"></div>
-          </div>
-
-          <div id="buildingsTable" class="table-wrap"></div>
         </article>
       </div>
 
@@ -358,7 +390,7 @@
           <h2>Einstellungen</h2>
           <div class="kv">
             <span>Version</span>
-            <strong>0.10.51</strong>
+            <strong>0.10.52</strong>
           </div>
         </article>
 
