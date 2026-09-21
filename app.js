@@ -1436,19 +1436,23 @@ function retailSaleContext() {
     ? state.buildings.filter(b => b.building_type_id === buildingType.id && b.status === 'active')
     : [];
 
-  const productRunningJob = state.retailSaleJobs.find(
+  const productRunningJobs = state.retailSaleJobs.filter(
     job => job.product_id === productId && job.status === 'running'
-  ) || null;
-
-  const runningBuilding = productRunningJob
-    ? matchingBuildings.find(building => building.id === productRunningJob.building_id)
-    : null;
+  );
 
   const freeBuilding = matchingBuildings.find(building =>
     !state.retailSaleJobs.some(job => job.building_id === building.id && job.status === 'running')
   ) || null;
 
-  const building = runningBuilding || freeBuilding || matchingBuildings[0] || null;
+  // Wie bei der Produktion: Solange ein passendes Gebäude frei ist,
+  // darf ein weiterer Handelsverkauf parallel gestartet werden.
+  const productRunningJob = freeBuilding ? null : (productRunningJobs[0] || null);
+
+  const runningBuilding = productRunningJob
+    ? matchingBuildings.find(building => building.id === productRunningJob.building_id)
+    : null;
+
+  const building = freeBuilding || runningBuilding || matchingBuildings[0] || null;
 
   const multiplier = building ? buildingLevelMultiplier(building.level) : 1;
   const baseProductRetailRate = Number(product?.base_retail_rate || 0);
@@ -1620,6 +1624,52 @@ function retailSaleProgress(job) {
   };
 }
 
+function retailRunningJobsHtml(excludeJobId = null) {
+  const jobs = state.retailSaleJobs.filter(
+    job => job.status === 'running' && job.id !== excludeJobId
+  );
+  if (!jobs.length) return '';
+
+  return `
+    <div class="retail-running-box">
+      <div class="retail-running-head">
+        <div>
+          <strong>Laufende Handelsverkäufe</strong>
+          <span>${jobs.length} parallele${jobs.length === 1 ? 'r' : ''} Verkaufsauftrag${jobs.length === 1 ? '' : 'e'}</span>
+        </div>
+      </div>
+      ${jobs.map(job => {
+        const product = state.products.find(p => p.id === job.product_id);
+        const building = state.buildings.find(b => b.id === job.building_id);
+        const buildingType = state.buildingTypes.find(bt => bt.id === building?.building_type_id);
+        const progress = retailSaleProgress(job);
+        const finish = new Date(job.finishes_at);
+        const remainingUnits = Math.max(0, Number(job.quantity || 0) - progress.sold);
+        const snapshot = job.start_snapshot || {};
+        const unitPrice = Number(snapshot.unitPrice ?? (Number(job.total_value || 0) / Math.max(1, Number(job.quantity || 1))));
+
+        return `
+          <div class="retail-running-box">
+            <div class="retail-running-head">
+              <div>
+                <strong>${product?.name || 'Produkt'} · Q${Number(job.quality_level || 1)}</strong>
+                <span>${buildingType?.name || 'Verkaufsgebäude'} · ${num(remainingUnits)} noch offen · Ende ${finish.toLocaleString('de-DE', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' })} Uhr</span>
+              </div>
+              <div class="retail-actions">
+                <button type="button" class="retail-collect-btn" ${progress.claimableUnits <= 0 ? 'disabled' : ''} onclick="collectRetailRevenue('${job.id}')">Einsammeln</button>
+                <button type="button" class="ghost" onclick="cancelRetailSale('${job.id}')">Abbrechen</button>
+              </div>
+            </div>
+            <div class="kv"><span>Verkaufspreis</span><strong>${money(unitPrice)} / Einheit</strong></div>
+            <div class="kv"><span>Bereits verkauft</span><strong>${num(progress.sold)}</strong></div>
+            <div class="kv"><span>Einsammelbarer Erlös</span><strong class="retail-revenue-positive">${money(progress.claimableRevenue)}</strong></div>
+          </div>
+        `;
+      }).join('')}
+    </div>
+  `;
+}
+
 function renderRetailSale() {
   const select = document.getElementById('retailProduct');
   const details = document.getElementById('retailSaleDetails');
@@ -1632,18 +1682,21 @@ function renderRetailSale() {
   if (!select || !details || !button || !qtyInput) return;
 
   const stockedRetailProducts = stockedProducts().filter(p => p.required_retail_building_type_id);
-  const runningRetailJob = state.retailSaleJobs.find(job => job.status === 'running');
-  const runningRetailProduct = runningRetailJob
-    ? state.products.find(p => p.id === runningRetailJob.product_id)
-    : null;
+  const runningRetailJobs = state.retailSaleJobs.filter(job => job.status === 'running');
+  const runningRetailProducts = runningRetailJobs
+    .map(job => state.products.find(p => p.id === job.product_id))
+    .filter(Boolean);
   const retailProducts = [...stockedRetailProducts];
-  if (runningRetailProduct && !retailProducts.some(p => p.id === runningRetailProduct.id)) {
-    retailProducts.push(runningRetailProduct);
-  }
+  runningRetailProducts.forEach(product => {
+    if (!retailProducts.some(p => p.id === product.id)) retailProducts.push(product);
+  });
   const previous = select.value;
 
   select.innerHTML = retailProducts.length
-    ? retailProducts.map(p => `<option value="${p.id}">${p.name}${runningRetailJob?.product_id === p.id && !hasProductInventory(p.id) ? ' – Verkauf läuft' : ''}</option>`).join('')
+    ? retailProducts.map(p => {
+        const hasRunning = runningRetailJobs.some(job => job.product_id === p.id);
+        return `<option value="${p.id}">${p.name}${hasRunning && !hasProductInventory(p.id) ? ' – Verkauf läuft' : ''}</option>`;
+      }).join('')
     : '<option value="">Keine Handelsprodukte verfügbar</option>';
 
   if (retailProducts.some(p => p.id === previous)) select.value = previous;
@@ -1658,7 +1711,7 @@ function renderRetailSale() {
       : selectedRunningJob
         ? `<option value="${runningQuality}">Q${runningQuality} – Verkauf läuft</option>`
         : '<option value="1">Q1 – 0 verfügbar</option>';
-    if (selectedRunningJob) {
+    if (selectedRunningJob && !retailLots.length) {
       qualitySelect.value = String(runningQuality);
     } else if (retailLots.some(l => String(l.quality_level) === String(previousQuality))) {
       qualitySelect.value = previousQuality;
@@ -1747,7 +1800,8 @@ function renderRetailSale() {
         <div class="kv"><span>Einsammelbarer Erlös</span><strong class="retail-revenue-positive">${money(progress.claimableRevenue)}</strong></div>
         <div class="kv"><span>Erwarteter Erlös (offen)</span><strong>${money(progress.openRevenue)}</strong></div>
         <div class="kv"><span>Abbruchgebühr</span><strong class="retail-cancel-fee">-${money(progress.cancellationFee)}</strong></div>
-      </div>`;
+      </div>
+      ${retailRunningJobsHtml(job.id)}`;
 
     button.disabled = false;
     button.textContent = 'Verkauf abbrechen';
@@ -1773,8 +1827,9 @@ function renderRetailSale() {
     `<div class="kv"><span>Verkaufsdauer</span><strong>${ctx.building && saleHours > 0 ? formatProductionDuration(saleHours) : '–'}</strong></div>`,
     `<div class="kv"><span>Voraussichtliches Ende</span><strong>${ctx.building && saleHours > 0 ? formatProductionFinish(saleHours) : '–'}</strong></div>`,
     `<div class="kv"><span>Erwarteter Erlös</span><strong class="retail-revenue-positive">${money(expectedRevenue)}</strong></div>`,
-    `<div class="kv"><span>Abbruchgebühr</span><strong class="retail-cancel-fee">${expectedRevenue > 0 ? `-${money(cancellationFee)}` : money(0)}</strong></div>`
-  ].join('') : '<p class="muted">Es befinden sich keine Produkte für den Handelsverkauf im Lager.</p>';
+    `<div class="kv"><span>Abbruchgebühr</span><strong class="retail-cancel-fee">${expectedRevenue > 0 ? `-${money(cancellationFee)}` : money(0)}</strong></div>`,
+    retailRunningJobsHtml()
+  ].join('') : (`<p class="muted">Es befinden sich keine Produkte für den Handelsverkauf im Lager.</p>${retailRunningJobsHtml()}`);
 
   button.disabled = !ready;
 
@@ -3454,6 +3509,22 @@ document.getElementById('retailSaleForm').addEventListener('submit', async e => 
     await loadCompany();
   }
 });
+window.cancelRetailSale = async function(jobId) {
+  const job = state.retailSaleJobs.find(j => j.id === jobId && j.status === 'running');
+  if (!job) return;
+
+  const progress = retailSaleProgress(job);
+  if (!await gameConfirm(`Verkauf wirklich abbrechen? Noch nicht verkaufte Ware wird zurück ins Lager gelegt. Abbruchgebühr: ${money(progress.cancellationFee)} (20% des erwarteten Erlöses).`)) return;
+
+  const { error } = await sb.rpc('cancel_retail_sale', {
+    p_company_id: state.company.id,
+    p_job_id: job.id
+  });
+
+  if (error) gameAlert(error.message);
+  else await loadCompany();
+};
+
 window.collectRetailRevenue = async function(jobId) {
   const job = state.retailSaleJobs.find(j => j.id === jobId);
   if (!job) return;
