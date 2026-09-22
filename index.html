@@ -7,7 +7,7 @@
   <title>OpenCompany</title>
   <link rel="icon" type="image/png" href="favicon.png">
   <link rel="shortcut icon" href="favicon.ico">
-  <link rel="stylesheet" href="style.css?v=0.10.96">
+  <link rel="stylesheet" href="style.css?v=0.10.97">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     .password-field{display:flex;align-items:center;gap:.5rem}
@@ -42,13 +42,13 @@
       border-color:#178447!important;
     }
     .building-demolish-btn{
-      background:#d64545!important;
-      border-color:#d64545!important;
+      background:#d60000!important;
+      border-color:#d60000!important;
       color:#fff!important;
     }
     .building-demolish-btn:hover{
-      background:#bb3434!important;
-      border-color:#bb3434!important;
+      background:#b30000!important;
+      border-color:#b30000!important;
     }
     .strong-danger-btn{
       background:#d60000!important;
@@ -212,7 +212,7 @@
       .oc-select-option{min-height:46px;padding:.7rem .8rem}
     }
   
-    /* v0.10.96 – einheitliche Navigationsleiste auf Desktop und Mobile */
+    /* v0.10.97 – einheitliche Navigationsleiste auf Desktop und Mobile */
     .app-shell{
       display:block!important;
       min-height:100dvh!important;
@@ -302,16 +302,16 @@
       flex:0 0 92px!important;
       min-width:92px!important;
       max-width:92px!important;
-      background:#d64545!important;
-      border-color:#d64545!important;
+      background:#d60000!important;
+      border-color:#d60000!important;
       color:#fff!important;
       font-size:11px!important;
       font-weight:700!important;
     }
 
     .nav-logout:hover{
-      background:#bb3434!important;
-      border-color:#bb3434!important;
+      background:#b30000!important;
+      border-color:#b30000!important;
     }
 
     .main-content{
@@ -570,6 +570,32 @@
         align-items:center!important;
         justify-content:center!important;
       }
+    }
+
+  
+    :root{
+      --danger-button:#d60000;
+      --danger-button-hover:#b30000;
+    }
+
+    .strong-danger-btn,
+    .building-demolish-btn,
+    .nav-logout,
+    .company-reset-btn,
+    .company-delete-btn{
+      background:var(--danger-button)!important;
+      border-color:var(--danger-button)!important;
+      color:#fff!important;
+    }
+
+    .strong-danger-btn:hover,
+    .building-demolish-btn:hover,
+    .nav-logout:hover,
+    .company-reset-btn:hover,
+    .company-delete-btn:hover{
+      background:var(--danger-button-hover)!important;
+      border-color:var(--danger-button-hover)!important;
+      color:#fff!important;
     }
 
   </style>
@@ -954,7 +980,7 @@
           <h2>Einstellungen</h2>
           <div class="kv">
             <span>Version</span>
-            <strong>0.10.96</strong>
+            <strong>0.10.97</strong>
           </div>
           <div class="kv settings-language-row">
             <span>Sprache</span>
