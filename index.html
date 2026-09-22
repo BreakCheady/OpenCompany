@@ -7,7 +7,7 @@
   <title>OpenCompany</title>
   <link rel="icon" type="image/png" href="favicon.png">
   <link rel="shortcut icon" href="favicon.ico">
-  <link rel="stylesheet" href="style.css?v=0.10.59">
+  <link rel="stylesheet" href="style.css?v=0.10.60">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     .password-field{display:flex;align-items:center;gap:.5rem}
@@ -187,7 +187,7 @@
       .oc-select-option{min-height:46px;padding:.7rem .8rem}
     }
   
-    /* v0.10.59 – einheitliche Navigationsleiste auf Desktop und Mobile */
+    /* v0.10.60 – einheitliche Navigationsleiste auf Desktop und Mobile */
     .app-shell{
       display:block!important;
       min-height:100dvh!important;
@@ -269,6 +269,24 @@
       border-radius:3px!important;
     }
 
+    .nav-logout{
+      flex:0 0 58px!important;
+      min-width:58px!important;
+      max-width:58px!important;
+      font-size:22px!important;
+      color:#fff!important;
+    }
+
+    .nav-logout-icon{
+      display:block;
+      line-height:1;
+      transform:translateY(-1px);
+    }
+
+    .nav-logout:hover{
+      background:rgba(255,255,255,.12)!important;
+    }
+
     .main-content{
       width:100%!important;
       max-width:1500px!important;
@@ -295,6 +313,13 @@
         min-width:88px!important;
         max-width:88px;
         font-size:10px!important;
+      }
+
+      .nav-logout{
+        flex-basis:54px!important;
+        min-width:54px!important;
+        max-width:54px!important;
+        font-size:21px!important;
       }
     }
 
@@ -323,10 +348,12 @@
       <button class="nav-item" data-view="finance">Finanzen</button>
       <button class="nav-item" data-view="research">Forschung</button>
       <button class="nav-item" data-view="settings">Einstellungen</button>
+      <button id="logoutBtn" class="nav-item nav-logout" type="button" aria-label="Abmelden" title="Abmelden">
+        <span class="nav-logout-icon" aria-hidden="true">🚪</span>
+      </button>
     </nav>
     <div class="sidebar-footer">
       <span id="sessionLabel">Nicht angemeldet</span>
-      <button id="logoutBtn" class="ghost hidden">Abmelden</button>
       <div class="sidebar-version">
         <span class="sidebar-credit">Made by BreakCheady</span>
       </div>
@@ -666,7 +693,7 @@
           <h2>Einstellungen</h2>
           <div class="kv">
             <span>Version</span>
-            <strong>0.10.59</strong>
+            <strong>0.10.60</strong>
           </div>
         </article>
 
