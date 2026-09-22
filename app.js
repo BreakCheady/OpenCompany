@@ -2623,9 +2623,7 @@ function filteredMarketOrders() {
     if (!search) return true;
 
     const item = itemName(o).toLocaleLowerCase('de-DE');
-    const company = companyName(o.company_id).toLocaleLowerCase('de-DE');
-    const kind = o.material_id ? 'rohstoff material' : 'produkt';
-    return item.includes(search) || company.includes(search) || kind.includes(search);
+    return item.includes(search);
   });
 
   orders = [...orders].sort((a,b) =>
