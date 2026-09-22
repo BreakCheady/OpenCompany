@@ -7,7 +7,7 @@
   <title>OpenCompany</title>
   <link rel="icon" type="image/png" href="favicon.png">
   <link rel="shortcut icon" href="favicon.ico">
-  <link rel="stylesheet" href="style.css?v=0.10.91">
+  <link rel="stylesheet" href="style.css?v=0.10.92">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     .password-field{display:flex;align-items:center;gap:.5rem}
@@ -202,7 +202,7 @@
       .oc-select-option{min-height:46px;padding:.7rem .8rem}
     }
   
-    /* v0.10.91 – einheitliche Navigationsleiste auf Desktop und Mobile */
+    /* v0.10.92 – einheitliche Navigationsleiste auf Desktop und Mobile */
     .app-shell{
       display:block!important;
       min-height:100dvh!important;
@@ -534,6 +534,32 @@
       font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;
       overflow-wrap:anywhere;
       letter-spacing:.02em;
+    }
+
+  
+    @media(max-width:720px){
+      .password-field{
+        display:flex;
+        align-items:stretch;
+        gap:8px;
+      }
+
+      .password-field input{
+        flex:1 1 auto;
+        min-width:0;
+      }
+
+      .password-toggle{
+        flex:0 0 48px!important;
+        width:48px!important;
+        min-width:48px!important;
+        max-width:48px!important;
+        height:auto!important;
+        padding:0!important;
+        display:inline-flex!important;
+        align-items:center!important;
+        justify-content:center!important;
+      }
     }
 
   </style>
@@ -918,7 +944,7 @@
           <h2>Einstellungen</h2>
           <div class="kv">
             <span>Version</span>
-            <strong>0.10.91</strong>
+            <strong>0.10.92</strong>
           </div>
           <div class="kv settings-language-row">
             <span>Sprache</span>
