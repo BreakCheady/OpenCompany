@@ -32,6 +32,7 @@ const state = {
   selectedBuildingId: null,
   selectedRetailBuildingId: null,
   buildingOverviewFilter: 'all',
+  openDashboardAfterLogin: false,
   financePeriod: 'day',
   financePeriodOffset: 0,
   contracts: [],
@@ -702,7 +703,7 @@ function renderCompanyStatus() {
 }
 
 function bindNavigation() {
-  document.querySelectorAll('.nav-item').forEach(btn => btn.addEventListener('click', async () => {
+  document.querySelectorAll('.nav-item[data-view]').forEach(btn => btn.addEventListener('click', async () => {
     const view = btn.dataset.view;
     const requiredLevel = featureRequiredLevel(view);
     if (requiredLevel && !featureUnlocked(view)) {
@@ -1335,6 +1336,15 @@ async function handleSession(session) {
     return;
   }
   await loadCompany();
+
+  if (state.openDashboardAfterLogin && state.company) {
+    state.openDashboardAfterLogin = false;
+    const dashboardButton = document.querySelector('.nav-item[data-view="dashboard"]');
+    dashboardButton?.click();
+    if (location.hash) {
+      history.replaceState(null, '', location.pathname + location.search);
+    }
+  }
 }
 
 async function loadCompany() {
@@ -3532,10 +3542,14 @@ storageFilterReset?.addEventListener('click', () => {
 // Auth
 document.getElementById('loginForm').addEventListener('submit', async e => {
   e.preventDefault();
+  state.openDashboardAfterLogin = true;
+
   const { error } = await sb.auth.signInWithPassword({
     email: document.getElementById('loginEmail').value.trim(),
     password: document.getElementById('loginPassword').value
   });
+
+  if (error) state.openDashboardAfterLogin = false;
   msg(document.getElementById('authMessage'), error ? error.message : 'Angemeldet.', error ? 'error' : 'success');
 });
 document.getElementById('signupForm').addEventListener('submit', async e => {
