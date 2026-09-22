@@ -2735,7 +2735,8 @@ function renderMarket() {
     ['Firma','Gut','Art','Qualität','Menge','Preis','Gebühr','Aktion'],
     orders.map(o => {
       const selected = state.selectedMarketOrderIds.includes(o.id);
-      return `<tr class="market-order-row ${selected ? 'selected' : ''}" data-order-id="${o.id}" tabindex="0" aria-selected="${selected}">
+      const isOwnOrder = o.company_id === state.company.id;
+      return `<tr class="market-order-row ${selected ? 'selected' : ''} ${isOwnOrder ? 'own-market-order' : ''}" data-order-id="${o.id}" tabindex="0" aria-selected="${selected}">
         <td>${companyName(o.company_id)}</td>
         <td>${itemName(o)}</td>
         <td>${o.material_id ? 'Rohstoff' : 'Produkt'}</td>
