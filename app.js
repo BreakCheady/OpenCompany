@@ -775,7 +775,7 @@ function renderCompanyRanking() {
     movement = `<span class="ranking-change ranking-change-down" title="${lost} Platz${lost === 1 ? '' : 'e'} verloren">▼ ${num(lost)}</span>`;
   }
 
-  rankingEl.innerHTML = `<span class="ranking-place">#${num(rank)}${total > 0 ? ` / ${num(total)}` : ''}</span>${movement}`;
+  rankingEl.innerHTML = `<span class="ranking-place">#${num(rank)}</span>${movement}`;
 }
 
 function renderCompanyStatus() {
