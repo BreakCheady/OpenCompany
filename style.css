@@ -2470,15 +2470,12 @@ body.game-dialog-open { overflow: hidden; }
   color: #fff !important;
 }
 
-.badge.order-status-filled,
-.finance-profit-gain {
+.badge.order-status-filled {
   background: var(--success) !important;
   border-color: var(--success) !important;
   color: #fff !important;
 }
 
-.badge.order-status-filled *,
-.finance-profit-gain span,
-.finance-profit-gain strong {
+.badge.order-status-filled * {
   color: #fff !important;
 }
