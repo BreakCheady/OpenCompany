@@ -7,7 +7,7 @@
   <title>OpenCompany</title>
   <link rel="icon" type="image/png" href="favicon.png">
   <link rel="shortcut icon" href="favicon.ico">
-  <link rel="stylesheet" href="style.css?v=0.10.61">
+  <link rel="stylesheet" href="style.css?v=0.10.62">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     .password-field{display:flex;align-items:center;gap:.5rem}
@@ -187,7 +187,7 @@
       .oc-select-option{min-height:46px;padding:.7rem .8rem}
     }
   
-    /* v0.10.61 – einheitliche Navigationsleiste auf Desktop und Mobile */
+    /* v0.10.62 – einheitliche Navigationsleiste auf Desktop und Mobile */
     .app-shell{
       display:block!important;
       min-height:100dvh!important;
@@ -270,21 +270,19 @@
     }
 
     .nav-logout{
-      flex:0 0 58px!important;
-      min-width:58px!important;
-      max-width:58px!important;
-      font-size:22px!important;
+      flex:0 0 92px!important;
+      min-width:92px!important;
+      max-width:92px!important;
+      background:#d64545!important;
+      border-color:#d64545!important;
       color:#fff!important;
-    }
-
-    .nav-logout-icon{
-      display:block;
-      line-height:1;
-      transform:translateY(-1px);
+      font-size:11px!important;
+      font-weight:700!important;
     }
 
     .nav-logout:hover{
-      background:rgba(255,255,255,.12)!important;
+      background:#bb3434!important;
+      border-color:#bb3434!important;
     }
 
     .main-content{
@@ -316,10 +314,10 @@
       }
 
       .nav-logout{
-        flex-basis:54px!important;
-        min-width:54px!important;
-        max-width:54px!important;
-        font-size:21px!important;
+        flex-basis:84px!important;
+        min-width:84px!important;
+        max-width:84px!important;
+        font-size:10px!important;
       }
     }
 
@@ -348,9 +346,7 @@
       <button class="nav-item" data-view="finance">Finanzen</button>
       <button class="nav-item" data-view="research">Forschung</button>
       <button class="nav-item" data-view="settings">Einstellungen</button>
-      <button id="logoutBtn" class="nav-item nav-logout" type="button" aria-label="Abmelden" title="Abmelden">
-        <span class="nav-logout-icon" aria-hidden="true">🚪</span>
-      </button>
+      <button id="logoutBtn" class="nav-item nav-logout" type="button" aria-label="Abmelden" title="Abmelden">Abmelden</button>
     </nav>
     <div class="sidebar-footer">
       <span id="sessionLabel">Nicht angemeldet</span>
@@ -693,7 +689,7 @@
           <h2>Einstellungen</h2>
           <div class="kv">
             <span>Version</span>
-            <strong>0.10.61</strong>
+            <strong>0.10.62</strong>
           </div>
         </article>
 
