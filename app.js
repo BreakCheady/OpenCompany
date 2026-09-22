@@ -1413,6 +1413,7 @@ async function loadPublicLeaderboard() {
       <tr>
         <th>Platz</th>
         <th>Unternehmen</th>
+        <th>Gegründet</th>
         <th>Unternehmenswert</th>
       </tr>
     </thead>
@@ -1420,6 +1421,7 @@ async function loadPublicLeaderboard() {
       ${rows.map(row => `<tr>
         <td>#${num(row.rank)}</td>
         <td>${escapePublicLeaderboardText(row.company_name)}</td>
+        <td>${row.founded_date ? new Date(`${row.founded_date}T12:00:00`).toLocaleDateString('de-DE') : '–'}</td>
         <td>${money(row.company_value)}</td>
       </tr>`).join('')}
     </tbody>
