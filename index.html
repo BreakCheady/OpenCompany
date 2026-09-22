@@ -7,7 +7,7 @@
   <title>OpenCompany</title>
   <link rel="icon" type="image/png" href="favicon.png">
   <link rel="shortcut icon" href="favicon.ico">
-  <link rel="stylesheet" href="style.css?v=0.10.68">
+  <link rel="stylesheet" href="style.css?v=0.10.69">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     .password-field{display:flex;align-items:center;gap:.5rem}
@@ -187,7 +187,7 @@
       .oc-select-option{min-height:46px;padding:.7rem .8rem}
     }
   
-    /* v0.10.68 – einheitliche Navigationsleiste auf Desktop und Mobile */
+    /* v0.10.69 – einheitliche Navigationsleiste auf Desktop und Mobile */
     .app-shell{
       display:block!important;
       min-height:100dvh!important;
@@ -368,6 +368,34 @@
     .made-by-text{
       font-weight:700;
       letter-spacing:.02em;
+    }
+
+  
+    .company-ranking-value{
+      display:flex;
+      align-items:center;
+      justify-content:flex-end;
+      gap:10px;
+      flex-wrap:wrap;
+    }
+    .ranking-place{
+      font-weight:800;
+    }
+    .ranking-change{
+      display:inline-flex;
+      align-items:center;
+      gap:4px;
+      font-size:12px;
+      font-weight:800;
+    }
+    .ranking-change-up{
+      color:#22c55e;
+    }
+    .ranking-change-down{
+      color:#ef4444;
+    }
+    .ranking-change-zero{
+      color:var(--muted);
     }
 
   </style>
@@ -723,7 +751,7 @@
           <h2>Einstellungen</h2>
           <div class="kv">
             <span>Version</span>
-            <strong>0.10.68</strong>
+            <strong>0.10.69</strong>
           </div>
         </article>
 

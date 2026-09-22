@@ -40,6 +40,7 @@ const state = {
   companyDebt: 0,
   companyValueChange: 0,
   valuationHistory: [],
+  companyRanking: null,
   bondDashboard: null,
   recoveringPassword: false
 };
@@ -565,24 +566,27 @@ function renderDashboardValuationChanges() {
 async function refreshCompanyValueSnapshot() {
   if (!sb || !state.company?.id || document.visibilityState === 'hidden') return;
   const cid = state.company.id;
-  const [companyResult, historyResult] = await Promise.all([
+  const [companyResult, historyResult, rankingResult] = await Promise.all([
     sb.from('companies').select('company_value').eq('id',cid).single(),
     sb.from('company_valuation_history')
       .select('valuation_date,cash_balance,material_value,product_value,building_value,patent_value,loan_debt,company_value,previous_company_value,change_amount,calculated_at')
       .eq('company_id',cid)
       .order('valuation_date',{ascending:false})
-      .limit(2)
+      .limit(2),
+    sb.rpc('get_company_ranking', { p_company_id: cid })
   ]);
 
-  if (companyResult.error || historyResult.error) return;
+  if (companyResult.error || historyResult.error || rankingResult.error) return;
 
   state.company.company_value = Number(companyResult.data?.company_value || state.company.company_value || 0);
   state.valuationHistory = historyResult.data || [];
   state.companyValueChange = Number(state.valuationHistory?.[0]?.change_amount || 0);
+  state.companyRanking = rankingResult.data || null;
 
   const valueEl = document.getElementById('statValue');
   if (valueEl) valueEl.textContent = money(state.company.company_value);
   renderDashboardValuationChanges();
+  renderCompanyRanking();
 }
 
 function updateCompanyBalanceUI(balance) {
@@ -747,6 +751,31 @@ function startNpcMarketHeartbeat() {
 function isCompanyOnline() {
   if (!state.company?.last_seen_at) return false;
   return Date.now() - new Date(state.company.last_seen_at).getTime() < 120000;
+}
+
+function renderCompanyRanking() {
+  const rankingEl = document.getElementById('companyRankingValue');
+  if (!rankingEl) return;
+
+  const ranking = state.companyRanking;
+  const rank = Number(ranking?.rank || 0);
+  const total = Number(ranking?.total_companies || 0);
+  const change = Number(ranking?.rank_change || 0);
+
+  if (!rank) {
+    rankingEl.innerHTML = '<span class="muted">Noch nicht gewertet</span>';
+    return;
+  }
+
+  let movement = '<span class="ranking-change ranking-change-zero">–</span>';
+  if (change > 0) {
+    movement = `<span class="ranking-change ranking-change-up" title="${change} Platz${change === 1 ? '' : 'e'} gewonnen">▲ ${num(change)}</span>`;
+  } else if (change < 0) {
+    const lost = Math.abs(change);
+    movement = `<span class="ranking-change ranking-change-down" title="${lost} Platz${lost === 1 ? '' : 'e'} verloren">▼ ${num(lost)}</span>`;
+  }
+
+  rankingEl.innerHTML = `<span class="ranking-place">#${num(rank)}${total > 0 ? ` / ${num(total)}` : ''}</span>${movement}`;
 }
 
 function renderCompanyStatus() {
@@ -1459,10 +1488,11 @@ async function loadGameData() {
     sb.rpc('list_companies'),
     sb.rpc('get_company_debt', { p_company_id: cid }),
     sb.rpc('get_bond_dashboard', { p_company_id: cid }),
-    sb.from('company_valuation_history').select('valuation_date,cash_balance,material_value,product_value,building_value,patent_value,loan_debt,company_value,previous_company_value,change_amount,calculated_at').eq('company_id',cid).order('valuation_date',{ascending:false}).limit(2)
+    sb.from('company_valuation_history').select('valuation_date,cash_balance,material_value,product_value,building_value,patent_value,loan_debt,company_value,previous_company_value,change_amount,calculated_at').eq('company_id',cid).order('valuation_date',{ascending:false}).limit(2),
+    sb.rpc('get_company_ranking', { p_company_id: cid })
   ]);
 
-  const labels = ['Produkte','Alle Produkte','Produktlager','Materialien','Materiallager','Rezepte','Gebäudetypen','Gebäude','Produktionen','Handelsverkäufe','Finanzen','Marktorders','Marktkäufe','Verträge','Firmenverzeichnis','Kreditschulden','Anleihen','Unternehmenswert-Verlauf'];
+  const labels = ['Produkte','Alle Produkte','Produktlager','Materialien','Materiallager','Rezepte','Gebäudetypen','Gebäude','Produktionen','Handelsverkäufe','Finanzen','Marktorders','Marktkäufe','Verträge','Firmenverzeichnis','Kreditschulden','Anleihen','Unternehmenswert-Verlauf','Unternehmensranking'];
   const errors = results.map((r,i)=>r.error ? { label: labels[i], error:r.error } : null).filter(Boolean);
   if (errors.length) {
     console.error(errors);
@@ -1471,7 +1501,7 @@ async function loadGameData() {
   }
   clearGameDataError();
 
-  const [products, allProducts, inventory, materials, materialInventory, recipes, buildingTypes, buildings, productionJobs, retailSaleJobs, tx, orders, marketTrades, contracts, directory, companyDebt, bondDashboard, valuationHistory] = results;
+  const [products, allProducts, inventory, materials, materialInventory, recipes, buildingTypes, buildings, productionJobs, retailSaleJobs, tx, orders, marketTrades, contracts, directory, companyDebt, bondDashboard, valuationHistory, companyRanking] = results;
   state.products = products.data;
   state.allProducts = allProducts.data;
   state.inventory = inventory.data;
@@ -1493,6 +1523,7 @@ async function loadGameData() {
   state.bondDashboard = bondDashboard.data || null;
   state.valuationHistory = valuationHistory.data || [];
   state.companyValueChange = Number(state.valuationHistory?.[0]?.change_amount || 0);
+  state.companyRanking = companyRanking.data || null;
   renderAll();
 }
 
@@ -3556,12 +3587,14 @@ function renderAll() {
   const companyRows = [
     `<div class="kv"><span>Name</span><strong>${c.name}</strong></div>`,
     `<div class="kv"><span>Status</span><strong class="company-online-status presence-status"></strong></div>`,
+    `<div class="kv"><span>Ranking</span><strong id="companyRankingValue" class="company-ranking-value"></strong></div>`,
     `<div class="kv"><span>Level</span><strong>${num(c.company_level)}</strong></div>`,
     `<div class="kv"><span>Erfahrung</span><strong>${xpCtx.level >= 30 ? `${num(xpCtx.totalXp)} XP · Max-Level` : `${num(xpCtx.progress)} / ${num(xpCtx.needed)} XP`}</strong></div>`,
     `<div class="xp-progress"><span style="width:${xpCtx.percent}%"></span></div>`,
     `<div class="kv"><span>Gebäudeplätze</span><strong>${usedSlotCount} / ${slotCount}</strong></div>`
   ].join('');
   document.getElementById('companySummary').innerHTML = companyRows;
+  renderCompanyRanking();
 
   const companyDebt = Math.max(0, Number(state.companyDebt || 0));
   const companyBuildingValue = currentCompanyBuildingValue();
