@@ -7,7 +7,7 @@
   <title>OpenCompany</title>
   <link rel="icon" type="image/png" href="favicon.png">
   <link rel="shortcut icon" href="favicon.ico">
-  <link rel="stylesheet" href="style.css?v=0.10.81">
+  <link rel="stylesheet" href="style.css?v=0.10.82">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     .password-field{display:flex;align-items:center;gap:.5rem}
@@ -202,7 +202,7 @@
       .oc-select-option{min-height:46px;padding:.7rem .8rem}
     }
   
-    /* v0.10.81 – einheitliche Navigationsleiste auf Desktop und Mobile */
+    /* v0.10.82 – einheitliche Navigationsleiste auf Desktop und Mobile */
     .app-shell{
       display:block!important;
       min-height:100dvh!important;
@@ -479,6 +479,55 @@
       }
     }
 
+  
+    #authView{
+      position:relative;
+    }
+    .auth-language-control{
+      position:absolute;
+      top:18px;
+      right:20px;
+      display:flex;
+      align-items:center;
+      gap:10px;
+      z-index:2;
+    }
+    .auth-language-control label{
+      margin:0;
+      font-weight:700;
+      white-space:nowrap;
+    }
+    .auth-language-control .oc-select,
+    .auth-language-control .language-select{
+      width:150px;
+      min-width:150px;
+    }
+    .settings-language-row{
+      margin-top:10px;
+    }
+    .settings-language-row .oc-select,
+    .settings-language-row .language-select{
+      width:190px;
+      max-width:50%;
+    }
+    @media(max-width:720px){
+      .auth-language-control{
+        position:static;
+        justify-content:flex-end;
+        margin:0 0 18px;
+      }
+      .auth-language-control .oc-select,
+      .auth-language-control .language-select{
+        width:145px;
+        min-width:145px;
+      }
+      .settings-language-row .oc-select,
+      .settings-language-row .language-select{
+        width:170px;
+        max-width:55%;
+      }
+    }
+
   </style>
 </head>
 <body>
@@ -515,6 +564,13 @@
     <section id="setupNotice" class="panel warning hidden"><strong>Supabase noch nicht konfiguriert.</strong> Prüfe <code>config.js</code>.</section>
 
     <section id="authView" class="panel auth-panel">
+      <div class="auth-language-control">
+        <label for="authLanguageSelect">Sprache</label>
+        <select id="authLanguageSelect" class="language-select" aria-label="Sprache">
+          <option value="de">Deutsch</option>
+          <option value="en">Englisch</option>
+        </select>
+      </div>
       <h2>Login / Registrierung</h2>
       <div class="grid two">
         <form id="loginForm"><h3>Anmelden</h3><label>E-Mail<input type="email" id="loginEmail" required></label><label>Passwort<span class="password-field"><input type="password" id="loginPassword" minlength="6" required><button type="button" class="password-toggle" data-password-target="loginPassword" aria-label="Passwort anzeigen" title="Passwort anzeigen">👁</button></span></label><button type="submit">Anmelden</button><button type="button" id="forgotPasswordBtn" class="ghost">Passwort vergessen?</button></form>
@@ -854,7 +910,14 @@
           <h2>Einstellungen</h2>
           <div class="kv">
             <span>Version</span>
-            <strong>0.10.81</strong>
+            <strong>0.10.82</strong>
+          </div>
+          <div class="kv settings-language-row">
+            <span>Sprache</span>
+            <select id="settingsLanguageSelect" class="language-select" aria-label="Sprache">
+              <option value="de">Deutsch</option>
+              <option value="en">Englisch</option>
+            </select>
           </div>
         </article>
 

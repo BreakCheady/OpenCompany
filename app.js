@@ -4,7 +4,326 @@ const setupNotice = document.getElementById('setupNotice');
 if (!configured) setupNotice.classList.remove('hidden');
 
 const APP_URL = 'https://breakcheady.github.io/OpenCompany/';
-const sb = configured ? window.supabase.createClient(config.SUPABASE_URL, config.SUPABASE_ANON_KEY) : null;
+const sessionAuthStorage = {
+  getItem(key) {
+    try { return window.sessionStorage.getItem(key); }
+    catch (_) { return null; }
+  },
+  setItem(key, value) {
+    try { window.sessionStorage.setItem(key, value); }
+    catch (_) {}
+  },
+  removeItem(key) {
+    try { window.sessionStorage.removeItem(key); }
+    catch (_) {}
+  }
+};
+
+const sb = configured ? window.supabase.createClient(
+  config.SUPABASE_URL,
+  config.SUPABASE_ANON_KEY,
+  {
+    auth: {
+      persistSession: true,
+      storage: sessionAuthStorage,
+      autoRefreshToken: true,
+      detectSessionInUrl: true
+    }
+  }
+) : null;
+
+
+let currentLanguage = (() => {
+  try {
+    return window.localStorage.getItem('opencompany_language') === 'en' ? 'en' : 'de';
+  } catch (_) {
+    return 'de';
+  }
+})();
+
+const I18N_EN = {
+  'Dashboard':'Dashboard','Gebäude':'Buildings','Lager':'Storage','Warenbörse':'Marketplace',
+  'Verträge':'Contracts','Finanzen':'Finances','Forschung':'Research','Einstellungen':'Settings',
+  'Abmelden':'Log out','Nicht angemeldet':'Not signed in','OpenCompany – spielbare Unternehmenssimulation':'OpenCompany – playable business simulation',
+  'Supabase noch nicht konfiguriert.':'Supabase is not configured yet.','Prüfe':'Check',
+  'Login / Registrierung':'Login / Registration','Anmelden':'Log in','E-Mail':'Email','Passwort':'Password',
+  'Passwort vergessen?':'Forgot password?','Registrieren':'Register','Account erstellen':'Create account',
+  'Rangliste':'Leaderboard','Top 100 Unternehmen nach Unternehmenswert.':'Top 100 companies by company value.',
+  'Rangliste wird geladen …':'Loading leaderboard …','Neues Passwort festlegen':'Set new password',
+  'Neues Passwort':'New password','Passwort wiederholen':'Repeat password','Passwort speichern':'Save password',
+  'Unternehmen':'Company','Kontostand':'Cash balance','Belegschaft':'Workforce','Unternehmenswert':'Company value',
+  'Lagerwert':'Inventory value','Patentwert':'Patent value','Schulden':'Debt','Gebäudewert':'Building value',
+  'Firmenstatus':'Company status','Letzte Finanzbewegungen':'Latest financial transactions',
+  'Bauen':'Build','Errichte neue Gebäude für Produktion, Handel und Forschung.':'Construct new buildings for production, retail and research.',
+  'Gebäude bauen':'Build building','Wähle eine Kategorie und errichte ein neues Gebäude.':'Choose a category and construct a new building.',
+  'Kategorie':'Category','Alle':'All','Produktion':'Production','Verkauf':'Retail','Handel':'Retail',
+  'Wähle ein konkretes Gebäude aus. Produktion und Handelsverkauf werden direkt diesem Gebäude zugeordnet.':'Select a specific building. Production and retail sales are assigned directly to this building.',
+  'Gebäudeplätze':'Building slots','Produktionsauftrag':'Production order','Wähle oben ein Produktionsgebäude aus.':'Select a production building above.',
+  'Produkt':'Product','Anzahl Einheiten':'Number of units','Produktion starten':'Start production','Produktionsrezept':'Production recipe',
+  'Im Handel verkaufen':'Sell in retail','Wähle oben ein Verkaufsgebäude aus.':'Select a retail building above.',
+  'Qualität':'Quality','Preis je Einheit':'Price per unit','Menge':'Quantity','Suche':'Search','Typ':'Type',
+  'Rohstoffe':'Raw materials','Produkte':'Products','Zurücksetzen':'Reset','Am Markt verkaufen':'Sell on marketplace',
+  'Art':'Type','Rohstoff':'Raw material','Gut':'Item','Order erstellen':'Create order','Offene Marktorders':'Open market orders',
+  'Nächste Marktaktualisierung':'Next market update','Gesamtkosten':'Total cost','Kaufen':'Buy',
+  'Vertrag vorschlagen':'Propose contract','Direkte Verträge zwischen Spielerunternehmen sind gebührenfrei.':'Direct contracts between player companies are fee-free.',
+  'Ich möchte':'I want to','kaufen':'buy','verkaufen':'sell','Partner':'Partner','Gut-Typ':'Item type','Material':'Material',
+  'Meine Verträge':'My contracts','Produktforschung':'Product research','Forschungseinheiten im Lager':'Research units in storage',
+  'Ø Einstandswert':'Ø acquisition value','Forschungseinheiten investieren':'Invest research units','Investieren':'Invest',
+  'Anleihen & Kredite':'Bonds & loans','Finanzübersicht':'Financial overview','Tag':'Day','Woche':'Week','Monat':'Month',
+  'Finanzbewegungen':'Financial transactions','Version':'Version','Account-Daten':'Account data','Ändern':'Change',
+  'Neue E-Mail':'New email','Neues Passwort bestätigen':'Confirm new password','Speichern':'Save','Abbrechen':'Cancel',
+  'Benachrichtigungen':'Notifications','Push-Benachrichtigungen auf diesem Gerät':'Push notifications on this device',
+  'Aktiviert':'Enabled','Unternehmensverwaltung':'Company management','Unternehmensname':'Company name','Umbenennen':'Rename',
+  'Diese Aktionen können nicht rückgängig gemacht werden.':'These actions cannot be undone.',
+  'Unternehmen zurücksetzen':'Reset company','Unternehmen löschen':'Delete company','Unternehmen gründen':'Found company',
+  'Startkapital: 100.000 OC$ inklusive Elektronikfabrik und Elektronikgeschäft.':'Starting capital: 100,000 OC$ including an electronics factory and electronics store.',
+  'Firmenname':'Company name','Hinweis':'Notice','Bestätigung':'Confirmation','Eingabe':'Input','Bestätigen':'Confirm',
+  'Sprache':'Language','Deutsch':'Deutsch','Englisch':'Englisch','Platz':'Rank','Gegründet':'Founded',
+  'Status':'Status','Level':'Level','Erfahrung':'Experience','Name':'Name','Mitarbeiter':'Employees','Firma':'Company',
+  'Gebühr':'Fee','Aktion':'Action','Auswählen':'Select','Ausgewählt':'Selected','Stornieren':'Cancel',
+  'Noch keine Daten.':'No data yet.','Noch nicht gewertet':'Not ranked yet','Position auswählen':'Select position',
+  'Nur gleicher Artikel':'Same item only','Frei':'Available','Im Bau / Ausbau':'Under construction / upgrade',
+  'Produktion läuft':'Production running','Verkauf läuft':'Retail sale running','Auftrag öffnen':'Open order',
+  'Verkauf öffnen':'Open sale','Im Handel verwenden':'Use for retail','Ausbauen':'Upgrade','Abreißen':'Demolish','Abstufen':'Downgrade',
+  'Bau abbrechen':'Cancel construction','Auswählen':'Select','Produktionskosten fehlen':'Production costs missing',
+  'Nicht genügend Bestand':'Insufficient inventory','Maximal 24 Std. Verkaufsdauer':'Maximum retail duration: 24 hours',
+  'Keine Auswahl verfügbar':'No options available','Bitte wählen':'Please select','Keine passenden Bestände im Lager':'No matching stock in storage',
+  'Keine passenden Produkte verfügbar':'No matching products available','Keine Qualität auf Lager':'No quality in storage',
+  'Startkapital':'Starting capital','Marktverkauf':'Market sale','Handelsgewinn':'Retail profit',
+  'Abbruchgebühr Handel':'Retail cancellation fee','Kauf':'Purchase','Erstattung Produktion':'Production refund',
+  'Baukosten':'Construction costs','Gebäude-Erstattung':'Building refund','Forschungsinvestition':'Research investment',
+  'Anleiheninvestment':'Bond investment','Kreditauszahlung':'Loan payout','Kredittilgung':'Loan repayment',
+  'Tilgungseingang':'Principal repayment income','Zinsabgabe':'Interest paid','Zinserlös':'Interest income',
+  'Zinserlös vom Staat':'Interest income from state','Zinsausfall':'Interest default',
+  'Staatliche Kreditausfallentschädigung':'State loan default compensation','Insolvenzverfahren':'Insolvency procedure',
+  'Online':'Online','Offline':'Offline','Forschungseinheit':'Research Unit',
+
+  // Building names
+  'Autofabrik':'Car Factory','Autohaus':'Car Dealership','Baufabrik':'Construction Factory','Baumarkt':'Home Improvement Store',
+  'Chemiefabrik':'Chemical Factory','Chemiehandel':'Chemical Store','Elektronikfabrik':'Electronics Factory',
+  'Elektronikgeschäft':'Electronics Store','Energietechnikfabrik':'Energy Technology Factory','Forschungsgebäude':'Research Building',
+  'Lebensmittelfabrik':'Food Factory','Maschinenfabrik':'Machinery Factory','Modegeschäft':'Fashion Store',
+  'Supermarkt':'Supermarket','Technikhandel':'Technology Store','Textilfabrik':'Textile Factory',
+
+  // Materials
+  'Aluminium':'Aluminum','Ammoniak':'Ammonia','Aromastoff':'Flavoring','Baumwolle':'Cotton','Chemikalien':'Chemicals',
+  'Erdöl':'Crude Oil','Glas':'Glass','Hafer':'Oats','Kaffeebohnen':'Coffee Beans','Kakaobohnen':'Cocoa Beans',
+  'Kalkstein':'Limestone','Kartoffeln':'Potatoes','Kautschuk':'Rubber','Kies':'Gravel','Kupfer':'Copper','Lithium':'Lithium',
+  'Milch':'Milk','Orangen':'Oranges','Pflanzenöl':'Vegetable Oil','Phosphat':'Phosphate','Sand':'Sand','Silizium':'Silicon',
+  'Stahl':'Steel','Tierhaut':'Animal Hide','Tomate':'Tomato','Ton':'Clay','Trockenfrüchte':'Dried Fruit','Wasser':'Water',
+  'Weizen':'Wheat','Wirkstoff':'Active Ingredient','Wolle':'Wool','Zuckerrohr':'Sugar Cane',
+
+  // Products
+  'Akkupack':'Battery Pack','Anzug':'Suit','Autoreifen':'Car Tire','Badehose':'Swim Shorts','Basecap':'Baseball Cap',
+  'Batterieelektrolyt':'Battery Electrolyte','Beton':'Concrete','Bluse':'Blouse','Bremssystem':'Brake System','Brot':'Bread',
+  'Displaymodul':'Display Module','Drohne':'Drone','Düngemittel':'Fertilizer','Eiscreme':'Ice Cream','Elektro-LKW':'Electric Truck',
+  'Elektroauto':'Electric Car','Elektrofahrrad':'Electric Bicycle','Elektromotor':'Electric Motor','Elektronikmodul':'Electronics Module',
+  'Elektroverteiler':'Electrical Distribution Unit','Energydrink':'Energy Drink','Fahrzeugbatterie':'Vehicle Battery',
+  'Fahrzeugsteuergerät':'Vehicle Control Unit','Fenster':'Window','Fruchtsaft':'Fruit Juice','Funktionsstoff':'Performance Fabric',
+  'Garn':'Yarn','Getriebe':'Transmission','Gummi':'Rubber','Gürtel':'Belt','Handschuhe':'Gloves','Industrie-Roboter':'Industrial Robot',
+  'Industriekleber':'Industrial Adhesive','Joghurt':'Yogurt','Kaffee':'Coffee','Karosserie':'Car Body','Kartoffelchips':'Potato Chips',
+  'Käse':'Cheese','Kleid':'Dress','Kleinwagen':'Compact Car','Kühlauflieger':'Refrigerated Trailer','Kunstfaser':'Synthetic Fiber',
+  'Kunststoffgranulat':'Plastic Granulate','Kupferrohr':'Copper Pipe','Ladesäule':'Charging Station','Leder':'Leather',
+  'Lederschuhe':'Leather Shoes','Ledertasche':'Leather Bag','Lieferwagen':'Delivery Van','LKW':'Truck',
+  'LKW-Auflieger':'Truck Trailer','LKW-Rahmen':'Truck Frame','Mehl':'Flour','Motorrad':'Motorcycle','Müsli':'Muesli',
+  'Pflanzenschutzmittel':'Crop Protection Agent','Prozessor':'Processor','Reinigungsmittel':'Cleaning Agent','Reisebus':'Coach',
+  'Rock':'Skirt','Rucksack':'Backpack','Schal':'Scarf','Schokolade':'Chocolate','Silikon':'Silicone','Solarmodul':'Solar Module',
+  'Solarzelle':'Solar Cell','Sporthose':'Sports Pants','Sportshirt':'Sports Shirt','Sportwagen':'Sports Car','Stadtbus':'City Bus',
+  'Stahlrohr':'Steel Pipe','Stahlträger':'Steel Beam','Stoff':'Fabric','Tiefkühlpizza':'Frozen Pizza','Traktor':'Tractor',
+  'Transportcontainer':'Shipping Container','Verbrennungsmotor':'Combustion Engine','Winterjacke':'Winter Jacket',
+  'Wollstoff':'Wool Fabric','Zement':'Cement','Ziegelstein':'Brick','Zucker':'Sugar'
+};
+
+const I18N_EN_REPLACEMENTS = [
+  ['Unternehmen gegründet.','Company founded.'],
+  ['Angemeldet.','Logged in.'],
+  ['Account erstellt.','Account created.'],
+  ['Noch keine','No'],
+  ['Einheiten offen','units remaining'],
+  ['Std.','hrs'],
+  ['Min.','min'],
+  ['Ende ','Ends '],
+  ['Im Bau · ','Under construction · '],
+  ['Gebäudeplätze','Building slots'],
+  ['Mitarbeiter','employees'],
+  ['Tagesveränderung','Daily change'],
+  ['Berechnung um 01:00 Uhr','Calculated at 01:00'],
+  ['Nächste Namensänderung möglich ab ','Next name change available from '],
+  ['Der Unternehmensname kann geändert werden. Danach gilt erneut eine Sperre von 14 Tagen.',
+   'The company name can be changed. A new 14-day lock then applies.'],
+  ['Rangliste konnte nicht geladen werden.','Leaderboard could not be loaded.'],
+  ['Noch keine Ranglistendaten verfügbar.','No leaderboard data available yet.'],
+  ['Stand: ','As of: '],
+  ['Sitzung nach 60 Minuten Inaktivität beendet.','Session ended after 60 minutes of inactivity.']
+];
+
+const originalTextNodes = new WeakMap();
+const originalAttributes = new WeakMap();
+let languageMutationObserver = null;
+let languageMutationGuard = false;
+
+function uiLocale() {
+  return currentLanguage === 'en' ? 'en-US' : 'de-DE';
+}
+
+function translateUiCore(value) {
+  const text = String(value ?? '');
+  if (currentLanguage !== 'en') return text;
+  if (Object.prototype.hasOwnProperty.call(I18N_EN, text)) return I18N_EN[text];
+  let translated = text;
+  for (const [de, en] of I18N_EN_REPLACEMENTS) translated = translated.split(de).join(en);
+  return translated;
+}
+
+function translateUiString(value) {
+  const source = String(value ?? '');
+  const match = source.match(/^(\s*)([\s\S]*?)(\s*)$/);
+  if (!match) return translateUiCore(source);
+  return `${match[1]}${translateUiCore(match[2])}${match[3]}`;
+}
+
+function translateTextNode(node) {
+  if (!node || node.nodeType !== Node.TEXT_NODE) return;
+  if (node.parentElement?.closest('script,style')) return;
+
+  const current = node.nodeValue || '';
+  const stored = originalTextNodes.get(node);
+
+  if (currentLanguage === 'de') {
+    if (stored !== undefined && current !== stored) node.nodeValue = stored;
+    return;
+  }
+
+  let original = stored;
+  if (original === undefined || current !== translateUiString(original)) {
+    original = current;
+    originalTextNodes.set(node, original);
+  }
+
+  const translated = translateUiString(original);
+  if (current !== translated) node.nodeValue = translated;
+}
+
+function translateElementAttributes(element) {
+  if (!element || element.nodeType !== Node.ELEMENT_NODE) return;
+  const attrs = ['placeholder','title','aria-label'];
+  let originals = originalAttributes.get(element);
+  if (!originals) {
+    originals = {};
+    originalAttributes.set(element, originals);
+  }
+
+  for (const attr of attrs) {
+    if (!element.hasAttribute(attr)) continue;
+    const current = element.getAttribute(attr) || '';
+
+    if (currentLanguage === 'de') {
+      if (Object.prototype.hasOwnProperty.call(originals, attr) && current !== originals[attr]) {
+        element.setAttribute(attr, originals[attr]);
+      }
+      continue;
+    }
+
+    const previousOriginal = originals[attr];
+    if (previousOriginal === undefined || current !== translateUiString(previousOriginal)) originals[attr] = current;
+    const translated = translateUiString(originals[attr]);
+    if (current !== translated) element.setAttribute(attr, translated);
+  }
+}
+
+function applyLanguageToDom(root = document) {
+  if (!root) return;
+  languageMutationGuard = true;
+  try {
+    if (root.nodeType === Node.TEXT_NODE) {
+      translateTextNode(root);
+      return;
+    }
+
+    const walkerRoot = root.nodeType === Node.DOCUMENT_NODE ? root.documentElement : root;
+    if (!walkerRoot) return;
+
+    if (walkerRoot.nodeType === Node.ELEMENT_NODE) translateElementAttributes(walkerRoot);
+
+    const walker = document.createTreeWalker(
+      walkerRoot,
+      NodeFilter.SHOW_TEXT | NodeFilter.SHOW_ELEMENT
+    );
+    let node = walker.currentNode;
+    while (node) {
+      if (node.nodeType === Node.TEXT_NODE) translateTextNode(node);
+      else if (node.nodeType === Node.ELEMENT_NODE) translateElementAttributes(node);
+      node = walker.nextNode();
+    }
+  } finally {
+    languageMutationGuard = false;
+  }
+}
+
+function syncLanguageControls() {
+  ['authLanguageSelect','settingsLanguageSelect'].forEach(id => {
+    const select = document.getElementById(id);
+    if (!select) return;
+    if (select.value !== currentLanguage) select.value = currentLanguage;
+    if (typeof syncCustomSelect === 'function') syncCustomSelect(select);
+  });
+}
+
+function setLanguage(language, { persist = true, rerender = true } = {}) {
+  currentLanguage = language === 'en' ? 'en' : 'de';
+  document.documentElement.lang = currentLanguage;
+
+  if (persist) {
+    try { window.localStorage.setItem('opencompany_language', currentLanguage); }
+    catch (_) {}
+  }
+
+  syncLanguageControls();
+  applyLanguageToDom(document);
+
+  if (rerender && state?.company && typeof renderAll === 'function') {
+    renderAll();
+    applyLanguageToDom(document.getElementById('gameView'));
+  }
+  if (rerender && !state?.session && typeof loadPublicLeaderboard === 'function') {
+    loadPublicLeaderboard();
+  }
+}
+
+function initializeLanguage() {
+  document.documentElement.lang = currentLanguage;
+
+  ['authLanguageSelect','settingsLanguageSelect'].forEach(id => {
+    const select = document.getElementById(id);
+    if (!select) return;
+    select.value = currentLanguage;
+    select.addEventListener('change', () => setLanguage(select.value));
+  });
+
+  applyLanguageToDom(document);
+
+  if (!languageMutationObserver) {
+    languageMutationObserver = new MutationObserver(mutations => {
+      if (languageMutationGuard) return;
+      if (currentLanguage !== 'en') return;
+      languageMutationGuard = true;
+      try {
+        for (const mutation of mutations) {
+          if (mutation.type === 'characterData') translateTextNode(mutation.target);
+          mutation.addedNodes?.forEach(node => applyLanguageToDom(node));
+        }
+      } finally {
+        languageMutationGuard = false;
+      }
+    });
+    languageMutationObserver.observe(document.body, {
+      childList: true,
+      subtree: true,
+      characterData: true
+    });
+  }
+}
+
 
 const state = {
   session: null,
@@ -55,11 +374,16 @@ let buildingConstructionTimer = null;
 let companyBalancePollTimer = null;
 let companyBalanceChannel = null;
 let publicLeaderboardTimer = null;
+let inactivityLogoutTimer = null;
+let lastUserActivityAt = 0;
+let inactivityListenersInstalled = false;
+let inactivityLogoutInProgress = false;
+const INACTIVITY_LIMIT_MS = 60 * 60 * 1000;
 
-const money = n => new Intl.NumberFormat('de-DE', { style:'currency', currency:'EUR', maximumFractionDigits:2 })
+const money = n => new Intl.NumberFormat(uiLocale(), { style:'currency', currency:'EUR', maximumFractionDigits:2 })
   .format(Number(n || 0)).replace('€','OC$');
-const num = n => new Intl.NumberFormat('de-DE', { maximumFractionDigits: 2 }).format(Number(n || 0));
-const balanceMoney = n => `${new Intl.NumberFormat('de-DE', { maximumFractionDigits: 0 }).format(Number(n || 0))} OC$`;
+const num = n => new Intl.NumberFormat(uiLocale(), { maximumFractionDigits: 2 }).format(Number(n || 0));
+const balanceMoney = n => `${new Intl.NumberFormat(uiLocale(), { maximumFractionDigits: 0 }).format(Number(n || 0))} OC$`;
 
 
 const qualityMultiplier = quality => 1 + Math.max(0, Number(quality || 1) - 1) * 0.05;
@@ -222,7 +546,7 @@ function retailSelectableProducts() {
 
     return stockedProducts()
       .filter(product => product.required_retail_building_type_id === selectedBuilding.building_type_id)
-      .sort((a,b) => a.name.localeCompare(b.name,'de-DE'));
+      .sort((a,b) => a.name.localeCompare(b.name,uiLocale()));
   }
 
   return [];
@@ -232,7 +556,7 @@ function operationalProductIdentitySet() {
   return new Set(operationalProducts().map(product => `${product.name}::${product.category}`));
 }
 
-function msg(el, text, type='') { el.textContent = text; el.className = `status ${type}`; }
+function msg(el, text, type='') { el.textContent = translateUiString(text); el.className = `status ${type}`; }
 
 
 function openGameDialog({ title='Hinweis', message='', mode='alert', defaultValue='' } = {}) {
@@ -247,11 +571,11 @@ function openGameDialog({ title='Hinweis', message='', mode='alert', defaultValu
     return Promise.resolve(mode === 'confirm' ? false : mode === 'prompt' ? null : true);
   }
 
-  titleEl.textContent = title;
-  messageEl.textContent = String(message ?? '');
+  titleEl.textContent = translateUiString(title);
+  messageEl.textContent = translateUiString(String(message ?? ''));
   inputEl.classList.toggle('hidden', mode !== 'prompt');
   cancelBtn.classList.toggle('hidden', mode === 'alert');
-  confirmBtn.textContent = mode === 'alert' ? 'OK' : 'Bestätigen';
+  confirmBtn.textContent = mode === 'alert' ? 'OK' : translateUiString('Bestätigen');
   inputEl.value = mode === 'prompt' ? String(defaultValue ?? '') : '';
 
   overlay.classList.remove('hidden');
@@ -372,7 +696,7 @@ function formatBuildingConstructionTime(hours) {
 
 function buildingConstructionFinishText(hours) {
   const finish = new Date(Date.now() + (Number(hours || 0) * 60 * 60 * 1000));
-  return finish.toLocaleString('de-DE', {
+  return finish.toLocaleString(uiLocale(), {
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',
@@ -383,7 +707,7 @@ function buildingConstructionFinishText(hours) {
 
 function buildingConstructionFinishDate(building) {
   if (!building?.construction_complete_at) return '–';
-  return new Date(building.construction_complete_at).toLocaleString('de-DE', {
+  return new Date(building.construction_complete_at).toLocaleString(uiLocale(), {
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',
@@ -503,9 +827,9 @@ function companyValueChangeDisplay(currentValue, changeValue) {
       : money(0);
 
   const percentageText = change > 0
-    ? `+${percentage.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%`
+    ? `+${percentage.toLocaleString(uiLocale(), { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%`
     : change < 0
-      ? `${percentage.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%`
+      ? `${percentage.toLocaleString(uiLocale(), { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%`
       : '0,00%';
 
   return `${amountText} (${percentageText})`;
@@ -706,7 +1030,7 @@ function updateMarketRefreshTimer() {
   const minutes = Math.floor(remainingSeconds / 60);
   const seconds = remainingSeconds % 60;
   const countdown = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
-  const nextTime = next.toLocaleTimeString('de-DE', { hour:'2-digit', minute:'2-digit' });
+  const nextTime = next.toLocaleTimeString(uiLocale(), { hour:'2-digit', minute:'2-digit' });
 
   el.textContent = `${nextTime} Uhr · ${countdown} ${remainingSeconds < 60 ? 'Sekunden' : 'Minuten'}`;
 }
@@ -1377,6 +1701,85 @@ function openViewFromHash() {
 }
 
 
+
+function stopInactivityWatcher() {
+  if (inactivityLogoutTimer) clearTimeout(inactivityLogoutTimer);
+  inactivityLogoutTimer = null;
+  lastUserActivityAt = 0;
+}
+
+function scheduleInactivityLogout() {
+  if (!state.session) return;
+  if (inactivityLogoutTimer) clearTimeout(inactivityLogoutTimer);
+
+  const elapsed = Date.now() - lastUserActivityAt;
+  const remaining = Math.max(0, INACTIVITY_LIMIT_MS - elapsed);
+
+  inactivityLogoutTimer = setTimeout(async () => {
+    const inactiveFor = Date.now() - lastUserActivityAt;
+    if (!state.session || inactiveFor < INACTIVITY_LIMIT_MS) {
+      scheduleInactivityLogout();
+      return;
+    }
+    await logoutForInactivity();
+  }, remaining + 50);
+}
+
+function recordUserActivity() {
+  if (!state.session || inactivityLogoutInProgress) return;
+  lastUserActivityAt = Date.now();
+  scheduleInactivityLogout();
+}
+
+async function logoutForInactivity() {
+  if (!sb || !state.session || inactivityLogoutInProgress) return;
+  inactivityLogoutInProgress = true;
+  try {
+    if (state.company?.id) {
+      await sb.rpc('set_company_offline', { p_company_id: state.company.id });
+    }
+    stopPresenceHeartbeat();
+    stopNpcMarketHeartbeat();
+    stopCompanyBalanceWatcher();
+    stopInactivityWatcher();
+    await sb.auth.signOut({ scope: 'local' });
+    msg(
+      document.getElementById('authMessage'),
+      'Sitzung nach 60 Minuten Inaktivität beendet.',
+      'success'
+    );
+  } catch (error) {
+    console.error('Inaktivitäts-Logout:', error);
+  } finally {
+    inactivityLogoutInProgress = false;
+  }
+}
+
+function startInactivityWatcher() {
+  lastUserActivityAt = Date.now();
+  scheduleInactivityLogout();
+}
+
+function installInactivityListeners() {
+  if (inactivityListenersInstalled) return;
+  inactivityListenersInstalled = true;
+
+  ['pointerdown','keydown','touchstart','scroll'].forEach(eventName => {
+    window.addEventListener(eventName, recordUserActivity, { passive: true, capture: true });
+  });
+
+  document.addEventListener('visibilitychange', () => {
+    if (!state.session) return;
+    if (document.visibilityState === 'visible') {
+      if (lastUserActivityAt && Date.now() - lastUserActivityAt >= INACTIVITY_LIMIT_MS) {
+        logoutForInactivity();
+      } else {
+        recordUserActivity();
+      }
+    }
+  });
+}
+
 function escapePublicLeaderboardText(value) {
   return String(value ?? '').replace(/[&<>"']/g, character => ({
     '&': '&amp;',
@@ -1421,7 +1824,7 @@ async function loadPublicLeaderboard() {
       ${rows.map(row => `<tr>
         <td>#${num(row.rank)}</td>
         <td>${escapePublicLeaderboardText(row.company_name)}</td>
-        <td>${row.founded_date ? new Date(`${row.founded_date}T12:00:00`).toLocaleDateString('de-DE') : '–'}</td>
+        <td>${row.founded_date ? new Date(`${row.founded_date}T12:00:00`).toLocaleDateString(uiLocale()) : '–'}</td>
         <td>${money(row.company_value)}</td>
       </tr>`).join('')}
     </tbody>
@@ -1429,7 +1832,7 @@ async function loadPublicLeaderboard() {
 
   const rankingDate = rows[0]?.ranking_date;
   date.textContent = rankingDate
-    ? `Stand: ${new Date(`${rankingDate}T12:00:00`).toLocaleDateString('de-DE')}`
+    ? `Stand: ${new Date(`${rankingDate}T12:00:00`).toLocaleDateString(uiLocale())}`
     : '';
 }
 
@@ -1442,7 +1845,10 @@ function startPublicLeaderboardRefresh() {
 }
 
 async function init() {
+  initializeLanguage();
   enhanceAllCustomSelects(document);
+  syncLanguageControls();
+  installInactivityListeners();
   if (!sb) return;
 
   startPublicLeaderboardRefresh();
@@ -1490,12 +1896,14 @@ async function handleSession(session) {
     stopPresenceHeartbeat();
     stopNpcMarketHeartbeat();
     stopCompanyBalanceWatcher();
+    stopInactivityWatcher();
     document.getElementById('gameView').classList.add('hidden');
     document.getElementById('bootstrapView').classList.add('hidden');
     clearCompanyLoadError();
     loadPublicLeaderboard();
     return;
   }
+  startInactivityWatcher();
   await loadCompany();
 
   if (state.openDashboardAfterLogin && state.company) {
@@ -1872,7 +2280,7 @@ function formatProductionFinish(hours) {
   if (!Number.isFinite(durationHours) || durationHours <= 0) return '–';
 
   const finish = new Date(Date.now() + durationHours * 60 * 60 * 1000);
-  return finish.toLocaleString('de-DE', {
+  return finish.toLocaleString(uiLocale(), {
     weekday: 'short',
     day: '2-digit',
     month: '2-digit',
@@ -1980,7 +2388,7 @@ function renderProductionRecipe() {
     ? Number(startSnapshot.productionCost ?? (displayProcurementCost + displayPersonnelCost))
     : plan.productionCost;
   const displayFinish = runningJob
-    ? new Date(runningJob.finishes_at).toLocaleString('de-DE', {
+    ? new Date(runningJob.finishes_at).toLocaleString(uiLocale(), {
         weekday:'short', day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit'
       }) + ' Uhr'
     : (building && plan.hours > 0 ? formatProductionFinish(plan.hours) : '–');
@@ -2013,7 +2421,7 @@ function renderProductionRecipe() {
       <div class="production-running-main">
         <div>
           <strong>Produktion läuft</strong>
-          <span>${num(Math.max(0, Number(runningJob.output_quantity || 0) - Number(runningJob.claimed_quantity || 0)))} Einheiten – fertig am ${finish.toLocaleString('de-DE', { weekday:'short', day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' })} Uhr</span>
+          <span>${num(Math.max(0, Number(runningJob.output_quantity || 0) - Number(runningJob.claimed_quantity || 0)))} Einheiten – fertig am ${finish.toLocaleString(uiLocale(), { weekday:'short', day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' })} Uhr</span>
         </div>
         <button type="button" class="production-claim-btn" ${claimable <= 0 ? 'disabled' : ''} onclick="claimProductionOutput('${runningJob.id}')">Abrufen</button>
       </div>
@@ -2190,7 +2598,7 @@ function renderBuildings() {
 
       const nameA = typeA?.name || '';
       const nameB = typeB?.name || '';
-      const byName = nameA.localeCompare(nameB, 'de-DE');
+      const byName = nameA.localeCompare(nameB, uiLocale());
       if (byName !== 0) return byName;
 
       return new Date(a.built_at || 0) - new Date(b.built_at || 0)
@@ -2227,7 +2635,7 @@ function renderBuildings() {
           <strong>${product?.name || 'Auftrag'} · Q${Number(job.quality_level || 1)}</strong>
           <span class="building-card-meta">${detail}</span>
           <div class="building-card-progress" style="--progress:${progress}%"><span></span></div>
-          <span class="building-card-meta">Ende ${finish.toLocaleString('de-DE',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})} Uhr</span>
+          <span class="building-card-meta">Ende ${finish.toLocaleString(uiLocale(),{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})} Uhr</span>
         </div>`;
       }
 
@@ -2606,13 +3014,13 @@ function renderRetailSale() {
       <div class="kv"><span>Bestand beim Start</span><strong>${num(startAvailable)} Einheiten</strong></div>
       <div class="kv"><span>Verkaufspreis</span><strong>${money(startUnitPrice)} / Einheit</strong></div>
       <div class="kv"><span>Verkaufsdauer</span><strong>${formatProductionDuration(startHours)}</strong></div>
-      <div class="kv"><span>Voraussichtliches Ende</span><strong>${finish.toLocaleString('de-DE', { weekday:'short', day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' })} Uhr</strong></div>
+      <div class="kv"><span>Voraussichtliches Ende</span><strong>${finish.toLocaleString(uiLocale(), { weekday:'short', day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' })} Uhr</strong></div>
       <div class="kv"><span>Erwarteter Erlös</span><strong>${money(startTotalValue)}</strong></div>
       <div class="retail-running-box">
         <div class="retail-running-head">
           <div>
             <strong>Verkauf läuft</strong>
-            <span>${num(remainingUnits)} ${productionProductDisplayName(runningProduct?.name, remainingUnits)} noch offen – fertig am ${finish.toLocaleString('de-DE', { weekday:'short', day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' })} Uhr</span>
+            <span>${num(remainingUnits)} ${productionProductDisplayName(runningProduct?.name, remainingUnits)} noch offen – fertig am ${finish.toLocaleString(uiLocale(), { weekday:'short', day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' })} Uhr</span>
           </div>
           <button type="button" class="retail-collect-btn" ${progress.claimableUnits <= 0 ? 'disabled' : ''} onclick="collectRetailRevenue('${job.id}')">Einsammeln</button>
         </div>
@@ -2672,7 +3080,7 @@ function renderRetailSale() {
 }
 
 function filteredMarketOrders() {
-  const search = String(state.marketSearchFilter || '').trim().toLocaleLowerCase('de-DE');
+  const search = String(state.marketSearchFilter || '').trim().toLocaleLowerCase(uiLocale());
   const type = state.marketTypeFilter || 'all';
   const quality = state.marketQualityFilter || 'all';
 
@@ -2695,14 +3103,14 @@ function filteredMarketOrders() {
     if (!matchesType || !matchesQuality) return false;
     if (!search) return true;
 
-    const item = itemName(o).toLocaleLowerCase('de-DE');
+    const item = itemName(o).toLocaleLowerCase(uiLocale());
     return item.includes(search);
   });
 
   orders = [...orders].sort((a,b) =>
-    itemName(a).localeCompare(itemName(b), 'de-DE') ||
+    itemName(a).localeCompare(itemName(b), uiLocale()) ||
     Number(a.price_per_unit || 0) - Number(b.price_per_unit || 0) ||
-    companyName(a.company_id).localeCompare(companyName(b.company_id), 'de-DE')
+    companyName(a.company_id).localeCompare(companyName(b.company_id), uiLocale())
   );
 
   return orders;
@@ -2877,17 +3285,17 @@ function updateContractGoods() {
       : state.materials;
 
     opts = materials
-      .sort((a,b)=>a.name.localeCompare(b.name,'de-DE'))
+      .sort((a,b)=>a.name.localeCompare(b.name,uiLocale()))
       .map(m => `<option value="${m.id}">${m.name}</option>`);
   } else if (role === 'sell') {
     opts = stockedProducts()
-      .sort((a,b)=>a.name.localeCompare(b.name,'de-DE'))
+      .sort((a,b)=>a.name.localeCompare(b.name,uiLocale()))
       .map(p => `<option value="${p.id}">${p.name}</option>`);
   } else {
     const visibleKeys = operationalProductIdentitySet();
     opts = state.allProducts
       .filter(p => p.company_id === partnerId && visibleKeys.has(`${p.name}::${p.category}`))
-      .sort((a,b)=>a.name.localeCompare(b.name,'de-DE'))
+      .sort((a,b)=>a.name.localeCompare(b.name,uiLocale()))
       .map(p => `<option value="${p.id}">${p.name}</option>`);
   }
 
@@ -2978,7 +3386,7 @@ function financePeriodEnd(period, start) {
 }
 
 function formatFinancePeriodRange(period, start, end) {
-  const shortDate = (date, includeYear = false) => date.toLocaleDateString('de-DE', {
+  const shortDate = (date, includeYear = false) => date.toLocaleDateString(uiLocale(), {
     day: '2-digit',
     month: '2-digit',
     ...(includeYear ? { year: 'numeric' } : {})
@@ -3010,7 +3418,7 @@ function renderFinanceTable() {
   const transactions = financePeriodTransactions();
   table.innerHTML = renderTable(
     ['Betrag','Beschreibung','Zeit'],
-    transactions.map(t => `<tr><td class="${transactionAmountClass(t.transaction_type)}">${money(t.amount)}</td><td>${t.description || transactionLabel(t.transaction_type)}</td><td>${new Date(t.created_at).toLocaleString('de-DE')}</td></tr>`)
+    transactions.map(t => `<tr><td class="${transactionAmountClass(t.transaction_type)}">${money(t.amount)}</td><td>${t.description || transactionLabel(t.transaction_type)}</td><td>${new Date(t.created_at).toLocaleString(uiLocale())}</td></tr>`)
   );
 }
 
@@ -3160,7 +3568,7 @@ function bondStatusLabel(status) {
 
 function formatBondDate(value) {
   if (!value) return '–';
-  return new Date(value).toLocaleString('de-DE', {
+  return new Date(value).toLocaleString(uiLocale(), {
     day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit'
   }) + ' Uhr';
 }
@@ -3408,7 +3816,7 @@ function renderResearch() {
   const maxBtn = document.getElementById('researchInvestmentMaxBtn');
   if (!productSelect || !qtyInput || !preview || !submit || !table) return;
 
-  const researchProducts = [...state.products].sort((a,b)=>researchCategory(a).localeCompare(researchCategory(b),'de-DE')||a.name.localeCompare(b.name,'de-DE'));
+  const researchProducts = [...state.products].sort((a,b)=>researchCategory(a).localeCompare(researchCategory(b),uiLocale())||a.name.localeCompare(b.name,uiLocale()));
   const previous = state.researchSelectedProductId || productSelect.value;
   const groups = new Map();
   for (const product of researchProducts) {
@@ -3478,7 +3886,7 @@ function companyRenameAvailability() {
 window.renameCompany = async function() {
   const availability = companyRenameAvailability();
   if (!availability.allowed) {
-    await gameAlert(`Der Firmenname kann wieder ab ${availability.availableAt.toLocaleString('de-DE')} geändert werden.`);
+    await gameAlert(`Der Firmenname kann wieder ab ${availability.availableAt.toLocaleString(uiLocale())} geändert werden.`);
     return;
   }
 
@@ -3529,7 +3937,7 @@ function renderStorage() {
 
   const storageTotalValue = document.getElementById('storageTotalValue');
   if (storageTotalValue) storageTotalValue.textContent = money(currentStorageValue());
-  const search = String(state.storageSearchFilter || '').trim().toLocaleLowerCase('de-DE');
+  const search = String(state.storageSearchFilter || '').trim().toLocaleLowerCase(uiLocale());
   const type = state.storageTypeFilter || 'all';
 
   const materialRows = state.materialInventory
@@ -3541,7 +3949,7 @@ function renderStorage() {
   const productRows = state.inventory
     .filter(inv => Number(inv.quantity || 0) > 0)
     .map(inv => ({ type:'product', name:inv.products?.name || state.products.find(p=>p.id===inv.product_id)?.name || '–', quality:Number(inv.quality_level||1), quantity:Number(inv.quantity||0), unit:'Stück', averageCost:Number(inv.average_unit_cost||0) }));
-  const rows=[...materialRows,...productRows].filter(row => (type==='all'||row.type===type) && (!search||row.name.toLocaleLowerCase('de-DE').includes(search))).sort((a,b)=>a.name.localeCompare(b.name,'de-DE')||a.quality-b.quality||a.type.localeCompare(b.type,'de-DE'));
+  const rows=[...materialRows,...productRows].filter(row => (type==='all'||row.type===type) && (!search||row.name.toLocaleLowerCase(uiLocale()).includes(search))).sort((a,b)=>a.name.localeCompare(b.name,uiLocale())||a.quality-b.quality||a.type.localeCompare(b.type,uiLocale()));
   container.innerHTML=renderTable(['Artikel','Typ','Qualität','Menge','Einheit','Ø Kosten'],rows.map(row=>`<tr><td>${row.name}</td><td>${row.type==='material'?'Rohstoff':'Produkt'}</td><td>Q${row.quality}</td><td>${num(row.quantity)}</td><td>${row.unit}</td><td>${money(row.averageCost)}</td></tr>`));
 }
 
@@ -3558,10 +3966,10 @@ function productOptionsGroupedByBuilding(products) {
   });
 
   return [...groups.entries()]
-    .sort(([a], [b]) => a.localeCompare(b, 'de-DE'))
+    .sort(([a], [b]) => a.localeCompare(b, uiLocale()))
     .map(([label, items]) => {
       const options = items
-        .sort((a, b) => a.name.localeCompare(b.name, 'de-DE'))
+        .sort((a, b) => a.name.localeCompare(b.name, uiLocale()))
         .map(product => `<option value="${product.id}">${product.name} (Q${productQuality(product)})</option>`)
         .join('');
       return `<optgroup label="${label}">${options}</optgroup>`;
@@ -3593,7 +4001,7 @@ function updateProductionProductsForSelectedBuilding() {
 
   const previous = select.value;
   select.innerHTML = products.length
-    ? products.sort((a,b)=>a.name.localeCompare(b.name,'de-DE'))
+    ? products.sort((a,b)=>a.name.localeCompare(b.name,uiLocale()))
       .map(product => `<option value="${product.id}">${product.name} (Q${productQuality(product)})</option>`).join('')
     : '<option value="">Kein Produkt verfügbar</option>';
 
@@ -3617,7 +4025,7 @@ function renderSettingsCompanyManagement() {
     hintEl.textContent = 'Der Unternehmensname kann geändert werden. Danach gilt erneut eine Sperre von 14 Tagen.';
     renameBtn.title = 'Unternehmensnamen ändern';
   } else {
-    hintEl.textContent = `Nächste Namensänderung möglich ab ${availability.availableAt.toLocaleString('de-DE')}.`;
+    hintEl.textContent = `Nächste Namensänderung möglich ab ${availability.availableAt.toLocaleString(uiLocale())}.`;
     renameBtn.title = hintEl.textContent;
   }
 }
@@ -3677,7 +4085,7 @@ function renderAll() {
   const renameAvailability = companyRenameAvailability();
   const renameTitle = renameAvailability.allowed
     ? 'Unternehmensnamen ändern'
-    : `Namensänderung wieder ab ${renameAvailability.availableAt.toLocaleString('de-DE')} möglich`;
+    : `Namensänderung wieder ab ${renameAvailability.availableAt.toLocaleString(uiLocale())} möglich`;
 
   document.getElementById('companyDetails').innerHTML = renderTable(
     ['Unternehmen','Status','Level','XP','Gebäudeplätze','Kontostand','Mitarbeiter','Unternehmenswert','Gebäudewert','Patentwert','Schulden'],
@@ -3697,7 +4105,7 @@ function renderAll() {
   );
   renderCompanyStatus();
 
-  document.getElementById('recentTransactions').innerHTML = renderTable(['Betrag','Beschreibung','Zeit'], state.transactions.slice(0,8).map(t=>`<tr><td class="${transactionAmountClass(t.transaction_type)}">${money(t.amount)}</td><td>${t.description || transactionLabel(t.transaction_type)}</td><td>${new Date(t.created_at).toLocaleString('de-DE')}</td></tr>`));
+  document.getElementById('recentTransactions').innerHTML = renderTable(['Betrag','Beschreibung','Zeit'], state.transactions.slice(0,8).map(t=>`<tr><td class="${transactionAmountClass(t.transaction_type)}">${money(t.amount)}</td><td>${t.description || transactionLabel(t.transaction_type)}</td><td>${new Date(t.created_at).toLocaleString(uiLocale())}</td></tr>`));
   renderFinanceSummary();
   renderBonds();
   renderStorage();
@@ -3709,6 +4117,7 @@ function renderAll() {
   renderRetailSale();
   renderMarket();
   renderContracts();
+  if (currentLanguage === 'en') applyLanguageToDom(document.getElementById('gameView'));
 
 }
 
@@ -3783,7 +4192,8 @@ document.getElementById('logoutBtn').addEventListener('click', async () => {
   stopPresenceHeartbeat();
   stopNpcMarketHeartbeat();
   stopCompanyBalanceWatcher();
-  await sb?.auth.signOut();
+  stopInactivityWatcher();
+  await sb?.auth.signOut({ scope: 'local' });
 });
 
 // Company
@@ -4219,7 +4629,7 @@ function updateSellItemOptions() {
   if (type === 'material') {
     const availableMaterials = state.materials
       .filter(material => materialInventoryLots(material.id).some(l => Number(l.quantity || 0) > 0))
-      .sort((a,b) => a.name.localeCompare(b.name, 'de-DE'));
+      .sort((a,b) => a.name.localeCompare(b.name, uiLocale()));
 
     select.innerHTML = availableMaterials.length
       ? availableMaterials.map(m => `<option value="${m.id}">${m.name}</option>`).join('')
