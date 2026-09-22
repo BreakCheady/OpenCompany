@@ -7,7 +7,7 @@
   <title>OpenCompany</title>
   <link rel="icon" type="image/png" href="favicon.png">
   <link rel="shortcut icon" href="favicon.ico">
-  <link rel="stylesheet" href="style.css?v=0.10.62">
+  <link rel="stylesheet" href="style.css?v=0.10.63">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     .password-field{display:flex;align-items:center;gap:.5rem}
@@ -187,7 +187,7 @@
       .oc-select-option{min-height:46px;padding:.7rem .8rem}
     }
   
-    /* v0.10.62 – einheitliche Navigationsleiste auf Desktop und Mobile */
+    /* v0.10.63 – einheitliche Navigationsleiste auf Desktop und Mobile */
     .app-shell{
       display:block!important;
       min-height:100dvh!important;
@@ -399,15 +399,6 @@
         <article class="panel">
           <h2>Unternehmen</h2>
           <div id="companyDetails" class="table-wrap"></div>
-        </article>
-        <article class="panel company-danger-zone">
-          <h2>Unternehmensverwaltung</h2>
-          <p class="muted account-danger-note">Diese Aktionen können nicht rückgängig gemacht werden.</p>
-          <div class="company-management-actions">
-            <button type="button" id="resetCompanyBtn" class="company-reset-btn">Unternehmen zurücksetzen</button>
-            <button type="button" id="deleteCompanyBtn" class="company-delete-btn">Unternehmen löschen</button>
-          </div>
-          <p class="muted company-management-note account-danger-note">Zurücksetzen behält Account und Firmenname, löscht aber den Spielfortschritt und setzt das Startkapital auf 100.000 OC$ und stellt eine Elektronikfabrik sowie ein Elektronikgeschäft bereit. Löschen entfernt zusätzlich den Account.</p>
         </article>
       </div>
 
@@ -689,7 +680,7 @@
           <h2>Einstellungen</h2>
           <div class="kv">
             <span>Version</span>
-            <strong>0.10.62</strong>
+            <strong>0.10.63</strong>
           </div>
         </article>
 
@@ -742,6 +733,16 @@
             <label><input id="pushEnabled" type="checkbox"> Aktiviert</label>
           </div>
           <p id="pushStatus" class="status"></p>
+        </article>
+
+        <article class="panel company-danger-zone">
+          <h2>Unternehmensverwaltung</h2>
+          <p class="muted account-danger-note">Diese Aktionen können nicht rückgängig gemacht werden.</p>
+          <div class="company-management-actions">
+            <button type="button" id="resetCompanyBtn" class="company-reset-btn">Unternehmen zurücksetzen</button>
+            <button type="button" id="deleteCompanyBtn" class="company-delete-btn">Unternehmen löschen</button>
+          </div>
+          <p class="muted company-management-note account-danger-note">Zurücksetzen behält Account und Firmenname, löscht aber den Spielfortschritt und setzt das Startkapital auf 100.000 OC$ und stellt eine Elektronikfabrik sowie ein Elektronikgeschäft bereit. Löschen entfernt zusätzlich den Account.</p>
         </article>
       </div>
     </section>
