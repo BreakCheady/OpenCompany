@@ -268,6 +268,42 @@ Object.assign(I18N_EN, {
 Object.assign(I18N_EN, {
   'Produktionskosten':'Production costs',
 
+  'Bereits verkauft':'Already sold',
+  'Referenzpreis':'Reference price',
+  'Im Handel verwenden':'Use for retail',
+  'Keine Plätze':'No slots',
+
+
+  'Stück':'pcs',
+  'Beschaffungskosten':'Procurement costs',
+  'Personalkosten':'Personnel costs',
+  'Sonstige Kosten':'Other costs',
+  'Auftrag':'Order',
+  'Bestand beim Start':'Starting stock',
+  'Wertbonus':'Value bonus',
+  'Ø Kosten':'Ø costs',
+  'Geplante Investition':'Planned investment',
+  'Patentwertsteigerung':'Patent value increase',
+  'Zeitraum':'Period',
+  'Einnahmen / Gewinne':'Income / profits',
+  'Vorprodukt':'Intermediate product',
+  'Nicht gebaut':'Not built',
+  'Voll finanziert':'Fully funded',
+  'Automatisch getilgt':'Automatically repaid',
+  'Getilgt':'Repaid',
+  'Ausgefallen':'Defaulted',
+  'Beendet':'Closed',
+  'Offen':'Open',
+  'Anzahl':'Count',
+  'Rest':'Remaining',
+  'Wert':'Value',
+  'kg':'kg',
+  'Liter':'liters',
+  'l':'l',
+  'm²':'m²',
+  'm³':'m³',
+
+
   'Wertbonus':'Value bonus',
   'Ø Kosten':'Ø costs',
   'Bestand beim Start':'Starting stock',
@@ -367,6 +403,30 @@ Object.assign(I18N_EN, {
 });
 
 const I18N_EN_REPLACEMENTS = [
+  ['Bereits verkauft','Already sold'],
+  ['Referenzpreis','Reference price'],
+  ['Im Handel verwenden','Use for retail'],
+  ['Keine Plätze','No slots'],
+
+  ['% Wert','% value'],
+  ['Beschaffungskosten','Procurement costs'],
+  ['Personalkosten','Personnel costs'],
+  ['Sonstige Kosten','Other costs'],
+  ['Bestand beim Start','Starting stock'],
+  ['Geplante Investition','Planned investment'],
+  ['Patentwertsteigerung','Patent value increase'],
+  ['Wertbonus','Value bonus'],
+  ['Ø Kosten','Ø costs'],
+  ['Vorprodukt','Intermediate product'],
+  ['Nicht gebaut','Not built'],
+  ['Voll finanziert','Fully funded'],
+  ['Automatisch getilgt','Automatically repaid'],
+  ['Getilgt','Repaid'],
+  ['Ausgefallen','Defaulted'],
+  ['Beendet','Closed'],
+  ['Offen','Open'],
+  ['Stück','pcs'],
+
   ['% Wert','% value'],
   [' · Produktion',' · Production'],
   [' · Verkauf',' · Retail'],
@@ -2815,8 +2875,8 @@ function renderProductionRecipe() {
     `<div class="kv"><span>Voraussichtliches Ende</span><strong>${displayFinish}</strong></div>`,
     ...(plan.product?.category === 'research'
       ? [`<div class="kv"><span>Grund-Produktionskosten</span><strong class="production-cost-negative">-${money(Math.abs(displayBaseProductionCost))}</strong></div>`]
-      : [`<div class="kv"><span>Beschaffungskosten</span><strong class="${displayProcurementCost > 0 ? 'production-cost-negative' : 'production-cost-zero'}">${displayProcurementCost > 0 ? '-' : ''}${money(Math.abs(displayProcurementCost))}</strong></div>`]),
-    `<div class="kv"><span>Personalkosten</span><strong class="production-cost-negative">-${money(Math.abs(displayPersonnelCost))}</strong></div>`,
+      : [`<div class="kv"><span>${translateUiString('Beschaffungskosten')}</span><strong class="${displayProcurementCost > 0 ? 'production-cost-negative' : 'production-cost-zero'}">${displayProcurementCost > 0 ? '-' : ''}${money(Math.abs(displayProcurementCost))}</strong></div>`]),
+    `<div class="kv"><span>${translateUiString('Personalkosten')}</span><strong class="production-cost-negative">-${money(Math.abs(displayPersonnelCost))}</strong></div>`,
     `<div class="kv"><span>Produktionskosten gesamt</span><strong class="production-cost-negative">-${money(Math.abs(displayProductionCost))}</strong></div>`,
     `<div class="kv"><span>Belegschaft</span><strong>${building ? `${num(staff)} Mitarbeiter` : '–'}</strong></div>`
   ] : ['<div class="kv"><span>Benötigtes Gebäude</span><strong>Keines</strong></div>'];
@@ -2846,7 +2906,7 @@ function renderProductionRecipe() {
     const inputKind = input.material_id ? 'material' : 'product';
     const buyButton = input.enough
       ? ''
-      : `<button type="button" class="production-buy-input-btn" onclick="buyMissingProductionInput('${inputKind}','${inputId}')">Kaufen</button>`;
+      : `<button type="button" class="production-buy-input-btn" onclick="buyMissingProductionInput('${inputKind}','${inputId}')">${translateUiString('Kaufen')}</button>`;
 
     return `<tr>
       <td>${input.material_id ? 'Material' : 'Vorprodukt'}</td>
@@ -2944,7 +3004,7 @@ function renderBuildingCatalog() {
             class="building-catalog-build-btn"
             ${noFreeSlot ? 'disabled' : ''}
             onclick="buildBuilding('${bt.id}')"
-          >${noFreeSlot ? 'Keine Plätze' : 'Bauen'}</button>
+          >${translateUiString(noFreeSlot ? 'Keine Plätze' : 'Bauen')}</button>
         </td>
       </tr>`;
     });
@@ -3042,7 +3102,7 @@ function renderBuildings() {
           ? `${num(Math.max(0, Number(job.output_quantity||0)-Number(job.claimed_quantity||0)))} Einheiten offen`
           : `${num(Math.max(0, Number(job.quantity||0)-retailSoldQuantity(job)))} Einheiten offen`;
         jobHtml = `<div class="building-card-job">
-          <strong>${product?.name || 'Auftrag'} · Q${Number(job.quality_level || 1)}</strong>
+          <strong>${translateUiString(product?.name || 'Auftrag')} · Q${Number(job.quality_level || 1)}</strong>
           <span class="building-card-meta">${detail}</span>
           <div class="building-card-progress" style="--progress:${progress}%"><span></span></div>
           <span class="building-card-meta">Ende ${finish.toLocaleString(uiLocale(),{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})} Uhr</span>
@@ -3053,11 +3113,11 @@ function renderBuildings() {
       if (underConstruction) {
         actions = `<button type="button" class="ghost" onclick="event.stopPropagation();cancelBuildingConstruction('${building.id}','${bt.id}')">Bau abbrechen</button>`;
       } else if (isRetail) {
-        actions = `<button type="button" onclick="event.stopPropagation();openRetailBuilding('${building.id}')">${inUse ? 'Verkauf öffnen' : 'Im Handel verwenden'}</button>`;
+        actions = `<button type="button" onclick="event.stopPropagation();openRetailBuilding('${building.id}')">${translateUiString(inUse ? 'Verkauf öffnen' : 'Im Handel verwenden')}</button>`;
         if (!inUse) actions += `<button type="button" class="building-upgrade-btn" onclick="event.stopPropagation();upgradeBuilding('${building.id}','${bt.id}')">Ausbauen</button>
           <button type="button" class="building-demolish-btn" onclick="event.stopPropagation();downgradeBuilding('${building.id}','${bt.id}')">${level<=1?'Abreißen':'Abstufen'}</button>`;
       } else {
-        actions = `<button type="button" onclick="event.stopPropagation();selectBuildingCard('${building.id}')">${inUse ? 'Auftrag öffnen' : 'Auswählen'}</button>`;
+        actions = `<button type="button" onclick="event.stopPropagation();selectBuildingCard('${building.id}')">${translateUiString(inUse ? 'Auftrag öffnen' : 'Auswählen')}</button>`;
         if (!inUse) actions += `<button type="button" class="building-upgrade-btn" onclick="event.stopPropagation();upgradeBuilding('${building.id}','${bt.id}')">Ausbauen</button>
           <button type="button" class="${level<=1?'building-demolish-btn':'ghost'}" onclick="event.stopPropagation();downgradeBuilding('${building.id}','${bt.id}')">${level<=1?'Abreißen':'Abstufen'}</button>`;
       }
@@ -3434,7 +3494,7 @@ function renderRetailSale() {
           </div>
           <button type="button" class="retail-collect-btn" ${progress.claimableUnits <= 0 ? 'disabled' : ''} onclick="collectRetailRevenue('${job.id}')">Einsammeln</button>
         </div>
-        <div class="kv"><span>Bereits verkauft</span><strong>${num(progress.sold)} ${productionProductDisplayName(runningProduct?.name, progress.sold)}</strong></div>
+        <div class="kv"><span>${translateUiString('Bereits verkauft')}</span><strong>${num(progress.sold)} ${productionProductDisplayName(runningProduct?.name, progress.sold)}</strong></div>
         <div class="kv"><span>Einsammelbarer Erlös</span><strong class="retail-revenue-positive">${money(progress.claimableRevenue)}</strong></div>
         <div class="kv"><span>Erwarteter Erlös (offen)</span><strong>${money(progress.openRevenue)}</strong></div>
         <div class="kv"><span>Abbruchgebühr</span><strong class="retail-cancel-fee">-${money(progress.cancellationFee)}</strong></div>
@@ -3458,7 +3518,7 @@ function renderRetailSale() {
     `<div class="kv"><span>Qualität</span><strong>Q${ctx.quality} (+${Math.round((qualityMultiplier(ctx.quality)-1)*100)}% Wert)</strong></div>`,
     `<div class="kv"><span>Verfügbarer Bestand</span><strong>${num(ctx.available)} Einheiten</strong></div>`,
     `<div class="kv"><span>Ausgewählte Menge</span><strong>${qty > 0 ? `${num(qty)} Einheiten` : '–'}</strong></div>`,
-    `<div class="kv"><span>Referenzpreis</span><strong>${money(ctx.referencePrice)} / Einheit</strong></div>`,
+    `<div class="kv"><span>${translateUiString('Referenzpreis')}</span><strong>${money(ctx.referencePrice)} / Einheit</strong></div>`,
     `<div class="kv"><span>Gewählter Verkaufspreis</span><strong>${money(ctx.price)} / Einheit</strong></div>`,
     `<div class="kv"><span>Preisbedingte Nachfrage</span><strong>${Math.round(ctx.demandFactor * 100)}%</strong></div>`,
     `<div class="kv"><span>Verkaufsdauer</span><strong>${ctx.building && saleHours > 0 ? formatProductionDuration(saleHours) : '–'}</strong></div>`,
@@ -3628,12 +3688,12 @@ function renderMarket() {
       return `<tr class="market-order-row ${selected ? 'selected' : ''} ${isOwnOrder ? 'own-market-order' : ''}" data-order-id="${o.id}" tabindex="0" aria-selected="${selected}">
         <td>${companyName(o.company_id)}</td>
         <td>${itemName(o)}</td>
-        <td>${o.material_id ? 'Rohstoff' : 'Produkt'}</td>
+        <td>${translateUiString(o.material_id ? 'Rohstoff' : 'Produkt')}</td>
         <td><strong>Q${Number(o.quality_level || 1)}</strong></td>
         <td>${num(o.remaining_quantity)}</td>
         <td>${money(o.price_per_unit)}</td>
         <td>5%</td>
-        <td>${o.company_id === state.company.id ? `<button onclick="event.stopPropagation(); cancelOrder('${o.id}')">Stornieren</button>` : selected ? '<strong>Ausgewählt</strong>' : 'Auswählen'}</td>
+        <td>${o.company_id === state.company.id ? `<button onclick="event.stopPropagation(); cancelOrder('${o.id}')">${translateUiString('Stornieren')}</button>` : selected ? `<strong>${translateUiString('Ausgewählt')}</strong>` : translateUiString('Auswählen')}</td>
       </tr>`;
     })
   );
@@ -3669,8 +3729,8 @@ function renderContracts() {
     state.contracts.map(c => {
       let action = '–';
       if (c.status === 'proposed' && c.proposer_company_id !== cid) action = `<button onclick="acceptContract('${c.id}')">Annehmen</button>`;
-      else if (c.status === 'accepted') action = `<button onclick="fulfillContract('${c.id}')">Erfüllen</button>`;
-      if (['proposed','accepted'].includes(c.status)) action += ` <button class="ghost" onclick="cancelContract('${c.id}')">Stornieren</button>`;
+      else if (c.status === 'accepted') action = `<button onclick="fulfillContract('${c.id}')">${translateUiString('Erfüllen')}</button>`;
+      if (['proposed','accepted'].includes(c.status)) action += ` <button class="ghost" onclick="cancelContract('${c.id}')">${translateUiString('Stornieren')}</button>`;
       return `<tr><td>${companyName(c.seller_company_id)}</td><td>${companyName(c.buyer_company_id)}</td><td>${contractItemName(c)}</td><td>Q${Number(c.quality_level || 1)}</td><td>${num(c.quantity)}</td><td>${money(c.unit_price)}</td><td>${contractStatus(c.status)}</td><td>${action}</td></tr>`;
     })
   );
@@ -3950,7 +4010,7 @@ function renderFinanceSummary() {
         ${netBondInterest < 0 ? '-' : netBondInterest > 0 ? '+' : ''}${money(Math.abs(netBondInterest))}
       </strong>
     </div>
-    ${otherCosts > 0 ? `<div class="finance-summary-card finance-cost-card"><span>Sonstige Kosten</span><strong>-${money(otherCosts)}</strong></div>` : ''}
+    ${otherCosts > 0 ? `<div class="finance-summary-card finance-cost-card"><span>${translateUiString('Sonstige Kosten')}</span><strong>-${money(otherCosts)}</strong></div>` : ''}
     <div class="finance-summary-card finance-profit-card ${profit < 0 ? 'finance-profit-loss' : 'finance-profit-gain'}"><span>Gewinn / Verlust</span><strong class="${profitClass}">${profit < 0 ? '-' : ''}${money(Math.abs(profit))}</strong></div>
   `;
 
@@ -4270,7 +4330,7 @@ function renderResearch() {
 
   table.innerHTML=renderTable(['Kategorie','Produkt','Qualität','Wertbonus','Fortschritt','Nächste Stufe','Aktion'],researchProducts.map(p=>{
     const q=productQuality(p), req=researchRequirement(q), prog=Number(p.research_units_progress||0);
-    return `<tr><td>${researchCategory(p)}</td><td>${p.name}</td><td><strong>Q${q}</strong></td><td>+${Math.round((qualityMultiplier(q)-1)*100)}%</td><td>${num(prog)} / ${num(req)}</td><td>Q${q+1}</td><td><button type="button" class="ghost" onclick="selectResearchProduct('${p.id}')">Auswählen</button></td></tr>`;
+    return `<tr><td>${translateUiString(researchCategory(p))}</td><td>${translateUiString(p.name)}</td><td><strong>Q${q}</strong></td><td>+${Math.round((qualityMultiplier(q)-1)*100)}%</td><td>${num(prog)} / ${num(req)}</td><td>Q${q+1}</td><td><button type="button" class="ghost" onclick="selectResearchProduct('${p.id}')">${translateUiString('Auswählen')}</button></td></tr>`;
   }));
 }
 window.selectResearchProduct=function(productId){ state.researchSelectedProductId=productId; const select=document.getElementById('researchProduct'); if(select) select.value=productId; document.getElementById('researchInvestmentAmount').value='1'; renderResearch(); };
@@ -4363,7 +4423,7 @@ function renderStorage() {
     .filter(inv => Number(inv.quantity || 0) > 0)
     .map(inv => ({ type:'product', name:inv.products?.name || state.products.find(p=>p.id===inv.product_id)?.name || '–', quality:Number(inv.quality_level||1), quantity:Number(inv.quantity||0), unit:'Stück', averageCost:Number(inv.average_unit_cost||0) }));
   const rows=[...materialRows,...productRows].filter(row => (type==='all'||row.type===type) && (!search||row.name.toLocaleLowerCase(uiLocale()).includes(search))).sort((a,b)=>a.name.localeCompare(b.name,uiLocale())||a.quality-b.quality||a.type.localeCompare(b.type,uiLocale()));
-  container.innerHTML=renderTable(['Artikel','Typ','Qualität','Menge','Einheit','Ø Kosten'],rows.map(row=>`<tr><td>${row.name}</td><td>${row.type==='material'?'Rohstoff':'Produkt'}</td><td>Q${row.quality}</td><td>${num(row.quantity)}</td><td>${row.unit}</td><td>${money(row.averageCost)}</td></tr>`));
+  container.innerHTML=renderTable(['Artikel','Typ','Qualität','Menge','Einheit','Ø Kosten'],rows.map(row=>`<tr><td>${translateUiString(row.name)}</td><td>${translateUiString(row.type==='material'?'Rohstoff':'Produkt')}</td><td>Q${row.quality}</td><td>${num(row.quantity)}</td><td>${translateUiString(row.unit)}</td><td>${money(row.averageCost)}</td></tr>`));
 }
 
 function productOptionsGroupedByBuilding(products) {
