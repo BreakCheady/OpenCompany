@@ -7,7 +7,7 @@
   <title>OpenCompany</title>
   <link rel="icon" type="image/png" href="favicon.png">
   <link rel="shortcut icon" href="favicon.ico">
-  <link rel="stylesheet" href="style.css?v=0.10.74">
+  <link rel="stylesheet" href="style.css?v=0.10.75">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     .password-field{display:flex;align-items:center;gap:.5rem}
@@ -50,8 +50,21 @@
       background:#bb3434!important;
       border-color:#bb3434!important;
     }
-    .building-card-progress{height:6px;border-radius:999px;background:#e3e9f1;overflow:hidden;margin:.65rem 0}
-    .building-card-progress span{display:block;height:100%;background:#2f8ce5}
+    .building-card-progress{
+      height:6px;
+      border-radius:999px;
+      background:linear-gradient(90deg,#d64545 0%,#f28c28 35%,#f2c94c 65%,#1f9d55 100%);
+      overflow:hidden;
+      margin:.65rem 0;
+      display:flex;
+      justify-content:flex-end;
+    }
+    .building-card-progress span{
+      display:block;
+      height:100%;
+      width:calc(100% - var(--progress,0%));
+      background:#e3e9f1;
+    }
     .production-building-empty{padding:1.25rem;text-align:center;border:1px dashed #b9c7d8;border-radius:12px;color:#617087}
     @media(max-width:720px){.building-card-grid{grid-template-columns:1fr}.building-overview-toolbar{display:grid;grid-template-columns:1fr 1fr}}
 
@@ -189,7 +202,7 @@
       .oc-select-option{min-height:46px;padding:.7rem .8rem}
     }
   
-    /* v0.10.74 – einheitliche Navigationsleiste auf Desktop und Mobile */
+    /* v0.10.75 – einheitliche Navigationsleiste auf Desktop und Mobile */
     .app-shell{
       display:block!important;
       min-height:100dvh!important;
@@ -764,7 +777,7 @@
           <h2>Einstellungen</h2>
           <div class="kv">
             <span>Version</span>
-            <strong>0.10.74</strong>
+            <strong>0.10.75</strong>
           </div>
         </article>
 

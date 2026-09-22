@@ -2153,7 +2153,7 @@ function renderBuildings() {
         jobHtml = `<div class="building-card-job">
           <strong>${product?.name || 'Auftrag'} · Q${Number(job.quality_level || 1)}</strong>
           <span class="building-card-meta">${detail}</span>
-          <div class="building-card-progress"><span style="width:${progress}%"></span></div>
+          <div class="building-card-progress" style="--progress:${progress}%"><span></span></div>
           <span class="building-card-meta">Ende ${finish.toLocaleString('de-DE',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})} Uhr</span>
         </div>`;
       }
