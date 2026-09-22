@@ -7,7 +7,7 @@
   <title>OpenCompany</title>
   <link rel="icon" type="image/png" href="favicon.png">
   <link rel="shortcut icon" href="favicon.ico">
-  <link rel="stylesheet" href="style.css?v=0.10.67">
+  <link rel="stylesheet" href="style.css?v=0.10.68">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     .password-field{display:flex;align-items:center;gap:.5rem}
@@ -187,7 +187,7 @@
       .oc-select-option{min-height:46px;padding:.7rem .8rem}
     }
   
-    /* v0.10.67 – einheitliche Navigationsleiste auf Desktop und Mobile */
+    /* v0.10.68 – einheitliche Navigationsleiste auf Desktop und Mobile */
     .app-shell{
       display:block!important;
       min-height:100dvh!important;
@@ -357,6 +357,17 @@
       .company-management-rename button{
         width:100%;
       }
+    }
+
+  
+    .made-by-panel{
+      text-align:center;
+      padding-top:18px;
+      padding-bottom:18px;
+    }
+    .made-by-text{
+      font-weight:700;
+      letter-spacing:.02em;
     }
 
   </style>
@@ -712,7 +723,7 @@
           <h2>Einstellungen</h2>
           <div class="kv">
             <span>Version</span>
-            <strong>0.10.67</strong>
+            <strong>0.10.68</strong>
           </div>
         </article>
 
@@ -785,6 +796,10 @@
             <button type="button" id="deleteCompanyBtn" class="company-delete-btn">Unternehmen löschen</button>
           </div>
           <p class="muted company-management-note account-danger-note">Zurücksetzen behält Account und Firmenname, löscht aber den Spielfortschritt und setzt das Startkapital auf 100.000 OC$ und stellt eine Elektronikfabrik sowie ein Elektronikgeschäft bereit. Löschen entfernt zusätzlich den Account.</p>
+        </article>
+
+        <article class="panel made-by-panel">
+          <div class="made-by-text">Made by BreakCheady</div>
         </article>
       </div>
     </section>
