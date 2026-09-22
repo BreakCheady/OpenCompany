@@ -380,8 +380,10 @@ let inactivityListenersInstalled = false;
 let inactivityLogoutInProgress = false;
 const INACTIVITY_LIMIT_MS = 60 * 60 * 1000;
 
-const money = n => new Intl.NumberFormat(uiLocale(), { style:'currency', currency:'EUR', maximumFractionDigits:2 })
-  .format(Number(n || 0)).replace('€','OC$');
+const money = n => `${new Intl.NumberFormat(uiLocale(), {
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2
+}).format(Number(n || 0))} OC$`;
 const num = n => new Intl.NumberFormat(uiLocale(), { maximumFractionDigits: 2 }).format(Number(n || 0));
 const balanceMoney = n => `${new Intl.NumberFormat(uiLocale(), { maximumFractionDigits: 0 }).format(Number(n || 0))} OC$`;
 
