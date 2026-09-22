@@ -7,7 +7,7 @@
   <title>OpenCompany</title>
   <link rel="icon" type="image/png" href="favicon.png">
   <link rel="shortcut icon" href="favicon.ico">
-  <link rel="stylesheet" href="style.css?v=0.10.76">
+  <link rel="stylesheet" href="style.css?v=0.10.77">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     .password-field{display:flex;align-items:center;gap:.5rem}
@@ -202,7 +202,7 @@
       .oc-select-option{min-height:46px;padding:.7rem .8rem}
     }
   
-    /* v0.10.76 – einheitliche Navigationsleiste auf Desktop und Mobile */
+    /* v0.10.77 – einheitliche Navigationsleiste auf Desktop und Mobile */
     .app-shell{
       display:block!important;
       min-height:100dvh!important;
@@ -503,24 +503,11 @@
         <article class="panel">
           <div class="panel-head building-panel-head">
             <div>
-              <h2>Gebäude</h2>
-              <p class="muted">Wähle ein konkretes Gebäude aus. Produktion und Handelsverkauf werden direkt diesem Gebäude zugeordnet.</p>
+              <h2>Bauen</h2>
+              <p class="muted">Errichte neue Gebäude für Produktion, Handel und Forschung.</p>
             </div>
-            <button type="button" id="openBuildingBuilderBtn" class="building-builder-open-btn">Bauen</button>
+            <button type="button" id="openBuildingBuilderBtn" class="building-builder-open-btn">Gebäude bauen</button>
           </div>
-
-          <div id="buildingSlotsSummary" class="kv building-slots-summary">
-            <span>Gebäudeplätze</span><strong>0 / 4</strong>
-          </div>
-
-          <div class="building-overview-toolbar">
-            <button type="button" class="building-overview-filter active" data-building-filter="all">Alle</button>
-            <button type="button" class="building-overview-filter" data-building-filter="production">Produktion</button>
-            <button type="button" class="building-overview-filter" data-building-filter="retail">Handel</button>
-            <button type="button" class="building-overview-filter" data-building-filter="research">Forschung</button>
-          </div>
-
-          <div id="buildingCards" class="building-card-grid"></div>
 
           <div id="buildingBuilder" class="building-builder hidden">
             <div class="building-builder-toolbar">
@@ -539,6 +526,28 @@
             </div>
             <div id="buildingCatalogTable" class="table-wrap"></div>
           </div>
+        </article>
+
+        <article class="panel">
+          <div class="panel-head building-panel-head">
+            <div>
+              <h2>Gebäude</h2>
+              <p class="muted">Wähle ein konkretes Gebäude aus. Produktion und Handelsverkauf werden direkt diesem Gebäude zugeordnet.</p>
+            </div>
+          </div>
+
+          <div id="buildingSlotsSummary" class="kv building-slots-summary">
+            <span>Gebäudeplätze</span><strong>0 / 4</strong>
+          </div>
+
+          <div class="building-overview-toolbar">
+            <button type="button" class="building-overview-filter active" data-building-filter="all">Alle</button>
+            <button type="button" class="building-overview-filter" data-building-filter="production">Produktion</button>
+            <button type="button" class="building-overview-filter" data-building-filter="retail">Handel</button>
+            <button type="button" class="building-overview-filter" data-building-filter="research">Forschung</button>
+          </div>
+
+          <div id="buildingCards" class="building-card-grid"></div>
         </article>
 
         <article class="panel" id="productionControlPanel">
@@ -777,7 +786,7 @@
           <h2>Einstellungen</h2>
           <div class="kv">
             <span>Version</span>
-            <strong>0.10.76</strong>
+            <strong>0.10.77</strong>
           </div>
         </article>
 
