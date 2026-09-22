@@ -556,12 +556,10 @@ function setDashboardMetricChange(elementId, metric, invertGoodBad = false) {
 }
 
 function renderDashboardValuationChanges() {
-  setDashboardMetricChange('statCashChange', 'cash_balance');
   setDashboardMetricChange('statValueChange', 'company_value');
   setDashboardMetricChange('statStorageChange', 'storage_value');
   setDashboardMetricChange('statPatentChange', 'patent_value');
   setDashboardMetricChange('statDebtChange', 'loan_debt', true);
-  setDashboardMetricChange('statBuildingChange', 'building_value');
 }
 
 async function refreshCompanyValueSnapshot() {
