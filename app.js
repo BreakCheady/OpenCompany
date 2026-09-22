@@ -264,7 +264,180 @@ Object.assign(I18N_EN, {
   'pro Einheit':'per unit','Tageszins':'daily interest'
 });
 
+
+Object.assign(I18N_EN, {
+  'Produktionskosten':'Production costs',
+
+  'Wertbonus':'Value bonus',
+  'Ø Kosten':'Ø costs',
+  'Bestand beim Start':'Starting stock',
+  'Zeitraum':'Period',
+  'Einnahmen / Gewinne':'Income / profits',
+  'Geplante Investition':'Planned investment',
+  'Patentwertsteigerung':'Patent value increase',
+  'Vorprodukt':'Intermediate product',
+  'Annehmen':'Accept',
+  'Offen':'Open',
+  'Beendet':'Closed',
+  'Aktiv':'Active',
+  'Getilgt':'Repaid',
+  'Automatisch getilgt':'Automatically repaid',
+  'Ausgefallen':'Defaulted',
+  'Anzahl':'Count',
+  'Baukosten':'Construction costs',
+  'Rest':'Remaining',
+  'Wert':'Value',
+
+  'Betrag':'Amount',
+  'Beschreibung':'Description',
+  'Zeit':'Time',
+  'Einstand':'Acquisition cost',
+  'Einnahmen':'Income',
+  'Ausgaben':'Expenses',
+  'Gewinn / Verlust':'Profit / loss',
+  'Gewinn/Verlust':'Profit / loss',
+  'Sonstige Kosten':'Other costs',
+  'Restmenge':'Remaining quantity',
+  'Einstandswert':'Acquisition value',
+  'Gesamtwert':'Total value',
+  'Bestand':'Stock',
+  'Kaufpreis':'Purchase price',
+  // Remaining production/building labels
+  'Bau':'Construction',
+  'Im Bau':'Under construction',
+  'Nicht gebaut':'Not built',
+  'Bauzeit':'Construction time',
+  'Produktqualität':'Product quality',
+  'Produkt-Basisrate':'Product base rate',
+  'Produkt-Basisverkaufsrate':'Product base sales rate',
+  'Verkaufspreis':'Sale price',
+  'Einsammelbarer Erlös':'Collectable revenue',
+  'Erwarteter Erlös (offen)':'Expected revenue (outstanding)',
+  'Keine Rohstoffe benötigt. Forschungseinheiten benötigen ausschließlich Geld: 12 OC$ Grundkosten + 14 OC$ Personalkosten pro Einheit.':
+    'No raw materials required. Research units require cash only: 12 OC$ base cost + 14 OC$ personnel cost per unit.',
+  'Es befinden sich keine Produkte für den Handelsverkauf im Lager.':'There are no products in storage for retail sale.',
+
+  // Finance
+  'Gebühren':'Fees',
+  'Marktkäufe':'Market purchases',
+  'Zinsen':'Interest',
+  'Kreditlimit (99%)':'Credit limit (99%)',
+  'Offene Kreditsumme':'Outstanding loan amount',
+  'Noch verfügbar':'Still available',
+  '1 Anleihe = 5.000 OC$. Mindestzins 0,50% täglich. Das Kreditlimit entspricht 99% des Gebäudewerts, abgerundet auf 5.000 OC$.':
+    '1 bond = 5,000 OC$. Minimum interest rate 0.50% daily. The credit limit equals 99% of the building value, rounded down to 5,000 OC$.',
+  'Täglicher Zinssatz':'Daily interest rate',
+  'Kredit anfragen':'Request loan',
+  'Meine Kreditanfragen':'My loan requests',
+  'Anfrage':'Request',
+  'Rest':'Remaining',
+  'Erstellt':'Created',
+  'Investition':'Investment',
+  'Meine aufgenommenen Kredite':'My borrowed loans',
+  'Restschuld':'Remaining debt',
+  'Erhalten / Ziel':'Received / target',
+  'Tilgbar ab':'Repayable from',
+  'Tilgung':'Repayment',
+  'Investiert':'Invested',
+  'Restforderung':'Remaining receivable',
+
+  // Research
+  'Aktuelle Qualität':'Current quality',
+  'Noch benötigt':'Still required',
+  'Gewählter Orderpreis':'Selected order price',
+  'Bruttoerlös':'Gross revenue',
+  'Marktgebühr (5%)':'Market fee (5%)',
+  'Nettoerlös':'Net revenue',
+
+  // Categories
+  'Elektronik':'Electronics',
+  'Maschinen':'Machinery',
+  'Automobil':'Automotive',
+  'Chemie':'Chemicals',
+  'Textil':'Textiles',
+  'Lebensmittel':'Food',
+  'Energietechnik':'Energy technology',
+  'Sonstige':'Other',
+
+  // Misc.
+  'Voll finanziert':'Fully funded',
+  'Wird täglich um 01:00 Uhr neu berechnet':'Recalculated daily at 01:00',
+  'Öffentliche Rangliste:':'Public leaderboard:',
+  'Inaktivitäts-Logout:':'Inactivity logout:'
+});
+
 const I18N_EN_REPLACEMENTS = [
+  ['% Wert','% value'],
+  [' · Produktion',' · Production'],
+  [' · Verkauf',' · Retail'],
+  [' · Forschung',' · Research'],
+  ['Bestand beim Start','Starting stock'],
+  ['Einnahmen / Gewinne','Income / profits'],
+  ['Geplante Investition','Planned investment'],
+  ['Patentwertsteigerung','Patent value increase'],
+  ['Wertbonus','Value bonus'],
+  ['Ø Kosten','Ø costs'],
+  ['Vorprodukt','Intermediate product'],
+  ['Nicht gebaut','Not built'],
+  ['Voll finanziert','Fully funded'],
+  ['Automatisch getilgt','Automatically repaid'],
+  ['Getilgt','Repaid'],
+  ['Ausgefallen','Defaulted'],
+  ['Beendet','Closed'],
+  ['Offen','Open'],
+
+  ['Keine Rohstoffe benötigt. Forschungseinheiten benötigen ausschließlich Geld:',
+   'No raw materials required. Research units require cash only:'],
+  [' Grundkosten + ',' base cost + '],
+  [' Personalkosten pro Einheit.',' personnel cost per unit.'],
+  [' Einheiten – fertig am ',' units – finishes on '],
+  [' Einheiten / Std.',' units / hr'],
+  [' Einheiten',' units'],
+  [' / Einheit',' / unit'],
+  [' Uhr',''],
+  [' verfügbar',' available'],
+  [' Verkauf läuft',' sale active'],
+  [' Handelsverkauf',' retail sale'],
+  [' · Produktion',' · Production'],
+  [' · Handelsverkauf',' · Retail sale'],
+  ['Kosten: ','Cost: '],
+  ['. Bauzeit: ','. Construction time: '],
+  ['Bau abgebrochen. Erstattung: ','Construction cancelled. Refund: '],
+  ['Produkt-Basisrate','Product base rate'],
+  ['Produkt-Basisverkaufsrate','Product base sales rate'],
+  ['Produktqualität','Product quality'],
+  ['Aktuelle Qualität','Current quality'],
+  ['Noch benötigt','Still required'],
+  [' Forschungseinheiten',' research units'],
+  ['Täglicher Zinssatz','Daily interest rate'],
+  ['Mindestzins','Minimum interest rate'],
+  [' täglich',' daily'],
+  ['Gebäudewerts','building value'],
+  ['Offene Kreditsumme','Outstanding loan amount'],
+  ['Noch verfügbar','Still available'],
+  ['Meine Kreditanfragen','My loan requests'],
+  ['Meine aufgenommenen Kredite','My borrowed loans'],
+  ['Kreditlimit','Credit limit'],
+  ['Restschuld','Remaining debt'],
+  ['Restforderung','Remaining receivable'],
+  ['Tilgbar ab','Repayable from'],
+  ['Gewählter Orderpreis','Selected order price'],
+  ['Bruttoerlös','Gross revenue'],
+  ['Nettoerlös','Net revenue'],
+  ['Marktgebühr','Market fee'],
+  ['Keine Qualität auf Lager','No quality in storage'],
+  ['Kein passender Lagerbestand für eine Marktorder vorhanden.',
+   'No matching inventory is available for a market order.'],
+  ['Keine Rohstoffe im Lager','No raw materials in storage'],
+  ['Keine Produkte im Lager','No products in storage'],
+  ['Noch nicht gewertet','Not ranked yet'],
+  ['Noch keine Daten.','No data yet.'],
+  ['Anleihedaten konnten nicht geladen werden.','Bond data could not be loaded.'],
+  ['Nicht gebaut','Not built'],
+  ['Im Bau','Under construction'],
+  ['Bauzeit','Construction time'],
+  ['Voll finanziert','Fully funded'],
+
   ['Unternehmensdaten konnten nicht geladen werden.','Company data could not be loaded.'],
   ['Spieldaten konnten nicht vollständig geladen werden.','Game data could not be loaded completely.'],
   [' wird auf Unternehmenslevel ',' unlocks at company level '],
@@ -404,7 +577,8 @@ function translateUiCore(value) {
   if (currentLanguage !== 'en') return text;
   if (Object.prototype.hasOwnProperty.call(I18N_EN, text)) return I18N_EN[text];
   let translated = text;
-  for (const [de, en] of I18N_EN_REPLACEMENTS) translated = translated.split(de).join(en);
+  const replacements = [...I18N_EN_REPLACEMENTS].sort((a, b) => b[0].length - a[0].length);
+  for (const [de, en] of replacements) translated = translated.split(de).join(en);
   return translated;
 }
 
@@ -862,7 +1036,7 @@ function gamePrompt(message, defaultValue='', title='Eingabe') {
 }
 
 function transactionLabel(type) {
-  return ({
+  const label = ({
     founding_capital: 'Startkapital',
     market_sale: 'Marktverkauf',
     retail_sale: 'Handelsgewinn',
@@ -886,6 +1060,7 @@ function transactionLabel(type) {
     bond_default_compensation: 'Staatliche Kreditausfallentschädigung',
     bond_default_reset: 'Insolvenzverfahren'
   })[type] || type;
+  return translateUiString(label);
 }
 
 function transactionAmountClass(type) {
@@ -985,8 +1160,8 @@ async function refreshBuildingConstruction() {
 
 
 function renderTable(headers, rows) {
-  if (!rows.length) return '<p class="muted">Noch keine Daten.</p>';
-  return `<table><thead><tr>${headers.map(h=>`<th>${h}</th>`).join('')}</tr></thead><tbody>${rows.join('')}</tbody></table>`;
+  if (!rows.length) return `<p class="muted">${translateUiString('Noch keine Daten.')}</p>`;
+  return `<table><thead><tr>${headers.map(h=>`<th>${translateUiString(h)}</th>`).join('')}</tr></thead><tbody>${rows.join('')}</tbody></table>`;
 }
 function companyName(id) {
   if (id === state.company?.id) return state.company.name;
@@ -2736,9 +2911,9 @@ function scheduleProductionRefresh() {
 }
 
 function buildingCategoryLabel(category) {
-  if (category === 'retail') return 'Verkauf';
-  if (category === 'research') return 'Forschung';
-  return 'Produktion';
+  if (category === 'retail') return translateUiString('Verkauf');
+  if (category === 'research') return translateUiString('Forschung');
+  return translateUiString('Produktion');
 }
 
 function renderBuildingCatalog() {
@@ -3475,6 +3650,7 @@ function renderMarket() {
   });
 
   updateMarketBuyPreview();
+  if (currentLanguage === 'en') applyLanguageToDom(document.getElementById('market'));
 }
 
 
@@ -3483,7 +3659,8 @@ function contractItemName(c) {
   return state.allProducts.find(p => p.id === c.product_id)?.name || 'Produkt';
 }
 function contractStatus(s) {
-  return ({ proposed:'Vorgeschlagen', accepted:'Angenommen', fulfilled:'Erfüllt', cancelled:'Storniert', rejected:'Abgelehnt' })[s] || s;
+  const label = ({ proposed:'Vorgeschlagen', accepted:'Angenommen', fulfilled:'Erfüllt', cancelled:'Storniert', rejected:'Abgelehnt' })[s] || s;
+  return translateUiString(label);
 }
 function renderContracts() {
   const cid = state.company.id;
@@ -3789,7 +3966,7 @@ function renderFinanceSummary() {
 
 
 function bondStatusLabel(status) {
-  return ({
+  const label = ({
     open:'Offen',
     funded:'Voll finanziert',
     closed:'Beendet',
@@ -3799,6 +3976,7 @@ function bondStatusLabel(status) {
     defaulted:'Ausgefallen',
     cancelled:'Storniert'
   })[status] || status || '–';
+  return translateUiString(label);
 }
 
 function formatBondDate(value) {
