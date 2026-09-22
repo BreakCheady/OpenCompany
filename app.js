@@ -3180,7 +3180,7 @@ function renderBuildings() {
 
       let actions = '';
       if (underConstruction) {
-        actions = `<button type="button" style="background:#d64545!important;border-color:#d64545!important;color:#fff!important" onclick="event.stopPropagation();cancelBuildingConstruction('${building.id}','${bt.id}')">${translateUiString('Bau abbrechen')}</button>`;
+        actions = `<button type="button" class="strong-danger-btn" onclick="event.stopPropagation();cancelBuildingConstruction('${building.id}','${bt.id}')">${translateUiString('Bau abbrechen')}</button>`;
       } else if (isRetail) {
         actions = `<button type="button" onclick="event.stopPropagation();openRetailBuilding('${building.id}')">${translateUiString(inUse ? 'Verkauf öffnen' : 'Im Handel verwenden')}</button>`;
         if (!inUse) actions += `<button type="button" class="building-upgrade-btn" onclick="event.stopPropagation();upgradeBuilding('${building.id}','${bt.id}')">${translateUiString('Ausbauen')}</button>
@@ -3763,7 +3763,7 @@ function renderMarket() {
         <td>${num(o.remaining_quantity)}</td>
         <td>${money(o.price_per_unit)}</td>
         <td>5%</td>
-        <td>${o.company_id === state.company.id ? `<button onclick="event.stopPropagation(); cancelOrder('${o.id}')">${translateUiString('Stornieren')}</button>` : selected ? `<strong>${translateUiString('Ausgewählt')}</strong>` : translateUiString('Auswählen')}</td>
+        <td>${o.company_id === state.company.id ? `<button class="strong-danger-btn" onclick="event.stopPropagation(); cancelOrder('${o.id}')">${translateUiString('Stornieren')}</button>` : selected ? `<strong>${translateUiString('Ausgewählt')}</strong>` : translateUiString('Auswählen')}</td>
       </tr>`;
     })
   );
