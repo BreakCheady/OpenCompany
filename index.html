@@ -7,7 +7,7 @@
   <title>OpenCompany</title>
   <link rel="icon" type="image/png" href="favicon.png">
   <link rel="shortcut icon" href="favicon.ico">
-  <link rel="stylesheet" href="style.css?v=0.10.89">
+  <link rel="stylesheet" href="style.css?v=0.10.90">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     .password-field{display:flex;align-items:center;gap:.5rem}
@@ -202,7 +202,7 @@
       .oc-select-option{min-height:46px;padding:.7rem .8rem}
     }
   
-    /* v0.10.89 – einheitliche Navigationsleiste auf Desktop und Mobile */
+    /* v0.10.90 – einheitliche Navigationsleiste auf Desktop und Mobile */
     .app-shell{
       display:block!important;
       min-height:100dvh!important;
@@ -526,6 +526,14 @@
         width:170px;
         max-width:55%;
       }
+    }
+
+  
+    .company-public-id,
+    #accountPublicId{
+      font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;
+      overflow-wrap:anywhere;
+      letter-spacing:.02em;
     }
 
   </style>
@@ -910,7 +918,7 @@
           <h2>Einstellungen</h2>
           <div class="kv">
             <span>Version</span>
-            <strong>0.10.89</strong>
+            <strong>0.10.90</strong>
           </div>
           <div class="kv settings-language-row">
             <span>Sprache</span>
@@ -927,6 +935,10 @@
             <div class="kv">
               <span>E-Mail</span>
               <strong id="accountEmail">–</strong>
+            </div>
+            <div class="kv">
+              <span>Account-ID</span>
+              <strong id="accountPublicId">–</strong>
             </div>
             <div class="kv">
               <span>Passwort</span>
@@ -979,6 +991,8 @@
             <div>
               <span class="muted">Unternehmensname</span>
               <strong id="settingsCompanyName">–</strong>
+              <span class="muted">Unternehmens-ID</span>
+              <strong id="settingsCompanyPublicId" class="company-public-id">–</strong>
               <p id="settingsCompanyRenameHint" class="muted company-management-note"></p>
             </div>
             <button type="button" id="renameCompanyBtn" class="ghost">Umbenennen</button>

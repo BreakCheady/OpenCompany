@@ -266,6 +266,9 @@ Object.assign(I18N_EN, {
 
 
 Object.assign(I18N_EN, {
+  'Account-ID':'Account ID',
+  'Unternehmens-ID':'Company ID',
+  'Dieser Unternehmensname wurde bereits verwendet':'This company name has already been used',
   'Produktionskosten':'Production costs',
 
   'Bereits verkauft':'Already sold',
@@ -794,6 +797,7 @@ function initializeLanguage() {
 
 const state = {
   session: null,
+  accountCode: null,
   company: null,
   products: [],
   allProducts: [],
@@ -1023,6 +1027,18 @@ function retailSelectableProducts() {
 
 function operationalProductIdentitySet() {
   return new Set(operationalProducts().map(product => `${product.name}::${product.category}`));
+}
+
+function friendlyDatabaseError(error) {
+  const text = String(error?.message || error || '');
+  if (
+    text.includes('Dieser Unternehmensname wurde bereits verwendet') ||
+    text.includes('companies_name_normalized_uidx') ||
+    text.includes('duplicate key value violates unique constraint')
+  ) {
+    return translateUiString('Dieser Unternehmensname wurde bereits verwendet');
+  }
+  return text;
 }
 
 function msg(el, text, type='') { el.textContent = translateUiString(text); el.className = `status ${type}`; }
@@ -1917,10 +1933,12 @@ function setAccountStatus(text, type='') {
 
 function renderAccountSettings() {
   const emailEl = document.getElementById('accountEmail');
+  const accountIdEl = document.getElementById('accountPublicId');
   const emailInput = document.getElementById('accountNewEmail');
   const userEmail = state.session?.user?.email || '';
 
   if (emailEl) emailEl.textContent = userEmail || 'Keine E-Mail hinterlegt';
+  if (accountIdEl) accountIdEl.textContent = state.accountCode || '–';
   if (emailInput && !emailInput.value) emailInput.value = userEmail;
 }
 
@@ -2367,6 +2385,7 @@ async function handleSession(session) {
     stopNpcMarketHeartbeat();
     stopCompanyBalanceWatcher();
     stopInactivityWatcher();
+    state.accountCode = null;
     document.getElementById('gameView').classList.add('hidden');
     document.getElementById('bootstrapView').classList.add('hidden');
     clearCompanyLoadError();
@@ -2374,6 +2393,7 @@ async function handleSession(session) {
     return;
   }
   startInactivityWatcher();
+  await loadAccountIdentity();
   await loadCompany();
 
   if (state.openDashboardAfterLogin && state.company) {
@@ -2384,6 +2404,27 @@ async function handleSession(session) {
       history.replaceState(null, '', location.pathname + location.search);
     }
   }
+}
+
+async function loadAccountIdentity() {
+  if (!sb || !state.session?.user?.id) {
+    state.accountCode = null;
+    return;
+  }
+
+  const { data, error } = await sb
+    .from('account_profiles')
+    .select('account_code')
+    .eq('user_id', state.session.user.id)
+    .maybeSingle();
+
+  if (error) {
+    console.error('Account-ID konnte nicht geladen werden:', error);
+    state.accountCode = null;
+    return;
+  }
+
+  state.accountCode = data?.account_code || null;
 }
 
 async function loadCompany() {
@@ -4377,7 +4418,7 @@ window.renameCompany = async function() {
   });
 
   if (error) {
-    await gameAlert(error.message);
+    await gameAlert(friendlyDatabaseError(error));
     return;
   }
 
@@ -4484,12 +4525,14 @@ function updateProductionProductsForSelectedBuilding() {
 
 function renderSettingsCompanyManagement() {
   const nameEl = document.getElementById('settingsCompanyName');
+  const companyIdEl = document.getElementById('settingsCompanyPublicId');
   const hintEl = document.getElementById('settingsCompanyRenameHint');
   const renameBtn = document.getElementById('renameCompanyBtn');
 
   if (!nameEl || !hintEl || !renameBtn) return;
 
   nameEl.textContent = state.company?.name || '–';
+  if (companyIdEl) companyIdEl.textContent = state.company?.company_code || '–';
 
   const availability = companyRenameAvailability();
   renameBtn.disabled = !availability.allowed;
@@ -4543,6 +4586,7 @@ function renderAll() {
 
   const companyRows = [
     `<div class="kv"><span>Name</span><strong>${c.name}</strong></div>`,
+    `<div class="kv"><span>Unternehmens-ID</span><strong class="company-public-id">${c.company_code || '–'}</strong></div>`,
     `<div class="kv"><span>Status</span><strong class="company-online-status presence-status"></strong></div>`,
     `<div class="kv"><span>Ranking</span><strong id="companyRankingValue" class="company-ranking-value"></strong></div>`,
     `<div class="kv"><span>Level</span><strong>${num(c.company_level)}</strong></div>`,
@@ -4675,7 +4719,7 @@ document.getElementById('companyForm').addEventListener('submit', async e => {
   const { error } = await sb.rpc('bootstrap_company',{
     p_name:document.getElementById('companyName').value.trim()
   });
-  msg(document.getElementById('companyMessage'), error ? error.message : 'Unternehmen gegründet.', error ? 'error' : 'success');
+  msg(document.getElementById('companyMessage'), error ? friendlyDatabaseError(error) : 'Unternehmen gegründet.', error ? 'error' : 'success');
   if (!error) await loadCompany();
 });
 
