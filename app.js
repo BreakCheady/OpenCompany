@@ -1106,8 +1106,13 @@ window.addEventListener('resize', () => {
   if (customSelectState.openSelect) positionCustomSelectMenu(customSelectState.openSelect);
 });
 
-window.addEventListener('scroll', () => {
-  if (customSelectState.openSelect) closeCustomSelect();
+window.addEventListener('scroll', event => {
+  if (!customSelectState.openSelect) return;
+
+  const menu = ensureCustomSelectMenu();
+  if (event.target === menu || menu.contains(event.target)) return;
+
+  closeCustomSelect();
 }, true);
 
 function setAccountStatus(text, type='') {
