@@ -186,14 +186,15 @@ select:focus-visible {
   min-height: 42px;
   padding: 0 18px;
   border-radius: 10px;
-  background: var(--primary);
-  border-color: var(--primary);
+  background: var(--sidebar);
+  border: 2px solid #fff;
   color: #fff;
 }
 
 .header-chat-btn:hover {
-  background: var(--primary-dark, #1559b0);
-  border-color: var(--primary-dark, #1559b0);
+  background: var(--sidebar);
+  border-color: #fff;
+  color: #fff;
 }
 
 h1, h2, h3, p { margin-top: 0; }
