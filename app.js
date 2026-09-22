@@ -136,6 +136,10 @@ const I18N_EN = {
 
 
 Object.assign(I18N_EN, {
+  'Ausbau auf Level':'Upgrade to level',
+  'Gebäude im Bau':'Building under construction',
+  'Ende':'Ends',
+  'Uhr':'',
   // Language selector itself
   'Deutsch':'German',
   'Englisch':'English',
@@ -3070,6 +3074,13 @@ function buildingJobProgress(job) {
   return end > start ? Math.max(0, Math.min(100, (Date.now()-start)/(end-start)*100)) : 0;
 }
 
+function buildingConstructionProgress(building) {
+  if (!building?.construction_started_at || !building?.construction_complete_at) return 0;
+  const start = new Date(building.construction_started_at).getTime();
+  const end = new Date(building.construction_complete_at).getTime();
+  return end > start ? Math.max(0, Math.min(100, (Date.now()-start)/(end-start)*100)) : 0;
+}
+
 function renderBuildings() {
   const slots = buildingSlotsForLevel(state.company?.company_level);
   const usedSlots = state.buildings.length;
@@ -3150,17 +3161,34 @@ function renderBuildings() {
         </div>`;
       }
 
+      let constructionHtml = '';
+      if (underConstruction) {
+        const progress = buildingConstructionProgress(building);
+        const finish = new Date(building.construction_complete_at);
+        const targetLevel = Number(building.construction_target_level || building.level || 1);
+        const isUpgrade = targetLevel > Number(building.level || 1);
+        const constructionLabel = isUpgrade
+          ? `${translateUiString('Ausbau auf Level')} ${targetLevel}`
+          : translateUiString('Gebäude im Bau');
+
+        constructionHtml = `<div class="building-card-job building-card-construction">
+          <strong>${constructionLabel}</strong>
+          <div class="building-card-progress" style="--progress:${progress}%"><span></span></div>
+          <span class="building-card-meta">${translateUiString('Ende')} ${finish.toLocaleString(uiLocale(),{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})} ${translateUiString('Uhr')}</span>
+        </div>`;
+      }
+
       let actions = '';
       if (underConstruction) {
-        actions = `<button type="button" class="ghost" onclick="event.stopPropagation();cancelBuildingConstruction('${building.id}','${bt.id}')">Bau abbrechen</button>`;
+        actions = `<button type="button" class="ghost" onclick="event.stopPropagation();cancelBuildingConstruction('${building.id}','${bt.id}')">${translateUiString('Bau abbrechen')}</button>`;
       } else if (isRetail) {
         actions = `<button type="button" onclick="event.stopPropagation();openRetailBuilding('${building.id}')">${translateUiString(inUse ? 'Verkauf öffnen' : 'Im Handel verwenden')}</button>`;
-        if (!inUse) actions += `<button type="button" class="building-upgrade-btn" onclick="event.stopPropagation();upgradeBuilding('${building.id}','${bt.id}')">Ausbauen</button>
-          <button type="button" class="building-demolish-btn" onclick="event.stopPropagation();downgradeBuilding('${building.id}','${bt.id}')">${level<=1?'Abreißen':'Abstufen'}</button>`;
+        if (!inUse) actions += `<button type="button" class="building-upgrade-btn" onclick="event.stopPropagation();upgradeBuilding('${building.id}','${bt.id}')">${translateUiString('Ausbauen')}</button>
+          <button type="button" class="building-demolish-btn" onclick="event.stopPropagation();downgradeBuilding('${building.id}','${bt.id}')">${translateUiString(level<=1?'Abreißen':'Abstufen')}</button>`;
       } else {
         actions = `<button type="button" onclick="event.stopPropagation();selectBuildingCard('${building.id}')">${translateUiString(inUse ? 'Auftrag öffnen' : 'Auswählen')}</button>`;
-        if (!inUse) actions += `<button type="button" class="building-upgrade-btn" onclick="event.stopPropagation();upgradeBuilding('${building.id}','${bt.id}')">Ausbauen</button>
-          <button type="button" class="${level<=1?'building-demolish-btn':'ghost'}" onclick="event.stopPropagation();downgradeBuilding('${building.id}','${bt.id}')">${level<=1?'Abreißen':'Abstufen'}</button>`;
+        if (!inUse) actions += `<button type="button" class="building-upgrade-btn" onclick="event.stopPropagation();upgradeBuilding('${building.id}','${bt.id}')">${translateUiString('Ausbauen')}</button>
+          <button type="button" class="${level<=1?'building-demolish-btn':'ghost'}" onclick="event.stopPropagation();downgradeBuilding('${building.id}','${bt.id}')">${translateUiString(level<=1?'Abreißen':'Abstufen')}</button>`;
       }
 
       const click = underConstruction ? '' : (isRetail ? `onclick="openRetailBuilding('${building.id}')"` : `onclick="selectBuildingCard('${building.id}')"`);
@@ -3169,8 +3197,9 @@ function renderBuildings() {
           <div class="building-card-title">${bt.name} #${number}</div>
           <div class="building-card-meta">Level ${level} · ${buildingCategoryLabel(bt.building_category)}</div>
         </div></div>
-        <span class="building-card-status ${statusClass}">${statusText}</span>
+        <span class="building-card-status ${statusClass}">${translateUiString(statusText)}</span>
         ${jobHtml}
+        ${constructionHtml}
         <div class="building-card-actions">${actions}</div>
       </div>`;
     }).filter(Boolean).join('');
