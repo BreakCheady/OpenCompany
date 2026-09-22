@@ -1301,18 +1301,17 @@ td button {
 }
 
 .finance-profit-gain {
-  background: rgba(0, 166, 60, .08) !important;
-  border: 2px solid #00a63c !important;
-  box-shadow: inset 0 0 0 1px rgba(0, 166, 60, .10);
-  color: inherit;
+  background: #f3fff5 !important;
+  border-color: #57bf75 !important;
+  box-shadow: inset 0 0 0 1px rgba(87, 191, 117, .10);
 }
 
 .finance-profit-gain span {
-  color: var(--muted) !important;
+  color: #2d8747 !important;
 }
 
 .finance-profit-gain strong {
-  color: #00a63c !important;
+  color: var(--success) !important;
 }
 
 
