@@ -7,7 +7,7 @@
   <title>OpenCompany</title>
   <link rel="icon" type="image/png" href="favicon.png">
   <link rel="shortcut icon" href="favicon.ico">
-  <link rel="stylesheet" href="style.css?v=0.10.65">
+  <link rel="stylesheet" href="style.css?v=0.10.66">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     .password-field{display:flex;align-items:center;gap:.5rem}
@@ -187,7 +187,7 @@
       .oc-select-option{min-height:46px;padding:.7rem .8rem}
     }
   
-    /* v0.10.65 – einheitliche Navigationsleiste auf Desktop und Mobile */
+    /* v0.10.66 – einheitliche Navigationsleiste auf Desktop und Mobile */
     .app-shell{
       display:block!important;
       min-height:100dvh!important;
@@ -396,6 +396,13 @@
           <article class="panel"><h2>Firmenstatus</h2><div id="companySummary" class="stack"></div></article>
           <article class="panel"><h2>Letzte Finanzbewegungen</h2><div id="recentTransactions" class="table-wrap"></div></article>
         </div>
+      </div>
+
+      <div id="company" class="view">
+        <article class="panel">
+          <h2>Unternehmen</h2>
+          <div id="companyDetails" class="table-wrap"></div>
+        </article>
       </div>
 
       <div id="production" class="view">
@@ -676,7 +683,7 @@
           <h2>Einstellungen</h2>
           <div class="kv">
             <span>Version</span>
-            <strong>0.10.65</strong>
+            <strong>0.10.66</strong>
           </div>
         </article>
 
