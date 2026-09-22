@@ -7,7 +7,7 @@
   <title>OpenCompany</title>
   <link rel="icon" type="image/png" href="favicon.png">
   <link rel="shortcut icon" href="favicon.ico">
-  <link rel="stylesheet" href="style.css?v=0.10.77">
+  <link rel="stylesheet" href="style.css?v=0.10.78">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     .password-field{display:flex;align-items:center;gap:.5rem}
@@ -202,7 +202,7 @@
       .oc-select-option{min-height:46px;padding:.7rem .8rem}
     }
   
-    /* v0.10.77 – einheitliche Navigationsleiste auf Desktop und Mobile */
+    /* v0.10.78 – einheitliche Navigationsleiste auf Desktop und Mobile */
     .app-shell{
       display:block!important;
       min-height:100dvh!important;
@@ -424,6 +424,52 @@
       box-shadow:inset 4px 0 0 #1769d2;
     }
 
+  
+    .public-leaderboard-panel{
+      margin-top:18px;
+    }
+    .public-leaderboard-head{
+      display:flex;
+      align-items:flex-start;
+      justify-content:space-between;
+      gap:16px;
+      margin-bottom:12px;
+    }
+    .public-leaderboard-head h2{
+      margin-bottom:4px;
+    }
+    .public-leaderboard-head p{
+      margin:0;
+    }
+    .public-leaderboard-date{
+      flex:0 0 auto;
+      font-size:.86rem;
+      padding-top:4px;
+    }
+    .public-leaderboard-panel table{
+      width:100%;
+    }
+    .public-leaderboard-panel th:first-child,
+    .public-leaderboard-panel td:first-child{
+      width:72px;
+      text-align:center;
+      font-weight:800;
+    }
+    .public-leaderboard-panel th:last-child,
+    .public-leaderboard-panel td:last-child{
+      text-align:right;
+      white-space:nowrap;
+    }
+    @media(max-width:720px){
+      .public-leaderboard-head{
+        display:block;
+      }
+      .public-leaderboard-date{
+        display:block;
+        margin-top:6px;
+      }
+    }
+
   </style>
 </head>
 <body>
@@ -466,6 +512,19 @@
         <form id="signupForm"><h3>Registrieren</h3><label>E-Mail<input type="email" id="signupEmail" required></label><label>Passwort<input type="password" id="signupPassword" minlength="6" required></label><button type="submit">Account erstellen</button></form>
       </div>
       <p id="authMessage" class="status"></p>
+    </section>
+
+    <section id="publicLeaderboardView" class="panel public-leaderboard-panel">
+      <div class="public-leaderboard-head">
+        <div>
+          <h2>Rangliste</h2>
+          <p class="muted">Top 100 Unternehmen nach Unternehmenswert.</p>
+        </div>
+        <span id="publicLeaderboardDate" class="muted public-leaderboard-date"></span>
+      </div>
+      <div id="publicLeaderboardTable" class="table-wrap">
+        <p class="muted">Rangliste wird geladen …</p>
+      </div>
     </section>
 
     <section id="recoveryView" class="panel auth-panel hidden">
@@ -786,7 +845,7 @@
           <h2>Einstellungen</h2>
           <div class="kv">
             <span>Version</span>
-            <strong>0.10.77</strong>
+            <strong>0.10.78</strong>
           </div>
         </article>
 

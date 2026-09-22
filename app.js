@@ -54,6 +54,7 @@ let companyValueRefreshTimer = null;
 let buildingConstructionTimer = null;
 let companyBalancePollTimer = null;
 let companyBalanceChannel = null;
+let publicLeaderboardTimer = null;
 
 const money = n => new Intl.NumberFormat('de-DE', { style:'currency', currency:'EUR', maximumFractionDigits:2 })
   .format(Number(n || 0)).replace('€','OC$');
@@ -1375,15 +1376,81 @@ function openViewFromHash() {
   if (btn && state.company) btn.click();
 }
 
+
+function escapePublicLeaderboardText(value) {
+  return String(value ?? '').replace(/[&<>"']/g, character => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;'
+  })[character]);
+}
+
+async function loadPublicLeaderboard() {
+  const table = document.getElementById('publicLeaderboardTable');
+  const date = document.getElementById('publicLeaderboardDate');
+  if (!table || !date || !sb) return;
+
+  const { data, error } = await sb.rpc('get_public_company_leaderboard');
+
+  if (error) {
+    console.error('Öffentliche Rangliste:', error);
+    table.innerHTML = '<p class="status error">Rangliste konnte nicht geladen werden.</p>';
+    date.textContent = '';
+    return;
+  }
+
+  const rows = Array.isArray(data) ? data : [];
+  if (!rows.length) {
+    table.innerHTML = '<p class="muted">Noch keine Ranglistendaten verfügbar.</p>';
+    date.textContent = '';
+    return;
+  }
+
+  table.innerHTML = `<table>
+    <thead>
+      <tr>
+        <th>Platz</th>
+        <th>Unternehmen</th>
+        <th>Unternehmenswert</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${rows.map(row => `<tr>
+        <td>#${num(row.rank)}</td>
+        <td>${escapePublicLeaderboardText(row.company_name)}</td>
+        <td>${money(row.company_value)}</td>
+      </tr>`).join('')}
+    </tbody>
+  </table>`;
+
+  const rankingDate = rows[0]?.ranking_date;
+  date.textContent = rankingDate
+    ? `Stand: ${new Date(`${rankingDate}T12:00:00`).toLocaleDateString('de-DE')}`
+    : '';
+}
+
+function startPublicLeaderboardRefresh() {
+  if (publicLeaderboardTimer) clearInterval(publicLeaderboardTimer);
+  loadPublicLeaderboard();
+  publicLeaderboardTimer = setInterval(() => {
+    if (!state.session) loadPublicLeaderboard();
+  }, 15 * 60 * 1000);
+}
+
 async function init() {
   enhanceAllCustomSelects(document);
   if (!sb) return;
+
+  startPublicLeaderboardRefresh();
 
   sb.auth.onAuthStateChange(async (event, session) => {
     if (event === 'PASSWORD_RECOVERY') {
       state.recoveringPassword = true;
       state.session = session;
       document.getElementById('authView').classList.add('hidden');
+      document.getElementById('publicLeaderboardView')?.classList.add('hidden');
       document.getElementById('gameView').classList.add('hidden');
       document.getElementById('bootstrapView').classList.add('hidden');
       document.getElementById('recoveryView').classList.remove('hidden');
@@ -1410,6 +1477,7 @@ async function handleSession(session) {
   state.session = session;
   const loggedIn = !!session;
   document.getElementById('authView').classList.toggle('hidden', loggedIn);
+  document.getElementById('publicLeaderboardView')?.classList.toggle('hidden', loggedIn);
   document.getElementById('recoveryView').classList.add('hidden');
   document.getElementById('logoutBtn').classList.toggle('hidden', !loggedIn);
   document.getElementById('sessionLabel').textContent = loggedIn ? session.user.email : 'Nicht angemeldet';
@@ -1421,6 +1489,7 @@ async function handleSession(session) {
     document.getElementById('gameView').classList.add('hidden');
     document.getElementById('bootstrapView').classList.add('hidden');
     clearCompanyLoadError();
+    loadPublicLeaderboard();
     return;
   }
   await loadCompany();
