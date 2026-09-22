@@ -6,7 +6,7 @@
   --border: #dfe6ef;
   --accent: #1976ed;
   --accent-dark: #0e63cc;
-  --danger: #c9342b;
+  --danger: #d60000;
   --success: #00a63c;
   --success-hover: #008c33;
   --sidebar: #102f52;
@@ -677,11 +677,14 @@ button:disabled {
 
 
 #productionStartBtn.production-cancel:not(:disabled) {
-  background: var(--danger);
+  background: #d60000 !important;
+  border-color: #d60000 !important;
+  color: #fff !important;
   cursor: pointer;
 }
 #productionStartBtn.production-cancel:not(:disabled):hover {
-  background: #a92b24;
+  background: #b30000 !important;
+  border-color: #b30000 !important;
 }
 
 
@@ -1298,15 +1301,18 @@ td button {
 }
 
 .finance-profit-gain {
-  background: var(--success) !important;
-  border-color: var(--success) !important;
+  background: #fff !important;
+  border-color: #e2e8ef !important;
   box-shadow: none;
-  color: #fff;
+  color: inherit;
 }
 
-.finance-profit-gain span,
+.finance-profit-gain span {
+  color: var(--muted) !important;
+}
+
 .finance-profit-gain strong {
-  color: #fff;
+  color: var(--success) !important;
 }
 
 
