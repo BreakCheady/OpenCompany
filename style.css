@@ -180,6 +180,22 @@ select:focus-visible {
 
 .topbar .muted { margin: 0; }
 
+.header-chat-btn {
+  flex: 0 0 auto;
+  min-width: 88px;
+  min-height: 42px;
+  padding: 0 18px;
+  border-radius: 10px;
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #fff;
+}
+
+.header-chat-btn:hover {
+  background: var(--primary-dark, #1559b0);
+  border-color: var(--primary-dark, #1559b0);
+}
+
 h1, h2, h3, p { margin-top: 0; }
 
 h2 {
