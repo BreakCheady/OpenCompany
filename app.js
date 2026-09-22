@@ -39,6 +39,7 @@ const state = {
   companyDirectory: [],
   companyDebt: 0,
   companyValueChange: 0,
+  valuationHistory: [],
   bondDashboard: null,
   recoveringPassword: false
 };
@@ -508,26 +509,82 @@ function companyValueChangeDisplay(currentValue, changeValue) {
   return `${amountText} (${percentageText})`;
 }
 
+function valuationMetricValue(snapshot, metric) {
+  if (!snapshot) return 0;
+  if (metric === 'storage_value') {
+    return Number(snapshot.material_value || 0) + Number(snapshot.product_value || 0);
+  }
+  return Number(snapshot[metric] || 0);
+}
+
+function dailyValuationMetricChange(metric) {
+  const latest = state.valuationHistory?.[0] || null;
+  const previous = state.valuationHistory?.[1] || null;
+  if (!latest) return { current: 0, previous: 0, change: 0 };
+
+  const current = valuationMetricValue(latest, metric);
+
+  if (previous) {
+    const previousValue = valuationMetricValue(previous, metric);
+    return { current, previous: previousValue, change: current - previousValue };
+  }
+
+  if (metric === 'company_value' && latest.previous_company_value !== null && latest.previous_company_value !== undefined) {
+    const previousValue = Number(latest.previous_company_value || 0);
+    return { current, previous: previousValue, change: current - previousValue };
+  }
+
+  return { current, previous: current, change: 0 };
+}
+
+function setDashboardMetricChange(elementId, metric, invertGoodBad = false) {
+  const element = document.getElementById(elementId);
+  if (!element) return;
+
+  const delta = dailyValuationMetricChange(metric);
+  const change = Number(delta.change || 0);
+  element.textContent = companyValueChangeDisplay(delta.current, change);
+
+  const colorChange = invertGoodBad ? -change : change;
+  element.className = `company-value-change ${
+    colorChange > 0
+      ? 'company-value-change-positive'
+      : colorChange < 0
+        ? 'company-value-change-negative'
+        : 'company-value-change-zero'
+  }`;
+}
+
+function renderDashboardValuationChanges() {
+  setDashboardMetricChange('statCashChange', 'cash_balance');
+  setDashboardMetricChange('statValueChange', 'company_value');
+  setDashboardMetricChange('statStorageChange', 'storage_value');
+  setDashboardMetricChange('statPatentChange', 'patent_value');
+  setDashboardMetricChange('statDebtChange', 'loan_debt', true);
+  setDashboardMetricChange('statBuildingChange', 'building_value');
+}
+
 async function refreshCompanyValueSnapshot() {
   if (!sb || !state.company?.id || document.visibilityState === 'hidden') return;
   const cid = state.company.id;
   const [companyResult, historyResult] = await Promise.all([
     sb.from('companies').select('company_value').eq('id',cid).single(),
-    sb.from('company_valuation_history').select('change_amount,calculated_at').eq('company_id',cid).order('valuation_date',{ascending:false}).limit(1)
+    sb.from('company_valuation_history')
+      .select('valuation_date,cash_balance,material_value,product_value,building_value,patent_value,loan_debt,company_value,previous_company_value,change_amount,calculated_at')
+      .eq('company_id',cid)
+      .order('valuation_date',{ascending:false})
+      .limit(2)
   ]);
 
   if (companyResult.error || historyResult.error) return;
+
   state.company.company_value = Number(companyResult.data?.company_value || state.company.company_value || 0);
-  state.companyValueChange = Number(historyResult.data?.[0]?.change_amount || 0);
+  state.valuationHistory = historyResult.data || [];
+  state.companyValueChange = Number(state.valuationHistory?.[0]?.change_amount || 0);
 
   const valueEl = document.getElementById('statValue');
-  const changeEl = document.getElementById('statValueChange');
   if (valueEl) valueEl.textContent = money(state.company.company_value);
-  if (changeEl) {
-    const change = state.companyValueChange;
-    changeEl.textContent = companyValueChangeDisplay(state.company.company_value, change);
-    changeEl.className = `company-value-change ${change > 0 ? 'company-value-change-positive' : change < 0 ? 'company-value-change-negative' : 'company-value-change-zero'}`;
-  }
+  renderDashboardValuationChanges();
 }
 
 function updateCompanyBalanceUI(balance) {
@@ -1404,7 +1461,7 @@ async function loadGameData() {
     sb.rpc('list_companies'),
     sb.rpc('get_company_debt', { p_company_id: cid }),
     sb.rpc('get_bond_dashboard', { p_company_id: cid }),
-    sb.from('company_valuation_history').select('valuation_date,company_value,previous_company_value,change_amount,calculated_at').eq('company_id',cid).order('valuation_date',{ascending:false}).limit(1)
+    sb.from('company_valuation_history').select('valuation_date,cash_balance,material_value,product_value,building_value,patent_value,loan_debt,company_value,previous_company_value,change_amount,calculated_at').eq('company_id',cid).order('valuation_date',{ascending:false}).limit(2)
   ]);
 
   const labels = ['Produkte','Alle Produkte','Produktlager','Materialien','Materiallager','Rezepte','Gebäudetypen','Gebäude','Produktionen','Handelsverkäufe','Finanzen','Marktorders','Marktkäufe','Verträge','Firmenverzeichnis','Kreditschulden','Anleihen','Unternehmenswert-Verlauf'];
@@ -1436,7 +1493,8 @@ async function loadGameData() {
   state.companyDirectory = directory.data || [];
   state.companyDebt = Number(companyDebt.data || 0);
   state.bondDashboard = bondDashboard.data || null;
-  state.companyValueChange = Number(valuationHistory.data?.[0]?.change_amount || 0);
+  state.valuationHistory = valuationHistory.data || [];
+  state.companyValueChange = Number(state.valuationHistory?.[0]?.change_amount || 0);
   renderAll();
 }
 
@@ -3445,6 +3503,7 @@ function renderAll() {
   const statCash = document.getElementById('statCash');
   statCash.textContent = balanceMoney(cashValue);
   statCash.classList.toggle('negative-balance', cashValue < 0);
+
   const automaticEmployees = state.buildings
     .filter(b => b.status === 'active')
     .reduce((sum, b) => {
@@ -3452,14 +3511,21 @@ function renderAll() {
       const multiplier = buildingLevelMultiplier(b.level);
       return sum + Math.round(Number(type?.employees_per_building || 0) * multiplier);
     }, 0);
+
   document.getElementById('statEmployees').textContent = `${num(automaticEmployees)} Mitarbeiter`;
   document.getElementById('statValue').textContent = money(c.company_value);
-  const statValueChange = document.getElementById('statValueChange');
-  if (statValueChange) {
-    const valueChange = Number(state.companyValueChange || 0);
-    statValueChange.textContent = companyValueChangeDisplay(c.company_value, valueChange);
-    statValueChange.className = `company-value-change ${valueChange > 0 ? 'company-value-change-positive' : valueChange < 0 ? 'company-value-change-negative' : 'company-value-change-zero'}`;
-  }
+
+  const statStorageValue = document.getElementById('statStorageValue');
+  const statPatentValue = document.getElementById('statPatentValue');
+  const statDebt = document.getElementById('statDebt');
+  const statBuildingValue = document.getElementById('statBuildingValue');
+
+  if (statStorageValue) statStorageValue.textContent = money(currentStorageValue());
+  if (statPatentValue) statPatentValue.textContent = money(Number(c.patent_value || 0));
+  if (statDebt) statDebt.textContent = money(Math.max(0, Number(state.companyDebt || 0)));
+  if (statBuildingValue) statBuildingValue.textContent = money(currentCompanyBuildingValue());
+
+  renderDashboardValuationChanges();
   renderResearch();
 
   const xpCtx = xpProgressContext(c);
