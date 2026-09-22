@@ -3180,7 +3180,7 @@ function renderBuildings() {
 
       let actions = '';
       if (underConstruction) {
-        actions = `<button type="button" class="ghost" onclick="event.stopPropagation();cancelBuildingConstruction('${building.id}','${bt.id}')">${translateUiString('Bau abbrechen')}</button>`;
+        actions = `<button type="button" style="background:#d64545!important;border-color:#d64545!important;color:#fff!important" onclick="event.stopPropagation();cancelBuildingConstruction('${building.id}','${bt.id}')">${translateUiString('Bau abbrechen')}</button>`;
       } else if (isRetail) {
         actions = `<button type="button" onclick="event.stopPropagation();openRetailBuilding('${building.id}')">${translateUiString(inUse ? 'Verkauf öffnen' : 'Im Handel verwenden')}</button>`;
         if (!inUse) actions += `<button type="button" class="building-upgrade-btn" onclick="event.stopPropagation();upgradeBuilding('${building.id}','${bt.id}')">${translateUiString('Ausbauen')}</button>
