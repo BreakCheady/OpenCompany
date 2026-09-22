@@ -1449,6 +1449,7 @@ async function init() {
     if (event === 'PASSWORD_RECOVERY') {
       state.recoveringPassword = true;
       state.session = session;
+      document.getElementById('mainNavigation')?.classList.add('hidden');
       document.getElementById('authView').classList.add('hidden');
       document.getElementById('publicLeaderboardView')?.classList.add('hidden');
       document.getElementById('gameView').classList.add('hidden');
@@ -1476,6 +1477,7 @@ async function handleSession(session) {
   if (state.recoveringPassword) return;
   state.session = session;
   const loggedIn = !!session;
+  document.getElementById('mainNavigation')?.classList.toggle('hidden', !loggedIn);
   document.getElementById('authView').classList.toggle('hidden', loggedIn);
   document.getElementById('publicLeaderboardView')?.classList.toggle('hidden', loggedIn);
   document.getElementById('recoveryView').classList.add('hidden');
