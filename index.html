@@ -7,7 +7,7 @@
   <title>OpenCompany</title>
   <link rel="icon" type="image/png" href="favicon.png">
   <link rel="shortcut icon" href="favicon.ico">
-  <link rel="stylesheet" href="style.css?v=0.10.66">
+  <link rel="stylesheet" href="style.css?v=0.10.67">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     .password-field{display:flex;align-items:center;gap:.5rem}
@@ -187,7 +187,7 @@
       .oc-select-option{min-height:46px;padding:.7rem .8rem}
     }
   
-    /* v0.10.66 – einheitliche Navigationsleiste auf Desktop und Mobile */
+    /* v0.10.67 – einheitliche Navigationsleiste auf Desktop und Mobile */
     .app-shell{
       display:block!important;
       min-height:100dvh!important;
@@ -327,6 +327,35 @@
         min-width:82px!important;
         max-width:82px;
         font-size:9px!important;
+      }
+    }
+
+  
+    .company-management-rename{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:16px;
+      padding:12px 0 18px;
+      margin-bottom:16px;
+      border-bottom:1px solid rgba(255,255,255,.08);
+    }
+    .company-management-rename > div{
+      min-width:0;
+      display:grid;
+      gap:4px;
+    }
+    .company-management-rename strong{
+      font-size:18px;
+      overflow-wrap:anywhere;
+    }
+    @media(max-width:640px){
+      .company-management-rename{
+        align-items:stretch;
+        flex-direction:column;
+      }
+      .company-management-rename button{
+        width:100%;
       }
     }
 
@@ -683,7 +712,7 @@
           <h2>Einstellungen</h2>
           <div class="kv">
             <span>Version</span>
-            <strong>0.10.66</strong>
+            <strong>0.10.67</strong>
           </div>
         </article>
 
@@ -740,6 +769,16 @@
 
         <article class="panel company-danger-zone">
           <h2>Unternehmensverwaltung</h2>
+
+          <div class="company-management-rename">
+            <div>
+              <span class="muted">Unternehmensname</span>
+              <strong id="settingsCompanyName">–</strong>
+              <p id="settingsCompanyRenameHint" class="muted company-management-note"></p>
+            </div>
+            <button type="button" id="renameCompanyBtn" class="ghost">Umbenennen</button>
+          </div>
+
           <p class="muted account-danger-note">Diese Aktionen können nicht rückgängig gemacht werden.</p>
           <div class="company-management-actions">
             <button type="button" id="resetCompanyBtn" class="company-reset-btn">Unternehmen zurücksetzen</button>

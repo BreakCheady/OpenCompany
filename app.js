@@ -3368,7 +3368,7 @@ function companyRenameAvailability() {
   return { allowed: Date.now() >= availableAt.getTime(), availableAt };
 }
 
-window.renameCompanyFromCompanyTab = async function() {
+window.renameCompany = async function() {
   const availability = companyRenameAvailability();
   if (!availability.allowed) {
     await gameAlert(`Der Firmenname kann wieder ab ${availability.availableAt.toLocaleString('de-DE')} geändert werden.`);
@@ -3396,6 +3396,7 @@ window.renameCompanyFromCompanyTab = async function() {
   if (data) state.company = data;
   await loadCompany();
 };
+window.renameCompanyFromCompanyTab = window.renameCompany;
 
 function currentStorageValue() {
   const materialValue = state.materialInventory.reduce((sum, inv) => {
@@ -3493,6 +3494,27 @@ function updateProductionProductsForSelectedBuilding() {
   else if (products.some(product => product.id === previous)) select.value = previous;
 }
 
+function renderSettingsCompanyManagement() {
+  const nameEl = document.getElementById('settingsCompanyName');
+  const hintEl = document.getElementById('settingsCompanyRenameHint');
+  const renameBtn = document.getElementById('renameCompanyBtn');
+
+  if (!nameEl || !hintEl || !renameBtn) return;
+
+  nameEl.textContent = state.company?.name || '–';
+
+  const availability = companyRenameAvailability();
+  renameBtn.disabled = !availability.allowed;
+
+  if (availability.allowed) {
+    hintEl.textContent = 'Der Unternehmensname kann geändert werden. Danach gilt erneut eine Sperre von 14 Tagen.';
+    renameBtn.title = 'Unternehmensnamen ändern';
+  } else {
+    hintEl.textContent = `Nächste Namensänderung möglich ab ${availability.availableAt.toLocaleString('de-DE')}.`;
+    renameBtn.title = hintEl.textContent;
+  }
+}
+
 function renderAll() {
   const c = state.company;
   updateFeatureLocks();
@@ -3524,6 +3546,7 @@ function renderAll() {
   if (statBuildingValue) statBuildingValue.textContent = money(currentCompanyBuildingValue());
 
   renderDashboardValuationChanges();
+  renderSettingsCompanyManagement();
   renderResearch();
 
   const xpCtx = xpProgressContext(c);
@@ -3664,6 +3687,8 @@ document.getElementById('companyForm').addEventListener('submit', async e => {
   if (!error) await loadCompany();
 });
 
+
+document.getElementById('renameCompanyBtn').addEventListener('click', () => window.renameCompany());
 
 document.getElementById('resetCompanyBtn').addEventListener('click', async () => {
   if (!state.company?.id) return;
