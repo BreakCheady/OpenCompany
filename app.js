@@ -558,7 +558,6 @@ function setDashboardMetricChange(elementId, metric, invertGoodBad = false) {
 
 function renderDashboardValuationChanges() {
   setDashboardMetricChange('statValueChange', 'company_value');
-  setDashboardMetricChange('statStorageChange', 'storage_value');
   setDashboardMetricChange('statPatentChange', 'patent_value');
   setDashboardMetricChange('statDebtChange', 'loan_debt', true);
 }
