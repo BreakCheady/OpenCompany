@@ -4567,8 +4567,22 @@ function renderStorage() {
   const bar = document.getElementById('storageCapacityBar');
   if (bar) {
     bar.style.width = `${progress}%`;
-    bar.classList.remove('storage-capacity-green','storage-capacity-yellow','storage-capacity-red');
-    bar.classList.add(usage >= 90 ? 'storage-capacity-red' : usage >= 70 ? 'storage-capacity-yellow' : 'storage-capacity-green');
+    bar.classList.remove(
+      'storage-capacity-green',
+      'storage-capacity-green-yellow',
+      'storage-capacity-yellow',
+      'storage-capacity-yellow-red',
+      'storage-capacity-red'
+    );
+
+    const capacityColorClass =
+      usage >= 90 ? 'storage-capacity-red'
+      : usage > 80 ? 'storage-capacity-yellow-red'
+      : usage >= 70 ? 'storage-capacity-yellow'
+      : usage > 55 ? 'storage-capacity-green-yellow'
+      : 'storage-capacity-green';
+
+    bar.classList.add(capacityColorClass);
   }
 
   const warnings = [];

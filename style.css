@@ -2837,7 +2837,9 @@ body.dashboard-history-open{
   transition:width .2s ease;
 }
 .storage-capacity-green{ background:#00a63c; }
+.storage-capacity-green-yellow{ background:#8fbf00; }
 .storage-capacity-yellow{ background:#e1ad01; }
+.storage-capacity-yellow-red{ background:#f97316; }
 .storage-capacity-red{ background:#d60000; }
 
 .storage-capacity-meta,
