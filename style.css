@@ -2509,3 +2509,12 @@ body.game-dialog-open { overflow: hidden; }
   border-color:var(--success-hover,#008c33)!important;
   color:#fff!important;
 }
+
+
+.market-buy-cheapest-btn:disabled{
+  background:var(--success,#00a63c)!important;
+  border-color:var(--success,#00a63c)!important;
+  color:#fff!important;
+  opacity:.45;
+  cursor:not-allowed;
+}
