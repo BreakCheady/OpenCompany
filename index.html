@@ -7,7 +7,7 @@
   <title>OpenCompany</title>
   <link rel="icon" type="image/png" href="favicon.png">
   <link rel="shortcut icon" href="favicon.ico">
-  <link rel="stylesheet" href="style.css?v=0.10.126">
+  <link rel="stylesheet" href="style.css?v=0.10.128">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     .password-field{display:flex;align-items:center;gap:.5rem}
@@ -248,7 +248,7 @@
       .oc-select-option{min-height:46px;padding:.7rem .8rem}
     }
   
-    /* v0.10.126 – einheitliche Navigationsleiste auf Desktop und Mobile */
+    /* v0.10.128 – einheitliche Navigationsleiste auf Desktop und Mobile */
     .app-shell{
       display:block!important;
       min-height:100dvh!important;
@@ -970,6 +970,9 @@
             <h2>Vertrag vorschlagen</h2>
             <p class="muted">Direkte Verträge zwischen Spielerunternehmen sind gebührenfrei.</p>
             <form id="contractForm">
+              <label>Partner suchen
+                <input id="contractPartnerSearch" type="search" autocomplete="off" placeholder="Unternehmensname oder Unternehmens-ID">
+              </label>
               <label>Partner<select id="contractPartner"></select></label>
               <label>Gut-Typ<select id="contractItemType"><option value="product">Produkt</option><option value="material">Material</option></select></label>
               <label>Gut<select id="contractItem"></select></label>
@@ -1056,7 +1059,7 @@
           <h2>Einstellungen</h2>
           <div class="kv">
             <span>Version</span>
-            <strong>0.10.126</strong>
+            <strong>0.10.128</strong>
           </div>
           <div class="kv settings-language-row">
             <span>Sprache</span>

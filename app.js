@@ -69,7 +69,7 @@ const I18N_EN = {
   'Art':'Type','Rohstoff':'Raw material','Gut':'Item','Order erstellen':'Create order','Offene Marktorders':'Open market orders',
   'Nächste Marktaktualisierung':'Next market update','Gesamtkosten':'Total cost','Kaufen':'Buy',
   'Vertrag vorschlagen':'Propose contract','Direkte Verträge zwischen Spielerunternehmen sind gebührenfrei.':'Direct contracts between player companies are fee-free.',
-  'Ich möchte':'I want to','kaufen':'buy','verkaufen':'sell','Partner':'Partner','Gut-Typ':'Item type','Material':'Material',
+  'Ich möchte':'I want to','kaufen':'buy','verkaufen':'sell','Partner':'Partner','Partner suchen':'Search partner','Unternehmensname oder Unternehmens-ID':'Company name or company ID','Kein Unternehmen gefunden':'No company found','Gut-Typ':'Item type','Material':'Material',
   'Meine Verträge':'My contracts','Produktforschung':'Product research','Forschungseinheiten im Lager':'Research units in storage',
   'Ø Einstandswert':'Ø acquisition value','Forschungseinheiten investieren':'Invest research units','Investieren':'Invest',
   'Anleihen & Kredite':'Bonds & loans','Finanzübersicht':'Financial overview','Tag':'Day','Woche':'Week','Monat':'Month',
@@ -3863,9 +3863,37 @@ function renderContracts() {
     })
   );
 
-  const others = state.companyDirectory.filter(c => c.company_type === 'player' && c.id !== cid);
-  document.getElementById('contractPartner').innerHTML = others.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+  updateContractPartnerOptions();
   updateContractGoods();
+}
+
+function updateContractPartnerOptions() {
+  const select = document.getElementById('contractPartner');
+  if (!select || !state.company?.id) return;
+
+  const search = (document.getElementById('contractPartnerSearch')?.value || '').trim().toLocaleLowerCase(uiLocale());
+  const previous = select.value;
+
+  const others = state.companyDirectory
+    .filter(c => c.company_type === 'player' && c.id !== state.company.id)
+    .filter(c => {
+      if (!search) return true;
+      const name = String(c.name || '').toLocaleLowerCase(uiLocale());
+      const companyCode = String(c.company_code || '').toLocaleLowerCase(uiLocale());
+      return name.includes(search) || companyCode.includes(search);
+    })
+    .sort((a,b) => String(a.name || '').localeCompare(String(b.name || ''), uiLocale()));
+
+  select.innerHTML = others.length
+    ? others.map(c => `<option value="${c.id}">${c.name}${c.company_code ? ` · ${c.company_code}` : ''}</option>`).join('')
+    : `<option value="">${translateUiString('Kein Unternehmen gefunden')}</option>`;
+
+  if (others.some(c => c.id === previous)) {
+    select.value = previous;
+  }
+
+  syncCustomSelect(select);
+  renderContractPreview();
 }
 
 function updateContractGoods() {
@@ -3912,7 +3940,11 @@ function contractOfferContext() {
     ? materialInventoryLots(itemId).find(l => Number(l.quality_level || 1) === quality)
     : productLot(itemId, quality);
 
-  return { type, item, lot, quality, quantity, price };
+  const referencePrice = type === 'product'
+    ? Number(lot?.average_unit_cost || 0) * 2
+    : 0;
+
+  return { type, item, lot, quality, quantity, price, referencePrice };
 }
 
 function renderContractPreview() {
@@ -3964,6 +3996,12 @@ function updateContractQualityOptions() {
 
   if (qualities.some(q => String(q) === String(previous))) {
     qualitySelect.value = previous;
+  }
+
+  const priceInput = document.getElementById('contractPrice');
+  const ctx = contractOfferContext();
+  if (priceInput && ctx.type === 'product' && ctx.referencePrice > 0) {
+    priceInput.value = ctx.referencePrice.toFixed(2);
   }
 
   renderContractPreview();
@@ -5772,10 +5810,18 @@ if (researchInvestmentForm) {
 }
 
 // Contracts
+document.getElementById('contractPartnerSearch')?.addEventListener('input', updateContractPartnerOptions);
 document.getElementById('contractPartner')?.addEventListener('change', renderContractPreview);
 document.getElementById('contractItemType')?.addEventListener('change', updateContractGoods);
 document.getElementById('contractItem')?.addEventListener('change', updateContractQualityOptions);
-document.getElementById('contractQuality')?.addEventListener('change', renderContractPreview);
+document.getElementById('contractQuality')?.addEventListener('change', () => {
+  const priceInput = document.getElementById('contractPrice');
+  const ctx = contractOfferContext();
+  if (priceInput && ctx.type === 'product' && ctx.referencePrice > 0) {
+    priceInput.value = ctx.referencePrice.toFixed(2);
+  }
+  renderContractPreview();
+});
 document.getElementById('contractQty')?.addEventListener('input', renderContractPreview);
 document.getElementById('contractPrice')?.addEventListener('input', renderContractPreview);
 
