@@ -7,7 +7,7 @@
   <title>OpenCompany</title>
   <link rel="icon" type="image/png" href="favicon.png">
   <link rel="shortcut icon" href="favicon.ico">
-  <link rel="stylesheet" href="style.css?v=0.10.124">
+  <link rel="stylesheet" href="style.css?v=0.10.125">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     .password-field{display:flex;align-items:center;gap:.5rem}
@@ -59,6 +59,14 @@
     .building-storage-actions .storage-open-building-btn{
       flex:1 1 100%;
       width:100%;
+    }
+    .storage-building-card{
+      display:flex;
+      flex-direction:column;
+    }
+    .storage-building-card .building-storage-actions{
+      margin-top:auto;
+      padding-top:1.15rem;
     }
     .building-upgrade-btn{
       background:var(--success)!important;
@@ -240,7 +248,7 @@
       .oc-select-option{min-height:46px;padding:.7rem .8rem}
     }
   
-    /* v0.10.124 – einheitliche Navigationsleiste auf Desktop und Mobile */
+    /* v0.10.125 – einheitliche Navigationsleiste auf Desktop und Mobile */
     .app-shell{
       display:block!important;
       min-height:100dvh!important;
@@ -1048,7 +1056,7 @@
           <h2>Einstellungen</h2>
           <div class="kv">
             <span>Version</span>
-            <strong>0.10.124</strong>
+            <strong>0.10.125</strong>
           </div>
           <div class="kv settings-language-row">
             <span>Sprache</span>

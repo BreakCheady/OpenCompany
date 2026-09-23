@@ -3234,7 +3234,7 @@ function renderBuildings() {
       }
 
       const click = underConstruction || isStorage ? '' : (isRetail ? `onclick="openRetailBuilding('${building.id}')"` : `onclick="selectBuildingCard('${building.id}')"`);
-      return `<div class="building-card ${selected?'selected':''} ${underConstruction?'under-construction':''}" ${click}>
+      return `<div class="building-card ${selected?'selected':''} ${underConstruction?'under-construction':''} ${isStorage?'storage-building-card':''}" ${click}>
         <div class="building-card-head"><div>
           <div class="building-card-title">${bt.name} #${number}</div>
           <div class="building-card-meta">Level ${level} · ${buildingCategoryLabel(bt.building_category)}</div>
