@@ -5733,6 +5733,7 @@ const DASHBOARD_HISTORY_METRICS = {
   },
   loan_debt: {
     label: 'Schulden',
+    theme: 'debt',
     historyValue: row => Number(row.loan_debt || 0),
     currentValue: () => Math.max(0, Number(state.companyDebt || 0))
   },
@@ -5749,7 +5750,7 @@ function dashboardHistoryDateLabel(value, withToday = false) {
   return date.toLocaleDateString(uiLocale(), { day: '2-digit', month: '2-digit' });
 }
 
-function dashboardHistorySvg(points, metricLabel) {
+function dashboardHistorySvg(points, metricLabel, metricKey) {
   if (!points.length) return `<p class="muted">${translateUiString('Keine Verlaufsdaten verfügbar.')}</p>`;
 
   const width = 760;
@@ -5795,7 +5796,11 @@ function dashboardHistorySvg(points, metricLabel) {
     const yy = y(p.value);
     const title = `${p.fullLabel}: ${money(p.value)}`;
     return `
-      <g class="dashboard-chart-point" tabindex="0" aria-label="${title}">
+      <g class="dashboard-chart-point" tabindex="0"
+         data-history-index="${i}"
+         data-history-value="${Number(p.value || 0)}"
+         data-history-label="${p.fullLabel.replace(/"/g, '&quot;')}"
+         aria-label="${title}">
         <circle cx="${xx}" cy="${yy}" r="7"></circle>
         <title>${title}</title>
       </g>
@@ -5809,7 +5814,7 @@ function dashboardHistorySvg(points, metricLabel) {
   ].join(' ');
 
   return `
-    <div class="dashboard-history-chart-scroll">
+    <div class="dashboard-history-chart-scroll ${metricKey === 'loan_debt' ? 'dashboard-history-debt' : ''}">
       <svg class="dashboard-history-svg" viewBox="0 0 ${width} ${height}" role="img" aria-label="${metricLabel}: Verlauf der letzten 7 Tage">
         ${gridLines}
         <polygon points="${areaPoints}" class="dashboard-chart-area"/>
@@ -5820,6 +5825,43 @@ function dashboardHistorySvg(points, metricLabel) {
       </svg>
     </div>
   `;
+}
+
+
+function selectDashboardHistoryPoint(point) {
+  if (!point) return;
+
+  document.querySelectorAll('#dashboardHistoryChart .dashboard-chart-point.is-selected')
+    .forEach(el => el.classList.remove('is-selected'));
+
+  point.classList.add('is-selected');
+
+  const value = Number(point.dataset.historyValue || 0);
+  const label = point.dataset.historyLabel || '';
+  const selected = document.getElementById('dashboardHistorySelected');
+  if (!selected) return;
+
+  selected.innerHTML = `
+    <span>${label}</span>
+    <strong>${money(value)}</strong>
+  `;
+  selected.classList.remove('hidden');
+}
+
+function wireDashboardHistoryPoints() {
+  document.querySelectorAll('#dashboardHistoryChart .dashboard-chart-point').forEach(point => {
+    point.addEventListener('click', event => {
+      event.stopPropagation();
+      selectDashboardHistoryPoint(point);
+    });
+
+    point.addEventListener('keydown', event => {
+      if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault();
+        selectDashboardHistoryPoint(point);
+      }
+    });
+  });
 }
 
 async function openDashboardHistory(metricKey) {
@@ -5836,6 +5878,11 @@ async function openDashboardHistory(metricKey) {
   title.textContent = label;
   subtitle.textContent = translateUiString('Entwicklung der letzten 7 Tage');
   current.innerHTML = `<span>${translateUiString('Aktueller Wert')}</span><strong>${money(config.currentValue())}</strong>`;
+  const selected = document.getElementById('dashboardHistorySelected');
+  if (selected) {
+    selected.classList.add('hidden');
+    selected.innerHTML = '';
+  }
   chart.innerHTML = `<p class="muted">${translateUiString('Verlauf wird geladen …')}</p>`;
 
   modal.classList.remove('hidden');
@@ -5880,7 +5927,8 @@ async function openDashboardHistory(metricKey) {
   }
 
   while (points.length > 7) points.shift();
-  chart.innerHTML = dashboardHistorySvg(points, label);
+  chart.innerHTML = dashboardHistorySvg(points, label, metricKey);
+  wireDashboardHistoryPoints();
 }
 
 function closeDashboardHistory() {

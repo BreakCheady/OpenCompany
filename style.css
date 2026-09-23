@@ -2729,3 +2729,61 @@ body.dashboard-history-open{
     min-width:760px;
   }
 }
+
+
+/* v0.10.118 – Punktwerte und rotes Schulden-Diagramm */
+.dashboard-history-selected{
+  display:flex;
+  align-items:baseline;
+  justify-content:space-between;
+  gap:16px;
+  padding:10px 14px;
+  margin:-4px 0 12px;
+  border:1px solid #dfe6ed;
+  border-radius:10px;
+  background:#f8fafc;
+}
+.dashboard-history-selected.hidden{
+  display:none!important;
+}
+.dashboard-history-selected span{
+  color:var(--muted);
+  font-size:13px;
+  font-weight:600;
+}
+.dashboard-history-selected strong{
+  font-size:18px;
+}
+.dashboard-chart-point{
+  cursor:pointer;
+}
+.dashboard-chart-point.is-selected circle{
+  r:9;
+  stroke-width:4;
+  filter:drop-shadow(0 0 2px rgba(0,0,0,.22));
+}
+.dashboard-history-debt .dashboard-chart-area{
+  fill:rgba(214,0,0,.24);
+}
+.dashboard-history-debt .dashboard-chart-line{
+  stroke:#d60000;
+}
+.dashboard-history-debt .dashboard-chart-point circle{
+  fill:#d60000;
+  stroke:#d60000;
+}
+.dashboard-history-debt .dashboard-chart-point:focus circle,
+.dashboard-history-debt .dashboard-chart-point.is-selected circle{
+  stroke:#8f0000;
+}
+.dashboard-history-debt .dashboard-chart-axis-line{
+  stroke:#d60000;
+}
+@media(max-width:720px){
+  .dashboard-history-selected{
+    align-items:flex-start;
+    flex-direction:column;
+    gap:3px;
+  }
+}
+
