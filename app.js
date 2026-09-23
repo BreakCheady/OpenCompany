@@ -5293,7 +5293,7 @@ function sellOrderContext() {
 
   const item = state.products.find(p => p.id === itemId);
   const lot = productLot(itemId, quality);
-  const referencePrice = Number(item?.suggested_retail_price || 0) * qualityMultiplier(quality);
+  const referencePrice = Number(lot?.average_unit_cost || 0) * 2;
   return { type, item, lot, quality, quantity, price, referencePrice };
 }
 
