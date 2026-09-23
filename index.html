@@ -7,7 +7,7 @@
   <title>OpenCompany</title>
   <link rel="icon" type="image/png" href="favicon.png">
   <link rel="shortcut icon" href="favicon.ico">
-  <link rel="stylesheet" href="style.css?v=0.10.130">
+  <link rel="stylesheet" href="style.css?v=0.10.131">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     .password-field{display:flex;align-items:center;gap:.5rem}
@@ -141,6 +141,50 @@
     .contract-accept-btn:hover{
       background:#008c33!important;
       border-color:#008c33!important;
+    }
+    .contract-partner-search-results{
+      margin-top:-.45rem;
+      margin-bottom:.8rem;
+      border:1px solid #d7e0eb;
+      border-radius:10px;
+      background:#fff;
+      overflow:hidden;
+      max-height:220px;
+      overflow-y:auto;
+    }
+    .contract-partner-search-results.hidden{
+      display:none;
+    }
+    .contract-partner-result{
+      display:block;
+      width:100%;
+      padding:.7rem .8rem;
+      border:0;
+      border-bottom:1px solid #e7edf4;
+      border-radius:0;
+      background:#fff;
+      color:inherit;
+      text-align:left;
+      cursor:pointer;
+    }
+    .contract-partner-result:last-child{
+      border-bottom:0;
+    }
+    .contract-partner-result:hover{
+      background:#f4f7fb;
+    }
+    .contract-partner-result strong{
+      display:block;
+    }
+    .contract-partner-result span{
+      display:block;
+      margin-top:.15rem;
+      font-size:.84rem;
+      color:#617087;
+    }
+    #contractPartnerDisplay[readonly]{
+      background:#f7f9fc;
+      cursor:default;
     }
     .production-building-empty{padding:1.25rem;text-align:center;border:1px dashed #b9c7d8;border-radius:12px;color:#617087}
     @media(max-width:720px){.building-card-grid{grid-template-columns:1fr}.building-overview-toolbar{display:grid;grid-template-columns:1fr 1fr}}
@@ -279,7 +323,7 @@
       .oc-select-option{min-height:46px;padding:.7rem .8rem}
     }
   
-    /* v0.10.130 – einheitliche Navigationsleiste auf Desktop und Mobile */
+    /* v0.10.131 – einheitliche Navigationsleiste auf Desktop und Mobile */
     .app-shell{
       display:block!important;
       min-height:100dvh!important;
@@ -1004,7 +1048,11 @@
               <label>Partner suchen
                 <input id="contractPartnerSearch" type="search" autocomplete="off" placeholder="Unternehmensname oder Unternehmens-ID">
               </label>
-              <label>Partner<select id="contractPartner"></select></label>
+              <div id="contractPartnerSearchResults" class="contract-partner-search-results hidden"></div>
+              <label>Partner
+                <input id="contractPartnerDisplay" type="text" readonly placeholder="Noch kein Partner ausgewählt">
+              </label>
+              <input id="contractPartner" type="hidden" value="">
               <label>Gut-Typ<select id="contractItemType"><option value="product">Produkt</option><option value="material">Material</option></select></label>
               <label>Gut<select id="contractItem"></select></label>
               <label>Qualität<select id="contractQuality"></select></label>
@@ -1097,7 +1145,7 @@
           <h2>Einstellungen</h2>
           <div class="kv">
             <span>Version</span>
-            <strong>0.10.130</strong>
+            <strong>0.10.131</strong>
           </div>
           <div class="kv settings-language-row">
             <span>Sprache</span>

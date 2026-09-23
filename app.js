@@ -69,7 +69,7 @@ const I18N_EN = {
   'Art':'Type','Rohstoff':'Raw material','Gut':'Item','Order erstellen':'Create order','Offene Marktorders':'Open market orders',
   'Nächste Marktaktualisierung':'Next market update','Gesamtkosten':'Total cost','Kaufen':'Buy',
   'Vertrag vorschlagen':'Propose contract','Direkte Verträge zwischen Spielerunternehmen sind gebührenfrei.':'Direct contracts between player companies are fee-free.',
-  'Ich möchte':'I want to','kaufen':'buy','verkaufen':'sell','Partner':'Partner','Partner suchen':'Search partner','Unternehmensname oder Unternehmens-ID':'Company name or company ID','Kein Unternehmen gefunden':'No company found','Gut-Typ':'Item type','Material':'Material',
+  'Ich möchte':'I want to','kaufen':'buy','verkaufen':'sell','Partner':'Partner','Partner suchen':'Search partner','Unternehmensname oder Unternehmens-ID':'Company name or company ID','Noch kein Partner ausgewählt':'No partner selected yet','Kein Unternehmen gefunden':'No company found','Gut-Typ':'Item type','Material':'Material',
   'Meine Verträge':'My contracts','Eingehende Verträge':'Incoming contracts','Ausgehende Verträge':'Outgoing contracts','Absender':'Sender','Empfänger':'Recipient','Kaufsumme':'Purchase total','Verkaufssumme':'Sale total','Ablehnen':'Reject','Produktforschung':'Product research','Forschungseinheiten im Lager':'Research units in storage',
   'Ø Einstandswert':'Ø acquisition value','Forschungseinheiten investieren':'Invest research units','Investieren':'Invest',
   'Anleihen & Kredite':'Bonds & loans','Finanzübersicht':'Financial overview','Tag':'Day','Woche':'Week','Monat':'Month',
@@ -3901,31 +3901,79 @@ function renderContracts() {
 }
 
 function updateContractPartnerOptions() {
-  const select = document.getElementById('contractPartner');
-  if (!select || !state.company?.id) return;
+  const hiddenInput = document.getElementById('contractPartner');
+  const searchInput = document.getElementById('contractPartnerSearch');
+  const displayInput = document.getElementById('contractPartnerDisplay');
+  const resultsBox = document.getElementById('contractPartnerSearchResults');
+  if (!hiddenInput || !searchInput || !displayInput || !resultsBox || !state.company?.id) return;
 
-  const search = (document.getElementById('contractPartnerSearch')?.value || '').trim().toLocaleLowerCase(uiLocale());
-  const previous = select.value;
+  const currentPartner = state.companyDirectory.find(c =>
+    c.id === hiddenInput.value &&
+    c.company_type === 'player' &&
+    c.id !== state.company.id
+  );
 
-  const others = state.companyDirectory
+  if (currentPartner) {
+    displayInput.value = `${currentPartner.name}${currentPartner.company_code ? ` · ${currentPartner.company_code}` : ''}`;
+  } else {
+    hiddenInput.value = '';
+    displayInput.value = '';
+  }
+
+  const search = searchInput.value.trim().toLocaleLowerCase(uiLocale());
+  if (!search) {
+    resultsBox.innerHTML = '';
+    resultsBox.classList.add('hidden');
+    return;
+  }
+
+  const matches = state.companyDirectory
     .filter(c => c.company_type === 'player' && c.id !== state.company.id)
     .filter(c => {
-      if (!search) return true;
       const name = String(c.name || '').toLocaleLowerCase(uiLocale());
       const companyCode = String(c.company_code || '').toLocaleLowerCase(uiLocale());
       return name.includes(search) || companyCode.includes(search);
     })
-    .sort((a,b) => String(a.name || '').localeCompare(String(b.name || ''), uiLocale()));
+    .sort((a,b) => String(a.name || '').localeCompare(String(b.name || ''), uiLocale()))
+    .slice(0, 12);
 
-  select.innerHTML = others.length
-    ? others.map(c => `<option value="${c.id}">${c.name}${c.company_code ? ` · ${c.company_code}` : ''}</option>`).join('')
-    : `<option value="">${translateUiString('Kein Unternehmen gefunden')}</option>`;
-
-  if (others.some(c => c.id === previous)) {
-    select.value = previous;
+  if (!matches.length) {
+    resultsBox.innerHTML = `<div class="contract-partner-result"><strong>${translateUiString('Kein Unternehmen gefunden')}</strong></div>`;
+    resultsBox.classList.remove('hidden');
+    return;
   }
 
-  syncCustomSelect(select);
+  resultsBox.innerHTML = matches.map(c => `
+    <button type="button" class="contract-partner-result" data-company-id="${c.id}">
+      <strong>${c.name}</strong>
+      <span>${c.company_code || ''}</span>
+    </button>
+  `).join('');
+
+  resultsBox.classList.remove('hidden');
+}
+
+function selectContractPartner(companyId) {
+  const company = state.companyDirectory.find(c =>
+    c.id === companyId &&
+    c.company_type === 'player' &&
+    c.id !== state.company?.id
+  );
+  if (!company) return;
+
+  const hiddenInput = document.getElementById('contractPartner');
+  const searchInput = document.getElementById('contractPartnerSearch');
+  const displayInput = document.getElementById('contractPartnerDisplay');
+  const resultsBox = document.getElementById('contractPartnerSearchResults');
+
+  if (hiddenInput) hiddenInput.value = company.id;
+  if (displayInput) displayInput.value = `${company.name}${company.company_code ? ` · ${company.company_code}` : ''}`;
+  if (searchInput) searchInput.value = `${company.name}${company.company_code ? ` · ${company.company_code}` : ''}`;
+  if (resultsBox) {
+    resultsBox.innerHTML = '';
+    resultsBox.classList.add('hidden');
+  }
+
   renderContractPreview();
 }
 
@@ -5843,8 +5891,18 @@ if (researchInvestmentForm) {
 }
 
 // Contracts
-document.getElementById('contractPartnerSearch')?.addEventListener('input', updateContractPartnerOptions);
-document.getElementById('contractPartner')?.addEventListener('change', renderContractPreview);
+document.getElementById('contractPartnerSearch')?.addEventListener('input', () => {
+  const hiddenInput = document.getElementById('contractPartner');
+  const displayInput = document.getElementById('contractPartnerDisplay');
+  if (hiddenInput) hiddenInput.value = '';
+  if (displayInput) displayInput.value = '';
+  updateContractPartnerOptions();
+});
+document.getElementById('contractPartnerSearchResults')?.addEventListener('click', event => {
+  const button = event.target.closest('.contract-partner-result[data-company-id]');
+  if (!button) return;
+  selectContractPartner(button.dataset.companyId);
+});
 document.getElementById('contractItemType')?.addEventListener('change', updateContractGoods);
 document.getElementById('contractItem')?.addEventListener('change', updateContractQualityOptions);
 document.getElementById('contractQuality')?.addEventListener('change', () => {
@@ -5861,7 +5919,7 @@ document.getElementById('contractPrice')?.addEventListener('input', renderContra
 document.getElementById('contractForm').addEventListener('submit',async e=>{
   e.preventDefault();
   const partner=document.getElementById('contractPartner').value;
-  if(!partner) { gameAlert('Es gibt noch kein anderes Spielerunternehmen für einen Vertrag.'); return; }
+  if(!partner) { gameAlert('Bitte wähle zuerst über die Partnersuche ein Unternehmen aus.'); return; }
 
   const type=document.getElementById('contractItemType').value;
   const item=document.getElementById('contractItem').value;
