@@ -7,7 +7,7 @@
   <title>OpenCompany</title>
   <link rel="icon" type="image/png" href="favicon.png">
   <link rel="shortcut icon" href="favicon.ico">
-  <link rel="stylesheet" href="style.css?v=0.10.141">
+  <link rel="stylesheet" href="style.css?v=0.10.142">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     .password-field{display:flex;align-items:center;gap:.5rem}
@@ -198,6 +198,169 @@
       background:#2563eb!important;
       border-color:#2563eb!important;
       color:#fff!important;
+    }
+
+    .encyclopedia-help-btn{
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      width:24px;
+      height:24px;
+      margin-left:.35rem;
+      padding:0;
+      border:1px solid #b8c7d9;
+      border-radius:999px;
+      background:#fff;
+      color:#334155;
+      font-size:.8rem;
+      font-weight:800;
+      line-height:1;
+      vertical-align:middle;
+      cursor:pointer;
+    }
+    .encyclopedia-help-btn:hover{
+      background:#eef4fb;
+      border-color:#8aa6c4;
+    }
+    .encyclopedia-layout{
+      display:grid;
+      grid-template-columns:minmax(260px,340px) minmax(0,1fr);
+      gap:1rem;
+      align-items:start;
+    }
+    .encyclopedia-sidebar{
+      position:sticky;
+      top:1rem;
+    }
+    .encyclopedia-sidebar h2{
+      margin-bottom:.8rem;
+    }
+    .encyclopedia-categories{
+      display:flex;
+      gap:.4rem;
+      flex-wrap:wrap;
+      margin:.8rem 0;
+    }
+    .encyclopedia-category-btn{
+      width:auto;
+      padding:.42rem .68rem;
+      border-radius:999px;
+      background:#f4f7fb;
+      border:1px solid #d8e1ec;
+      color:#334155;
+      font-size:.85rem;
+      font-weight:700;
+    }
+    .encyclopedia-category-btn.active{
+      background:#2563eb;
+      border-color:#2563eb;
+      color:#fff;
+    }
+    .encyclopedia-article-list{
+      display:flex;
+      flex-direction:column;
+      border:1px solid #dfe6ef;
+      border-radius:10px;
+      overflow:hidden;
+      max-height:58vh;
+      overflow-y:auto;
+    }
+    .encyclopedia-list-item{
+      width:100%;
+      padding:.7rem .8rem;
+      border:0;
+      border-bottom:1px solid #e7edf4;
+      border-radius:0;
+      background:#fff;
+      color:inherit;
+      text-align:left;
+      cursor:pointer;
+    }
+    .encyclopedia-list-item:last-child{
+      border-bottom:0;
+    }
+    .encyclopedia-list-item:hover{
+      background:#f7f9fc;
+    }
+    .encyclopedia-list-item.active{
+      background:#eaf4ff;
+      box-shadow:inset 4px 0 0 #2563eb;
+    }
+    .encyclopedia-list-item strong{
+      display:block;
+    }
+    .encyclopedia-list-item span{
+      display:block;
+      margin-top:.15rem;
+      color:#617087;
+      font-size:.82rem;
+    }
+    .encyclopedia-content{
+      min-height:520px;
+    }
+    .encyclopedia-article-header{
+      padding-bottom:.9rem;
+      margin-bottom:1rem;
+      border-bottom:1px solid #e2e8f0;
+    }
+    .encyclopedia-article-header h2{
+      margin-bottom:.35rem;
+    }
+    .encyclopedia-article-category{
+      display:inline-block;
+      padding:.28rem .55rem;
+      border-radius:999px;
+      background:#eef4fb;
+      color:#334155;
+      font-size:.82rem;
+      font-weight:700;
+    }
+    .encyclopedia-article-body{
+      line-height:1.65;
+    }
+    .encyclopedia-article-body h3{
+      margin:1.2rem 0 .45rem;
+    }
+    .encyclopedia-article-body p{
+      margin:.45rem 0;
+    }
+    .encyclopedia-article-body ul{
+      margin:.45rem 0 .8rem 1.2rem;
+    }
+    .encyclopedia-article-actions{
+      display:flex;
+      gap:.6rem;
+      flex-wrap:wrap;
+      margin-top:1.2rem;
+      padding-top:1rem;
+      border-top:1px solid #e2e8f0;
+    }
+    .encyclopedia-related{
+      margin-top:1.2rem;
+    }
+    .encyclopedia-related-links{
+      display:flex;
+      gap:.45rem;
+      flex-wrap:wrap;
+      margin-top:.55rem;
+    }
+    .encyclopedia-related-links button{
+      width:auto;
+    }
+    .encyclopedia-empty{
+      padding:1rem;
+      color:#617087;
+    }
+    @media(max-width:900px){
+      .encyclopedia-layout{
+        grid-template-columns:1fr;
+      }
+      .encyclopedia-sidebar{
+        position:static;
+      }
+      .encyclopedia-article-list{
+        max-height:320px;
+      }
     }
 
     .finance-movements{
@@ -434,7 +597,7 @@
       .oc-select-option{min-height:46px;padding:.7rem .8rem}
     }
   
-    /* v0.10.141 – einheitliche Navigationsleiste auf Desktop und Mobile */
+    /* v0.10.142 – einheitliche Navigationsleiste auf Desktop und Mobile */
     .app-shell{
       display:block!important;
       min-height:100dvh!important;
@@ -857,6 +1020,7 @@
       <button class="nav-item" data-view="contracts">Verträge</button>
       <button class="nav-item" data-view="finance">Finanzen</button>
       <button class="nav-item" data-view="research">Forschung</button>
+      <button class="nav-item" data-view="encyclopedia">Enzyklopädie</button>
       <button class="nav-item" data-view="settings">Einstellungen</button>
       <button id="logoutBtn" class="nav-item nav-logout" type="button" aria-label="Abmelden" title="Abmelden">Abmelden</button>
     </nav>
@@ -972,7 +1136,7 @@
         <article class="panel">
           <div class="panel-head building-panel-head">
             <div>
-              <h2>Gebäude</h2>
+              <h2>Gebäude <button type="button" class="encyclopedia-help-btn" onclick="openEncyclopediaArticle('buildings')" aria-label="Hilfe zu Gebäuden" title="Enzyklopädie öffnen">?</button></h2>
               <p class="muted">Wähle ein konkretes Gebäude aus. Produktion und Handelsverkauf werden direkt diesem Gebäude zugeordnet.</p>
             </div>
           </div>
@@ -1128,7 +1292,7 @@
         <article class="panel">
           <div class="panel-head market-orders-head">
             <div>
-              <h2>Offene Marktorders</h2>
+              <h2>Offene Marktorders <button type="button" class="encyclopedia-help-btn" onclick="openEncyclopediaArticle('market')" aria-label="Hilfe zur Warenbörse" title="Enzyklopädie öffnen">?</button></h2>
               <div class="kv">
                 <span>Nächste Marktaktualisierung</span>
                 <strong id="marketRefreshTimer">–</strong>
@@ -1173,7 +1337,7 @@
       <div id="contracts" class="view">
         <div class="grid two">
           <article class="panel">
-            <h2>Vertrag vorschlagen</h2>
+            <h2>Vertrag vorschlagen <button type="button" class="encyclopedia-help-btn" onclick="openEncyclopediaArticle('contracts')" aria-label="Hilfe zu Verträgen" title="Enzyklopädie öffnen">?</button></h2>
             <p class="muted">Direkte Verträge zwischen Spielerunternehmen sind gebührenfrei.</p>
             <form id="contractForm">
               <label>Partner suchen
@@ -1210,7 +1374,7 @@
 
       <div id="research" class="view">
         <article class="panel">
-          <h2>Produktforschung</h2>
+          <h2>Produktforschung <button type="button" class="encyclopedia-help-btn" onclick="openEncyclopediaArticle('research')" aria-label="Hilfe zur Forschung" title="Enzyklopädie öffnen">?</button></h2>
 
           <div class="research-overview">
             <div class="kv"><span>Forschungseinheiten im Lager</span><strong id="researchUnitsAvailable">0</strong></div>
@@ -1240,7 +1404,7 @@
         <article class="panel bond-finance-panel">
           <div class="panel-head">
             <div>
-              <h2>Anleihen &amp; Kredite</h2>
+              <h2>Anleihen &amp; Kredite <button type="button" class="encyclopedia-help-btn" onclick="openEncyclopediaArticle('bonds')" aria-label="Hilfe zu Anleihen" title="Enzyklopädie öffnen">?</button></h2>
             </div>
           </div>
           <div id="bondFinanceContent"></div>
@@ -1250,7 +1414,7 @@
           <article class="panel finance-overview-panel">
             <div class="panel-head finance-head">
               <div>
-                <h2>Finanzübersicht</h2>
+                <h2>Finanzübersicht <button type="button" class="encyclopedia-help-btn" onclick="openEncyclopediaArticle('finance')" aria-label="Hilfe zu Finanzen" title="Enzyklopädie öffnen">?</button></h2>
               </div>
             </div>
             <div class="finance-period-navigation">
@@ -1272,12 +1436,28 @@
         </div>
       </div>
 
+      <div id="encyclopedia" class="view">
+        <div class="encyclopedia-layout">
+          <aside class="panel encyclopedia-sidebar">
+            <h2>Enzyklopädie</h2>
+            <label>Suche
+              <input id="encyclopediaSearch" type="search" autocomplete="off" placeholder="Begriff oder Spielmechanik suchen">
+            </label>
+            <div id="encyclopediaCategories" class="encyclopedia-categories"></div>
+            <div id="encyclopediaArticleList" class="encyclopedia-article-list"></div>
+          </aside>
+          <article class="panel encyclopedia-content">
+            <div id="encyclopediaArticle"></div>
+          </article>
+        </div>
+      </div>
+
       <div id="settings" class="view">
         <article class="panel">
           <h2>Einstellungen</h2>
           <div class="kv">
             <span>Version</span>
-            <strong>0.10.141</strong>
+            <strong>0.10.142</strong>
           </div>
           <div class="kv settings-language-row">
             <span>Sprache</span>
