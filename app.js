@@ -274,6 +274,9 @@ Object.assign(I18N_EN, {
   'Unternehmens-ID':'Company ID',
   'Dieser Unternehmensname wurde bereits verwendet':'This company name has already been used',
   'Produktionskosten':'Production costs',
+  'Einstandskosten':'Acquisition costs',
+  'Erlös':'Revenue',
+  'Verfügbarer Bestand':'Available stock',
 
   'Bereits verkauft':'Already sold',
   'Referenzpreis':'Reference price',
@@ -3787,79 +3790,104 @@ function renderContracts() {
 }
 
 function updateContractGoods() {
-  const role = document.getElementById('contractRole').value;
-  const partnerId = document.getElementById('contractPartner').value;
-  const type = document.getElementById('contractItemType').value;
+  const type = document.getElementById('contractItemType')?.value || 'product';
   const itemSelect = document.getElementById('contractItem');
+  if (!itemSelect) return;
+
   let opts = [];
 
   if (type === 'material') {
-    const materials = role === 'sell'
-      ? state.materials.filter(material =>
-          state.materialInventory.some(inv =>
-            inv.material_id === material.id && Number(inv.quantity || 0) > 0
-          )
+    opts = state.materials
+      .filter(material =>
+        state.materialInventory.some(inv =>
+          inv.material_id === material.id && Number(inv.quantity || 0) > 0
         )
-      : state.materials;
-
-    opts = materials
+      )
       .sort((a,b)=>a.name.localeCompare(b.name,uiLocale()))
       .map(m => `<option value="${m.id}">${m.name}</option>`);
-  } else if (role === 'sell') {
-    opts = stockedProducts()
-      .sort((a,b)=>a.name.localeCompare(b.name,uiLocale()))
-      .map(p => `<option value="${p.id}">${p.name}</option>`);
   } else {
-    const visibleKeys = operationalProductIdentitySet();
-    opts = state.allProducts
-      .filter(p => p.company_id === partnerId && visibleKeys.has(`${p.name}::${p.category}`))
+    opts = stockedProducts()
       .sort((a,b)=>a.name.localeCompare(b.name,uiLocale()))
       .map(p => `<option value="${p.id}">${p.name}</option>`);
   }
 
   itemSelect.innerHTML = opts.length
     ? opts.join('')
-    : `<option value="">${role === 'sell' ? 'Keine passenden Bestände im Lager' : 'Keine passenden Produkte verfügbar'}</option>`;
+    : '<option value="">Keine passenden Bestände im Lager</option>';
 
   updateContractQualityOptions();
 }
 
+function contractOfferContext() {
+  const type = document.getElementById('contractItemType')?.value || 'product';
+  const itemId = document.getElementById('contractItem')?.value;
+  const quality = Number(document.getElementById('contractQuality')?.value || 1);
+  const quantity = Math.max(0, Number(document.getElementById('contractQty')?.value || 0));
+  const price = Math.max(0, Number(document.getElementById('contractPrice')?.value || 0));
+
+  const item = type === 'material'
+    ? state.materials.find(m => m.id === itemId)
+    : state.products.find(p => p.id === itemId);
+
+  const lot = type === 'material'
+    ? materialInventoryLots(itemId).find(l => Number(l.quality_level || 1) === quality)
+    : productLot(itemId, quality);
+
+  return { type, item, lot, quality, quantity, price };
+}
+
+function renderContractPreview() {
+  const preview = document.getElementById('contractPreview');
+  if (!preview) return;
+
+  const ctx = contractOfferContext();
+  if (!ctx.item || !ctx.lot) {
+    preview.innerHTML = '<p class="muted">Kein passender Lagerbestand für einen Vertrag vorhanden.</p>';
+    return;
+  }
+
+  const available = Number(ctx.lot.quantity || 0);
+  const unitCost = Number(ctx.lot.average_unit_cost || 0);
+  const totalCost = ctx.quantity * unitCost;
+  const revenue = ctx.quantity * ctx.price;
+  const profit = revenue - totalCost;
+  const costLabel = ctx.type === 'material' ? 'Einstandskosten' : 'Produktionskosten';
+  const profitClass = profit >= 0 ? 'retail-revenue-positive' : 'retail-cancel-fee';
+
+  preview.innerHTML = `
+    <div class="kv"><span>Verfügbarer Bestand</span><strong>${num(available)}</strong></div>
+    <div class="kv"><span>${translateUiString(costLabel)}</span><strong class="retail-cancel-fee">${totalCost > 0 ? `-${money(totalCost)}` : money(0)}</strong></div>
+    <div class="kv"><span>${translateUiString('Erlös')}</span><strong class="retail-revenue-positive">${money(revenue)}</strong></div>
+    <div class="kv"><span>${translateUiString('Gewinn / Verlust')}</span><strong class="${profitClass}">${profit >= 0 ? '+' : '-'}${money(Math.abs(profit))}</strong></div>
+  `;
+}
+
 function updateContractQualityOptions() {
-  const role = document.getElementById('contractRole')?.value;
   const type = document.getElementById('contractItemType')?.value;
   const itemId = document.getElementById('contractItem')?.value;
   const qualitySelect = document.getElementById('contractQuality');
   if (!qualitySelect) return;
 
   const previous = qualitySelect.value;
+  const lots = type === 'material'
+    ? materialInventoryLots(itemId)
+    : productInventoryLots(itemId);
 
-  if (role === 'sell' && itemId) {
-    const lots = type === 'material'
-      ? materialInventoryLots(itemId)
-      : productInventoryLots(itemId);
+  const qualities = [...new Set(
+    lots
+      .filter(lot => Number(lot.quantity || 0) > 0)
+      .map(lot => Number(lot.quality_level || 1))
+  )].sort((a,b)=>a-b);
 
-    const qualities = [...new Set(
-      lots
-        .filter(lot => Number(lot.quantity || 0) > 0)
-        .map(lot => Number(lot.quality_level || 1))
-    )].sort((a,b)=>a-b);
+  qualitySelect.innerHTML = qualities.length
+    ? qualities.map(q => `<option value="${q}">Q${q}</option>`).join('')
+    : '<option value="">Keine Qualität auf Lager</option>';
 
-    qualitySelect.innerHTML = qualities.length
-      ? qualities.map(q => `<option value="${q}">Q${q}</option>`).join('')
-      : '<option value="">Keine Qualität auf Lager</option>';
-
-    if (qualities.some(q => String(q) === String(previous))) {
-      qualitySelect.value = previous;
-    }
-    return;
-  }
-
-  qualitySelect.innerHTML = [1,2,3,4,5,6]
-    .map(q => `<option value="${q}">Q${q}</option>`)
-    .join('');
-  if ([1,2,3,4,5,6].some(q => String(q) === String(previous))) {
+  if (qualities.some(q => String(q) === String(previous))) {
     qualitySelect.value = previous;
   }
+
+  renderContractPreview();
 }
 
 
@@ -5101,13 +5129,19 @@ function renderSellOrderPreview() {
   const gross = ctx.quantity * ctx.price;
   const fee = gross * 0.05;
   const net = gross - fee;
-  const withinNpcLimit = ctx.referencePrice > 0 && ctx.price > 0 && ctx.price <= ctx.referencePrice + 1e-9;
+  const unitCost = Number(ctx.lot?.average_unit_cost || 0);
+  const totalCost = ctx.quantity * unitCost;
+  const profit = net - totalCost;
+  const costLabel = ctx.type === 'material' ? 'Einstandskosten' : 'Produktionskosten';
+  const profitClass = profit >= 0 ? 'retail-revenue-positive' : 'retail-cancel-fee';
 
   preview.innerHTML = `
     <div class="kv"><span>Gewählter Orderpreis</span><strong>${money(ctx.price)} / Einheit</strong></div>
     <div class="kv"><span>Bruttoerlös</span><strong>${money(gross)}</strong></div>
+    <div class="kv"><span>${translateUiString(costLabel)}</span><strong class="retail-cancel-fee">${totalCost > 0 ? `-${money(totalCost)}` : money(0)}</strong></div>
     <div class="kv"><span>Marktgebühr (5%)</span><strong class="retail-cancel-fee">${fee > 0 ? `-${money(fee)}` : money(0)}</strong></div>
     <div class="kv"><span>Nettoerlös</span><strong class="retail-revenue-positive">${money(net)}</strong></div>
+    <div class="kv"><span>${translateUiString('Gewinn / Verlust')}</span><strong class="${profitClass}">${profit >= 0 ? '+' : '-'}${money(Math.abs(profit))}</strong></div>
   `;
 }
 
@@ -5557,30 +5591,44 @@ if (researchInvestmentForm) {
 }
 
 // Contracts
-['contractRole','contractPartner','contractItemType'].forEach(id => document.getElementById(id).addEventListener('change',updateContractGoods));
+document.getElementById('contractPartner')?.addEventListener('change', renderContractPreview);
+document.getElementById('contractItemType')?.addEventListener('change', updateContractGoods);
 document.getElementById('contractItem')?.addEventListener('change', updateContractQualityOptions);
+document.getElementById('contractQuality')?.addEventListener('change', renderContractPreview);
+document.getElementById('contractQty')?.addEventListener('input', renderContractPreview);
+document.getElementById('contractPrice')?.addEventListener('input', renderContractPreview);
+
 document.getElementById('contractForm').addEventListener('submit',async e=>{
   e.preventDefault();
-  const role=document.getElementById('contractRole').value;
   const partner=document.getElementById('contractPartner').value;
   if(!partner) { gameAlert('Es gibt noch kein anderes Spielerunternehmen für einen Vertrag.'); return; }
+
   const type=document.getElementById('contractItemType').value;
   const item=document.getElementById('contractItem').value;
   if(!item) {
-    gameAlert(role==='sell' ? 'Für diesen Verkauf ist kein passender Lagerbestand vorhanden.' : 'Bitte wähle ein Gut aus.');
+    gameAlert('Für diesen Verkauf ist kein passender Lagerbestand vorhanden.');
     return;
   }
-  const seller=role==='sell' ? state.company.id : partner;
-  const buyer=role==='sell' ? partner : state.company.id;
+
+  const ctx = contractOfferContext();
+  if (!ctx.lot || Number(ctx.lot.quantity || 0) <= 0) {
+    gameAlert('Für diesen Verkauf ist kein passender Lagerbestand vorhanden.');
+    return;
+  }
+  if (ctx.quantity <= 0 || ctx.quantity > Number(ctx.lot.quantity || 0)) {
+    gameAlert(`Die Vertragsmenge darf höchstens ${num(ctx.lot.quantity || 0)} betragen.`);
+    return;
+  }
+
   const { error }=await sb.rpc('create_contract_quality',{
     p_proposer_company_id:state.company.id,
-    p_seller_company_id:seller,
-    p_buyer_company_id:buyer,
+    p_seller_company_id:state.company.id,
+    p_buyer_company_id:partner,
     p_product_id:type==='product' ? item : null,
     p_material_id:type==='material' ? item : null,
-    p_quality:Number(document.getElementById('contractQuality').value || 1),
-    p_quantity:Number(document.getElementById('contractQty').value),
-    p_unit_price:Number(document.getElementById('contractPrice').value)
+    p_quality:ctx.quality,
+    p_quantity:ctx.quantity,
+    p_unit_price:ctx.price
   });
   if(error) gameAlert(error.message); else await loadCompany();
 });

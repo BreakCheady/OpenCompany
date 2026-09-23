@@ -2496,3 +2496,16 @@ body.game-dialog-open { overflow: hidden; }
 .badge.order-status-filled * {
   color: #fff !important;
 }
+
+
+/* v0.10.110 – einheitlicher grüner Kaufen-Button */
+.market-buy-cheapest-btn:not(:disabled){
+  background:var(--success,#00a63c)!important;
+  border-color:var(--success,#00a63c)!important;
+  color:#fff!important;
+}
+.market-buy-cheapest-btn:not(:disabled):hover{
+  background:var(--success-hover,#008c33)!important;
+  border-color:var(--success-hover,#008c33)!important;
+  color:#fff!important;
+}

@@ -7,7 +7,7 @@
   <title>OpenCompany</title>
   <link rel="icon" type="image/png" href="favicon.png">
   <link rel="shortcut icon" href="favicon.ico">
-  <link rel="stylesheet" href="style.css?v=0.10.109">
+  <link rel="stylesheet" href="style.css?v=0.10.110">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     .password-field{display:flex;align-items:center;gap:.5rem}
@@ -212,7 +212,7 @@
       .oc-select-option{min-height:46px;padding:.7rem .8rem}
     }
   
-    /* v0.10.109 – einheitliche Navigationsleiste auf Desktop und Mobile */
+    /* v0.10.110 – einheitliche Navigationsleiste auf Desktop und Mobile */
     .app-shell{
       display:block!important;
       min-height:100dvh!important;
@@ -898,15 +898,15 @@
             <h2>Vertrag vorschlagen</h2>
             <p class="muted">Direkte Verträge zwischen Spielerunternehmen sind gebührenfrei.</p>
             <form id="contractForm">
-              <label>Ich möchte<select id="contractRole"><option value="buy">kaufen</option><option value="sell">verkaufen</option></select></label>
               <label>Partner<select id="contractPartner"></select></label>
               <label>Gut-Typ<select id="contractItemType"><option value="product">Produkt</option><option value="material">Material</option></select></label>
               <label>Gut<select id="contractItem"></select></label>
-              <label>Qualität<select id="contractQuality"><option value="1">Q1</option><option value="2">Q2</option><option value="3">Q3</option><option value="4">Q4</option><option value="5">Q5</option><option value="6">Q6</option></select></label>
+              <label>Qualität<select id="contractQuality"></select></label>
               <label>Menge<input id="contractQty" type="number" min="0.01" step="0.01" value="10" required></label>
               <label>Preis je Einheit<input id="contractPrice" type="number" min="0.01" step="0.01" value="100" required></label>
               <button type="submit">Vertrag vorschlagen</button>
             </form>
+            <div id="contractPreview" class="retail-sale-details"></div>
           </article>
           <article class="panel">
             <h2>Meine Verträge</h2>
@@ -984,7 +984,7 @@
           <h2>Einstellungen</h2>
           <div class="kv">
             <span>Version</span>
-            <strong>0.10.109</strong>
+            <strong>0.10.110</strong>
           </div>
           <div class="kv settings-language-row">
             <span>Sprache</span>
