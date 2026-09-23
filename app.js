@@ -256,7 +256,7 @@ Object.assign(I18N_EN, {
   'Bitte zuerst E-Mail eingeben.':'Please enter your email first.',
   'Passwort-Link wurde versendet.':'Password reset link has been sent.',
   'Letzte Bestätigung: Unternehmensfortschritt jetzt vollständig zurücksetzen?':'Final confirmation: completely reset company progress now?',
-  'Unternehmen wurde zurückgesetzt. Du startest wieder mit 50.000 OC$.':'Company has been reset. You start again with 50,000 OC$.',
+  'Unternehmen wurde zurückgesetzt. Du startest wieder mit 100.000 OC$.':'Company has been reset. You start again with 100,000 OC$.',
   'Zur Bestätigung bitte LÖSCHEN eingeben:':'Type DELETE to confirm:',
   'LÖSCHEN':'DELETE',
   'Löschen abgebrochen. Bestätigung war nicht korrekt.':'Deletion cancelled. Confirmation was incorrect.',
@@ -5263,7 +5263,7 @@ document.getElementById('resetCompanyBtn').addEventListener('click', async () =>
   }
 
   await loadCompany();
-  gameAlert('Unternehmen wurde zurückgesetzt. Du startest wieder mit 50.000 OC$.');
+  gameAlert('Unternehmen wurde zurückgesetzt. Du startest wieder mit 100.000 OC$.');
 });
 
 document.getElementById('deleteCompanyBtn').addEventListener('click', async () => {
