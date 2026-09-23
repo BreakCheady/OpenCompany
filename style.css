@@ -2674,8 +2674,7 @@ body.dashboard-history-open{
   }
 }
 
-
-/* v0.10.115 – sichtbare Tagespunkte und exakte Werte */
+/* v0.10.116 – klares Liniendiagramm mit sichtbaren Datenpunkten */
 .dashboard-history-chart{
   overflow:visible;
 }
@@ -2683,49 +2682,22 @@ body.dashboard-history-open{
   width:100%;
   overflow-x:auto;
 }
+.dashboard-chart-line{
+  stroke:var(--primary);
+  stroke-width:3;
+  stroke-linecap:round;
+  stroke-linejoin:round;
+}
 .dashboard-chart-point circle{
   fill:#fff;
   stroke:var(--primary);
-  stroke-width:3;
+  stroke-width:4;
 }
-.dashboard-chart-value{
-  fill:#24364a;
-  font-size:10px;
-  font-weight:700;
-  paint-order:stroke;
-  stroke:#fff;
-  stroke-width:3px;
-  stroke-linejoin:round;
-}
-.dashboard-history-days{
-  display:grid;
-  grid-template-columns:repeat(auto-fit,minmax(120px,1fr));
-  gap:8px;
-  margin-top:14px;
-}
-.dashboard-history-day{
-  display:grid;
-  gap:3px;
-  padding:9px 10px;
-  border:1px solid #e2e8ef;
-  border-radius:9px;
-  background:#f8fafc;
-}
-.dashboard-history-day span{
-  color:var(--muted);
-  font-size:11px;
-  font-weight:600;
-}
-.dashboard-history-day strong{
-  font-size:13px;
-  line-height:1.25;
+.dashboard-chart-point:focus circle{
+  stroke-width:5;
 }
 @media(max-width:720px){
   .dashboard-history-svg{
     min-width:760px;
   }
-  .dashboard-history-days{
-    grid-template-columns:repeat(2,minmax(0,1fr));
-  }
 }
-

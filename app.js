@@ -5794,27 +5794,13 @@ function dashboardHistorySvg(points, metricLabel) {
     const xx = x(i);
     const yy = y(p.value);
     const title = `${p.fullLabel}: ${money(p.value)}`;
-    const valueLabel = new Intl.NumberFormat(uiLocale(), {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2
-    }).format(Number(p.value || 0)) + ' OC$';
-
-    const labelY = Math.max(16, yy - 13);
     return `
       <g class="dashboard-chart-point" tabindex="0" aria-label="${title}">
-        <circle cx="${xx}" cy="${yy}" r="6"></circle>
-        <text x="${xx}" y="${labelY}" text-anchor="middle" class="dashboard-chart-value">${valueLabel}</text>
+        <circle cx="${xx}" cy="${yy}" r="7"></circle>
         <title>${title}</title>
       </g>
     `;
   }).join('');
-
-  const exactValues = points.map(p => `
-    <div class="dashboard-history-day">
-      <span>${p.fullLabel}</span>
-      <strong>${money(p.value)}</strong>
-    </div>
-  `).join('');
 
   return `
     <div class="dashboard-history-chart-scroll">
@@ -5825,9 +5811,6 @@ function dashboardHistorySvg(points, metricLabel) {
         ${dots}
         ${labels}
       </svg>
-    </div>
-    <div class="dashboard-history-days" aria-label="${metricLabel} Tageswerte">
-      ${exactValues}
     </div>
   `;
 }
