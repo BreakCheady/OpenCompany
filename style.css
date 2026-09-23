@@ -2518,3 +2518,16 @@ body.game-dialog-open { overflow: hidden; }
   opacity:.45;
   cursor:not-allowed;
 }
+
+
+/* v0.10.112 – Unternehmen zurücksetzen kräftig Orange */
+#resetCompanyBtn{
+  background:#f97316!important;
+  border-color:#f97316!important;
+  color:#fff!important;
+}
+#resetCompanyBtn:hover{
+  background:#ea580c!important;
+  border-color:#ea580c!important;
+  color:#fff!important;
+}
