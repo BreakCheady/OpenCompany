@@ -891,6 +891,38 @@ let lastUserActivityAt = 0;
 let inactivityListenersInstalled = false;
 let inactivityLogoutInProgress = false;
 const INACTIVITY_LIMIT_MS = 60 * 60 * 1000;
+const LAST_VIEW_STORAGE_PREFIX = 'opencompany_last_view_';
+
+function lastViewStorageKey(userId = state.session?.user?.id) {
+  return userId ? `${LAST_VIEW_STORAGE_PREFIX}${userId}` : '';
+}
+
+function saveLastView(view) {
+  const key = lastViewStorageKey();
+  if (!key || !view) return;
+  try {
+    localStorage.setItem(key, view);
+  } catch (_) {}
+}
+
+function loadLastView() {
+  const key = lastViewStorageKey();
+  if (!key) return '';
+  try {
+    return localStorage.getItem(key) || '';
+  } catch (_) {
+    return '';
+  }
+}
+
+function clearLastView(userId = state.session?.user?.id) {
+  const key = lastViewStorageKey(userId);
+  if (!key) return;
+  try {
+    localStorage.removeItem(key);
+  } catch (_) {}
+}
+
 
 const money = n => `${new Intl.NumberFormat(uiLocale(), {
   minimumFractionDigits: 2,
@@ -2411,25 +2443,42 @@ async function loadPushSettings() {
 }
 
 function openViewFromHash() {
-  const rawHash = location.hash.replace(/^#/, '');
-  if (!rawHash || !state.company) return;
+  if (!state.company) return;
 
-  const [view, ...rest] = rawHash.split('/');
-  if (view === 'encyclopedia' && rest.length) {
-    const articleId = decodeURIComponent(rest.join('/'));
-    if (encyclopediaArticleById(articleId)) {
-      state.encyclopediaSelectedArticleId = articleId;
-      state.encyclopediaCategory = 'Alle';
-      state.encyclopediaSearch = '';
-      encyclopediaRememberArticle(articleId);
-      activateView('encyclopedia');
-      renderEncyclopedia();
+  const rawHash = location.hash.replace(/^#/, '');
+  if (rawHash) {
+    const [view, ...rest] = rawHash.split('/');
+    if (view === 'encyclopedia' && rest.length) {
+      const articleId = decodeURIComponent(rest.join('/'));
+      if (encyclopediaArticleById(articleId)) {
+        state.encyclopediaSelectedArticleId = articleId;
+        state.encyclopediaCategory = 'Alle';
+        state.encyclopediaSearch = '';
+        encyclopediaRememberArticle(articleId);
+        activateView('encyclopedia');
+        renderEncyclopedia();
+        return;
+      }
+    }
+
+    const btn = document.querySelector(`.nav-item[data-view="${view}"]`);
+    if (btn) {
+      btn.click();
       return;
     }
   }
 
-  const btn = document.querySelector(`.nav-item[data-view="${view}"]`);
-  if (btn) btn.click();
+  const savedView = loadLastView();
+  const savedBtn = savedView
+    ? document.querySelector(`.nav-item[data-view="${savedView}"]`)
+    : null;
+
+  if (savedBtn) {
+    savedBtn.click();
+    return;
+  }
+
+  document.querySelector('.nav-item[data-view="dashboard"]')?.click();
 }
 
 
@@ -2470,6 +2519,9 @@ async function logoutForInactivity() {
     if (state.company?.id) {
       await sb.rpc('set_company_offline', { p_company_id: state.company.id });
     }
+    const userId = state.session?.user?.id;
+    clearLastView(userId);
+    history.replaceState(null, '', location.pathname + location.search);
     stopPresenceHeartbeat();
     stopNpcMarketHeartbeat();
     stopCompanyBalanceWatcher();
@@ -2643,11 +2695,9 @@ async function handleSession(session) {
 
   if (state.openDashboardAfterLogin && state.company) {
     state.openDashboardAfterLogin = false;
-    const dashboardButton = document.querySelector('.nav-item[data-view="dashboard"]');
-    dashboardButton?.click();
-    if (location.hash) {
-      history.replaceState(null, '', location.pathname + location.search);
-    }
+    clearLastView(session.user.id);
+    history.replaceState(null, '', '#dashboard');
+    document.querySelector('.nav-item[data-view="dashboard"]')?.click();
   }
 }
 
@@ -6154,6 +6204,7 @@ function activateView(view) {
   document.querySelectorAll('.view').forEach(item => item.classList.remove('active-view'));
   target.classList.add('active-view');
   document.getElementById('pageTitle').textContent = navButton.dataset.baseLabel || navButton.textContent;
+  saveLastView(view);
   return true;
 }
 
@@ -6348,9 +6399,12 @@ document.getElementById('recoveryForm').addEventListener('submit', async e => {
   window.history.replaceState({},document.title,APP_URL);
 });
 document.getElementById('logoutBtn').addEventListener('click', async () => {
+  const userId = state.session?.user?.id;
   if (state.company?.id) {
     await sb.rpc('set_company_offline', { p_company_id: state.company.id });
   }
+  clearLastView(userId);
+  history.replaceState(null, '', location.pathname + location.search);
   stopPresenceHeartbeat();
   stopNpcMarketHeartbeat();
   stopCompanyBalanceWatcher();
@@ -6414,6 +6468,9 @@ document.getElementById('deleteCompanyBtn').addEventListener('click', async () =
     return;
   }
 
+  const deletedUserId = state.session?.user?.id;
+  clearLastView(deletedUserId);
+  history.replaceState(null, '', location.pathname + location.search);
   state.session = null;
   state.company = null;
   try { await sb.auth.signOut(); } catch (_) {}
