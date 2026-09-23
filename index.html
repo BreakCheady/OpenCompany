@@ -7,7 +7,7 @@
   <title>OpenCompany</title>
   <link rel="icon" type="image/png" href="favicon.png">
   <link rel="shortcut icon" href="favicon.ico">
-  <link rel="stylesheet" href="style.css?v=0.10.113">
+  <link rel="stylesheet" href="style.css?v=0.10.114">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     .password-field{display:flex;align-items:center;gap:.5rem}
@@ -212,7 +212,7 @@
       .oc-select-option{min-height:46px;padding:.7rem .8rem}
     }
   
-    /* v0.10.113 – einheitliche Navigationsleiste auf Desktop und Mobile */
+    /* v0.10.114 – einheitliche Navigationsleiste auf Desktop und Mobile */
     .app-shell{
       display:block!important;
       min-height:100dvh!important;
@@ -984,7 +984,7 @@
           <h2>Einstellungen</h2>
           <div class="kv">
             <span>Version</span>
-            <strong>0.10.113</strong>
+            <strong>0.10.114</strong>
           </div>
           <div class="kv settings-language-row">
             <span>Sprache</span>
@@ -1086,6 +1086,11 @@
         <button type="submit">Unternehmen gründen</button>
       </form>
       <p id="companyMessage" class="status"></p>
+
+    </section>
+  </main>
+</div>
+
     <div id="dashboardHistoryModal" class="dashboard-history-modal hidden" aria-hidden="true">
       <div class="dashboard-history-dialog" role="dialog" aria-modal="true" aria-labelledby="dashboardHistoryTitle">
         <div class="dashboard-history-head">
@@ -1101,10 +1106,6 @@
         </div>
       </div>
     </div>
-
-    </section>
-  </main>
-</div>
 
 <div id="gameDialogOverlay" class="game-dialog-overlay hidden" aria-hidden="true">
   <div id="gameDialog" class="game-dialog" role="dialog" aria-modal="true" aria-labelledby="gameDialogTitle">
