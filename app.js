@@ -4293,13 +4293,7 @@ function renderFinanceSummary() {
     <div class="finance-summary-card finance-cost-card"><span>Gebühren</span><strong>-${money(fees)}</strong></div>
     <div class="finance-summary-card finance-cost-card"><span>Baukosten</span><strong>${buildingCosts > 0 ? `-${money(buildingCosts)}` : money(0)}</strong></div>
     <div class="finance-summary-card finance-cost-card"><span>Marktkäufe</span><strong>${marketBuyCosts > 0 ? `-${money(marketBuyCosts)}` : money(0)}</strong></div>
-    <div class="finance-summary-card finance-contract-card">
-      <span>${translateUiString('Verträge')}</span>
-      <div class="finance-contract-lines">
-        <div><small>${translateUiString('Kosten')}</small><strong class="finance-negative">${contractBuyCosts > 0 ? `-${money(contractBuyCosts)}` : money(0)}</strong></div>
-        <div><small>${translateUiString('Erlöse')}</small><strong>${money(contractSales)}</strong></div>
-      </div>
-    </div>
+    <div class="finance-summary-card finance-cost-card"><span>${translateUiString('Verträge')}</span><strong>${contractBuyCosts > 0 ? `-${money(contractBuyCosts)}` : money(0)}</strong></div>
     <div class="finance-summary-card ${netBondInterest < 0 ? 'finance-cost-card' : ''}">
       <span>Zinsen</span>
       <strong class="${netBondInterest < 0 ? 'finance-negative' : netBondInterest > 0 ? 'finance-positive' : ''}">
