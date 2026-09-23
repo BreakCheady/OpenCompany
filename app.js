@@ -55,7 +55,7 @@ const I18N_EN = {
   'Lagerwert':'Inventory value','Patentwert':'Patent value','Schulden':'Debt','Gebäudewert':'Building value',
   'Lagerkapazität':'Storage capacity','Überbestand':'Overflow','Warnungen':'Warnings','Max. inkl. Überbestand':'Max. incl. overflow',
   'Tägliche Lagerhaltung':'Daily storage cost','Tägliche Überbestandsgebühr':'Daily overflow fee',
-  'Bereits gebaut':'Already built','Lagergebäude':'Warehouse','Einheiten':'units','Lager öffnen':'Open storage','7-Tage-Verlauf':'7-day history','Entwicklung der letzten 7 Tage':'Development over the last 7 days','Aktueller Wert':'Current value','Verlauf wird geladen …':'Loading history …','Keine Verlaufsdaten verfügbar.':'No history data available.',
+  'Bereits gebaut':'Already built','Lagergebäude':'Warehouse','Einheiten':'units','Lager öffnen':'Open storage','Kapazität':'Capacity','Auslastung':'Utilization','7-Tage-Verlauf':'7-day history','Entwicklung der letzten 7 Tage':'Development over the last 7 days','Aktueller Wert':'Current value','Verlauf wird geladen …':'Loading history …','Keine Verlaufsdaten verfügbar.':'No history data available.',
   'Firmenstatus':'Company status','Letzte Finanzbewegungen':'Latest financial transactions',
   'Bauen':'Build','Errichte neue Gebäude für Produktion, Handel und Forschung.':'Construct new buildings for production, retail and research.',
   'Gebäude bauen':'Build building','Wähle eine Kategorie und errichte ein neues Gebäude.':'Choose a category and construct a new building.',
@@ -3184,6 +3184,38 @@ function renderBuildings() {
         </div>`;
       }
 
+      let storageInfoHtml = '';
+      if (isStorage && !underConstruction) {
+        const storageStatus = state.storageStatus || {};
+        const storageQuantity = Number(storageStatus.total_quantity || 0);
+        const storageCapacity = Math.max(1, Number(storageStatus.capacity || 1000));
+        const storageUsage = Number(
+          storageStatus.usage_percent ?? (storageQuantity / storageCapacity * 100)
+        );
+        const storageProgress = Math.max(0, Math.min(100, storageUsage));
+
+        const storageColorClass =
+          storageUsage >= 90 ? 'storage-capacity-red'
+          : storageUsage > 80 ? 'storage-capacity-yellow-red'
+          : storageUsage >= 70 ? 'storage-capacity-yellow'
+          : storageUsage > 55 ? 'storage-capacity-green-yellow'
+          : 'storage-capacity-green';
+
+        storageInfoHtml = `
+          <div class="building-storage-status">
+            <div class="building-storage-capacity">
+              <strong>${translateUiString('Kapazität')}: ${num(storageQuantity)} / ${num(storageCapacity)} ${translateUiString('Einheiten')}</strong>
+            </div>
+            <div class="building-storage-progress" aria-label="${translateUiString('Auslastung')}">
+              <span class="${storageColorClass}" style="width:${storageProgress}%"></span>
+            </div>
+            <div class="building-card-meta building-storage-usage">
+              ${translateUiString('Auslastung')}: ${storageUsage.toLocaleString(uiLocale(), { minimumFractionDigits: 2, maximumFractionDigits: 2 })} %
+            </div>
+          </div>
+        `;
+      }
+
       let actions = '';
       if (underConstruction) {
         actions = `<button type="button" class="strong-danger-btn" onclick="event.stopPropagation();cancelBuildingConstruction('${building.id}','${bt.id}')">${translateUiString('Bau abbrechen')}</button>`;
@@ -3192,9 +3224,9 @@ function renderBuildings() {
         if (!inUse) actions += `<button type="button" class="building-upgrade-btn" onclick="event.stopPropagation();upgradeBuilding('${building.id}','${bt.id}')">${translateUiString('Ausbauen')}</button>
           <button type="button" class="building-demolish-btn" onclick="event.stopPropagation();downgradeBuilding('${building.id}','${bt.id}')">${translateUiString(level<=1?'Abreißen':'Abstufen')}</button>`;
       } else if (isStorage) {
-        actions = `<button type="button" onclick="event.stopPropagation();openStorageFromBuildingTab()">${translateUiString('Lager öffnen')}</button>
-          <button type="button" class="building-upgrade-btn" onclick="event.stopPropagation();upgradeBuilding('${building.id}','${bt.id}')">${translateUiString('Ausbauen')}</button>
-          <button type="button" class="${level<=1?'building-demolish-btn':'ghost'}" onclick="event.stopPropagation();downgradeBuilding('${building.id}','${bt.id}')">${translateUiString(level<=1?'Abreißen':'Abstufen')}</button>`;
+        actions = `<button type="button" class="building-upgrade-btn" onclick="event.stopPropagation();upgradeBuilding('${building.id}','${bt.id}')">${translateUiString('Ausbauen')}</button>
+          <button type="button" class="${level<=1?'building-demolish-btn':'ghost'}" onclick="event.stopPropagation();downgradeBuilding('${building.id}','${bt.id}')">${translateUiString(level<=1?'Abreißen':'Abstufen')}</button>
+          <button type="button" class="storage-open-building-btn" onclick="event.stopPropagation();openStorageFromBuildingTab()">${translateUiString('Lager öffnen')}</button>`;
       } else {
         actions = `<button type="button" onclick="event.stopPropagation();selectBuildingCard('${building.id}')">${translateUiString(inUse ? 'Auftrag öffnen' : 'Auswählen')}</button>`;
         if (!inUse) actions += `<button type="button" class="building-upgrade-btn" onclick="event.stopPropagation();upgradeBuilding('${building.id}','${bt.id}')">${translateUiString('Ausbauen')}</button>
@@ -3210,7 +3242,8 @@ function renderBuildings() {
         ${statusHtml}
         ${jobHtml}
         ${constructionHtml}
-        <div class="building-card-actions">${actions}</div>
+        ${storageInfoHtml}
+        <div class="building-card-actions ${isStorage ? 'building-storage-actions' : ''}">${actions}</div>
       </div>`;
     }).filter(Boolean).join('');
 
