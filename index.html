@@ -7,7 +7,7 @@
   <title>OpenCompany</title>
   <link rel="icon" type="image/png" href="favicon.png">
   <link rel="shortcut icon" href="favicon.ico">
-  <link rel="stylesheet" href="style.css?v=0.10.133">
+  <link rel="stylesheet" href="style.css?v=0.10.134">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     .password-field{display:flex;align-items:center;gap:.5rem}
@@ -186,6 +186,103 @@
       background:#f7f9fc;
       cursor:default;
     }
+
+    .finance-movements{
+      display:flex;
+      flex-direction:column;
+      border:1px solid #dfe6ef;
+      border-radius:12px;
+      overflow:hidden;
+      background:#fff;
+    }
+    .finance-movement{
+      border-bottom:1px solid #e5eaf1;
+    }
+    .finance-movement:last-child{
+      border-bottom:0;
+    }
+    .finance-movement-toggle{
+      width:100%;
+      display:grid;
+      grid-template-columns:18px auto minmax(0,1fr) auto;
+      align-items:center;
+      gap:.45rem;
+      padding:.72rem .8rem;
+      border:0;
+      border-radius:0;
+      background:#fff;
+      color:inherit;
+      text-align:left;
+      cursor:pointer;
+    }
+    .finance-movement-toggle:hover{
+      background:#f7f9fc;
+    }
+    .finance-movement-arrow{
+      display:inline-block;
+      font-size:1.25rem;
+      line-height:1;
+      transform:rotate(0deg);
+      transition:transform .15s ease;
+    }
+    .finance-movement.open .finance-movement-arrow{
+      transform:rotate(90deg);
+    }
+    .finance-movement-date{
+      font-variant-numeric:tabular-nums;
+      white-space:nowrap;
+      color:#334155;
+    }
+    .finance-movement-title{
+      min-width:0;
+      overflow:hidden;
+      text-overflow:ellipsis;
+      white-space:nowrap;
+      font-weight:600;
+    }
+    .finance-movement-amount{
+      color:#111827;
+      white-space:nowrap;
+      font-variant-numeric:tabular-nums;
+    }
+    .finance-movement-amount.finance-movement-cost{
+      color:#d60000;
+    }
+    .finance-movement-details{
+      padding:.2rem .9rem .8rem 2.15rem;
+      background:#f8fafc;
+    }
+    .finance-movement-detail{
+      display:grid;
+      grid-template-columns:minmax(110px,auto) 1fr;
+      gap:.75rem;
+      padding:.15rem 0;
+    }
+    .finance-movement-detail span{
+      font-size:.82rem;
+      font-weight:700;
+      text-transform:uppercase;
+      color:#334155;
+    }
+    .finance-movement-detail strong{
+      font-weight:600;
+      overflow-wrap:anywhere;
+    }
+    @media (max-width:700px){
+      .finance-movement-toggle{
+        grid-template-columns:18px auto minmax(0,1fr);
+      }
+      .finance-movement-amount{
+        grid-column:3;
+      }
+      .finance-movement-details{
+        padding-left:1rem;
+      }
+      .finance-movement-detail{
+        grid-template-columns:1fr;
+        gap:.05rem;
+      }
+    }
     .production-building-empty{padding:1.25rem;text-align:center;border:1px dashed #b9c7d8;border-radius:12px;color:#617087}
     @media(max-width:720px){.building-card-grid{grid-template-columns:1fr}.building-overview-toolbar{display:grid;grid-template-columns:1fr 1fr}}
 
@@ -323,7 +420,7 @@
       .oc-select-option{min-height:46px;padding:.7rem .8rem}
     }
   
-    /* v0.10.133 – einheitliche Navigationsleiste auf Desktop und Mobile */
+    /* v0.10.134 – einheitliche Navigationsleiste auf Desktop und Mobile */
     .app-shell{
       display:block!important;
       min-height:100dvh!important;
@@ -1145,7 +1242,7 @@
           <h2>Einstellungen</h2>
           <div class="kv">
             <span>Version</span>
-            <strong>0.10.133</strong>
+            <strong>0.10.134</strong>
           </div>
           <div class="kv settings-language-row">
             <span>Sprache</span>

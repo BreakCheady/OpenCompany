@@ -43,7 +43,7 @@ let currentLanguage = (() => {
 
 const I18N_EN = {
   'Dashboard':'Dashboard','Gebäude':'Buildings','Lager':'Storage','Warenbörse':'Marketplace',
-  'Verträge':'Contracts','Kosten':'Costs','Erlöse':'Revenue','Finanzen':'Finances','Forschung':'Research','Einstellungen':'Settings',
+  'Verträge':'Contracts','Kosten':'Costs','Erlöse':'Revenue','Finanzen':'Finances','Zeit':'Time','Partner':'Partner','Handelswert':'Trade value','Gebühr':'Fee','Beschreibung':'Description','Betrag':'Amount','Level':'Level','Unternehmen':'Company','Ware':'Item','Marktgebühr':'Market fee','Marktkauf':'Market purchase','Marktverkauf':'Market sale','Forschung':'Research','Einstellungen':'Settings',
   'Abmelden':'Log out','Nicht angemeldet':'Not signed in','OpenCompany – spielbare Unternehmenssimulation':'OpenCompany – playable business simulation',
   'Supabase noch nicht konfiguriert.':'Supabase is not configured yet.','Prüfe':'Check',
   'Login / Registrierung':'Login / Registration','Anmelden':'Log in','E-Mail':'Email','Passwort':'Password',
@@ -2478,7 +2478,7 @@ async function loadGameData() {
     sb.from('retail_sale_jobs').select('*').eq('company_id', cid).order('started_at', {ascending:false}).limit(500),
     sb.from('financial_transactions').select('*').eq('company_id', cid).order('created_at', {ascending:false}).limit(500),
     sb.from('market_orders').select('*, products(name), materials(name)').in('status',['open','partially_filled']).order('created_at',{ascending:false}).limit(100),
-    sb.from('market_trades').select('id,buyer_company_id,seller_company_id,product_id,material_id,quantity,price_per_unit,total_value,quality_level,executed_at,products(name,category)').eq('buyer_company_id',cid).order('executed_at',{ascending:false}).limit(500),
+    sb.from('market_trades').select('id,order_id,buyer_company_id,seller_company_id,product_id,material_id,quantity,price_per_unit,total_value,quality_level,executed_at,products(name,category),materials(name)').or(`buyer_company_id.eq.${cid},seller_company_id.eq.${cid}`).order('executed_at',{ascending:false}).limit(500),
     sb.from('contracts').select('*').or(`seller_company_id.eq.${cid},buyer_company_id.eq.${cid}`).order('created_at',{ascending:false}),
     sb.rpc('list_companies'),
     sb.rpc('get_company_debt', { p_company_id: cid }),
@@ -4159,14 +4159,179 @@ function financePeriodTransactions() {
   });
 }
 
+function financeMovementDate(value) {
+  const date = new Date(value);
+  return date.toLocaleDateString(uiLocale(), { day:'numeric', month:'numeric' });
+}
+
+function financeMovementTime(value) {
+  return new Date(value).toLocaleString(uiLocale(), {
+    day:'2-digit', month:'2-digit', year:'numeric',
+    hour:'2-digit', minute:'2-digit'
+  });
+}
+
+function financeMovementCompanyName(companyId) {
+  if (!companyId) return null;
+  if (companyId === state.company?.id) return state.company?.name || null;
+  return state.companyDirectory.find(c => c.id === companyId)?.name || null;
+}
+
+function financeMovementItemName(productId, materialId, trade = null) {
+  if (trade?.products?.name) return trade.products.name;
+  if (trade?.materials?.name) return trade.materials.name;
+  if (materialId) return state.materials.find(m => m.id === materialId)?.name || null;
+  if (productId) return state.allProducts.find(p => p.id === productId)?.name || null;
+  return null;
+}
+
+function financeMovementDetails(transaction) {
+  const rows = [];
+  const add = (label, value) => {
+    if (value === null || value === undefined || value === '') return;
+    rows.push(`<div class="finance-movement-detail"><span>${translateUiString(label)}</span><strong>${value}</strong></div>`);
+  };
+
+  add('Zeit', financeMovementTime(transaction.created_at));
+
+  if (transaction.reference_type === 'contract' && transaction.reference_id) {
+    const contract = state.contracts.find(c => c.id === transaction.reference_id);
+    if (contract) {
+      const isBuy = transaction.transaction_type === 'contract_buy';
+      const partnerId = isBuy ? contract.seller_company_id : contract.buyer_company_id;
+      add('Partner', financeMovementCompanyName(partnerId));
+      add(contract.material_id ? 'Rohstoff' : 'Produkt',
+        financeMovementItemName(contract.product_id, contract.material_id));
+      add('Menge', num(contract.quantity));
+      add('Qualität', `Q${Number(contract.quality_level || 1)}`);
+      add('Preis je Einheit', money(contract.unit_price));
+      add(isBuy ? 'Kaufsumme' : 'Verkaufssumme', money(Number(contract.quantity || 0) * Number(contract.unit_price || 0)));
+    }
+  } else if (transaction.reference_type === 'market_order' && transaction.reference_id) {
+    const txTime = new Date(transaction.created_at).getTime();
+    const candidates = state.marketTrades
+      .filter(trade => trade.order_id === transaction.reference_id)
+      .sort((a,b) =>
+        Math.abs(new Date(a.executed_at).getTime() - txTime) -
+        Math.abs(new Date(b.executed_at).getTime() - txTime)
+      );
+    const trade = candidates[0] || null;
+
+    if (trade) {
+      const isBuy = trade.buyer_company_id === state.company?.id;
+      const partnerId = isBuy ? trade.seller_company_id : trade.buyer_company_id;
+      add('Partner', financeMovementCompanyName(partnerId));
+      add(trade.material_id ? 'Rohstoff' : 'Produkt',
+        financeMovementItemName(trade.product_id, trade.material_id, trade));
+      add('Menge', num(trade.quantity));
+      add('Qualität', `Q${Number(trade.quality_level || 1)}`);
+      add('Preis je Einheit', money(trade.price_per_unit));
+      add('Handelswert', money(trade.total_value));
+      if (transaction.transaction_type === 'market_fee') {
+        add('Gebühr', money(Math.abs(Number(transaction.amount || 0))));
+      }
+    }
+  } else if (transaction.reference_type === 'production_job' && transaction.reference_id) {
+    const job = state.productionJobs.find(j => j.id === transaction.reference_id);
+    if (job) {
+      const product = state.products.find(p => p.id === job.product_id);
+      add('Produkt', product?.name || null);
+      add('Menge', num(job.quantity ?? job.output_quantity ?? job.requested_quantity));
+      add('Qualität', product ? `Q${productQuality(product)}` : null);
+    }
+  } else if (transaction.reference_type === 'building' && transaction.reference_id) {
+    const building = state.buildings.find(b => b.id === transaction.reference_id);
+    const type = building ? state.buildingTypes.find(bt => bt.id === building.building_type_id) : null;
+    add('Gebäude', type?.name || null);
+    add('Level', building?.level ? String(building.level) : null);
+  }
+
+  if (transaction.description) add('Beschreibung', transaction.description);
+  add('Betrag', money(transaction.amount));
+
+  return rows.join('');
+}
+
+function financeMovementTitle(transaction) {
+  if (transaction.reference_type === 'contract' && transaction.reference_id) {
+    const contract = state.contracts.find(c => c.id === transaction.reference_id);
+    if (contract) {
+      const isBuy = transaction.transaction_type === 'contract_buy';
+      const partnerId = isBuy ? contract.seller_company_id : contract.buyer_company_id;
+      const partner = financeMovementCompanyName(partnerId);
+      const item = financeMovementItemName(contract.product_id, contract.material_id);
+      const action = isBuy ? 'Vertrag von' : 'Vertrag an';
+      return `${item || translateUiString('Vertrag')} ${action} ${partner || translateUiString('Unternehmen')}`;
+    }
+  }
+
+  if (transaction.reference_type === 'market_order' && transaction.reference_id) {
+    const txTime = new Date(transaction.created_at).getTime();
+    const trade = state.marketTrades
+      .filter(t => t.order_id === transaction.reference_id)
+      .sort((a,b) =>
+        Math.abs(new Date(a.executed_at).getTime() - txTime) -
+        Math.abs(new Date(b.executed_at).getTime() - txTime)
+      )[0];
+
+    if (trade) {
+      const item = financeMovementItemName(trade.product_id, trade.material_id, trade);
+      const isBuy = trade.buyer_company_id === state.company?.id;
+      if (transaction.transaction_type === 'market_fee') {
+        return `${item || translateUiString('Ware')} · ${translateUiString('Marktgebühr')}`;
+      }
+      return `${item || translateUiString('Ware')} · ${translateUiString(isBuy ? 'Marktkauf' : 'Marktverkauf')}`;
+    }
+  }
+
+  return transaction.description || transactionLabel(transaction.transaction_type);
+}
+
+window.toggleFinanceMovement = function(transactionId) {
+  const item = document.querySelector(`.finance-movement[data-transaction-id="${transactionId}"]`);
+  if (!item) return;
+  const button = item.querySelector('.finance-movement-toggle');
+  const details = item.querySelector('.finance-movement-details');
+  const open = item.classList.toggle('open');
+  if (button) button.setAttribute('aria-expanded', open ? 'true' : 'false');
+  if (details) details.hidden = !open;
+};
+
 function renderFinanceTable() {
-  const table = document.getElementById('financeTable');
-  if (!table) return;
+  const container = document.getElementById('financeTable');
+  if (!container) return;
+
   const transactions = financePeriodTransactions();
-  table.innerHTML = renderTable(
-    ['Betrag','Beschreibung','Zeit'],
-    transactions.map(t => `<tr><td class="${transactionAmountClass(t.transaction_type)}">${money(t.amount)}</td><td>${t.description || transactionLabel(t.transaction_type)}</td><td>${new Date(t.created_at).toLocaleString(uiLocale())}</td></tr>`)
-  );
+  if (!transactions.length) {
+    container.innerHTML = `<p class="muted">${translateUiString('Noch keine Daten.')}</p>`;
+    return;
+  }
+
+  container.innerHTML = `
+    <div class="finance-movements">
+      ${transactions.map((transaction, index) => {
+        const id = transaction.id || `finance-${index}`;
+        const amount = Number(transaction.amount || 0);
+        const isCost = amount < 0;
+        return `
+          <article class="finance-movement" data-transaction-id="${id}">
+            <button type="button" class="finance-movement-toggle" aria-expanded="false"
+              onclick="toggleFinanceMovement('${id}')">
+              <span class="finance-movement-arrow" aria-hidden="true">›</span>
+              <span class="finance-movement-date">${financeMovementDate(transaction.created_at)}</span>
+              <span class="finance-movement-title">${financeMovementTitle(transaction)}</span>
+              <strong class="finance-movement-amount ${isCost ? 'finance-movement-cost' : ''}">
+                ${isCost ? '−' : ''}${money(Math.abs(amount))}
+              </strong>
+            </button>
+            <div class="finance-movement-details" hidden>
+              ${financeMovementDetails(transaction)}
+            </div>
+          </article>
+        `;
+      }).join('')}
+    </div>
+  `;
 }
 
 function renderFinanceSummary() {
@@ -4240,6 +4405,7 @@ function renderFinanceSummary() {
     .filter(trade => {
       const executedAt = new Date(trade.executed_at);
       return executedAt >= start && executedAt <= end &&
+        trade.buyer_company_id === state.company?.id &&
         trade.products?.category === 'research' &&
         trade.products?.name === 'Forschungseinheit';
     })
