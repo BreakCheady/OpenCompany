@@ -3900,6 +3900,35 @@ function renderContracts() {
   updateContractGoods();
 }
 
+function updateContractPartnerOptions() {
+  const select = document.getElementById('contractPartner');
+  if (!select || !state.company?.id) return;
+
+  const search = (document.getElementById('contractPartnerSearch')?.value || '').trim().toLocaleLowerCase(uiLocale());
+  const previous = select.value;
+
+  const others = state.companyDirectory
+    .filter(c => c.company_type === 'player' && c.id !== state.company.id)
+    .filter(c => {
+      if (!search) return true;
+      const name = String(c.name || '').toLocaleLowerCase(uiLocale());
+      const companyCode = String(c.company_code || '').toLocaleLowerCase(uiLocale());
+      return name.includes(search) || companyCode.includes(search);
+    })
+    .sort((a,b) => String(a.name || '').localeCompare(String(b.name || ''), uiLocale()));
+
+  select.innerHTML = others.length
+    ? others.map(c => `<option value="${c.id}">${c.name}${c.company_code ? ` · ${c.company_code}` : ''}</option>`).join('')
+    : `<option value="">${translateUiString('Kein Unternehmen gefunden')}</option>`;
+
+  if (others.some(c => c.id === previous)) {
+    select.value = previous;
+  }
+
+  syncCustomSelect(select);
+  renderContractPreview();
+}
+
 function updateContractGoods() {
   const type = document.getElementById('contractItemType')?.value || 'product';
   const itemSelect = document.getElementById('contractItem');
