@@ -269,7 +269,7 @@ Object.assign(I18N_EN, {
   'Forschungseinheiten':'Research units','Patentwert':'Patent value','Direktverträge':'Direct contracts',
   'Vertragsablauf':'Contract flow','Finanzbewegungen':'Financial transactions',
   'Anleihen & Kredite':'Bonds & loans','Anleihezinsen':'Bond interest','Zinsausfall':'Interest default',
-  'Einzelhandel':'Retail','Kurz erklärt':'In short','So funktioniert es':'How it works','Beispiel':'Example','Wichtig':'Important',
+  'Einzelhandel':'Retail','Kurz erklärt':'In short','So funktioniert es':'How it works','Beispiel':'Example','Wichtig':'Important','Produkte':'Products','Automatisch':'Automatic',
 
   'Account erstellt. Bitte ggf. E-Mail bestätigen.':'Account created. Please confirm your email if required.',
   'Bitte zuerst E-Mail eingeben.':'Please enter your email first.',
@@ -5524,12 +5524,189 @@ const ENCYCLOPEDIA_ARTICLES = [
   }
 ];
 
+
+function encyclopediaEscapeHtml(value) {
+  return String(value ?? '').replace(/[&<>"']/g, character => ({
+    '&':'&amp;',
+    '<':'&lt;',
+    '>':'&gt;',
+    '"':'&quot;',
+    "'":'&#39;'
+  })[character]);
+}
+
+function encyclopediaSlug(value) {
+  return String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g,'')
+    .toLocaleLowerCase('de-DE')
+    .replace(/[^a-z0-9]+/g,'-')
+    .replace(/^-+|-+$/g,'') || 'eintrag';
+}
+
+function encyclopediaProductCatalog() {
+  const grouped = new Map();
+
+  for (const product of state.allProducts || []) {
+    const key = `${product.name || ''}::${product.category || ''}`;
+    if (!grouped.has(key)) grouped.set(key, product);
+  }
+
+  // Für die eigene Variante bevorzugen wir die Unternehmensdaten, weil dort
+  // Qualität und Forschungsfortschritt des Spielers aktuell sind.
+  for (const product of state.products || []) {
+    const key = `${product.name || ''}::${product.category || ''}`;
+    grouped.set(key, product);
+  }
+
+  return [...grouped.values()].sort((a,b) =>
+    String(a.name || '').localeCompare(String(b.name || ''), uiLocale())
+  );
+}
+
+function encyclopediaRecipeRows(product) {
+  const ownedProduct = (state.products || []).find(candidate =>
+    candidate.id === product.id ||
+    (candidate.name === product.name && candidate.category === product.category)
+  );
+  if (!ownedProduct) return [];
+
+  return (state.recipes || []).filter(row => row.product_id === ownedProduct.id);
+}
+
+function encyclopediaRecipeText(product) {
+  const rows = encyclopediaRecipeRows(product);
+  if (!rows.length) return '<p class="muted">Für dieses Produkt ist aktuell kein Rezept in deinen geladenen Unternehmensdaten vorhanden.</p>';
+
+  const items = rows.map(row => {
+    const material = row.material_id
+      ? (state.materials || []).find(item => item.id === row.material_id)
+      : null;
+    const component = row.component_product_id
+      ? (state.products || []).find(item => item.id === row.component_product_id)
+      : null;
+    const name = material?.name || component?.name || 'Unbekannte Komponente';
+    return `<li>${encyclopediaEscapeHtml(name)}: <strong>${num(row.quantity_per_unit || 0)}</strong> je produzierter Einheit</li>`;
+  });
+
+  return `<ul>${items.join('')}</ul>`;
+}
+
+function dynamicProductEncyclopediaArticles() {
+  return encyclopediaProductCatalog().map(product => {
+    const building = (state.buildingTypes || []).find(type => type.id === product.required_building_type_id);
+    const retailBuilding = (state.buildingTypes || []).find(type => type.id === product.required_retail_building_type_id);
+    const ownedProduct = (state.products || []).find(candidate =>
+      candidate.id === product.id ||
+      (candidate.name === product.name && candidate.category === product.category)
+    );
+    const currentQuality = ownedProduct ? productQuality(ownedProduct) : null;
+    const productName = encyclopediaEscapeHtml(product.name || 'Produkt');
+    const category = encyclopediaEscapeHtml(researchCategory(product));
+    const id = `product-${encyclopediaSlug(product.name)}-${encyclopediaSlug(product.category || 'produkt')}`;
+
+    return {
+      id,
+      category:'Produkte',
+      title:product.name || 'Produkt',
+      keywords:[
+        'produkt','produktion','rezept',
+        product.name,
+        product.category,
+        researchCategory(product),
+        building?.name,
+        retailBuilding?.name
+      ].filter(Boolean),
+      summary:`Automatisch aus den aktuellen Spieldaten erzeugter Produkteintrag für ${product.name || 'dieses Produkt'}.`,
+      dynamic:true,
+      body:() => encyclopediaArticleBody({
+        short:`<strong>${productName}</strong> gehört zur Produktgruppe ${category}.`,
+        how:`
+          ${building ? `<p><strong>Produktionsgebäude:</strong> ${encyclopediaEscapeHtml(building.name)}</p>` : '<p><strong>Produktionsgebäude:</strong> –</p>'}
+          ${retailBuilding ? `<p><strong>Verkaufsgebäude:</strong> ${encyclopediaEscapeHtml(retailBuilding.name)}</p>` : ''}
+          ${Number(product.base_production_rate || 0) > 0 ? `<p><strong>Basis-Produktionsrate:</strong> ${num(product.base_production_rate)} Einheiten / Std.</p>` : ''}
+          ${Number(product.base_retail_rate || 0) > 0 ? `<p><strong>Basis-Verkaufsrate:</strong> ${num(product.base_retail_rate)} Einheiten / Std.</p>` : ''}
+          ${currentQuality ? `<p><strong>Deine aktuelle Qualität:</strong> Q${currentQuality} (+${rulePercent(qualityMultiplier(currentQuality)-1)} % Wertbonus)</p>` : '<p><strong>Dein Unternehmen:</strong> Dieses Produkt ist aktuell nicht in deinem eigenen Produktkatalog vorhanden.</p>'}
+          <h3>Produktionsrezept</h3>
+          ${encyclopediaRecipeText(product)}
+        `,
+        example: currentQuality
+          ? `<p>Bei Q${currentQuality} beträgt der aktuelle Qualitätsbonus +${rulePercent(qualityMultiplier(currentQuality)-1)} %.</p>`
+          : `<p>Sobald dein Unternehmen das Produkt besitzt, werden hier auch deine aktuelle Qualitätsstufe und – soweit vorhanden – dein Rezept angezeigt.</p>`,
+        important:`<p>Dieser Artikel wird automatisch aus den geladenen Produkt-, Gebäude- und Rezeptdaten erzeugt und muss nicht manuell gepflegt werden.</p>`
+      }),
+      related:['production','recipes','quality','market-pricing'],
+      targetView:'production'
+    };
+  });
+}
+
+function dynamicBuildingEncyclopediaArticles() {
+  return (state.buildingTypes || [])
+    .map(buildingType => {
+      const ownedBuildings = (state.buildings || []).filter(building =>
+        building.building_type_id === buildingType.id
+      );
+      const activeBuildings = ownedBuildings.filter(building => building.status === 'active');
+      const levels = activeBuildings.map(building => Number(building.level || 1));
+      const highestLevel = levels.length ? Math.max(...levels) : 0;
+      const products = encyclopediaProductCatalog().filter(product =>
+        product.required_building_type_id === buildingType.id ||
+        product.required_retail_building_type_id === buildingType.id
+      );
+      const productionProducts = products.filter(product => product.required_building_type_id === buildingType.id);
+      const retailProducts = products.filter(product => product.required_retail_building_type_id === buildingType.id);
+      const buildingName = encyclopediaEscapeHtml(buildingType.name || 'Gebäude');
+
+      const productLinks = items => items.length
+        ? `<ul>${items.map(product => {
+            const productId = `product-${encyclopediaSlug(product.name)}-${encyclopediaSlug(product.category || 'produkt')}`;
+            return `<li><button type="button" class="encyclopedia-inline-article-link" onclick="openEncyclopediaArticle('${productId}')">${encyclopediaEscapeHtml(product.name)}</button></li>`;
+          }).join('')}</ul>`
+        : '<p class="muted">Keine Produkte zugeordnet.</p>';
+
+      return {
+        id:`building-${encyclopediaSlug(buildingType.name)}-${encyclopediaSlug(buildingType.id)}`,
+        category:'Gebäude',
+        title:buildingType.name || 'Gebäude',
+        keywords:['gebäude','bau','ausbau',buildingType.name,buildingType.building_category].filter(Boolean),
+        summary:`Automatisch aus den aktuellen Gebäudedaten erzeugter Eintrag für ${buildingType.name || 'diesen Gebäudetyp'}.`,
+        dynamic:true,
+        body:() => encyclopediaArticleBody({
+          short:`<strong>${buildingName}</strong> ist ein Gebäudetyp in OpenCompany.`,
+          how:`
+            <p><strong>Kategorie:</strong> ${encyclopediaEscapeHtml(buildingType.building_category || '–')}</p>
+            <p><strong>Baukosten Level 1:</strong> ${money(buildingType.construction_cost || 0)}</p>
+            <p><strong>Bauzeit Level 1:</strong> ${formatBuildingConstructionTime(buildingConstructionHours(1))}</p>
+            ${Number(buildingType.employees_per_building || 0) > 0 ? `<p><strong>Mitarbeiter Level 1:</strong> ${num(buildingType.employees_per_building)}</p>` : ''}
+            <p><strong>In deinem Unternehmen:</strong> ${num(activeBuildings.length)} aktiv${activeBuildings.length === 1 ? 'es Gebäude' : 'e Gebäude'}${highestLevel ? ` · höchste Stufe L${highestLevel}` : ''}</p>
+            ${productionProducts.length ? `<h3>Produzierbare Produkte</h3>${productLinks(productionProducts)}` : ''}
+            ${retailProducts.length ? `<h3>Verkaufbare Produkte</h3>${productLinks(retailProducts)}` : ''}
+          `,
+          example:`<p>Der Ausbau auf Level 2 benötigt ${formatBuildingConstructionTime(buildingConstructionHours(2))}. Die Baukosten und Leistungswerte werden entsprechend der Gebäudelevel-Regeln angepasst.</p>`,
+          important:`<p>Dieser Artikel wird automatisch aus den geladenen Gebäudetypen, deinen Unternehmensgebäuden und den zugeordneten Produktdaten erzeugt.</p>`
+        }),
+        related:['buildings','building-levels','production'],
+        targetView:'production'
+      };
+    })
+    .sort((a,b) => a.title.localeCompare(b.title, uiLocale()));
+}
+
+function encyclopediaArticles() {
+  return [
+    ...ENCYCLOPEDIA_ARTICLES,
+    ...dynamicProductEncyclopediaArticles(),
+    ...dynamicBuildingEncyclopediaArticles()
+  ];
+}
+
 function encyclopediaArticleById(articleId) {
-  return ENCYCLOPEDIA_ARTICLES.find(article => article.id === articleId) || null;
+  return encyclopediaArticles().find(article => article.id === articleId) || null;
 }
 
 function encyclopediaCategories() {
-  return ['Alle', ...new Set(ENCYCLOPEDIA_ARTICLES.map(article => article.category))];
+  return ['Alle', ...new Set(encyclopediaArticles().map(article => article.category))];
 }
 
 function encyclopediaMatches(article, query) {
@@ -5564,7 +5741,8 @@ function renderEncyclopedia() {
   `).join('');
 
   const query = (state.encyclopediaSearch || '').trim();
-  const visible = ENCYCLOPEDIA_ARTICLES.filter(article =>
+  const articles = encyclopediaArticles();
+  const visible = articles.filter(article =>
     (state.encyclopediaCategory === 'Alle' || article.category === state.encyclopediaCategory) &&
     encyclopediaMatches(article, query)
   );
@@ -5574,13 +5752,13 @@ function renderEncyclopedia() {
       class="encyclopedia-list-item ${article.id === state.encyclopediaSelectedArticleId ? 'active' : ''}"
       data-encyclopedia-article="${article.id}">
       <strong>${translateUiString(article.title)}</strong>
-      <span>${translateUiString(article.category)}</span>
+      <span>${translateUiString(article.category)}${article.dynamic ? ` · ${translateUiString('Automatisch')}` : ''}</span>
     </button>
   `).join('') : `<div class="encyclopedia-empty">${translateUiString('Keine Artikel gefunden.')}</div>`;
 
   let article = encyclopediaArticleById(state.encyclopediaSelectedArticleId);
   if (!article) {
-    article = visible[0] || ENCYCLOPEDIA_ARTICLES[0];
+    article = visible[0] || articles[0];
     state.encyclopediaSelectedArticleId = article?.id || null;
   }
 
@@ -5597,6 +5775,7 @@ function renderEncyclopedia() {
     <header class="encyclopedia-article-header">
       <h2>${translateUiString(article.title)}</h2>
       <span class="encyclopedia-article-category">${translateUiString(article.category)}</span>
+      ${article.dynamic ? `<span class="encyclopedia-article-category encyclopedia-dynamic-badge">${translateUiString('Automatisch')}</span>` : ''}
       <p class="muted">${translateUiString(article.summary)}</p>
     </header>
     <div class="encyclopedia-article-body">${typeof article.body === 'function' ? article.body() : article.body}</div>

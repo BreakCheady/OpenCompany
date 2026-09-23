@@ -7,7 +7,7 @@
   <title>OpenCompany</title>
   <link rel="icon" type="image/png" href="favicon.png">
   <link rel="shortcut icon" href="favicon.ico">
-  <link rel="stylesheet" href="style.css?v=0.10.144">
+  <link rel="stylesheet" href="style.css?v=0.10.145">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     .password-field{display:flex;align-items:center;gap:.5rem}
@@ -363,6 +363,27 @@
     .encyclopedia-related-links button{
       width:auto;
     }
+    .encyclopedia-dynamic-badge{
+      margin-left:.35rem;
+      background:#eef2f7;
+      color:#475569;
+    }
+    .encyclopedia-inline-article-link{
+      display:inline;
+      width:auto;
+      padding:0;
+      border:0;
+      background:none;
+      color:#1769d2;
+      text-decoration:underline;
+      text-underline-offset:2px;
+      font:inherit;
+      cursor:pointer;
+    }
+    .encyclopedia-inline-article-link:hover{
+      background:none;
+      color:#0f4f9e;
+    }
     .encyclopedia-empty{
       padding:1rem;
       color:#617087;
@@ -613,7 +634,7 @@
       .oc-select-option{min-height:46px;padding:.7rem .8rem}
     }
   
-    /* v0.10.144 – einheitliche Navigationsleiste auf Desktop und Mobile */
+    /* v0.10.145 – einheitliche Navigationsleiste auf Desktop und Mobile */
     .app-shell{
       display:block!important;
       min-height:100dvh!important;
@@ -1473,7 +1494,7 @@
           <h2>Einstellungen</h2>
           <div class="kv">
             <span>Version</span>
-            <strong>0.10.144</strong>
+            <strong>0.10.145</strong>
           </div>
           <div class="kv settings-language-row">
             <span>Sprache</span>
