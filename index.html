@@ -7,7 +7,7 @@
   <title>OpenCompany</title>
   <link rel="icon" type="image/png" href="favicon.png">
   <link rel="shortcut icon" href="favicon.ico">
-  <link rel="stylesheet" href="style.css?v=0.10.112">
+  <link rel="stylesheet" href="style.css?v=0.10.113">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     .password-field{display:flex;align-items:center;gap:.5rem}
@@ -212,7 +212,7 @@
       .oc-select-option{min-height:46px;padding:.7rem .8rem}
     }
   
-    /* v0.10.112 – einheitliche Navigationsleiste auf Desktop und Mobile */
+    /* v0.10.113 – einheitliche Navigationsleiste auf Desktop und Mobile */
     .app-shell{
       display:block!important;
       min-height:100dvh!important;
@@ -676,13 +676,13 @@
       <div id="dashboard" class="view active-view">
         <div class="stats-grid">
           <article class="stat-card"><span>Unternehmen</span><strong id="statCompany">–</strong></article>
-          <article class="stat-card"><span>Kontostand</span><strong id="statCash">–</strong></article>
+          <article class="stat-card dashboard-history-card" data-dashboard-history="cash_balance" role="button" tabindex="0" aria-label="Kontostand Verlauf der letzten 7 Tage"><span>Kontostand</span><strong id="statCash">–</strong></article>
           <article class="stat-card"><span>Belegschaft</span><strong id="statEmployees">–</strong></article>
-          <article class="stat-card"><span>Unternehmenswert</span><div class="company-value-line"><strong id="statValue">–</strong><small id="statValueChange" class="company-value-change company-value-change-zero" title="Tagesveränderung · Berechnung um 01:00 Uhr">0 OC$ (0,00%)</small></div></article>
-          <article class="stat-card"><span>Lagerwert</span><strong id="statStorageValue">–</strong></article>
-          <article class="stat-card"><span>Patentwert</span><div class="company-value-line"><strong id="statPatentValue">–</strong><small id="statPatentChange" class="company-value-change company-value-change-zero" title="Tagesveränderung · Berechnung um 01:00 Uhr">0 OC$ (0,00%)</small></div></article>
-          <article class="stat-card"><span>Schulden</span><div class="company-value-line"><strong id="statDebt">–</strong><small id="statDebtChange" class="company-value-change company-value-change-zero" title="Tagesveränderung · Berechnung um 01:00 Uhr">0 OC$ (0,00%)</small></div></article>
-          <article class="stat-card"><span>Gebäudewert</span><strong id="statBuildingValue">–</strong></article>
+          <article class="stat-card dashboard-history-card" data-dashboard-history="company_value" role="button" tabindex="0" aria-label="Unternehmenswert Verlauf der letzten 7 Tage"><span>Unternehmenswert</span><div class="company-value-line"><strong id="statValue">–</strong><small id="statValueChange" class="company-value-change company-value-change-zero" title="Tagesveränderung · Berechnung um 01:00 Uhr">0 OC$ (0,00%)</small></div></article>
+          <article class="stat-card dashboard-history-card" data-dashboard-history="storage_value" role="button" tabindex="0" aria-label="Lagerwert Verlauf der letzten 7 Tage"><span>Lagerwert</span><strong id="statStorageValue">–</strong></article>
+          <article class="stat-card dashboard-history-card" data-dashboard-history="patent_value" role="button" tabindex="0" aria-label="Patentwert Verlauf der letzten 7 Tage"><span>Patentwert</span><div class="company-value-line"><strong id="statPatentValue">–</strong><small id="statPatentChange" class="company-value-change company-value-change-zero" title="Tagesveränderung · Berechnung um 01:00 Uhr">0 OC$ (0,00%)</small></div></article>
+          <article class="stat-card dashboard-history-card" data-dashboard-history="loan_debt" role="button" tabindex="0" aria-label="Schulden Verlauf der letzten 7 Tage"><span>Schulden</span><div class="company-value-line"><strong id="statDebt">–</strong><small id="statDebtChange" class="company-value-change company-value-change-zero" title="Tagesveränderung · Berechnung um 01:00 Uhr">0 OC$ (0,00%)</small></div></article>
+          <article class="stat-card dashboard-history-card" data-dashboard-history="building_value" role="button" tabindex="0" aria-label="Gebäudewert Verlauf der letzten 7 Tage"><span>Gebäudewert</span><strong id="statBuildingValue">–</strong></article>
         </div>
         <div class="grid two">
           <article class="panel"><h2>Firmenstatus</h2><div id="companySummary" class="stack"></div></article>
@@ -984,7 +984,7 @@
           <h2>Einstellungen</h2>
           <div class="kv">
             <span>Version</span>
-            <strong>0.10.112</strong>
+            <strong>0.10.113</strong>
           </div>
           <div class="kv settings-language-row">
             <span>Sprache</span>
@@ -1086,6 +1086,22 @@
         <button type="submit">Unternehmen gründen</button>
       </form>
       <p id="companyMessage" class="status"></p>
+    <div id="dashboardHistoryModal" class="dashboard-history-modal hidden" aria-hidden="true">
+      <div class="dashboard-history-dialog" role="dialog" aria-modal="true" aria-labelledby="dashboardHistoryTitle">
+        <div class="dashboard-history-head">
+          <div>
+            <h2 id="dashboardHistoryTitle">7-Tage-Verlauf</h2>
+            <p id="dashboardHistorySubtitle" class="muted">Entwicklung der letzten 7 Tage</p>
+          </div>
+          <button type="button" id="dashboardHistoryClose" class="dashboard-history-close" aria-label="Schließen">×</button>
+        </div>
+        <div id="dashboardHistoryCurrent" class="dashboard-history-current"></div>
+        <div id="dashboardHistoryChart" class="dashboard-history-chart">
+          <p class="muted">Verlauf wird geladen …</p>
+        </div>
+      </div>
+    </div>
+
     </section>
   </main>
 </div>

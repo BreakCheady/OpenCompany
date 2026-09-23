@@ -52,7 +52,7 @@ const I18N_EN = {
   'Rangliste wird geladen …':'Loading leaderboard …','Neues Passwort festlegen':'Set new password',
   'Neues Passwort':'New password','Passwort wiederholen':'Repeat password','Passwort speichern':'Save password',
   'Unternehmen':'Company','Kontostand':'Cash balance','Belegschaft':'Workforce','Unternehmenswert':'Company value',
-  'Lagerwert':'Inventory value','Patentwert':'Patent value','Schulden':'Debt','Gebäudewert':'Building value',
+  'Lagerwert':'Inventory value','Patentwert':'Patent value','Schulden':'Debt','Gebäudewert':'Building value','7-Tage-Verlauf':'7-day history','Entwicklung der letzten 7 Tage':'Development over the last 7 days','Aktueller Wert':'Current value','Verlauf wird geladen …':'Loading history …','Keine Verlaufsdaten verfügbar.':'No history data available.',
   'Firmenstatus':'Company status','Letzte Finanzbewegungen':'Latest financial transactions',
   'Bauen':'Build','Errichte neue Gebäude für Produktion, Handel und Forschung.':'Construct new buildings for production, retail and research.',
   'Gebäude bauen':'Build building','Wähle eine Kategorie und errichte ein neues Gebäude.':'Choose a category and construct a new building.',
@@ -5708,3 +5708,197 @@ customSelectDocumentObserver.observe(document.documentElement, { childList: true
 
 
 init();
+
+
+const DASHBOARD_HISTORY_METRICS = {
+  cash_balance: {
+    label: 'Kontostand',
+    historyValue: row => Number(row.cash_balance || 0),
+    currentValue: () => Number(state.company?.cash_balance || 0)
+  },
+  company_value: {
+    label: 'Unternehmenswert',
+    historyValue: row => Number(row.company_value || 0),
+    currentValue: () => Number(state.company?.company_value || 0)
+  },
+  storage_value: {
+    label: 'Lagerwert',
+    historyValue: row => Number(row.material_value || 0) + Number(row.product_value || 0),
+    currentValue: () => Number(currentStorageValue() || 0)
+  },
+  patent_value: {
+    label: 'Patentwert',
+    historyValue: row => Number(row.patent_value || 0),
+    currentValue: () => Number(state.company?.patent_value || 0)
+  },
+  loan_debt: {
+    label: 'Schulden',
+    historyValue: row => Number(row.loan_debt || 0),
+    currentValue: () => Math.max(0, Number(state.companyDebt || 0))
+  },
+  building_value: {
+    label: 'Gebäudewert',
+    historyValue: row => Number(row.building_value || 0),
+    currentValue: () => Number(currentCompanyBuildingValue() || 0)
+  }
+};
+
+function dashboardHistoryDateLabel(value, withToday = false) {
+  if (withToday) return translateUiString('Heute');
+  const date = new Date(`${value}T12:00:00`);
+  return date.toLocaleDateString(uiLocale(), { day: '2-digit', month: '2-digit' });
+}
+
+function dashboardHistorySvg(points, metricLabel) {
+  if (!points.length) return `<p class="muted">${translateUiString('Keine Verlaufsdaten verfügbar.')}</p>`;
+
+  const width = 760;
+  const height = 330;
+  const pad = { left: 72, right: 24, top: 24, bottom: 52 };
+  const chartW = width - pad.left - pad.right;
+  const chartH = height - pad.top - pad.bottom;
+
+  const values = points.map(p => Number(p.value || 0));
+  let min = Math.min(...values);
+  let max = Math.max(...values);
+  if (min === max) {
+    const spread = Math.max(1, Math.abs(max) * 0.08);
+    min -= spread;
+    max += spread;
+  } else {
+    const spread = (max - min) * 0.12;
+    min -= spread;
+    max += spread;
+  }
+
+  const x = i => pad.left + (points.length === 1 ? chartW / 2 : (i / (points.length - 1)) * chartW);
+  const y = value => pad.top + ((max - value) / (max - min)) * chartH;
+  const polyline = points.map((p, i) => `${x(i).toFixed(1)},${y(p.value).toFixed(1)}`).join(' ');
+
+  const gridLines = Array.from({ length: 5 }, (_, i) => {
+    const ratio = i / 4;
+    const value = max - ratio * (max - min);
+    const yy = pad.top + ratio * chartH;
+    return `
+      <line x1="${pad.left}" y1="${yy}" x2="${width-pad.right}" y2="${yy}" class="dashboard-chart-grid"/>
+      <text x="${pad.left-10}" y="${yy+4}" text-anchor="end" class="dashboard-chart-axis">${new Intl.NumberFormat(uiLocale(), { notation:'compact', maximumFractionDigits:1 }).format(value)}</text>
+    `;
+  }).join('');
+
+  const labels = points.map((p, i) => {
+    const xx = x(i);
+    return `<text x="${xx}" y="${height-18}" text-anchor="middle" class="dashboard-chart-axis">${p.label}</text>`;
+  }).join('');
+
+  const dots = points.map((p, i) => {
+    const xx = x(i);
+    const yy = y(p.value);
+    const title = `${p.fullLabel}: ${money(p.value)}`;
+    return `
+      <g class="dashboard-chart-point" tabindex="0">
+        <circle cx="${xx}" cy="${yy}" r="5"></circle>
+        <title>${title}</title>
+      </g>
+    `;
+  }).join('');
+
+  return `
+    <svg class="dashboard-history-svg" viewBox="0 0 ${width} ${height}" role="img" aria-label="${metricLabel}: Verlauf der letzten 7 Tage">
+      ${gridLines}
+      <line x1="${pad.left}" y1="${pad.top+chartH}" x2="${width-pad.right}" y2="${pad.top+chartH}" class="dashboard-chart-axis-line"/>
+      <polyline points="${polyline}" class="dashboard-chart-line" fill="none"/>
+      ${dots}
+      ${labels}
+    </svg>
+  `;
+}
+
+async function openDashboardHistory(metricKey) {
+  const config = DASHBOARD_HISTORY_METRICS[metricKey];
+  const modal = document.getElementById('dashboardHistoryModal');
+  const title = document.getElementById('dashboardHistoryTitle');
+  const subtitle = document.getElementById('dashboardHistorySubtitle');
+  const current = document.getElementById('dashboardHistoryCurrent');
+  const chart = document.getElementById('dashboardHistoryChart');
+
+  if (!config || !modal || !state.company?.id) return;
+
+  const label = translateUiString(config.label);
+  title.textContent = label;
+  subtitle.textContent = translateUiString('Entwicklung der letzten 7 Tage');
+  current.innerHTML = `<span>${translateUiString('Aktueller Wert')}</span><strong>${money(config.currentValue())}</strong>`;
+  chart.innerHTML = `<p class="muted">${translateUiString('Verlauf wird geladen …')}</p>`;
+
+  modal.classList.remove('hidden');
+  modal.setAttribute('aria-hidden', 'false');
+  document.body.classList.add('dashboard-history-open');
+  document.getElementById('dashboardHistoryClose')?.focus();
+
+  const { data, error } = await sb
+    .from('company_valuation_history')
+    .select('valuation_date,cash_balance,material_value,product_value,building_value,patent_value,loan_debt,company_value')
+    .eq('company_id', state.company.id)
+    .order('valuation_date', { ascending: false })
+    .limit(7);
+
+  if (error) {
+    console.error('Dashboard-Verlauf:', error);
+    chart.innerHTML = `<p class="status error">${error.message}</p>`;
+    return;
+  }
+
+  const history = [...(data || [])].reverse();
+  const points = history.map(row => ({
+    value: config.historyValue(row),
+    label: dashboardHistoryDateLabel(row.valuation_date),
+    fullLabel: new Date(`${row.valuation_date}T12:00:00`).toLocaleDateString(uiLocale(), { day:'2-digit', month:'2-digit', year:'numeric' })
+  }));
+
+  const today = new Date();
+  const todayKey = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
+  if (history.length && history[history.length - 1]?.valuation_date === todayKey) {
+    points[points.length - 1] = {
+      value: config.currentValue(),
+      label: dashboardHistoryDateLabel(todayKey, true),
+      fullLabel: translateUiString('Heute')
+    };
+  } else {
+    points.push({
+      value: config.currentValue(),
+      label: dashboardHistoryDateLabel(todayKey, true),
+      fullLabel: translateUiString('Heute')
+    });
+  }
+
+  while (points.length > 7) points.shift();
+  chart.innerHTML = dashboardHistorySvg(points, label);
+}
+
+function closeDashboardHistory() {
+  const modal = document.getElementById('dashboardHistoryModal');
+  if (!modal) return;
+  modal.classList.add('hidden');
+  modal.setAttribute('aria-hidden', 'true');
+  document.body.classList.remove('dashboard-history-open');
+}
+
+document.querySelectorAll('.dashboard-history-card').forEach(card => {
+  card.addEventListener('click', () => openDashboardHistory(card.dataset.dashboardHistory));
+  card.addEventListener('keydown', event => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      openDashboardHistory(card.dataset.dashboardHistory);
+    }
+  });
+});
+
+document.getElementById('dashboardHistoryClose')?.addEventListener('click', closeDashboardHistory);
+document.getElementById('dashboardHistoryModal')?.addEventListener('click', event => {
+  if (event.target?.id === 'dashboardHistoryModal') closeDashboardHistory();
+});
+document.addEventListener('keydown', event => {
+  if (event.key === 'Escape' && !document.getElementById('dashboardHistoryModal')?.classList.contains('hidden')) {
+    closeDashboardHistory();
+  }
+});
+

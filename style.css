@@ -2531,3 +2531,146 @@ body.game-dialog-open { overflow: hidden; }
   border-color:#ea580c!important;
   color:#fff!important;
 }
+
+
+/* v0.10.113 – Dashboard 7-Tage-Verlauf */
+.dashboard-history-card{
+  cursor:pointer;
+  transition:border-color .15s ease, box-shadow .15s ease, transform .15s ease;
+}
+.dashboard-history-card:hover,
+.dashboard-history-card:focus-visible{
+  border-color:var(--primary);
+  box-shadow:0 0 0 2px rgba(30,100,180,.10);
+  outline:none;
+}
+.dashboard-history-card:active{
+  transform:translateY(1px);
+}
+
+.dashboard-history-modal{
+  position:fixed;
+  inset:0;
+  z-index:3000;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:20px;
+  background:rgba(10,22,36,.55);
+}
+.dashboard-history-modal.hidden{
+  display:none!important;
+}
+.dashboard-history-dialog{
+  width:min(900px,100%);
+  max-height:calc(100vh - 40px);
+  overflow:auto;
+  background:#fff;
+  border:1px solid #dbe3ec;
+  border-radius:16px;
+  box-shadow:0 20px 60px rgba(0,0,0,.22);
+  padding:20px;
+}
+.dashboard-history-head{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:16px;
+  margin-bottom:14px;
+}
+.dashboard-history-head h2{
+  margin:0 0 4px;
+}
+.dashboard-history-close{
+  flex:0 0 44px;
+  width:44px;
+  height:44px;
+  min-width:44px;
+  padding:0;
+  border-radius:10px;
+  background:#eef3f8;
+  border:1px solid #d6dee8;
+  color:#21364d;
+  font-size:28px;
+  line-height:1;
+}
+.dashboard-history-current{
+  display:flex;
+  align-items:baseline;
+  justify-content:space-between;
+  gap:16px;
+  padding:12px 14px;
+  margin-bottom:12px;
+  border:1px solid #e2e8ef;
+  border-radius:10px;
+  background:#f8fafc;
+}
+.dashboard-history-current span{
+  color:var(--muted);
+  font-size:13px;
+  font-weight:600;
+}
+.dashboard-history-current strong{
+  font-size:20px;
+}
+.dashboard-history-chart{
+  width:100%;
+  min-height:280px;
+  overflow-x:auto;
+}
+.dashboard-history-svg{
+  display:block;
+  width:100%;
+  min-width:620px;
+  height:auto;
+}
+.dashboard-chart-grid{
+  stroke:#e8edf3;
+  stroke-width:1;
+}
+.dashboard-chart-axis-line{
+  stroke:#b9c5d2;
+  stroke-width:1;
+}
+.dashboard-chart-axis{
+  fill:#6f7f90;
+  font-size:12px;
+}
+.dashboard-chart-line{
+  stroke:var(--primary);
+  stroke-width:3;
+  stroke-linecap:round;
+  stroke-linejoin:round;
+}
+.dashboard-chart-point circle{
+  fill:#fff;
+  stroke:var(--primary);
+  stroke-width:3;
+}
+.dashboard-chart-point:focus circle{
+  stroke-width:5;
+}
+body.dashboard-history-open{
+  overflow:hidden;
+}
+
+@media(max-width:720px){
+  .dashboard-history-modal{
+    padding:10px;
+  }
+  .dashboard-history-dialog{
+    padding:16px;
+    border-radius:14px;
+    max-height:calc(100vh - 20px);
+  }
+  .dashboard-history-current{
+    align-items:flex-start;
+    flex-direction:column;
+    gap:4px;
+  }
+  .dashboard-history-chart{
+    margin:0 -4px;
+    width:calc(100% + 8px);
+  }
+}
+
