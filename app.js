@@ -70,7 +70,7 @@ const I18N_EN = {
   'Nächste Marktaktualisierung':'Next market update','Gesamtkosten':'Total cost','Kaufen':'Buy',
   'Vertrag vorschlagen':'Propose contract','Direkte Verträge zwischen Spielerunternehmen sind gebührenfrei.':'Direct contracts between player companies are fee-free.',
   'Ich möchte':'I want to','kaufen':'buy','verkaufen':'sell','Partner':'Partner','Partner suchen':'Search partner','Unternehmensname oder Unternehmens-ID':'Company name or company ID','Kein Unternehmen gefunden':'No company found','Gut-Typ':'Item type','Material':'Material',
-  'Meine Verträge':'My contracts','Produktforschung':'Product research','Forschungseinheiten im Lager':'Research units in storage',
+  'Meine Verträge':'My contracts','Eingehende Verträge':'Incoming contracts','Ausgehende Verträge':'Outgoing contracts','Absender':'Sender','Empfänger':'Recipient','Kaufsumme':'Purchase total','Verkaufssumme':'Sale total','Ablehnen':'Reject','Produktforschung':'Product research','Forschungseinheiten im Lager':'Research units in storage',
   'Ø Einstandswert':'Ø acquisition value','Forschungseinheiten investieren':'Invest research units','Investieren':'Invest',
   'Anleihen & Kredite':'Bonds & loans','Finanzübersicht':'Financial overview','Tag':'Day','Woche':'Week','Monat':'Month',
   'Finanzbewegungen':'Financial transactions','Version':'Version','Account-Daten':'Account data','Ändern':'Change',
@@ -3852,48 +3852,52 @@ function contractStatus(s) {
 }
 function renderContracts() {
   const cid = state.company.id;
-  document.getElementById('contractsTable').innerHTML = renderTable(
-    ['Verkäufer','Käufer','Gut','Qualität','Menge','Preis','Status','Aktion'],
-    state.contracts.map(c => {
-      let action = '–';
-      if (c.status === 'proposed' && c.proposer_company_id !== cid) action = `<button onclick="acceptContract('${c.id}')">Annehmen</button>`;
-      else if (c.status === 'accepted') action = `<button onclick="fulfillContract('${c.id}')">${translateUiString('Erfüllen')}</button>`;
-      if (['proposed','accepted'].includes(c.status)) action += ` <button class="ghost" onclick="cancelContract('${c.id}')">${translateUiString('Stornieren')}</button>`;
-      return `<tr><td>${companyName(c.seller_company_id)}</td><td>${companyName(c.buyer_company_id)}</td><td>${contractItemName(c)}</td><td>Q${Number(c.quality_level || 1)}</td><td>${num(c.quantity)}</td><td>${money(c.unit_price)}</td><td>${contractStatus(c.status)}</td><td>${action}</td></tr>`;
-    })
-  );
+  const proposedContracts = state.contracts.filter(c => c.status === 'proposed');
+  const incoming = proposedContracts.filter(c => c.buyer_company_id === cid);
+  const outgoing = proposedContracts.filter(c => c.seller_company_id === cid);
+
+  const contractRows = (contracts, direction) => contracts.map(c => {
+    const totalValue = Number(c.quantity || 0) * Number(c.unit_price || 0);
+    const partnerId = direction === 'incoming' ? c.seller_company_id : c.buyer_company_id;
+    const actions = direction === 'incoming'
+      ? `<div class="contract-action-buttons">
+          <button class="contract-accept-btn" onclick="acceptContract('${c.id}')">${translateUiString('Annehmen')}</button>
+          <button class="strong-danger-btn" onclick="rejectContract('${c.id}')">${translateUiString('Ablehnen')}</button>
+        </div>`
+      : `<div class="contract-action-buttons">
+          <button class="strong-danger-btn" onclick="cancelContract('${c.id}')">${translateUiString('Stornieren')}</button>
+        </div>`;
+
+    return `<tr>
+      <td>${companyName(partnerId)}</td>
+      <td>${contractItemName(c)}</td>
+      <td>Q${Number(c.quality_level || 1)}</td>
+      <td>${num(c.quantity)}</td>
+      <td>${money(c.unit_price)}</td>
+      <td><strong>${money(totalValue)}</strong></td>
+      <td>${actions}</td>
+    </tr>`;
+  });
+
+  const incomingTable = document.getElementById('incomingContractsTable');
+  const outgoingTable = document.getElementById('outgoingContractsTable');
+
+  if (incomingTable) {
+    incomingTable.innerHTML = renderTable(
+      ['Absender','Gut','Qualität','Menge','Preis je Einheit','Kaufsumme','Aktion'],
+      contractRows(incoming, 'incoming')
+    );
+  }
+
+  if (outgoingTable) {
+    outgoingTable.innerHTML = renderTable(
+      ['Empfänger','Gut','Qualität','Menge','Preis je Einheit','Verkaufssumme','Aktion'],
+      contractRows(outgoing, 'outgoing')
+    );
+  }
 
   updateContractPartnerOptions();
   updateContractGoods();
-}
-
-function updateContractPartnerOptions() {
-  const select = document.getElementById('contractPartner');
-  if (!select || !state.company?.id) return;
-
-  const search = (document.getElementById('contractPartnerSearch')?.value || '').trim().toLocaleLowerCase(uiLocale());
-  const previous = select.value;
-
-  const others = state.companyDirectory
-    .filter(c => c.company_type === 'player' && c.id !== state.company.id)
-    .filter(c => {
-      if (!search) return true;
-      const name = String(c.name || '').toLocaleLowerCase(uiLocale());
-      const companyCode = String(c.company_code || '').toLocaleLowerCase(uiLocale());
-      return name.includes(search) || companyCode.includes(search);
-    })
-    .sort((a,b) => String(a.name || '').localeCompare(String(b.name || ''), uiLocale()));
-
-  select.innerHTML = others.length
-    ? others.map(c => `<option value="${c.id}">${c.name}${c.company_code ? ` · ${c.company_code}` : ''}</option>`).join('')
-    : `<option value="">${translateUiString('Kein Unternehmen gefunden')}</option>`;
-
-  if (others.some(c => c.id === previous)) {
-    select.value = previous;
-  }
-
-  syncCustomSelect(select);
-  renderContractPreview();
 }
 
 function updateContractGoods() {
@@ -5859,9 +5863,18 @@ document.getElementById('contractForm').addEventListener('submit',async e=>{
   });
   if(error) gameAlert(error.message); else await loadCompany();
 });
-window.acceptContract=async id=>{ const {error}=await sb.rpc('accept_contract',{p_contract_id:id}); if(error) gameAlert(error.message); else await loadCompany(); };
-window.fulfillContract=async id=>{ const {error}=await sb.rpc('fulfill_contract',{p_contract_id:id}); if(error) gameAlert(error.message); else await loadCompany(); };
-window.cancelContract=async id=>{ const {error}=await sb.rpc('cancel_contract',{p_contract_id:id}); if(error) gameAlert(error.message); else await loadCompany(); };
+window.acceptContract=async id=>{
+  const {error}=await sb.rpc('accept_and_fulfill_contract',{p_contract_id:id});
+  if(error) gameAlert(error.message); else await loadCompany();
+};
+window.rejectContract=async id=>{
+  const {error}=await sb.rpc('reject_contract',{p_contract_id:id});
+  if(error) gameAlert(error.message); else await loadCompany();
+};
+window.cancelContract=async id=>{
+  const {error}=await sb.rpc('cancel_contract',{p_contract_id:id});
+  if(error) gameAlert(error.message); else await loadCompany();
+};
 
 
 
