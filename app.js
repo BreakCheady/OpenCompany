@@ -897,7 +897,40 @@ const num = n => new Intl.NumberFormat(uiLocale(), { maximumFractionDigits: 2 })
 const balanceMoney = n => `${new Intl.NumberFormat(uiLocale(), { maximumFractionDigits: 0 }).format(Number(n || 0))} OC$`;
 
 
-const qualityMultiplier = quality => 1 + Math.max(0, Number(quality || 1) - 1) * 0.05;
+// Zentrale Spielregeln für alle Frontend-Anzeigen und Berechnungen.
+// Serverseitige Regeln werden weiterhin in Supabase erzwungen; diese Struktur
+// ist die gemeinsame Quelle für die im Client dargestellten Regelwerte.
+const GAME_RULES = Object.freeze({
+  fees: Object.freeze({
+    marketRate: 0.05,
+    retailCancellationRate: 0.20,
+    storageDailyRate: 0.05,
+    storageOverflowRate: 0.20
+  }),
+  schedules: Object.freeze({
+    companyValuation: '01:00',
+    companyRanking: '01:30',
+    storageDaily: '02:00',
+    bondInterest: '03:00',
+    npcMarketIntervalMinutes: 15
+  }),
+  unlockLevels: Object.freeze({
+    contracts: 5,
+    research: 5,
+    bonds: 10
+  }),
+  quality: Object.freeze({
+    valueBonusPerLevel: 0.05
+  }),
+  pricing: Object.freeze({
+    playerRecommendedCostMultiplier: 2
+  })
+});
+
+const rulePercent = rate => Math.round(Number(rate || 0) * 100);
+const ruleTime = key => GAME_RULES.schedules[key] || '–';
+const qualityMultiplier = quality =>
+  1 + Math.max(0, Number(quality || 1) - 1) * GAME_RULES.quality.valueBonusPerLevel;
 const researchRequirement = quality => Number(quality || 1) <= 1 ? 1000 : 2500 * (Number(quality || 1) - 1);
 const productQuality = product => Math.max(1, Number(product?.quality_level || 1));
 const minimumInputQuality = product => Math.max(1, productQuality(product) - 1);
@@ -933,7 +966,11 @@ function xpProgressContext(company = state.company) {
 }
 
 function featureRequiredLevel(view) {
-  return ({ contracts: 5, research: 5, loans: 10 })[view] || 0;
+  return ({
+    contracts: GAME_RULES.unlockLevels.contracts,
+    research: GAME_RULES.unlockLevels.research,
+    loans: GAME_RULES.unlockLevels.bonds
+  })[view] || 0;
 }
 
 function featureUnlocked(view) {
@@ -1546,7 +1583,8 @@ function stopPresenceHeartbeat() {
 function nextMarketRefreshAt(now = new Date()) {
   const next = new Date(now);
   next.setSeconds(0, 0);
-  const nextQuarter = (Math.floor(next.getMinutes() / 15) + 1) * 15;
+  const interval = GAME_RULES.schedules.npcMarketIntervalMinutes;
+  const nextQuarter = (Math.floor(next.getMinutes() / interval) + 1) * interval;
   next.setMinutes(nextQuarter);
   return next;
 }
@@ -3537,7 +3575,7 @@ function retailSaleProgress(job) {
     unitPrice,
     claimableRevenue: claimableUnits * unitPrice,
     openRevenue: Math.max(0, Number(job.total_value || 0) - claimed * unitPrice),
-    cancellationFee: Number(job.total_value || 0) * 0.20
+    cancellationFee: Number(job.total_value || 0) * GAME_RULES.fees.retailCancellationRate
   };
 }
 
@@ -3677,7 +3715,7 @@ function renderRetailSale() {
   }
 
   const expectedRevenue = ctx.price * Math.max(0, qty);
-  const cancellationFee = expectedRevenue * 0.20;
+  const cancellationFee = expectedRevenue * GAME_RULES.fees.retailCancellationRate;
   details.innerHTML = ctx.product ? [
     `<div class="kv"><span>Verkaufsgebäude</span><strong>${ctx.buildingType?.name || '–'}</strong></div>`,
     `<div class="kv"><span>Gebäudestatus</span><strong class="${ctx.building ? 'retail-ready' : 'missing-building-warning'}">${ctx.building ? 'Bereit' : 'Benötigtes Gebäude fehlt'}</strong></div>`,
@@ -4585,7 +4623,7 @@ function renderBonds() {
     </div>`;
 
   if (!unlocked) {
-    container.innerHTML = `${warning}${overview}<div class="bond-locked"><strong>🔒 Anleihen werden auf Unternehmenslevel 10 freigeschaltet.</strong></div>`;
+    container.innerHTML = `${warning}${overview}<div class="bond-locked"><strong>🔒 Anleihen werden auf Unternehmenslevel ${GAME_RULES.unlockLevels.bonds} freigeschaltet.</strong></div>`;
     return;
   }
 
@@ -5154,23 +5192,23 @@ const ENCYCLOPEDIA_ARTICLES = [
     id:'company-level', category:'Grundlagen', title:'Unternehmenslevel & XP',
     keywords:['level','xp','erfahrung','freischaltung'],
     summary:'Level bestimmen unter anderem Gebäudeplätze und Funktionsfreischaltungen.',
-    body:`<p>Unternehmens-XP erhöhen dein Level. Bestimmte Funktionen werden erst ab einem festgelegten Level freigeschaltet.</p>
-      <h3>Beispiele</h3><ul><li>Verträge und Forschung werden ab Level 5 freigeschaltet.</li><li>Anleihen werden ab Level 10 freigeschaltet.</li><li>Mit höheren Leveln stehen zusätzliche Gebäudeplätze zur Verfügung.</li></ul>`,
+    body:() => `<p>Unternehmens-XP erhöhen dein Level. Bestimmte Funktionen werden erst ab einem festgelegten Level freigeschaltet.</p>
+      <h3>Beispiele</h3><ul><li>Verträge werden ab Level ${GAME_RULES.unlockLevels.contracts} freigeschaltet.</li><li>Forschung wird ab Level ${GAME_RULES.unlockLevels.research} freigeschaltet.</li><li>Anleihen werden ab Level ${GAME_RULES.unlockLevels.bonds} freigeschaltet.</li><li>Mit höheren Leveln stehen zusätzliche Gebäudeplätze zur Verfügung.</li></ul>`,
     related:['buildings','contracts','research','bonds'], targetView:'dashboard'
   },
   {
     id:'company-value', category:'Grundlagen', title:'Unternehmenswert',
     keywords:['wert','bewertung','ranking','unternehmenswert'],
     summary:'Der Unternehmenswert bündelt mehrere Vermögensbestandteile des Unternehmens.',
-    body:`<p>Der Unternehmenswert wird automatisch aus den hierfür vorgesehenen Unternehmensdaten berechnet und dient unter anderem als Grundlage für die Rangliste.</p>
-      <p>Die tägliche Berechnung ist als Hintergrundprozess eingerichtet.</p>`,
+    body:() => `<p>Der Unternehmenswert wird automatisch aus den hierfür vorgesehenen Unternehmensdaten berechnet und dient unter anderem als Grundlage für die Rangliste.</p>
+      <p>Die tägliche Berechnung ist für <strong>${ruleTime('companyValuation')} Uhr deutscher Zeit</strong> vorgesehen.</p>`,
     related:['ranking','finance','storage-value','patent-value'], targetView:'dashboard'
   },
   {
     id:'ranking', category:'Grundlagen', title:'Rangliste',
     keywords:['ranking','rang','platzierung'],
     summary:'Die Rangliste vergleicht aktive Spielerunternehmen anhand des gespeicherten Unternehmenswerts.',
-    body:`<p>Die Rangliste wird täglich aus den Unternehmenswerten erstellt. Angezeigt werden Rang und Rangveränderung gegenüber der vorherigen Wertung.</p>`,
+    body:() => `<p>Die Rangliste wird täglich um <strong>${ruleTime('companyRanking')} Uhr deutscher Zeit</strong> aus den Unternehmenswerten erstellt. Angezeigt werden Rang und Rangveränderung gegenüber der vorherigen Wertung.</p>`,
     related:['company-value','company-level'], targetView:'dashboard'
   },
   {
@@ -5217,7 +5255,8 @@ const ENCYCLOPEDIA_ARTICLES = [
     id:'quality', category:'Produktion', title:'Qualitätsstufen',
     keywords:['qualität','q1','q2','q3','q4'],
     summary:'Produkte und Bestände besitzen Qualitätsstufen mit Auswirkungen auf Wert und Verwendung.',
-    body:`<p>Die Qualitätsstufe wird als Q1, Q2, Q3 usw. dargestellt. Höhere Qualitätsstufen erhöhen den Wertbonus eines Produkts.</p>
+    body:() => `<p>Die Qualitätsstufe wird als Q1, Q2, Q3 usw. dargestellt. Jede Stufe oberhalb von Q1 erhöht den Wertbonus aktuell um <strong>${rulePercent(GAME_RULES.quality.valueBonusPerLevel)} Prozentpunkte</strong>.</p>
+      <p>Damit besitzt Q2 einen Wertbonus von +${rulePercent(GAME_RULES.quality.valueBonusPerLevel)} %, Q3 von +${rulePercent(GAME_RULES.quality.valueBonusPerLevel * 2)} % usw.</p>
       <p>Bei Produktionsrezepten können Mindestqualitäten für verwendbare Eingaben relevant sein.</p>`,
     related:['research','recipes','market'], targetView:'research'
   },
@@ -5241,16 +5280,16 @@ const ENCYCLOPEDIA_ARTICLES = [
     id:'storage-costs', category:'Lager', title:'Lagerhaltungskosten',
     keywords:['lagerkosten','haltungskosten','02:00','gebühr'],
     summary:'Lagerhaltungskosten werden täglich automatisch berechnet.',
-    body:`<p>Die reguläre Lagerabrechnung findet täglich ab <strong>02:00 Uhr deutscher Zeit</strong> statt.</p>
-      <p>Bei vorhandenem Lagergebäude werden aktuell <strong>5 % des Lagerwerts pro Tag</strong> als Lagerhaltungskosten berechnet. Die Tagesabrechnung wird pro Unternehmen nur einmal durchgeführt.</p>`,
+    body:() => `<p>Die reguläre Lagerabrechnung findet täglich ab <strong>${ruleTime('storageDaily')} Uhr deutscher Zeit</strong> statt.</p>
+      <p>Bei vorhandenem Lagergebäude werden aktuell <strong>${rulePercent(GAME_RULES.fees.storageDailyRate)} % des Lagerwerts pro Tag</strong> als Lagerhaltungskosten berechnet. Die Tagesabrechnung wird pro Unternehmen nur einmal durchgeführt.</p>`,
     related:['storage','storage-value','overflow'], targetView:'storage'
   },
   {
     id:'overflow', category:'Lager', title:'Überbestand',
     keywords:['überbestand','überlager','kapazität','gebühr'],
     summary:'Bestände oberhalb der Lagerkapazität können zusätzliche Kosten und Folgen auslösen.',
-    body:`<p>Liegt der Gesamtbestand über der verfügbaren Lagerkapazität, gilt der überschüssige Teil als Überbestand.</p>
-      <p>Für den abrechenbaren Überbestand kann zusätzlich eine Gebühr von <strong>20 % des Wertes des Überbestands</strong> entstehen.</p>`,
+    body:() => `<p>Liegt der Gesamtbestand über der verfügbaren Lagerkapazität, gilt der überschüssige Teil als Überbestand.</p>
+      <p>Für den abrechenbaren Überbestand kann zusätzlich eine Gebühr von <strong>${rulePercent(GAME_RULES.fees.storageOverflowRate)} % des Wertes des Überbestands</strong> entstehen.</p>`,
     related:['storage','storage-costs','warehouse'], targetView:'storage'
   },
   {
@@ -5296,7 +5335,7 @@ const ENCYCLOPEDIA_ARTICLES = [
     id:'market-fee', category:'Warenbörse', title:'Marktgebühr',
     keywords:['marktgebühr','5%','gebühr'],
     summary:'Erfolgreiche Verkäufe über die Warenbörse unterliegen einer Marktgebühr.',
-    body:`<p>Bei einem erfolgreichen Marktverkauf werden aktuell <strong>5 % Marktgebühr</strong> vom Verkaufserlös abgezogen.</p>
+    body:() => `<p>Bei einem erfolgreichen Marktverkauf werden aktuell <strong>${rulePercent(GAME_RULES.fees.marketRate)} % Marktgebühr</strong> vom Verkaufserlös abgezogen.</p>
       <p>Der Nettoerlös und die Gebühr werden in den Finanzbewegungen dokumentiert.</p>`,
     related:['market','finance','market-pricing'], targetView:'market'
   },
@@ -5304,7 +5343,7 @@ const ENCYCLOPEDIA_ARTICLES = [
     id:'market-pricing', category:'Warenbörse', title:'Preisfindung & Richtpreise',
     keywords:['preis','richtpreis','empfehlung','aufschlag'],
     summary:'Preisempfehlungen orientieren sich an tatsächlichen Einstandskosten.',
-    body:`<p>Bei Spielerprodukten orientiert sich der empfohlene Verkaufspreis an den tatsächlichen durchschnittlichen Einstandskosten. In den dafür vorgesehenen Eingabefeldern wird aktuell ein Richtwert von Einstandskosten × 2 verwendet.</p>
+    body:() => `<p>Bei Spielerprodukten orientiert sich der empfohlene Verkaufspreis an den tatsächlichen durchschnittlichen Einstandskosten. In den dafür vorgesehenen Eingabefeldern wird aktuell ein Richtwert von Einstandskosten × ${GAME_RULES.pricing.playerRecommendedCostMultiplier} verwendet.</p>
       <p>Die endgültige Preisentscheidung liegt beim Spieler.</p>`,
     related:['average-cost','market','production-cost'], targetView:'market'
   },
@@ -5312,8 +5351,8 @@ const ENCYCLOPEDIA_ARTICLES = [
     id:'npc-market', category:'Warenbörse', title:'NPC-Markt',
     keywords:['npc','marktaktualisierung','angebot'],
     summary:'NPC-Unternehmen erzeugen Angebot und können passende Spielerorders kaufen.',
-    body:`<p>Der NPC-Markt wird regelmäßig automatisch aktualisiert. Dabei können neue NPC-Angebote entstehen und geeignete Verkaufsorders von Spielern ausgeführt werden.</p>
-      <p>Die NPC-Marktversorgung läuft derzeit in einem 15-Minuten-Rhythmus.</p>`,
+    body:() => `<p>Der NPC-Markt wird regelmäßig automatisch aktualisiert. Dabei können neue NPC-Angebote entstehen und geeignete Verkaufsorders von Spielern ausgeführt werden.</p>
+      <p>Die NPC-Marktversorgung läuft derzeit in einem ${GAME_RULES.schedules.npcMarketIntervalMinutes}-Minuten-Rhythmus.</p>`,
     related:['market','market-orders','market-pricing'], targetView:'market'
   },
   {
@@ -5351,8 +5390,8 @@ const ENCYCLOPEDIA_ARTICLES = [
     id:'contracts', category:'Verträge', title:'Direktverträge',
     keywords:['vertrag','direktvertrag','partner'],
     summary:'Verträge ermöglichen direkte, gebührenfreie Geschäfte zwischen Spielerunternehmen.',
-    body:`<p>Direktverträge werden zwischen Spielerunternehmen geschlossen. Das anbietende Unternehmen ist der Verkäufer und wählt Ware, Qualität, Menge und Preis.</p>
-      <p>Verträge stehen ab Unternehmenslevel 5 zur Verfügung.</p>`,
+    body:() => `<p>Direktverträge werden zwischen Spielerunternehmen geschlossen. Das anbietende Unternehmen ist der Verkäufer und wählt Ware, Qualität, Menge und Preis.</p>
+      <p>Verträge stehen ab Unternehmenslevel ${GAME_RULES.unlockLevels.contracts} zur Verfügung.</p>`,
     related:['contract-flow','company-level','finance'], targetView:'contracts'
   },
   {
@@ -5364,12 +5403,25 @@ const ENCYCLOPEDIA_ARTICLES = [
     related:['contracts','finance'], targetView:'contracts'
   },
   {
+    id:'fees', category:'Finanzen', title:'Gebühren',
+    keywords:['gebühr','gebühren','marktgebühr','abbruchgebühr','lagerkosten'],
+    summary:'Die wichtigsten prozentualen Gebühren werden zentral aus den Spielregeln angezeigt.',
+    body:() => `<p>OpenCompany verwendet mehrere automatische Gebühren:</p>
+      <ul>
+        <li>Warenbörse: <strong>${rulePercent(GAME_RULES.fees.marketRate)} % Marktgebühr</strong> bei erfolgreichem Verkauf.</li>
+        <li>Abbruch eines laufenden Einzelhandelsverkaufs: <strong>${rulePercent(GAME_RULES.fees.retailCancellationRate)} %</strong> des erwarteten Erlöses.</li>
+        <li>Lagerhaltung mit Lagergebäude: <strong>${rulePercent(GAME_RULES.fees.storageDailyRate)} %</strong> des Lagerwerts pro Tag.</li>
+        <li>Abrechenbarer Überbestand: zusätzlich <strong>${rulePercent(GAME_RULES.fees.storageOverflowRate)} %</strong> seines Wertes.</li>
+      </ul>`,
+    related:['market-fee','storage-costs','overflow','finance'], targetView:'finance'
+  },
+  {
     id:'finance', category:'Finanzen', title:'Finanzen',
     keywords:['finanzen','einnahmen','kosten','gewinn'],
     summary:'Der Finanzbereich bündelt Einnahmen, Kosten und einzelne Finanzbewegungen.',
     body:`<p>Die Finanzübersicht kann nach Tag, Woche und Monat betrachtet werden. Einzelne Finanzbewegungen lassen sich aufklappen, um zusätzliche Details zu sehen.</p>
       <p>Einnahmen und Kosten werden aus den gespeicherten Finanztransaktionen des Unternehmens abgeleitet.</p>`,
-    related:['financial-transactions','market-fee','bonds','storage-costs'], targetView:'finance'
+    related:['financial-transactions','fees','market-fee','bonds','storage-costs'], targetView:'finance'
   },
   {
     id:'financial-transactions', category:'Finanzen', title:'Finanzbewegungen',
@@ -5383,7 +5435,7 @@ const ENCYCLOPEDIA_ARTICLES = [
     id:'bonds', category:'Finanzen', title:'Anleihen & Kredite',
     keywords:['anleihe','kredit','zins','finanzierung'],
     summary:'Anleihen ermöglichen Fremdfinanzierung zwischen Unternehmen und NPCs.',
-    body:`<p>Das Anleihensystem wird ab Unternehmenslevel 10 freigeschaltet. Unternehmen können Finanzierungsanfragen stellen oder in geeignete Anleihen investieren.</p>
+    body:() => `<p>Das Anleihensystem wird ab Unternehmenslevel ${GAME_RULES.unlockLevels.bonds} freigeschaltet. Unternehmen können Finanzierungsanfragen stellen oder in geeignete Anleihen investieren.</p>
       <p>Aktive Anleihen erzeugen tägliche Zinsverpflichtungen.</p>`,
     related:['bond-interest','bond-default','company-level'], targetView:'finance'
   },
@@ -5391,7 +5443,7 @@ const ENCYCLOPEDIA_ARTICLES = [
     id:'bond-interest', category:'Finanzen', title:'Anleihezinsen',
     keywords:['zins','tageszins','03:00'],
     summary:'Zinsen aktiver Anleihen werden täglich automatisch verarbeitet.',
-    body:`<p>Die tägliche Zinsverarbeitung ist für <strong>03:00 Uhr deutscher Zeit</strong> vorgesehen. Bei ausreichendem Guthaben wird der fällige Betrag beim Kreditnehmer abgezogen und dem Kreditgeber gutgeschrieben.</p>`,
+    body:() => `<p>Die tägliche Zinsverarbeitung ist für <strong>${ruleTime('bondInterest')} Uhr deutscher Zeit</strong> vorgesehen. Bei ausreichendem Guthaben wird der fällige Betrag beim Kreditnehmer abgezogen und dem Kreditgeber gutgeschrieben.</p>`,
     related:['bonds','bond-default','financial-transactions'], targetView:'finance'
   },
   {
@@ -5485,7 +5537,7 @@ function renderEncyclopedia() {
       <span class="encyclopedia-article-category">${translateUiString(article.category)}</span>
       <p class="muted">${translateUiString(article.summary)}</p>
     </header>
-    <div class="encyclopedia-article-body">${article.body}</div>
+    <div class="encyclopedia-article-body">${typeof article.body === 'function' ? article.body() : article.body}</div>
     ${article.targetView ? `
       <div class="encyclopedia-article-actions">
         <button type="button" onclick="goToEncyclopediaTarget('${article.targetView}')">
@@ -5606,7 +5658,7 @@ function renderAll() {
       <td>${usedSlotCount} / ${slotCount}</td>
       <td id="companyCashBalance" class="${Number(c.cash_balance || 0) < 0 ? 'negative-balance' : ''}">${balanceMoney(Number(c.cash_balance || 0))}</td>
       <td>${num(automaticEmployees)} Mitarbeiter</td>
-      <td title="Wird täglich um 01:00 Uhr neu berechnet">${money(c.company_value)}</td>
+      <td title="Wird täglich um ${ruleTime('companyValuation')} Uhr neu berechnet">${money(c.company_value)}</td>
       <td>${money(companyBuildingValue)}</td>
       <td>${money(c.patent_value || 0)}</td>
       <td class="${companyDebt > 0 ? 'company-debt-negative' : 'company-debt-zero'}">${companyDebt > 0 ? `-${money(companyDebt)}` : money(0)}</td>
@@ -6086,7 +6138,7 @@ function renderSellOrderPreview() {
   }
 
   const gross = ctx.quantity * ctx.price;
-  const fee = gross * 0.05;
+  const fee = gross * GAME_RULES.fees.marketRate;
   const net = gross - fee;
   const unitCost = Number(ctx.lot?.average_unit_cost || 0);
   const totalCost = ctx.quantity * unitCost;
@@ -6098,7 +6150,7 @@ function renderSellOrderPreview() {
     <div class="kv"><span>Gewählter Orderpreis</span><strong>${money(ctx.price)} / Einheit</strong></div>
     <div class="kv"><span>Bruttoerlös</span><strong>${money(gross)}</strong></div>
     <div class="kv"><span>${translateUiString(costLabel)}</span><strong class="retail-cancel-fee">${totalCost > 0 ? `-${money(totalCost)}` : money(0)}</strong></div>
-    <div class="kv"><span>Marktgebühr (5%)</span><strong class="retail-cancel-fee">${fee > 0 ? `-${money(fee)}` : money(0)}</strong></div>
+    <div class="kv"><span>Marktgebühr (${rulePercent(GAME_RULES.fees.marketRate)}%)</span><strong class="retail-cancel-fee">${fee > 0 ? `-${money(fee)}` : money(0)}</strong></div>
     <div class="kv"><span>Nettoerlös</span><strong class="retail-revenue-positive">${money(net)}</strong></div>
     <div class="kv"><span>${translateUiString('Gewinn / Verlust')}</span><strong class="${profitClass}">${profit >= 0 ? '+' : '-'}${money(Math.abs(profit))}</strong></div>
   `;
@@ -6271,7 +6323,7 @@ document.getElementById('retailSaleForm').addEventListener('submit', async e => 
 
   if (ctx.runningJob) {
     const progress = retailSaleProgress(ctx.runningJob);
-    if (!await gameConfirm(`Verkauf wirklich abbrechen? Noch nicht verkaufte Ware wird zurück ins Lager gelegt. Abbruchgebühr: ${money(progress.cancellationFee)} (20% des erwarteten Erlöses).`)) return;
+    if (!await gameConfirm(`Verkauf wirklich abbrechen? Noch nicht verkaufte Ware wird zurück ins Lager gelegt. Abbruchgebühr: ${money(progress.cancellationFee)} (${rulePercent(GAME_RULES.fees.retailCancellationRate)}% des erwarteten Erlöses).`)) return;
 
     const { error } = await sb.rpc('cancel_retail_sale', {
       p_company_id: state.company.id,
@@ -6331,7 +6383,7 @@ window.cancelRetailSale = async function(jobId) {
   if (!job) return;
 
   const progress = retailSaleProgress(job);
-  if (!await gameConfirm(`Verkauf wirklich abbrechen? Noch nicht verkaufte Ware wird zurück ins Lager gelegt. Abbruchgebühr: ${money(progress.cancellationFee)} (20% des erwarteten Erlöses).`)) return;
+  if (!await gameConfirm(`Verkauf wirklich abbrechen? Noch nicht verkaufte Ware wird zurück ins Lager gelegt. Abbruchgebühr: ${money(progress.cancellationFee)} (${rulePercent(GAME_RULES.fees.retailCancellationRate)}% des erwarteten Erlöses).`)) return;
 
   const { error } = await sb.rpc('cancel_retail_sale', {
     p_company_id: state.company.id,
