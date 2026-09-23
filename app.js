@@ -842,7 +842,6 @@ const state = {
 let presenceTimer = null;
 let productionRefreshTimer = null;
 let productionClaimDisplayTimer = null;
-let npcMarketTimer = null;
 let npcMarketCountdownTimer = null;
 let companyValueRefreshTimer = null;
 let buildingConstructionTimer = null;
@@ -1526,40 +1525,14 @@ function updateMarketRefreshTimer() {
 }
 
 function stopNpcMarketHeartbeat() {
-  if (npcMarketTimer) clearTimeout(npcMarketTimer);
-  npcMarketTimer = null;
   if (npcMarketCountdownTimer) clearInterval(npcMarketCountdownTimer);
   npcMarketCountdownTimer = null;
-}
-
-async function runNpcMarketTickAndRefresh() {
-  if (!sb || !state.company?.id || document.visibilityState === 'hidden') return;
-
-  const { error } = await sb.rpc('run_npc_market_tick');
-  if (error) console.warn('NPC-Markt-Tick:', error.message);
-
-  if (document.getElementById('market')?.classList.contains('active-view')) {
-    await loadGameData();
-  }
-}
-
-function scheduleNextNpcMarketRefresh() {
-  const next = nextMarketRefreshAt();
-  const delay = Math.max(250, next.getTime() - Date.now() + 250);
-
-  npcMarketTimer = setTimeout(async () => {
-    updateMarketRefreshTimer();
-    await runNpcMarketTickAndRefresh();
-    updateMarketRefreshTimer();
-    scheduleNextNpcMarketRefresh();
-  }, delay);
 }
 
 function startNpcMarketHeartbeat() {
   stopNpcMarketHeartbeat();
   updateMarketRefreshTimer();
   npcMarketCountdownTimer = setInterval(updateMarketRefreshTimer, 1000);
-  scheduleNextNpcMarketRefresh();
 }
 
 function isCompanyOnline() {
