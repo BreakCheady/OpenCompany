@@ -4297,20 +4297,15 @@ window.toggleFinanceMovement = function(transactionId) {
   if (details) details.hidden = !open;
 };
 
-function renderFinanceTable() {
-  const container = document.getElementById('financeTable');
-  if (!container) return;
-
-  const transactions = financePeriodTransactions();
-  if (!transactions.length) {
-    container.innerHTML = `<p class="muted">${translateUiString('Noch keine Daten.')}</p>`;
-    return;
+function renderFinanceMovements(transactions, idPrefix = 'finance') {
+  if (!transactions?.length) {
+    return `<p class="muted">${translateUiString('Noch keine Daten.')}</p>`;
   }
 
-  container.innerHTML = `
+  return `
     <div class="finance-movements">
       ${transactions.map((transaction, index) => {
-        const id = transaction.id || `finance-${index}`;
+        const id = transaction.id || `${idPrefix}-${index}`;
         const amount = Number(transaction.amount || 0);
         const isCost = amount < 0;
         return `
@@ -4320,9 +4315,9 @@ function renderFinanceTable() {
               <span class="finance-movement-arrow" aria-hidden="true">›</span>
               <span class="finance-movement-date">${financeMovementDate(transaction.created_at)}</span>
               <span class="finance-movement-title">${financeMovementTitle(transaction)}</span>
-              <strong class="finance-movement-amount ${isCost ? 'finance-movement-cost' : ''}">
+              <span class="finance-movement-amount ${isCost ? 'finance-movement-cost' : ''}">
                 ${isCost ? '−' : ''}${money(Math.abs(amount))}
-              </strong>
+              </span>
             </button>
             <div class="finance-movement-details" hidden>
               ${financeMovementDetails(transaction)}
@@ -4332,6 +4327,12 @@ function renderFinanceTable() {
       }).join('')}
     </div>
   `;
+}
+
+function renderFinanceTable() {
+  const container = document.getElementById('financeTable');
+  if (!container) return;
+  container.innerHTML = renderFinanceMovements(financePeriodTransactions(), 'finance');
 }
 
 function renderFinanceSummary() {
@@ -5135,7 +5136,7 @@ function renderAll() {
   );
   renderCompanyStatus();
 
-  document.getElementById('recentTransactions').innerHTML = renderTable(['Betrag','Beschreibung','Zeit'], state.transactions.slice(0,8).map(t=>`<tr><td class="${transactionAmountClass(t.transaction_type)}">${money(t.amount)}</td><td>${t.description || transactionLabel(t.transaction_type)}</td><td>${new Date(t.created_at).toLocaleString(uiLocale())}</td></tr>`));
+  document.getElementById('recentTransactions').innerHTML = renderFinanceMovements(state.transactions.slice(0,8), 'dashboard-finance');
   renderFinanceSummary();
   renderBonds();
   renderStorage();
