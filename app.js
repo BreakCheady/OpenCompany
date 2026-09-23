@@ -2071,6 +2071,8 @@ async function savePushPreferences(enabled = true) {
     user_id: state.session.user.id,
     production_enabled: enabled,
     retail_enabled: enabled,
+    building_enabled: enabled,
+    market_enabled: enabled,
     updated_at: new Date().toISOString()
   }, { onConflict: 'user_id' });
 
@@ -2378,6 +2380,7 @@ async function handleSession(session) {
   state.session = session;
   const loggedIn = !!session;
   document.getElementById('mainNavigation')?.classList.toggle('hidden', !loggedIn);
+  document.getElementById('headerChatBtn')?.classList.toggle('hidden', !loggedIn);
   document.getElementById('authView').classList.toggle('hidden', loggedIn);
   document.getElementById('publicLeaderboardView')?.classList.toggle('hidden', loggedIn);
   document.getElementById('recoveryView').classList.add('hidden');
