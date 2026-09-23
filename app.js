@@ -253,6 +253,24 @@ Object.assign(I18N_EN, {
   'Kein Produkt verfügbar':'No product available',
   'Unternehmensnamen ändern':'Change company name',
   'Produkt suchen':'Search product','Produktname oder Kategorie':'Product name or category','Keine Produkte gefunden.':'No products found.','Ausgewählt':'Selected','z. B. Smartphone oder Elektronik':'e.g. smartphone or electronics',
+  'Enzyklopädie':'Encyclopedia','Begriff oder Spielmechanik suchen':'Search term or game mechanic',
+  'Keine Artikel gefunden.':'No articles found.','Zum Spielbereich':'Go to game area',
+  'Verwandte Themen':'Related topics','Alle':'All','Grundlagen':'Basics','Gebäude':'Buildings',
+  'Produktion':'Production','Lager':'Storage','Warenbörse':'Marketplace','Forschung':'Research',
+  'Verträge':'Contracts','Finanzen':'Finance','Handel':'Commerce',
+  'Erste Schritte':'Getting started','Unternehmenslevel & XP':'Company level & XP',
+  'Unternehmenswert':'Company value','Rangliste':'Leaderboard','Gebäudelevel':'Building levels',
+  'Produktionsrezepte':'Production recipes','Produktionskosten':'Production costs',
+  'Qualitätsstufen':'Quality levels','Lagergebäude':'Warehouse','Lagerhaltungskosten':'Storage costs',
+  'Überbestand':'Overflow stock','Lagerwert':'Storage value','Ø Einstandskosten':'Average unit cost',
+  'Rohstoffe':'Raw materials','Marktorders':'Market orders','Marktgebühr':'Market fee',
+  'Preisfindung & Richtpreise':'Pricing & guide prices','NPC-Markt':'NPC market',
+  'Order-Historie':'Order history','Produktforschung':'Product research',
+  'Forschungseinheiten':'Research units','Patentwert':'Patent value','Direktverträge':'Direct contracts',
+  'Vertragsablauf':'Contract flow','Finanzbewegungen':'Financial transactions',
+  'Anleihen & Kredite':'Bonds & loans','Anleihezinsen':'Bond interest','Zinsausfall':'Interest default',
+  'Einzelhandel':'Retail',
+
   'Account erstellt. Bitte ggf. E-Mail bestätigen.':'Account created. Please confirm your email if required.',
   'Bitte zuerst E-Mail eingeben.':'Please enter your email first.',
   'Passwort-Link wurde versendet.':'Password reset link has been sent.',
@@ -831,6 +849,9 @@ const state = {
   marketQualityFilter: 'all',
   researchSearchFilter: '',
   researchSelectedProductId: null,
+  encyclopediaSearch: '',
+  encyclopediaCategory: 'Alle',
+  encyclopediaSelectedArticleId: 'getting-started',
   selectedMarketOrderIds: [],
   selectedBuildingId: null,
   selectedRetailBuildingId: null,
@@ -1603,16 +1624,30 @@ function bindNavigation() {
       return;
     }
 
-    document.querySelectorAll('.nav-item').forEach(b=>b.classList.remove('active'));
-    btn.classList.add('active');
-    document.querySelectorAll('.view').forEach(v=>v.classList.remove('active-view'));
-    document.getElementById(view).classList.add('active-view');
-    document.getElementById('pageTitle').textContent = btn.dataset.baseLabel || btn.textContent;
+    activateView(view);
+    if (view === 'encyclopedia') renderEncyclopedia();
   }));
 }
 bindNavigation();
 
+document.getElementById('encyclopediaSearch')?.addEventListener('input', event => {
+  state.encyclopediaSearch = event.target.value;
+  renderEncyclopedia();
+});
 
+document.getElementById('encyclopediaCategories')?.addEventListener('click', event => {
+  const button = event.target.closest('[data-encyclopedia-category]');
+  if (!button) return;
+  state.encyclopediaCategory = button.dataset.encyclopediaCategory || 'Alle';
+  renderEncyclopedia();
+});
+
+document.getElementById('encyclopediaArticleList')?.addEventListener('click', event => {
+  const button = event.target.closest('[data-encyclopedia-article]');
+  if (!button) return;
+  state.encyclopediaSelectedArticleId = button.dataset.encyclopediaArticle;
+  renderEncyclopedia();
+});
 
 
 const customSelectState = {
@@ -5104,6 +5139,404 @@ function renderSettingsCompanyManagement() {
   }
 }
 
+
+const ENCYCLOPEDIA_ARTICLES = [
+  {
+    id:'getting-started', category:'Grundlagen', title:'Erste Schritte',
+    keywords:['start','anfang','unternehmen','dashboard'],
+    summary:'Die wichtigsten ersten Schritte nach der Unternehmensgründung.',
+    body:`<p>Nach der Gründung beginnt dein Unternehmen mit Startkapital, einer Grundausstattung an Gebäuden und Zugriff auf die ersten Spielbereiche.</p>
+      <h3>Was zuerst wichtig ist</h3>
+      <ul><li>Prüfe deinen Kontostand und deine verfügbaren Gebäude.</li><li>Beschaffe Rohstoffe oder Vorprodukte.</li><li>Starte eine Produktion und beobachte Lager sowie Finanzbewegungen.</li><li>Mit höheren Unternehmensleveln werden zusätzliche Funktionen freigeschaltet.</li></ul>`,
+    related:['company-level','buildings','production','finance'], targetView:'dashboard'
+  },
+  {
+    id:'company-level', category:'Grundlagen', title:'Unternehmenslevel & XP',
+    keywords:['level','xp','erfahrung','freischaltung'],
+    summary:'Level bestimmen unter anderem Gebäudeplätze und Funktionsfreischaltungen.',
+    body:`<p>Unternehmens-XP erhöhen dein Level. Bestimmte Funktionen werden erst ab einem festgelegten Level freigeschaltet.</p>
+      <h3>Beispiele</h3><ul><li>Verträge und Forschung werden ab Level 5 freigeschaltet.</li><li>Anleihen werden ab Level 10 freigeschaltet.</li><li>Mit höheren Leveln stehen zusätzliche Gebäudeplätze zur Verfügung.</li></ul>`,
+    related:['buildings','contracts','research','bonds'], targetView:'dashboard'
+  },
+  {
+    id:'company-value', category:'Grundlagen', title:'Unternehmenswert',
+    keywords:['wert','bewertung','ranking','unternehmenswert'],
+    summary:'Der Unternehmenswert bündelt mehrere Vermögensbestandteile des Unternehmens.',
+    body:`<p>Der Unternehmenswert wird automatisch aus den hierfür vorgesehenen Unternehmensdaten berechnet und dient unter anderem als Grundlage für die Rangliste.</p>
+      <p>Die tägliche Berechnung ist als Hintergrundprozess eingerichtet.</p>`,
+    related:['ranking','finance','storage-value','patent-value'], targetView:'dashboard'
+  },
+  {
+    id:'ranking', category:'Grundlagen', title:'Rangliste',
+    keywords:['ranking','rang','platzierung'],
+    summary:'Die Rangliste vergleicht aktive Spielerunternehmen anhand des gespeicherten Unternehmenswerts.',
+    body:`<p>Die Rangliste wird täglich aus den Unternehmenswerten erstellt. Angezeigt werden Rang und Rangveränderung gegenüber der vorherigen Wertung.</p>`,
+    related:['company-value','company-level'], targetView:'dashboard'
+  },
+  {
+    id:'buildings', category:'Gebäude', title:'Gebäude',
+    keywords:['gebäude','fabrik','geschäft','bau'],
+    summary:'Gebäude ermöglichen Produktion, Handel und weitere Unternehmensfunktionen.',
+    body:`<p>Gebäude belegen Gebäudeplätze. Produktionsgebäude stellen Produkte her, Verkaufsgebäude ermöglichen den Einzelhandel und Spezialgebäude erweitern bestimmte Systeme.</p>
+      <p>Gebäude können je nach Typ und Spielfortschritt gebaut und ausgebaut werden.</p>`,
+    related:['building-levels','production','retail','warehouse'], targetView:'production'
+  },
+  {
+    id:'building-levels', category:'Gebäude', title:'Gebäudelevel',
+    keywords:['ausbau','level','gebäudelevel'],
+    summary:'Gebäudelevel beeinflussen Leistungswerte des jeweiligen Gebäudes.',
+    body:`<p>Ein Ausbau erhöht das Gebäudelevel. Je nach Gebäudetyp wirkt sich das unter anderem auf Kapazität oder Produktionsleistung aus.</p>
+      <p>Während eines laufenden Baus oder Ausbaus kann das Gebäude vorübergehend nicht vollständig verfügbar sein.</p>`,
+    related:['buildings','production','warehouse'], targetView:'production'
+  },
+  {
+    id:'production', category:'Produktion', title:'Produktion',
+    keywords:['produktion','herstellen','fertigung','job'],
+    summary:'Produktion verbraucht Eingaben und erzeugt nach Ablauf der Produktionszeit Produkte.',
+    body:`<p>Für die Produktion benötigst du ein passendes aktives Produktionsgebäude und die im Rezept verlangten Materialien oder Vorprodukte.</p>
+      <p>Beim Start werden die notwendigen Eingaben aus dem Lager entnommen. Nach Ablauf der Produktionszeit wird die fertige Menge dem Produktlager gutgeschrieben.</p>`,
+    related:['recipes','production-cost','quality','storage'], targetView:'production'
+  },
+  {
+    id:'recipes', category:'Produktion', title:'Produktionsrezepte',
+    keywords:['rezept','rohstoff','vorprodukt','komponente'],
+    summary:'Rezepte legen fest, welche Materialien und Vorprodukte ein Produkt benötigt.',
+    body:`<p>Ein Produktionsrezept kann Rohstoffe und bereits hergestellte Vorprodukte enthalten. Die benötigte Menge skaliert mit der geplanten Produktionsmenge.</p>
+      <p>Fehlt eine erforderliche Eingabe in ausreichender Menge oder Qualität, kann die Produktion nicht gestartet werden.</p>`,
+    related:['production','quality','materials'], targetView:'production'
+  },
+  {
+    id:'production-cost', category:'Produktion', title:'Produktionskosten',
+    keywords:['kosten','einstandskosten','herstellkosten','durchschnitt'],
+    summary:'Produktionskosten setzen sich aus Eingaben und weiteren produktionsbezogenen Kosten zusammen.',
+    body:`<p>Beim Produktionsstart werden die tatsächlich verbrauchten Lagerbestände mit ihren Einstandskosten berücksichtigt. Daraus entsteht der Einstandswert der fertigen Ware.</p>
+      <p>Dieser Wert wird später unter anderem für Preisempfehlungen und betriebswirtschaftliche Auswertungen verwendet.</p>`,
+    related:['production','average-cost','market-pricing'], targetView:'production'
+  },
+  {
+    id:'quality', category:'Produktion', title:'Qualitätsstufen',
+    keywords:['qualität','q1','q2','q3','q4'],
+    summary:'Produkte und Bestände besitzen Qualitätsstufen mit Auswirkungen auf Wert und Verwendung.',
+    body:`<p>Die Qualitätsstufe wird als Q1, Q2, Q3 usw. dargestellt. Höhere Qualitätsstufen erhöhen den Wertbonus eines Produkts.</p>
+      <p>Bei Produktionsrezepten können Mindestqualitäten für verwendbare Eingaben relevant sein.</p>`,
+    related:['research','recipes','market'], targetView:'research'
+  },
+  {
+    id:'storage', category:'Lager', title:'Lager',
+    keywords:['lager','bestand','kapazität','speicher'],
+    summary:'Im Lager befinden sich Rohstoffe, Vorprodukte und fertige Produkte.',
+    body:`<p>Das Lager ist die zentrale Bestandsübersicht des Unternehmens. Produktions- und Marktaktionen verändern diese Bestände unmittelbar.</p>
+      <p>Die verfügbare Kapazität hängt von deiner Lagerausstattung ab.</p>`,
+    related:['warehouse','storage-costs','overflow','storage-value'], targetView:'storage'
+  },
+  {
+    id:'warehouse', category:'Lager', title:'Lagergebäude',
+    keywords:['lagergebäude','warehouse','kapazität'],
+    summary:'Ein Lagergebäude erhöht die verfügbare Lagerkapazität.',
+    body:`<p>Das Lagergebäude erweitert die Kapazität des Unternehmens. Höhere Ausbaustufen stellen mehr Lagerplatz zur Verfügung.</p>
+      <p>Das Gebäude belegt einen Gebäudeplatz und besitzt einen eigenen Gebäudewert.</p>`,
+    related:['storage','storage-costs','buildings'], targetView:'storage'
+  },
+  {
+    id:'storage-costs', category:'Lager', title:'Lagerhaltungskosten',
+    keywords:['lagerkosten','haltungskosten','02:00','gebühr'],
+    summary:'Lagerhaltungskosten werden täglich automatisch berechnet.',
+    body:`<p>Die reguläre Lagerabrechnung findet täglich ab <strong>02:00 Uhr deutscher Zeit</strong> statt.</p>
+      <p>Bei vorhandenem Lagergebäude werden aktuell <strong>5 % des Lagerwerts pro Tag</strong> als Lagerhaltungskosten berechnet. Die Tagesabrechnung wird pro Unternehmen nur einmal durchgeführt.</p>`,
+    related:['storage','storage-value','overflow'], targetView:'storage'
+  },
+  {
+    id:'overflow', category:'Lager', title:'Überbestand',
+    keywords:['überbestand','überlager','kapazität','gebühr'],
+    summary:'Bestände oberhalb der Lagerkapazität können zusätzliche Kosten und Folgen auslösen.',
+    body:`<p>Liegt der Gesamtbestand über der verfügbaren Lagerkapazität, gilt der überschüssige Teil als Überbestand.</p>
+      <p>Für den abrechenbaren Überbestand kann zusätzlich eine Gebühr von <strong>20 % des Wertes des Überbestands</strong> entstehen.</p>`,
+    related:['storage','storage-costs','warehouse'], targetView:'storage'
+  },
+  {
+    id:'storage-value', category:'Lager', title:'Lagerwert',
+    keywords:['lagerwert','inventarwert','bestandwert'],
+    summary:'Der Lagerwert ergibt sich aus Menge und Einstandswert der Bestände.',
+    body:`<p>Der Lagerwert berücksichtigt die im Lager vorhandenen Materialien und Produkte mit ihren jeweiligen Einstandswerten.</p>
+      <p>Er ist für Auswertungen und unter anderem für Lagerhaltungskosten relevant.</p>`,
+    related:['average-cost','storage-costs','company-value'], targetView:'storage'
+  },
+  {
+    id:'average-cost', category:'Lager', title:'Ø Einstandskosten',
+    keywords:['einstandskosten','durchschnitt','average unit cost'],
+    summary:'Der durchschnittliche Einstandswert beschreibt die durchschnittlichen Kosten je Lagereinheit.',
+    body:`<p>Werden Bestände zu unterschiedlichen Kosten eingelagert, wird der durchschnittliche Einstandswert mengenbezogen fortgeschrieben.</p>
+      <p>Dadurch bleibt nachvollziehbar, welchen durchschnittlichen Kostenwert eine Lagereinheit aktuell besitzt.</p>`,
+    related:['production-cost','storage-value','market-pricing'], targetView:'storage'
+  },
+  {
+    id:'materials', category:'Lager', title:'Rohstoffe',
+    keywords:['rohstoff','material','silizium','kupfer'],
+    summary:'Rohstoffe sind grundlegende Eingaben für Produktionsrezepte und können gehandelt werden.',
+    body:`<p>Rohstoffe werden im Materiallager geführt. Sie können über die Warenbörse beschafft oder verkauft und anschließend in Produktionsrezepten verbraucht werden.</p>`,
+    related:['recipes','market','storage'], targetView:'storage'
+  },
+  {
+    id:'market', category:'Warenbörse', title:'Warenbörse',
+    keywords:['markt','warenbörse','order','kaufen','verkaufen'],
+    summary:'Über die Warenbörse handeln Spieler und NPC-Unternehmen Produkte und Rohstoffe.',
+    body:`<p>Auf der Warenbörse können Verkaufsorders eingestellt und verfügbare Angebote gekauft werden. Offene und teilweise ausgeführte Orders bleiben sichtbar, bis sie erfüllt oder storniert werden.</p>
+      <p>NPC-Unternehmen sorgen zusätzlich für Marktaktivität und Angebot.</p>`,
+    related:['market-orders','market-fee','market-pricing','npc-market'], targetView:'market'
+  },
+  {
+    id:'market-orders', category:'Warenbörse', title:'Marktorders',
+    keywords:['order','verkaufsorder','stornieren','restmenge'],
+    summary:'Eine Marktorder enthält Ware, Qualität, Menge und Preis je Einheit.',
+    body:`<p>Eine Verkaufsorder reserviert die angebotene Ware für den Markt. Wird nur ein Teil gekauft, reduziert sich die Restmenge entsprechend.</p>
+      <p>Eigene offene Orders können storniert werden; abgeschlossene und stornierte Orders bleiben in der Order-Historie sichtbar.</p>`,
+    related:['market','market-fee','order-history'], targetView:'market'
+  },
+  {
+    id:'market-fee', category:'Warenbörse', title:'Marktgebühr',
+    keywords:['marktgebühr','5%','gebühr'],
+    summary:'Erfolgreiche Verkäufe über die Warenbörse unterliegen einer Marktgebühr.',
+    body:`<p>Bei einem erfolgreichen Marktverkauf werden aktuell <strong>5 % Marktgebühr</strong> vom Verkaufserlös abgezogen.</p>
+      <p>Der Nettoerlös und die Gebühr werden in den Finanzbewegungen dokumentiert.</p>`,
+    related:['market','finance','market-pricing'], targetView:'market'
+  },
+  {
+    id:'market-pricing', category:'Warenbörse', title:'Preisfindung & Richtpreise',
+    keywords:['preis','richtpreis','empfehlung','aufschlag'],
+    summary:'Preisempfehlungen orientieren sich an tatsächlichen Einstandskosten.',
+    body:`<p>Bei Spielerprodukten orientiert sich der empfohlene Verkaufspreis an den tatsächlichen durchschnittlichen Einstandskosten. In den dafür vorgesehenen Eingabefeldern wird aktuell ein Richtwert von Einstandskosten × 2 verwendet.</p>
+      <p>Die endgültige Preisentscheidung liegt beim Spieler.</p>`,
+    related:['average-cost','market','production-cost'], targetView:'market'
+  },
+  {
+    id:'npc-market', category:'Warenbörse', title:'NPC-Markt',
+    keywords:['npc','marktaktualisierung','angebot'],
+    summary:'NPC-Unternehmen erzeugen Angebot und können passende Spielerorders kaufen.',
+    body:`<p>Der NPC-Markt wird regelmäßig automatisch aktualisiert. Dabei können neue NPC-Angebote entstehen und geeignete Verkaufsorders von Spielern ausgeführt werden.</p>
+      <p>Die NPC-Marktversorgung läuft derzeit in einem 15-Minuten-Rhythmus.</p>`,
+    related:['market','market-orders','market-pricing'], targetView:'market'
+  },
+  {
+    id:'order-history', category:'Warenbörse', title:'Order-Historie',
+    keywords:['historie','abgeschlossen','storniert'],
+    summary:'Abgeschlossene und stornierte Marktorders bleiben nachvollziehbar.',
+    body:`<p>Die Order-Historie bewahrt bereits beendete Orders auf. Sie kann nach abgeschlossenen und stornierten Orders gefiltert werden.</p>`,
+    related:['market-orders','finance'], targetView:'market'
+  },
+  {
+    id:'research', category:'Forschung', title:'Produktforschung',
+    keywords:['forschung','forschungseinheit','qualität','investieren'],
+    summary:'Forschungseinheiten erhöhen den Forschungsfortschritt eines ausgewählten Produkts.',
+    body:`<p>Im Forschungsbereich wählst du ein Produkt aus und investierst Forschungseinheiten aus deinem Lager.</p>
+      <p>Erreicht der Fortschritt die erforderliche Menge, steigt die Produktqualität. Die Produkttabelle zeigt den aktuellen Fortschritt und markiert das ausgewählte Forschungsziel.</p>`,
+    related:['research-units','quality','patent-value'], targetView:'research'
+  },
+  {
+    id:'research-units', category:'Forschung', title:'Forschungseinheiten',
+    keywords:['forschungseinheit','einheit','lager','investition'],
+    summary:'Forschungseinheiten sind der Verbrauchsbestand für Produktforschung.',
+    body:`<p>Forschungseinheiten werden als eigener Produktbestand im Lager geführt. Bei einer Forschungsinvestition werden die gewählten Einheiten verbraucht.</p>
+      <p>Der Forschungsbereich zeigt verfügbare Menge und durchschnittlichen Einstandswert.</p>`,
+    related:['research','patent-value'], targetView:'research'
+  },
+  {
+    id:'patent-value', category:'Forschung', title:'Patentwert',
+    keywords:['patent','patentwert','forschung'],
+    summary:'Forschungsinvestitionen können den Patentwert des Unternehmens erhöhen.',
+    body:`<p>Bei Investitionen in Produktforschung wird auf Basis des Wertes der eingesetzten Forschungseinheiten eine Patentwertsteigerung berechnet.</p>
+      <p>Der Patentwert fließt als eigener Unternehmenswertbestandteil in die wirtschaftliche Darstellung ein.</p>`,
+    related:['research','research-units','company-value'], targetView:'research'
+  },
+  {
+    id:'contracts', category:'Verträge', title:'Direktverträge',
+    keywords:['vertrag','direktvertrag','partner'],
+    summary:'Verträge ermöglichen direkte, gebührenfreie Geschäfte zwischen Spielerunternehmen.',
+    body:`<p>Direktverträge werden zwischen Spielerunternehmen geschlossen. Das anbietende Unternehmen ist der Verkäufer und wählt Ware, Qualität, Menge und Preis.</p>
+      <p>Verträge stehen ab Unternehmenslevel 5 zur Verfügung.</p>`,
+    related:['contract-flow','company-level','finance'], targetView:'contracts'
+  },
+  {
+    id:'contract-flow', category:'Verträge', title:'Vertragsablauf',
+    keywords:['annehmen','ablehnen','stornieren','erfüllen'],
+    summary:'Verträge durchlaufen Vorschlag, Annahme oder Ablehnung/Stornierung.',
+    body:`<p>Ausgehende vorgeschlagene Verträge können vom Verkäufer storniert werden. Eingehende Verträge können vom Käufer angenommen oder abgelehnt werden.</p>
+      <p>Bei erfolgreicher Annahme werden Ware und Zahlung atomar übertragen. Schlägt die Erfüllung fehl, soll der Vertrag nicht teilweise ausgeführt werden.</p>`,
+    related:['contracts','finance'], targetView:'contracts'
+  },
+  {
+    id:'finance', category:'Finanzen', title:'Finanzen',
+    keywords:['finanzen','einnahmen','kosten','gewinn'],
+    summary:'Der Finanzbereich bündelt Einnahmen, Kosten und einzelne Finanzbewegungen.',
+    body:`<p>Die Finanzübersicht kann nach Tag, Woche und Monat betrachtet werden. Einzelne Finanzbewegungen lassen sich aufklappen, um zusätzliche Details zu sehen.</p>
+      <p>Einnahmen und Kosten werden aus den gespeicherten Finanztransaktionen des Unternehmens abgeleitet.</p>`,
+    related:['financial-transactions','market-fee','bonds','storage-costs'], targetView:'finance'
+  },
+  {
+    id:'financial-transactions', category:'Finanzen', title:'Finanzbewegungen',
+    keywords:['transaktion','buchung','finanzbewegung'],
+    summary:'Geldbewegungen werden als Finanztransaktionen mit Typ, Betrag und Referenz protokolliert.',
+    body:`<p>Finanzbewegungen dokumentieren beispielsweise Produktion, Marktgeschäfte, Verträge, Lagerkosten und Anleihezahlungen.</p>
+      <p>Negative Beträge sind Kosten oder Abflüsse; positive Beträge stellen Zuflüsse dar.</p>`,
+    related:['finance','market-fee','contracts','bonds'], targetView:'finance'
+  },
+  {
+    id:'bonds', category:'Finanzen', title:'Anleihen & Kredite',
+    keywords:['anleihe','kredit','zins','finanzierung'],
+    summary:'Anleihen ermöglichen Fremdfinanzierung zwischen Unternehmen und NPCs.',
+    body:`<p>Das Anleihensystem wird ab Unternehmenslevel 10 freigeschaltet. Unternehmen können Finanzierungsanfragen stellen oder in geeignete Anleihen investieren.</p>
+      <p>Aktive Anleihen erzeugen tägliche Zinsverpflichtungen.</p>`,
+    related:['bond-interest','bond-default','company-level'], targetView:'finance'
+  },
+  {
+    id:'bond-interest', category:'Finanzen', title:'Anleihezinsen',
+    keywords:['zins','tageszins','03:00'],
+    summary:'Zinsen aktiver Anleihen werden täglich automatisch verarbeitet.',
+    body:`<p>Die tägliche Zinsverarbeitung ist für <strong>03:00 Uhr deutscher Zeit</strong> vorgesehen. Bei ausreichendem Guthaben wird der fällige Betrag beim Kreditnehmer abgezogen und dem Kreditgeber gutgeschrieben.</p>`,
+    related:['bonds','bond-default','financial-transactions'], targetView:'finance'
+  },
+  {
+    id:'bond-default', category:'Finanzen', title:'Zinsausfall',
+    keywords:['ausfall','zinsausfall','default','zurücksetzen'],
+    summary:'Nicht bezahlte Zinsen werden als Ausfalltage erfasst.',
+    body:`<p>Kann ein Unternehmen die fälligen Anleihezinsen nicht bedienen, wird ein Zinsausfall erfasst. Wiederholte Ausfälle können weitere Konsequenzen bis hin zu einem Unternehmensreset auslösen.</p>`,
+    related:['bond-interest','bonds'], targetView:'finance'
+  },
+  {
+    id:'retail', category:'Handel', title:'Einzelhandel',
+    keywords:['einzelhandel','geschäft','verkauf'],
+    summary:'Im Einzelhandel werden Produkte über passende Verkaufsgebäude verkauft.',
+    body:`<p>Einzelhandelsverkäufe laufen als zeitgebundene Verkaufsjobs. Nach Ablauf wird der Erlös gutgeschrieben und als Finanzbewegung protokolliert.</p>`,
+    related:['buildings','finance','production'], targetView:'production'
+  }
+];
+
+function encyclopediaArticleById(articleId) {
+  return ENCYCLOPEDIA_ARTICLES.find(article => article.id === articleId) || null;
+}
+
+function encyclopediaCategories() {
+  return ['Alle', ...new Set(ENCYCLOPEDIA_ARTICLES.map(article => article.category))];
+}
+
+function encyclopediaMatches(article, query) {
+  if (!query) return true;
+  const haystack = [
+    article.title,
+    article.category,
+    article.summary,
+    ...(article.keywords || [])
+  ].join(' ').toLocaleLowerCase(uiLocale());
+  return haystack.includes(query.toLocaleLowerCase(uiLocale()));
+}
+
+function renderEncyclopedia() {
+  const search = document.getElementById('encyclopediaSearch');
+  const categories = document.getElementById('encyclopediaCategories');
+  const list = document.getElementById('encyclopediaArticleList');
+  const articleHost = document.getElementById('encyclopediaArticle');
+  if (!search || !categories || !list || !articleHost) return;
+
+  if (search.value !== state.encyclopediaSearch) search.value = state.encyclopediaSearch || '';
+
+  const allCategories = encyclopediaCategories();
+  if (!allCategories.includes(state.encyclopediaCategory)) state.encyclopediaCategory = 'Alle';
+
+  categories.innerHTML = allCategories.map(category => `
+    <button type="button"
+      class="encyclopedia-category-btn ${category === state.encyclopediaCategory ? 'active' : ''}"
+      data-encyclopedia-category="${category}">
+      ${translateUiString(category)}
+    </button>
+  `).join('');
+
+  const query = (state.encyclopediaSearch || '').trim();
+  const visible = ENCYCLOPEDIA_ARTICLES.filter(article =>
+    (state.encyclopediaCategory === 'Alle' || article.category === state.encyclopediaCategory) &&
+    encyclopediaMatches(article, query)
+  );
+
+  list.innerHTML = visible.length ? visible.map(article => `
+    <button type="button"
+      class="encyclopedia-list-item ${article.id === state.encyclopediaSelectedArticleId ? 'active' : ''}"
+      data-encyclopedia-article="${article.id}">
+      <strong>${translateUiString(article.title)}</strong>
+      <span>${translateUiString(article.category)}</span>
+    </button>
+  `).join('') : `<div class="encyclopedia-empty">${translateUiString('Keine Artikel gefunden.')}</div>`;
+
+  let article = encyclopediaArticleById(state.encyclopediaSelectedArticleId);
+  if (!article) {
+    article = visible[0] || ENCYCLOPEDIA_ARTICLES[0];
+    state.encyclopediaSelectedArticleId = article?.id || null;
+  }
+
+  if (!article) {
+    articleHost.innerHTML = `<p class="muted">${translateUiString('Keine Artikel gefunden.')}</p>`;
+    return;
+  }
+
+  const related = (article.related || [])
+    .map(encyclopediaArticleById)
+    .filter(Boolean);
+
+  articleHost.innerHTML = `
+    <header class="encyclopedia-article-header">
+      <h2>${translateUiString(article.title)}</h2>
+      <span class="encyclopedia-article-category">${translateUiString(article.category)}</span>
+      <p class="muted">${translateUiString(article.summary)}</p>
+    </header>
+    <div class="encyclopedia-article-body">${article.body}</div>
+    ${article.targetView ? `
+      <div class="encyclopedia-article-actions">
+        <button type="button" onclick="goToEncyclopediaTarget('${article.targetView}')">
+          ${translateUiString('Zum Spielbereich')}
+        </button>
+      </div>` : ''}
+    ${related.length ? `
+      <div class="encyclopedia-related">
+        <strong>${translateUiString('Verwandte Themen')}</strong>
+        <div class="encyclopedia-related-links">
+          ${related.map(item => `<button type="button" class="ghost" onclick="openEncyclopediaArticle('${item.id}')">${translateUiString(item.title)}</button>`).join('')}
+        </div>
+      </div>` : ''}
+  `;
+}
+
+function activateView(view) {
+  const target = document.getElementById(view);
+  const navButton = document.querySelector(`.nav-item[data-view="${view}"]`);
+  if (!target || !navButton) return false;
+
+  document.querySelectorAll('.nav-item').forEach(button => button.classList.remove('active'));
+  navButton.classList.add('active');
+  document.querySelectorAll('.view').forEach(item => item.classList.remove('active-view'));
+  target.classList.add('active-view');
+  document.getElementById('pageTitle').textContent = navButton.dataset.baseLabel || navButton.textContent;
+  return true;
+}
+
+window.openEncyclopediaArticle = function(articleId) {
+  const article = encyclopediaArticleById(articleId);
+  if (!article) return;
+
+  state.encyclopediaSelectedArticleId = articleId;
+  state.encyclopediaCategory = 'Alle';
+  state.encyclopediaSearch = '';
+
+  activateView('encyclopedia');
+  renderEncyclopedia();
+  document.getElementById('encyclopediaArticle')?.scrollIntoView({ behavior:'smooth', block:'start' });
+};
+
+window.goToEncyclopediaTarget = function(view) {
+  const requiredLevel = featureRequiredLevel(view);
+  if (requiredLevel && !featureUnlocked(view)) {
+    gameAlert(`${view} wird auf Unternehmenslevel ${requiredLevel} freigeschaltet.`);
+    return;
+  }
+  activateView(view);
+};
+
 function renderAll() {
   const c = state.company;
   updateFeatureLocks();
@@ -5137,6 +5570,7 @@ function renderAll() {
   renderDashboardValuationChanges();
   renderSettingsCompanyManagement();
   renderResearch();
+  renderEncyclopedia();
 
   const xpCtx = xpProgressContext(c);
   const slotCount = buildingSlotsForLevel(c.company_level);
