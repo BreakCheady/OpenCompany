@@ -270,6 +270,13 @@ Object.assign(I18N_EN, {
   'Vertragsablauf':'Contract flow','Finanzbewegungen':'Financial transactions',
   'Anleihen & Kredite':'Bonds & loans','Anleihezinsen':'Bond interest','Zinsausfall':'Interest default',
   'Einzelhandel':'Retail','Kurz erklärt':'In short','So funktioniert es':'How it works','Beispiel':'Example','Wichtig':'Important','Produkte':'Products','Automatisch':'Automatic','Favoriten':'Favorites','Zuletzt gelesen':'Recently read','Zu Favoriten hinzufügen':'Add to favorites','Aus Favoriten entfernen':'Remove from favorites','Link kopieren':'Copy link','Link zum Enzyklopädie-Artikel wurde kopiert.':'Encyclopedia article link copied.','Link zum Enzyklopädie-Artikel:':'Encyclopedia article link:',
+  'OC-Boost':'OC-Boost','Zum Shop':'Open shop','OC-Boost-Shop':'OC-Boost Shop',
+  'Dein Guthaben':'Your balance','OCB heute':'OCB today','Favoriten':'Favorites',
+  'Tägliche Anmeldung':'Daily login','Erste Produktion des Tages':'First production of the day',
+  'Erster Handelsverkauf des Tages':'First retail sale of the day','Kaufen':'Buy',
+  'Bau beschleunigen':'Speed up construction','OCB erhalten':'Get OCB',
+  'OC-Boost (OCB)':'OC-Boost (OCB)',
+
 
   'Account erstellt. Bitte ggf. E-Mail bestätigen.':'Account created. Please confirm your email if required.',
   'Bitte zuerst E-Mail eingeben.':'Please enter your email first.',
@@ -852,6 +859,7 @@ const state = {
   encyclopediaSearch: '',
   encyclopediaCategory: 'Alle',
   encyclopediaSelectedArticleId: 'getting-started',
+  ocbStatus: { balance: 0, today: { login:false, production:false, retail:false, earned:0, maximum:20 } },
   selectedMarketOrderIds: [],
   selectedBuildingId: null,
   selectedRetailBuildingId: null,
@@ -924,6 +932,19 @@ const GAME_RULES = Object.freeze({
   }),
   pricing: Object.freeze({
     playerRecommendedCostMultiplier: 2
+  }),
+  ocb: Object.freeze({
+    minutesPerBoost: 1,
+    dailyLogin: 10,
+    dailyProduction: 5,
+    dailyRetail: 5,
+    dailyMaximum: 20,
+    packages: Object.freeze([
+      Object.freeze({ amount:100, price:1.49 }),
+      Object.freeze({ amount:450, price:4.49 }),
+      Object.freeze({ amount:750, price:6.99 }),
+      Object.freeze({ amount:1000, price:8.49 })
+    ])
   })
 });
 
@@ -1283,6 +1304,134 @@ function buildingConstructionFinishDate(building) {
     minute: '2-digit'
   });
 }
+
+
+function buildingRemainingMinutes(building) {
+  if (!building?.construction_complete_at) return 0;
+  return Math.max(
+    0,
+    Math.ceil((new Date(building.construction_complete_at).getTime() - Date.now()) / 60000)
+  );
+}
+
+function currentOcbBalance() {
+  return Math.max(0, Number(state.ocbStatus?.balance ?? state.company?.ocb_balance ?? 0));
+}
+
+function renderOcbShop() {
+  const balance = currentOcbBalance();
+  const today = state.ocbStatus?.today || {};
+  const balanceEl = document.getElementById('ocbShopBalance');
+  const totalEl = document.getElementById('ocbDailyTotal');
+  const rewardsEl = document.getElementById('ocbDailyRewards');
+  const packagesEl = document.getElementById('ocbShopPackages');
+
+  if (balanceEl) balanceEl.textContent = `${num(balance)} OCB`;
+  if (totalEl) totalEl.textContent = `${num(today.earned || 0)} / ${num(today.maximum || GAME_RULES.ocb.dailyMaximum)} OCB`;
+
+  if (rewardsEl) {
+    const rewards = [
+      { done:!!today.login, label:'Tägliche Anmeldung', amount:GAME_RULES.ocb.dailyLogin },
+      { done:!!today.production, label:'Erste Produktion des Tages', amount:GAME_RULES.ocb.dailyProduction },
+      { done:!!today.retail, label:'Erster Handelsverkauf des Tages', amount:GAME_RULES.ocb.dailyRetail }
+    ];
+    rewardsEl.innerHTML = rewards.map(reward => `
+      <div class="ocb-daily-reward ${reward.done ? 'done' : ''}">
+        <span><span class="ocb-reward-check">${reward.done ? '✓' : '○'}</span> ${translateUiString(reward.label)}</span>
+        <strong>+${reward.amount} OCB</strong>
+      </div>
+    `).join('');
+  }
+
+  if (packagesEl) {
+    packagesEl.innerHTML = GAME_RULES.ocb.packages.map(pack => {
+      const minutes = pack.amount * GAME_RULES.ocb.minutesPerBoost;
+      const hours = Math.floor(minutes / 60);
+      const mins = minutes % 60;
+      const duration = `${hours ? `${hours} Std.` : ''}${hours && mins ? ' ' : ''}${mins ? `${mins} Min.` : ''}`;
+      return `
+        <article class="ocb-shop-package">
+          <strong>${num(pack.amount)} OCB</strong>
+          <span class="ocb-shop-package-price">${pack.price.toLocaleString(uiLocale(), { minimumFractionDigits:2, maximumFractionDigits:2 })} €</span>
+          <small>${duration} Bauzeit</small>
+          <button type="button" onclick="startOcbPurchase(${pack.amount},${pack.price})">${translateUiString('Kaufen')}</button>
+        </article>
+      `;
+    }).join('');
+  }
+
+  const dashboardValue = document.getElementById('statOcb');
+  if (dashboardValue) dashboardValue.textContent = `⚡ ${num(balance)} OCB`;
+}
+
+window.openOcbShop = function() {
+  renderOcbShop();
+  const overlay = document.getElementById('ocbShopOverlay');
+  if (!overlay) return;
+  overlay.classList.remove('hidden');
+  overlay.setAttribute('aria-hidden','false');
+};
+
+window.closeOcbShop = function() {
+  const overlay = document.getElementById('ocbShopOverlay');
+  if (!overlay) return;
+  overlay.classList.add('hidden');
+  overlay.setAttribute('aria-hidden','true');
+};
+
+window.startOcbPurchase = async function(amount, price) {
+  const valid = GAME_RULES.ocb.packages.some(pack =>
+    Number(pack.amount) === Number(amount) && Number(pack.price) === Number(price)
+  );
+  if (!valid) return;
+
+  await gameAlert(
+    `Das Paket mit ${num(amount)} OCB für ${Number(price).toLocaleString(uiLocale(), { minimumFractionDigits:2, maximumFractionDigits:2 })} € ist vorbereitet. Für echte Käufe muss noch ein Zahlungsanbieter angebunden werden. OCB werden erst nach bestätigter serverseitiger Zahlung gutgeschrieben.`,
+    'OC-Boost-Shop'
+  );
+};
+
+window.speedUpBuildingWithOcb = async function(buildingId, minutes = null) {
+  const building = state.buildings.find(item => item.id === buildingId);
+  if (!building?.construction_complete_at) return;
+
+  const remaining = buildingRemainingMinutes(building);
+  if (remaining <= 0) {
+    await refreshBuildingConstruction();
+    return;
+  }
+
+  const requested = minutes == null ? remaining : Math.min(Math.max(1, Number(minutes || 0)), remaining);
+  const cost = requested;
+  const balance = currentOcbBalance();
+
+  if (balance < cost) {
+    await gameAlert(`Nicht genügend OC-Boosts. Benötigt: ${num(cost)} OCB, verfügbar: ${num(balance)} OCB.`);
+    openOcbShop();
+    return;
+  }
+
+  const actionText = requested >= remaining
+    ? `Bau sofort für ${num(cost)} OCB fertigstellen?`
+    : `Bauzeit um ${num(requested)} Minuten für ${num(cost)} OCB verkürzen?`;
+
+  if (!await gameConfirm(actionText, 'OC-Boost einsetzen')) return;
+
+  const { data, error } = await sb.rpc('speed_up_building', {
+    p_company_id: state.company.id,
+    p_building_id: buildingId,
+    p_minutes: minutes == null ? null : requested
+  });
+
+  if (error) {
+    await gameAlert(error.message);
+    return;
+  }
+
+  if (state.ocbStatus) state.ocbStatus.balance = Number(data?.balance ?? Math.max(0,balance-cost));
+  if (state.company) state.company.ocb_balance = Number(data?.balance ?? Math.max(0,balance-cost));
+  await loadCompany();
+};
 
 function formatBuildingConstructionStatus(building) {
   if (!building?.construction_complete_at) return 'Im Bau';
@@ -1672,6 +1821,11 @@ function bindNavigation() {
   }));
 }
 bindNavigation();
+
+document.getElementById('ocbShopClose')?.addEventListener('click', closeOcbShop);
+document.getElementById('ocbShopOverlay')?.addEventListener('click', event => {
+  if (event.target.id === 'ocbShopOverlay') closeOcbShop();
+});
 
 document.getElementById('encyclopediaSearch')?.addEventListener('input', event => {
   state.encyclopediaSearch = event.target.value;
@@ -2539,6 +2693,9 @@ async function loadCompany() {
     const dailyXp = await sb.rpc('claim_daily_login_xp', { p_company_id: data.id });
     if (dailyXp.error) console.warn('Tägliche XP:', dailyXp.error.message);
 
+    const dailyOcb = await sb.rpc('claim_daily_login_ocb', { p_company_id: data.id });
+    if (dailyOcb.error) console.warn('Tägliche OCB:', dailyOcb.error.message);
+
     const completedBuildings = await sb.rpc('complete_due_buildings', { p_company_id: data.id });
     if (completedBuildings.error) console.warn('Gebäudebau:', completedBuildings.error.message);
     const completedJobs = await sb.rpc('complete_due_production_jobs', { p_company_id: data.id });
@@ -2579,10 +2736,11 @@ async function loadGameData() {
     sb.rpc('get_bond_dashboard', { p_company_id: cid }),
     sb.from('company_valuation_history').select('valuation_date,cash_balance,material_value,product_value,building_value,patent_value,loan_debt,company_value,previous_company_value,change_amount,calculated_at').eq('company_id',cid).order('valuation_date',{ascending:false}).limit(2),
     sb.rpc('get_company_ranking', { p_company_id: cid }),
-    sb.rpc('get_storage_status', { p_company_id: cid })
+    sb.rpc('get_storage_status', { p_company_id: cid }),
+    sb.rpc('get_ocb_status', { p_company_id: cid })
   ]);
 
-  const labels = ['Produkte','Alle Produkte','Produktlager','Materialien','Materiallager','Rezepte','Gebäudetypen','Gebäude','Produktionen','Handelsverkäufe','Finanzen','Marktorders','Marktkäufe','Verträge','Firmenverzeichnis','Kreditschulden','Anleihen','Unternehmenswert-Verlauf','Unternehmensranking','Lagerstatus'];
+  const labels = ['Produkte','Alle Produkte','Produktlager','Materialien','Materiallager','Rezepte','Gebäudetypen','Gebäude','Produktionen','Handelsverkäufe','Finanzen','Marktorders','Marktkäufe','Verträge','Firmenverzeichnis','Kreditschulden','Anleihen','Unternehmenswert-Verlauf','Unternehmensranking','Lagerstatus','OC-Boost'];
   const errors = results.map((r,i)=>r.error ? { label: labels[i], error:r.error } : null).filter(Boolean);
   if (errors.length) {
     console.error(errors);
@@ -2591,7 +2749,7 @@ async function loadGameData() {
   }
   clearGameDataError();
 
-  const [products, allProducts, inventory, materials, materialInventory, recipes, buildingTypes, buildings, productionJobs, retailSaleJobs, tx, orders, marketTrades, contracts, directory, companyDebt, bondDashboard, valuationHistory, companyRanking, storageStatus] = results;
+  const [products, allProducts, inventory, materials, materialInventory, recipes, buildingTypes, buildings, productionJobs, retailSaleJobs, tx, orders, marketTrades, contracts, directory, companyDebt, bondDashboard, valuationHistory, companyRanking, storageStatus, ocbStatus] = results;
   state.products = products.data;
   state.allProducts = allProducts.data;
   state.inventory = inventory.data;
@@ -2615,6 +2773,11 @@ async function loadGameData() {
   state.companyValueChange = Number(state.valuationHistory?.[0]?.change_amount || 0);
   state.companyRanking = companyRanking.data || null;
   state.storageStatus = storageStatus.data || null;
+  state.ocbStatus = ocbStatus.data || {
+    balance: Number(state.company?.ocb_balance || 0),
+    today: { login:false, production:false, retail:false, earned:0, maximum:GAME_RULES.ocb.dailyMaximum }
+  };
+  if (state.company) state.company.ocb_balance = Number(state.ocbStatus.balance || 0);
   renderAll();
 }
 
@@ -3274,10 +3437,32 @@ function renderBuildings() {
           ? `${translateUiString('Ausbau auf Level')} ${targetLevel}`
           : translateUiString('Gebäude im Bau');
 
+        const remainingMinutes = buildingRemainingMinutes(building);
+        const hourMinutes = Math.min(60, remainingMinutes);
+        const ocbBalance = currentOcbBalance();
+        const hourLabel = remainingMinutes > 60
+          ? `1 Std. · 60 OCB`
+          : `${remainingMinutes} Min. · ${remainingMinutes} OCB`;
+
         constructionHtml = `<div class="building-card-job building-card-construction">
           <strong>${constructionLabel}</strong>
           <div class="building-card-progress" style="--progress:${progress}%"><span></span></div>
           <span class="building-card-meta">${translateUiString('Ende')} ${finish.toLocaleString(uiLocale(),{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})} ${translateUiString('Uhr')}</span>
+          <div class="building-ocb-speedup">
+            <div class="building-ocb-speedup-head">
+              <span>⚡ ${translateUiString('Bau beschleunigen')}</span>
+              <strong>${num(ocbBalance)} OCB</strong>
+            </div>
+            <div class="building-ocb-speedup-actions">
+              <button type="button"
+                onclick="event.stopPropagation();speedUpBuildingWithOcb('${building.id}',${hourMinutes})"
+                ${hourMinutes <= 0 || ocbBalance < hourMinutes ? 'disabled' : ''}>${hourLabel}</button>
+              <button type="button"
+                onclick="event.stopPropagation();speedUpBuildingWithOcb('${building.id}',null)"
+                ${remainingMinutes <= 0 || ocbBalance < remainingMinutes ? 'disabled' : ''}>MAX · ${remainingMinutes} OCB</button>
+              ${ocbBalance < Math.min(hourMinutes || remainingMinutes, remainingMinutes) ? `<button type="button" class="ghost" onclick="event.stopPropagation();openOcbShop()">${translateUiString('OCB erhalten')}</button>` : ''}
+            </div>
+          </div>
         </div>`;
       }
 
@@ -5535,6 +5720,19 @@ const ENCYCLOPEDIA_ARTICLES = [
     related:['bond-interest','bonds'], targetView:'finance'
   },
   {
+    id:'ocb', category:'Grundlagen', title:'OC-Boost (OCB)',
+    keywords:['ocb','oc-boost','boost','beschleunigen','bauzeit','shop'],
+    summary:'OCB sind eine optionale Beschleunigungsressource ausschließlich für Bau und Ausbau.',
+    body:() => encyclopediaArticleBody({
+      short:`1 OCB verkürzt eine laufende Bau- oder Ausbauzeit um genau ${GAME_RULES.ocb.minutesPerBoost} Minute.`,
+      how:`<p>OCB können ausschließlich für Gebäude verwendet werden. Produktion, Forschung, Warenbörse, Handelsverkäufe und Anleihen lassen sich damit nicht beschleunigen.</p>
+        <p>Täglich kannst du ${GAME_RULES.ocb.dailyMaximum} OCB kostenlos verdienen: ${GAME_RULES.ocb.dailyLogin} für die Anmeldung, ${GAME_RULES.ocb.dailyProduction} für die erste abgeschlossene Produktion und ${GAME_RULES.ocb.dailyRetail} für den ersten abgeschlossenen Handelsverkauf.</p>`,
+      example:`<p>Bei 3 Stunden Restbauzeit kostet eine sofortige Fertigstellung 180 OCB. Wartest du eine Stunde, sinkt der MAX-Preis automatisch auf 120 OCB.</p>`,
+      important:`<p>Angebrochene Restminuten werden für die sofortige Fertigstellung auf volle Minuten aufgerundet. OCB verfallen nicht.</p>`
+    }),
+    related:['buildings','building-levels','production','retail'], targetView:'production'
+  },
+  {
     id:'retail', category:'Handel', title:'Einzelhandel',
     keywords:['einzelhandel','geschäft','verkauf'],
     summary:'Im Einzelhandel werden Produkte über passende Verkaufsgebäude verkauft.',
@@ -5992,7 +6190,8 @@ window.goToEncyclopediaTarget = function(view) {
 function renderAll() {
   const c = state.company;
   updateFeatureLocks();
-  document.getElementById('statCompany').textContent = c.name;
+  const statOcb = document.getElementById('statOcb');
+  if (statOcb) statOcb.textContent = `⚡ ${num(state.ocbStatus?.balance ?? c.ocb_balance ?? 0)} OCB`;
   const cashValue = Number(c.cash_balance || 0);
   const statCash = document.getElementById('statCash');
   statCash.textContent = dashboardCashMoney(cashValue);
