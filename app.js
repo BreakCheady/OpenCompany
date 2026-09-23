@@ -269,7 +269,7 @@ Object.assign(I18N_EN, {
   'Forschungseinheiten':'Research units','Patentwert':'Patent value','Direktverträge':'Direct contracts',
   'Vertragsablauf':'Contract flow','Finanzbewegungen':'Financial transactions',
   'Anleihen & Kredite':'Bonds & loans','Anleihezinsen':'Bond interest','Zinsausfall':'Interest default',
-  'Einzelhandel':'Retail','Kurz erklärt':'In short','So funktioniert es':'How it works','Beispiel':'Example','Wichtig':'Important','Produkte':'Products','Automatisch':'Automatic',
+  'Einzelhandel':'Retail','Kurz erklärt':'In short','So funktioniert es':'How it works','Beispiel':'Example','Wichtig':'Important','Produkte':'Products','Automatisch':'Automatic','Favoriten':'Favorites','Zuletzt gelesen':'Recently read','Zu Favoriten hinzufügen':'Add to favorites','Aus Favoriten entfernen':'Remove from favorites','Link kopieren':'Copy link','Link zum Enzyklopädie-Artikel wurde kopiert.':'Encyclopedia article link copied.','Link zum Enzyklopädie-Artikel:':'Encyclopedia article link:',
 
   'Account erstellt. Bitte ggf. E-Mail bestätigen.':'Account created. Please confirm your email if required.',
   'Bitte zuerst E-Mail eingeben.':'Please enter your email first.',
@@ -1663,7 +1663,12 @@ function bindNavigation() {
     }
 
     activateView(view);
-    if (view === 'encyclopedia') renderEncyclopedia();
+    if (view === 'encyclopedia') {
+      renderEncyclopedia();
+      if (!location.hash.startsWith('#encyclopedia/')) {
+        history.replaceState(null, '', '#encyclopedia');
+      }
+    }
   }));
 }
 bindNavigation();
@@ -1683,8 +1688,7 @@ document.getElementById('encyclopediaCategories')?.addEventListener('click', eve
 document.getElementById('encyclopediaArticleList')?.addEventListener('click', event => {
   const button = event.target.closest('[data-encyclopedia-article]');
   if (!button) return;
-  state.encyclopediaSelectedArticleId = button.dataset.encyclopediaArticle;
-  renderEncyclopedia();
+  openEncyclopediaArticle(button.dataset.encyclopediaArticle);
 });
 
 
@@ -2255,10 +2259,25 @@ async function loadPushSettings() {
 }
 
 function openViewFromHash() {
-  const view = location.hash.replace(/^#/, '');
-  if (!view) return;
+  const rawHash = location.hash.replace(/^#/, '');
+  if (!rawHash || !state.company) return;
+
+  const [view, ...rest] = rawHash.split('/');
+  if (view === 'encyclopedia' && rest.length) {
+    const articleId = decodeURIComponent(rest.join('/'));
+    if (encyclopediaArticleById(articleId)) {
+      state.encyclopediaSelectedArticleId = articleId;
+      state.encyclopediaCategory = 'Alle';
+      state.encyclopediaSearch = '';
+      encyclopediaRememberArticle(articleId);
+      activateView('encyclopedia');
+      renderEncyclopedia();
+      return;
+    }
+  }
+
   const btn = document.querySelector(`.nav-item[data-view="${view}"]`);
-  if (btn && state.company) btn.click();
+  if (btn) btn.click();
 }
 
 
@@ -5701,6 +5720,123 @@ function encyclopediaArticles() {
   ];
 }
 
+
+const ENCYCLOPEDIA_FAVORITES_KEY = 'opencompany_encyclopedia_favorites';
+const ENCYCLOPEDIA_RECENT_KEY = 'opencompany_encyclopedia_recent';
+const ENCYCLOPEDIA_RECENT_LIMIT = 5;
+
+function encyclopediaReadStoredIds(key) {
+  try {
+    const value = JSON.parse(window.localStorage.getItem(key) || '[]');
+    return Array.isArray(value) ? value.filter(item => typeof item === 'string') : [];
+  } catch (_) {
+    return [];
+  }
+}
+
+function encyclopediaWriteStoredIds(key, ids) {
+  try {
+    window.localStorage.setItem(key, JSON.stringify([...new Set(ids)]));
+  } catch (_) {}
+}
+
+function encyclopediaFavoriteIds() {
+  const validIds = new Set(encyclopediaArticles().map(article => article.id));
+  const ids = encyclopediaReadStoredIds(ENCYCLOPEDIA_FAVORITES_KEY).filter(id => validIds.has(id));
+  encyclopediaWriteStoredIds(ENCYCLOPEDIA_FAVORITES_KEY, ids);
+  return ids;
+}
+
+function encyclopediaRecentIds() {
+  const validIds = new Set(encyclopediaArticles().map(article => article.id));
+  const ids = encyclopediaReadStoredIds(ENCYCLOPEDIA_RECENT_KEY)
+    .filter(id => validIds.has(id))
+    .slice(0, ENCYCLOPEDIA_RECENT_LIMIT);
+  encyclopediaWriteStoredIds(ENCYCLOPEDIA_RECENT_KEY, ids);
+  return ids;
+}
+
+function encyclopediaIsFavorite(articleId) {
+  return encyclopediaFavoriteIds().includes(articleId);
+}
+
+function encyclopediaRememberArticle(articleId) {
+  if (!encyclopediaArticleById(articleId)) return;
+  const ids = encyclopediaRecentIds().filter(id => id !== articleId);
+  ids.unshift(articleId);
+  encyclopediaWriteStoredIds(ENCYCLOPEDIA_RECENT_KEY, ids.slice(0, ENCYCLOPEDIA_RECENT_LIMIT));
+}
+
+window.toggleEncyclopediaFavorite = function(articleId) {
+  if (!encyclopediaArticleById(articleId)) return;
+
+  const ids = encyclopediaFavoriteIds();
+  const next = ids.includes(articleId)
+    ? ids.filter(id => id !== articleId)
+    : [articleId, ...ids];
+
+  encyclopediaWriteStoredIds(ENCYCLOPEDIA_FAVORITES_KEY, next);
+  renderEncyclopedia();
+};
+
+function encyclopediaDeepLink(articleId) {
+  return `#encyclopedia/${encodeURIComponent(articleId)}`;
+}
+
+function setEncyclopediaDeepLink(articleId, { replace = false } = {}) {
+  const hash = encyclopediaDeepLink(articleId);
+  if (location.hash === hash) return;
+  if (replace) history.replaceState(null, '', hash);
+  else history.pushState(null, '', hash);
+}
+
+window.copyEncyclopediaDeepLink = async function(articleId) {
+  const article = encyclopediaArticleById(articleId);
+  if (!article) return;
+
+  const url = new URL(window.location.href);
+  url.hash = encyclopediaDeepLink(articleId);
+
+  try {
+    await navigator.clipboard.writeText(url.toString());
+    await gameAlert('Link zum Enzyklopädie-Artikel wurde kopiert.');
+  } catch (_) {
+    await gamePrompt('Link zum Enzyklopädie-Artikel:', url.toString(), 'Deep Link');
+  }
+};
+
+function renderEncyclopediaQuickLists() {
+  const favoritesSection = document.getElementById('encyclopediaFavoritesSection');
+  const favoritesHost = document.getElementById('encyclopediaFavorites');
+  const favoritesCount = document.getElementById('encyclopediaFavoritesCount');
+  const recentSection = document.getElementById('encyclopediaRecentSection');
+  const recentHost = document.getElementById('encyclopediaRecent');
+  if (!favoritesSection || !favoritesHost || !recentSection || !recentHost) return;
+
+  const favorites = encyclopediaFavoriteIds()
+    .map(encyclopediaArticleById)
+    .filter(Boolean);
+  const recent = encyclopediaRecentIds()
+    .map(encyclopediaArticleById)
+    .filter(Boolean);
+
+  favoritesSection.classList.toggle('hidden', favorites.length === 0);
+  recentSection.classList.toggle('hidden', recent.length === 0);
+  if (favoritesCount) favoritesCount.textContent = String(favorites.length);
+
+  favoritesHost.innerHTML = favorites.map(article => `
+    <button type="button" class="encyclopedia-quick-link" onclick="openEncyclopediaArticle('${article.id}')">
+      ★ ${translateUiString(article.title)}
+    </button>
+  `).join('');
+
+  recentHost.innerHTML = recent.map(article => `
+    <button type="button" class="encyclopedia-quick-link" onclick="openEncyclopediaArticle('${article.id}')">
+      ${translateUiString(article.title)}
+    </button>
+  `).join('');
+}
+
 function encyclopediaArticleById(articleId) {
   return encyclopediaArticles().find(article => article.id === articleId) || null;
 }
@@ -5728,6 +5864,7 @@ function renderEncyclopedia() {
   if (!search || !categories || !list || !articleHost) return;
 
   if (search.value !== state.encyclopediaSearch) search.value = state.encyclopediaSearch || '';
+  renderEncyclopediaQuickLists();
 
   const allCategories = encyclopediaCategories();
   if (!allCategories.includes(state.encyclopediaCategory)) state.encyclopediaCategory = 'Alle';
@@ -5773,7 +5910,23 @@ function renderEncyclopedia() {
 
   articleHost.innerHTML = `
     <header class="encyclopedia-article-header">
-      <h2>${translateUiString(article.title)}</h2>
+      <div class="encyclopedia-article-title-row">
+        <h2>${translateUiString(article.title)}</h2>
+        <div class="encyclopedia-article-tools">
+          <button type="button"
+            class="encyclopedia-favorite-btn ${encyclopediaIsFavorite(article.id) ? 'active' : ''}"
+            onclick="toggleEncyclopediaFavorite('${article.id}')"
+            aria-label="${translateUiString(encyclopediaIsFavorite(article.id) ? 'Aus Favoriten entfernen' : 'Zu Favoriten hinzufügen')}"
+            title="${translateUiString(encyclopediaIsFavorite(article.id) ? 'Aus Favoriten entfernen' : 'Zu Favoriten hinzufügen')}">
+            ${encyclopediaIsFavorite(article.id) ? '★' : '☆'}
+          </button>
+          <button type="button"
+            class="encyclopedia-link-btn"
+            onclick="copyEncyclopediaDeepLink('${article.id}')"
+            aria-label="${translateUiString('Link kopieren')}"
+            title="${translateUiString('Link kopieren')}">↗</button>
+        </div>
+      </div>
       <span class="encyclopedia-article-category">${translateUiString(article.category)}</span>
       ${article.dynamic ? `<span class="encyclopedia-article-category encyclopedia-dynamic-badge">${translateUiString('Automatisch')}</span>` : ''}
       <p class="muted">${translateUiString(article.summary)}</p>
@@ -5808,7 +5961,7 @@ function activateView(view) {
   return true;
 }
 
-window.openEncyclopediaArticle = function(articleId) {
+window.openEncyclopediaArticle = function(articleId, options = {}) {
   const article = encyclopediaArticleById(articleId);
   if (!article) return;
 
@@ -5816,7 +5969,13 @@ window.openEncyclopediaArticle = function(articleId) {
   state.encyclopediaCategory = 'Alle';
   state.encyclopediaSearch = '';
 
+  encyclopediaRememberArticle(articleId);
   activateView('encyclopedia');
+
+  if (!options.fromHash) {
+    setEncyclopediaDeepLink(articleId, { replace: !!options.replaceHash });
+  }
+
   renderEncyclopedia();
   document.getElementById('encyclopediaArticle')?.scrollIntoView({ behavior:'smooth', block:'start' });
 };
@@ -6961,6 +7120,7 @@ document.getElementById('pushEnabled')?.addEventListener('change', async event =
 });
 
 window.addEventListener('hashchange', openViewFromHash);
+window.addEventListener('popstate', openViewFromHash);
 
 document.addEventListener('visibilitychange', async () => {
   if (document.visibilityState === 'visible') {
