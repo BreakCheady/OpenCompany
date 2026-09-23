@@ -7,7 +7,7 @@
   <title>OpenCompany</title>
   <link rel="icon" type="image/png" href="favicon.png">
   <link rel="shortcut icon" href="favicon.ico">
-  <link rel="stylesheet" href="style.css?v=0.10.131">
+  <link rel="stylesheet" href="style.css?v=0.10.132">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     .password-field{display:flex;align-items:center;gap:.5rem}
@@ -176,6 +176,20 @@
     .contract-partner-result strong{
       display:block;
     }
+    .finance-contract-lines{
+      display:grid;
+      gap:.35rem;
+      margin-top:.35rem;
+    }
+    .finance-contract-lines>div{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:.75rem;
+    }
+    .finance-contract-lines small{
+      color:#617087;
+    }
     .contract-partner-result span{
       display:block;
       margin-top:.15rem;
@@ -323,7 +337,7 @@
       .oc-select-option{min-height:46px;padding:.7rem .8rem}
     }
   
-    /* v0.10.131 – einheitliche Navigationsleiste auf Desktop und Mobile */
+    /* v0.10.132 – einheitliche Navigationsleiste auf Desktop und Mobile */
     .app-shell{
       display:block!important;
       min-height:100dvh!important;
@@ -1145,7 +1159,7 @@
           <h2>Einstellungen</h2>
           <div class="kv">
             <span>Version</span>
-            <strong>0.10.131</strong>
+            <strong>0.10.132</strong>
           </div>
           <div class="kv settings-language-row">
             <span>Sprache</span>

@@ -43,7 +43,7 @@ let currentLanguage = (() => {
 
 const I18N_EN = {
   'Dashboard':'Dashboard','Gebäude':'Buildings','Lager':'Storage','Warenbörse':'Marketplace',
-  'Verträge':'Contracts','Finanzen':'Finances','Forschung':'Research','Einstellungen':'Settings',
+  'Verträge':'Contracts','Kosten':'Costs','Erlöse':'Revenue','Finanzen':'Finances','Forschung':'Research','Einstellungen':'Settings',
   'Abmelden':'Log out','Nicht angemeldet':'Not signed in','OpenCompany – spielbare Unternehmenssimulation':'OpenCompany – playable business simulation',
   'Supabase noch nicht konfiguriert.':'Supabase is not configured yet.','Prüfe':'Check',
   'Login / Registrierung':'Login / Registration','Anmelden':'Log in','E-Mail':'Email','Passwort':'Password',
@@ -1153,7 +1153,9 @@ function transactionLabel(type) {
     storage_fee: 'Lagerhaltungskosten',
     storage_overflow_fee: 'Überbestandsgebühr',
     storage_forced_auction: 'Zwangsversteigerung Lager',
-    storage_auction_fee: 'Gebühr Zwangsversteigerung'
+    storage_auction_fee: 'Gebühr Zwangsversteigerung',
+    contract_buy: 'Vertragskauf',
+    contract_sale: 'Vertragsverkauf'
   })[type] || type;
   return translateUiString(label);
 }
@@ -1161,7 +1163,8 @@ function transactionLabel(type) {
 function transactionAmountClass(type) {
   return [
     'market_fee','market_buy','production','construction','retail_cancel_fee','research',
-    'bond_investment','bond_repayment','bond_interest_paid','storage_fee','storage_overflow_fee','storage_auction_fee'
+    'bond_investment','bond_repayment','bond_interest_paid','storage_fee','storage_overflow_fee','storage_auction_fee',
+    'contract_buy'
   ].includes(type) ? 'transaction-amount fee' : 'transaction-amount';
 }
 
@@ -4223,6 +4226,14 @@ function renderFinanceSummary() {
     .filter(t => t.transaction_type === 'market_buy')
     .reduce((sum, t) => sum + Number(t.amount || 0), 0));
 
+  const contractSales = transactions
+    .filter(t => t.transaction_type === 'contract_sale')
+    .reduce((sum, t) => sum + Number(t.amount || 0), 0);
+
+  const contractBuyCosts = Math.abs(transactions
+    .filter(t => t.transaction_type === 'contract_buy')
+    .reduce((sum, t) => sum + Number(t.amount || 0), 0));
+
   // Gekaufte Forschungseinheiten werden zusätzlich in "Forschung" sichtbar,
   // bleiben für Gewinn/Verlust aber ausschließlich unter "Marktkäufe" kostenwirksam.
   const researchMarketBuyCosts = state.marketTrades
@@ -4236,7 +4247,7 @@ function renderFinanceSummary() {
 
   const researchDisplayCosts = directResearchCosts + researchMarketBuyCosts;
 
-  const revenue = netSales + fees + retailSales + buildingRefunds + bondInterestIncome + storageAuctionRevenue;
+  const revenue = netSales + fees + retailSales + buildingRefunds + bondInterestIncome + storageAuctionRevenue + contractSales;
 
   // Produktionskosten = direkte Produktionskosten ohne erneute Beschaffungskosten.
   // Material- und Vorproduktkäufe werden separat unter "Marktkäufe" erfasst.
@@ -4255,7 +4266,9 @@ function renderFinanceSummary() {
     'construction',
     'bond_investment',
     'bond_repayment',
-    'bond_interest_paid'
+    'bond_interest_paid',
+    'contract_buy',
+    'contract_sale'
   ]);
 
   const otherCosts = Math.abs(transactions
@@ -4264,7 +4277,7 @@ function renderFinanceSummary() {
 
   // Forschungseinheiten aus Marktkäufen dürfen nicht doppelt abgezogen werden:
   // researchDisplayCosts ist nur Anzeige; kostenwirksam sind directResearchCosts + marketBuyCosts.
-  const profit = revenue - productionCosts - directResearchCosts - fees - buildingCosts - marketBuyCosts - bondInterestPaid - otherCosts;
+  const profit = revenue - productionCosts - directResearchCosts - fees - buildingCosts - marketBuyCosts - contractBuyCosts - bondInterestPaid - otherCosts;
   const profitClass = profit < 0 ? 'finance-negative' : 'finance-positive';
 
   const periodLabel =
@@ -4280,6 +4293,13 @@ function renderFinanceSummary() {
     <div class="finance-summary-card finance-cost-card"><span>Gebühren</span><strong>-${money(fees)}</strong></div>
     <div class="finance-summary-card finance-cost-card"><span>Baukosten</span><strong>${buildingCosts > 0 ? `-${money(buildingCosts)}` : money(0)}</strong></div>
     <div class="finance-summary-card finance-cost-card"><span>Marktkäufe</span><strong>${marketBuyCosts > 0 ? `-${money(marketBuyCosts)}` : money(0)}</strong></div>
+    <div class="finance-summary-card finance-contract-card">
+      <span>${translateUiString('Verträge')}</span>
+      <div class="finance-contract-lines">
+        <div><small>${translateUiString('Kosten')}</small><strong class="finance-negative">${contractBuyCosts > 0 ? `-${money(contractBuyCosts)}` : money(0)}</strong></div>
+        <div><small>${translateUiString('Erlöse')}</small><strong>${money(contractSales)}</strong></div>
+      </div>
+    </div>
     <div class="finance-summary-card ${netBondInterest < 0 ? 'finance-cost-card' : ''}">
       <span>Zinsen</span>
       <strong class="${netBondInterest < 0 ? 'finance-negative' : netBondInterest > 0 ? 'finance-positive' : ''}">
