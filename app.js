@@ -269,7 +269,7 @@ Object.assign(I18N_EN, {
   'Forschungseinheiten':'Research units','Patentwert':'Patent value','Direktverträge':'Direct contracts',
   'Vertragsablauf':'Contract flow','Finanzbewegungen':'Financial transactions',
   'Anleihen & Kredite':'Bonds & loans','Anleihezinsen':'Bond interest','Zinsausfall':'Interest default',
-  'Einzelhandel':'Retail',
+  'Einzelhandel':'Retail','Kurz erklärt':'In short','So funktioniert es':'How it works','Beispiel':'Example','Wichtig':'Important',
 
   'Account erstellt. Bitte ggf. E-Mail bestätigen.':'Account created. Please confirm your email if required.',
   'Bitte zuerst E-Mail eingeben.':'Please enter your email first.',
@@ -4887,7 +4887,7 @@ function renderResearch() {
       })
     : researchProducts;
 
-  table.innerHTML=renderTable(['Kategorie','Produkt','Qualität','Wertbonus','Fortschritt','Nächste Stufe','Aktion'],visibleProducts.map(p=>{
+  table.innerHTML=renderTable(['Kategorie','Produkt',`Qualität <button type="button" class="encyclopedia-help-btn" onclick="openEncyclopediaArticle('quality')" aria-label="Hilfe zur Qualität" title="Enzyklopädie öffnen">?</button>`,'Wertbonus','Fortschritt','Nächste Stufe','Aktion'],visibleProducts.map(p=>{
     const q=productQuality(p), req=researchRequirement(q), prog=Number(p.research_units_progress||0);
     const isSelected=p.id===selectedId;
     return `<tr class="${isSelected ? 'research-product-selected' : ''}" data-research-product-id="${p.id}"><td>${translateUiString(researchCategory(p))}</td><td>${translateUiString(p.name)}</td><td><strong>Q${q}</strong></td><td>+${Math.round((qualityMultiplier(q)-1)*100)}%</td><td>${num(prog)} / ${num(req)}</td><td>Q${q+1}</td><td><button type="button" class="ghost research-select-btn" onclick="selectResearchProduct('${p.id}')">${translateUiString(isSelected ? 'Ausgewählt' : 'Auswählen')}</button></td></tr>`;
@@ -5178,6 +5178,32 @@ function renderSettingsCompanyManagement() {
 }
 
 
+
+function encyclopediaSection(title, content) {
+  if (!content) return '';
+  return `<section class="encyclopedia-section">
+    <h3>${translateUiString(title)}</h3>
+    ${content}
+  </section>`;
+}
+
+function encyclopediaExample(content) {
+  return encyclopediaSection('Beispiel', `<div class="encyclopedia-example">${content}</div>`);
+}
+
+function encyclopediaImportant(content) {
+  return encyclopediaSection('Wichtig', `<div class="encyclopedia-important">${content}</div>`);
+}
+
+function encyclopediaArticleBody({ short, how, example, important }) {
+  return [
+    encyclopediaSection('Kurz erklärt', `<p>${short}</p>`),
+    encyclopediaSection('So funktioniert es', how),
+    example ? encyclopediaExample(example) : '',
+    important ? encyclopediaImportant(important) : ''
+  ].join('');
+}
+
 const ENCYCLOPEDIA_ARTICLES = [
   {
     id:'getting-started', category:'Grundlagen', title:'Erste Schritte',
@@ -5255,9 +5281,12 @@ const ENCYCLOPEDIA_ARTICLES = [
     id:'quality', category:'Produktion', title:'Qualitätsstufen',
     keywords:['qualität','q1','q2','q3','q4'],
     summary:'Produkte und Bestände besitzen Qualitätsstufen mit Auswirkungen auf Wert und Verwendung.',
-    body:() => `<p>Die Qualitätsstufe wird als Q1, Q2, Q3 usw. dargestellt. Jede Stufe oberhalb von Q1 erhöht den Wertbonus aktuell um <strong>${rulePercent(GAME_RULES.quality.valueBonusPerLevel)} Prozentpunkte</strong>.</p>
-      <p>Damit besitzt Q2 einen Wertbonus von +${rulePercent(GAME_RULES.quality.valueBonusPerLevel)} %, Q3 von +${rulePercent(GAME_RULES.quality.valueBonusPerLevel * 2)} % usw.</p>
-      <p>Bei Produktionsrezepten können Mindestqualitäten für verwendbare Eingaben relevant sein.</p>`,
+    body:() => encyclopediaArticleBody({
+      short:`Höhere Qualitätsstufen erhöhen den Wertbonus eines Produkts.`,
+      how:`<p>Jede Stufe oberhalb von Q1 erhöht den Wertbonus um <strong>${rulePercent(GAME_RULES.quality.valueBonusPerLevel)} Prozentpunkte</strong>.</p>`,
+      example:`<p>Q2 besitzt +${rulePercent(GAME_RULES.quality.valueBonusPerLevel)} %, Q3 +${rulePercent(GAME_RULES.quality.valueBonusPerLevel * 2)} % und Q4 +${rulePercent(GAME_RULES.quality.valueBonusPerLevel * 3)} % Wertbonus.</p>`,
+      important:`<p>Bei Produktionsrezepten kann zusätzlich eine Mindestqualität für Rohstoffe oder Vorprodukte gelten.</p>`
+    }),
     related:['research','recipes','market'], targetView:'research'
   },
   {
@@ -5280,16 +5309,25 @@ const ENCYCLOPEDIA_ARTICLES = [
     id:'storage-costs', category:'Lager', title:'Lagerhaltungskosten',
     keywords:['lagerkosten','haltungskosten','02:00','gebühr'],
     summary:'Lagerhaltungskosten werden täglich automatisch berechnet.',
-    body:() => `<p>Die reguläre Lagerabrechnung findet täglich ab <strong>${ruleTime('storageDaily')} Uhr deutscher Zeit</strong> statt.</p>
-      <p>Bei vorhandenem Lagergebäude werden aktuell <strong>${rulePercent(GAME_RULES.fees.storageDailyRate)} % des Lagerwerts pro Tag</strong> als Lagerhaltungskosten berechnet. Die Tagesabrechnung wird pro Unternehmen nur einmal durchgeführt.</p>`,
+    body:() => encyclopediaArticleBody({
+      short:`Mit einem Lagergebäude fallen täglich Lagerhaltungskosten an.`,
+      how:`<p>Die reguläre Lagerabrechnung startet täglich um <strong>${ruleTime('storageDaily')} Uhr deutscher Zeit</strong>.</p>
+        <p>Mit Lagergebäude werden <strong>${rulePercent(GAME_RULES.fees.storageDailyRate)} % des Lagerwerts pro Tag</strong> berechnet. Die Abrechnung erfolgt pro Unternehmen höchstens einmal je Kalendertag.</p>`,
+      example:`<p>Bei einem Lagerwert von ${money(20000)} entstehen ${money(20000 * GAME_RULES.fees.storageDailyRate)} Lagerhaltungskosten pro Tag.</p>`,
+      important:`<p>Ohne Lagergebäude fällt diese reguläre Lagerhaltungsgebühr nicht an. Überbestand kann unabhängig davon zusätzliche Kosten verursachen.</p>`
+    }),
     related:['storage','storage-value','overflow'], targetView:'storage'
   },
   {
     id:'overflow', category:'Lager', title:'Überbestand',
     keywords:['überbestand','überlager','kapazität','gebühr'],
     summary:'Bestände oberhalb der Lagerkapazität können zusätzliche Kosten und Folgen auslösen.',
-    body:() => `<p>Liegt der Gesamtbestand über der verfügbaren Lagerkapazität, gilt der überschüssige Teil als Überbestand.</p>
-      <p>Für den abrechenbaren Überbestand kann zusätzlich eine Gebühr von <strong>${rulePercent(GAME_RULES.fees.storageOverflowRate)} % des Wertes des Überbestands</strong> entstehen.</p>`,
+    body:() => encyclopediaArticleBody({
+      short:`Bestände oberhalb deiner Lagerkapazität gelten als Überbestand.`,
+      how:`<p>Für den abrechenbaren Überbestand wird zusätzlich eine Gebühr von <strong>${rulePercent(GAME_RULES.fees.storageOverflowRate)} % seines Wertes</strong> berechnet.</p>`,
+      example:`<p>Hat der abrechenbare Überbestand einen Wert von ${money(5000)}, beträgt die zusätzliche Überbestandsgebühr ${money(5000 * GAME_RULES.fees.storageOverflowRate)}.</p>`,
+      important:`<p>Die Gebühr bezieht sich auf den Wert des abrechenbaren Überbestands, nicht pauschal auf den gesamten Lagerwert.</p>`
+    }),
     related:['storage','storage-costs','warehouse'], targetView:'storage'
   },
   {
@@ -5335,16 +5373,24 @@ const ENCYCLOPEDIA_ARTICLES = [
     id:'market-fee', category:'Warenbörse', title:'Marktgebühr',
     keywords:['marktgebühr','5%','gebühr'],
     summary:'Erfolgreiche Verkäufe über die Warenbörse unterliegen einer Marktgebühr.',
-    body:() => `<p>Bei einem erfolgreichen Marktverkauf werden aktuell <strong>${rulePercent(GAME_RULES.fees.marketRate)} % Marktgebühr</strong> vom Verkaufserlös abgezogen.</p>
-      <p>Der Nettoerlös und die Gebühr werden in den Finanzbewegungen dokumentiert.</p>`,
+    body:() => encyclopediaArticleBody({
+      short:`Erfolgreiche Warenbörsenverkäufe unterliegen einer Marktgebühr.`,
+      how:`<p>Vom Bruttoverkaufserlös werden <strong>${rulePercent(GAME_RULES.fees.marketRate)} % Marktgebühr</strong> abgezogen. Der verbleibende Betrag ist dein Nettoerlös.</p>`,
+      example:`<p>Bei ${money(10000)} Bruttoerlös beträgt die Marktgebühr ${money(10000 * GAME_RULES.fees.marketRate)}. Netto bleiben ${money(10000 * (1 - GAME_RULES.fees.marketRate))}.</p>`,
+      important:`<p>Die Gebühr wird erst bei einem erfolgreichen Verkauf fällig und als eigene Finanzbewegung dokumentiert.</p>`
+    }),
     related:['market','finance','market-pricing'], targetView:'market'
   },
   {
     id:'market-pricing', category:'Warenbörse', title:'Preisfindung & Richtpreise',
     keywords:['preis','richtpreis','empfehlung','aufschlag'],
     summary:'Preisempfehlungen orientieren sich an tatsächlichen Einstandskosten.',
-    body:() => `<p>Bei Spielerprodukten orientiert sich der empfohlene Verkaufspreis an den tatsächlichen durchschnittlichen Einstandskosten. In den dafür vorgesehenen Eingabefeldern wird aktuell ein Richtwert von Einstandskosten × ${GAME_RULES.pricing.playerRecommendedCostMultiplier} verwendet.</p>
-      <p>Die endgültige Preisentscheidung liegt beim Spieler.</p>`,
+    body:() => encyclopediaArticleBody({
+      short:`Der vorgeschlagene Verkaufspreis orientiert sich an den tatsächlichen Einstandskosten.`,
+      how:`<p>Für Spielerprodukte wird in den vorgesehenen Eingabefeldern aktuell ein Richtwert von <strong>Einstandskosten × ${GAME_RULES.pricing.playerRecommendedCostMultiplier}</strong> verwendet.</p>`,
+      example:`<p>Liegt der durchschnittliche Einstandswert bei ${money(250)}, ergibt sich ein Richtwert von ${money(250 * GAME_RULES.pricing.playerRecommendedCostMultiplier)} je Einheit.</p>`,
+      important:`<p>Der Richtpreis ist nur eine Orientierung. Den tatsächlichen Verkaufspreis bestimmst du selbst.</p>`
+    }),
     related:['average-cost','market','production-cost'], targetView:'market'
   },
   {
@@ -5366,8 +5412,12 @@ const ENCYCLOPEDIA_ARTICLES = [
     id:'research', category:'Forschung', title:'Produktforschung',
     keywords:['forschung','forschungseinheit','qualität','investieren'],
     summary:'Forschungseinheiten erhöhen den Forschungsfortschritt eines ausgewählten Produkts.',
-    body:`<p>Im Forschungsbereich wählst du ein Produkt aus und investierst Forschungseinheiten aus deinem Lager.</p>
-      <p>Erreicht der Fortschritt die erforderliche Menge, steigt die Produktqualität. Die Produkttabelle zeigt den aktuellen Fortschritt und markiert das ausgewählte Forschungsziel.</p>`,
+    body:() => encyclopediaArticleBody({
+      short:`Mit Forschungseinheiten steigerst du gezielt die Qualität eines Produkts.`,
+      how:`<p>Du wählst im Forschungs-Tab ein Produkt aus und investierst Forschungseinheiten aus deinem Lager. Erreicht der Forschungsfortschritt die erforderliche Menge, steigt die Qualitätsstufe.</p>`,
+      example:`<p>Ein ausgewähltes Produkt mit Q1 benötigt ${num(researchRequirement(1))} Forschungseinheiten bis Q2. Die Produkttabelle zeigt Fortschritt und verbleibenden Bedarf.</p>`,
+      important:`<p>Forschung wird ab Unternehmenslevel ${GAME_RULES.unlockLevels.research} freigeschaltet.</p>`
+    }),
     related:['research-units','quality','patent-value'], targetView:'research'
   },
   {
@@ -5390,8 +5440,12 @@ const ENCYCLOPEDIA_ARTICLES = [
     id:'contracts', category:'Verträge', title:'Direktverträge',
     keywords:['vertrag','direktvertrag','partner'],
     summary:'Verträge ermöglichen direkte, gebührenfreie Geschäfte zwischen Spielerunternehmen.',
-    body:() => `<p>Direktverträge werden zwischen Spielerunternehmen geschlossen. Das anbietende Unternehmen ist der Verkäufer und wählt Ware, Qualität, Menge und Preis.</p>
-      <p>Verträge stehen ab Unternehmenslevel ${GAME_RULES.unlockLevels.contracts} zur Verfügung.</p>`,
+    body:() => encyclopediaArticleBody({
+      short:`Direktverträge ermöglichen gebührenfreie Geschäfte zwischen Spielerunternehmen.`,
+      how:`<p>Der Verkäufer wählt Partner, Ware, Qualität, Menge und Preis. Der Empfänger kann den Vertrag annehmen oder ablehnen.</p>`,
+      example:`<p>Verkaufst du 100 Einheiten zu ${money(50)} je Einheit, beträgt der Vertragswert ${money(5000)}. Für Direktverträge fällt keine Warenbörsen-Marktgebühr an.</p>`,
+      important:`<p>Verträge stehen ab Unternehmenslevel ${GAME_RULES.unlockLevels.contracts} zur Verfügung.</p>`
+    }),
     related:['contract-flow','company-level','finance'], targetView:'contracts'
   },
   {
@@ -5406,13 +5460,17 @@ const ENCYCLOPEDIA_ARTICLES = [
     id:'fees', category:'Finanzen', title:'Gebühren',
     keywords:['gebühr','gebühren','marktgebühr','abbruchgebühr','lagerkosten'],
     summary:'Die wichtigsten prozentualen Gebühren werden zentral aus den Spielregeln angezeigt.',
-    body:() => `<p>OpenCompany verwendet mehrere automatische Gebühren:</p>
-      <ul>
-        <li>Warenbörse: <strong>${rulePercent(GAME_RULES.fees.marketRate)} % Marktgebühr</strong> bei erfolgreichem Verkauf.</li>
-        <li>Abbruch eines laufenden Einzelhandelsverkaufs: <strong>${rulePercent(GAME_RULES.fees.retailCancellationRate)} %</strong> des erwarteten Erlöses.</li>
-        <li>Lagerhaltung mit Lagergebäude: <strong>${rulePercent(GAME_RULES.fees.storageDailyRate)} %</strong> des Lagerwerts pro Tag.</li>
-        <li>Abrechenbarer Überbestand: zusätzlich <strong>${rulePercent(GAME_RULES.fees.storageOverflowRate)} %</strong> seines Wertes.</li>
+    body:() => encyclopediaArticleBody({
+      short:`Die wichtigsten Gebühren von OpenCompany werden zentral aus den Spielregeln übernommen.`,
+      how:`<ul>
+        <li>Warenbörse: <strong>${rulePercent(GAME_RULES.fees.marketRate)} %</strong> Marktgebühr bei erfolgreichem Verkauf.</li>
+        <li>Einzelhandelsabbruch: <strong>${rulePercent(GAME_RULES.fees.retailCancellationRate)} %</strong> des erwarteten Erlöses.</li>
+        <li>Lagerhaltung: <strong>${rulePercent(GAME_RULES.fees.storageDailyRate)} %</strong> des Lagerwerts pro Tag bei Lagergebäude.</li>
+        <li>Überbestand: <strong>${rulePercent(GAME_RULES.fees.storageOverflowRate)} %</strong> des abrechenbaren Überbestandswerts.</li>
       </ul>`,
+      example:`<p>Bei ${money(10000)} Marktverkauf entstehen ${money(10000 * GAME_RULES.fees.marketRate)} Marktgebühr. Bei ${money(10000)} Lagerwert entstehen mit Lagergebäude ${money(10000 * GAME_RULES.fees.storageDailyRate)} tägliche Lagerkosten.</p>`,
+      important:`<p>Wenn sich zentrale Regelwerte ändern, aktualisieren sich diese Angaben automatisch.</p>`
+    }),
     related:['market-fee','storage-costs','overflow','finance'], targetView:'finance'
   },
   {
@@ -5435,8 +5493,12 @@ const ENCYCLOPEDIA_ARTICLES = [
     id:'bonds', category:'Finanzen', title:'Anleihen & Kredite',
     keywords:['anleihe','kredit','zins','finanzierung'],
     summary:'Anleihen ermöglichen Fremdfinanzierung zwischen Unternehmen und NPCs.',
-    body:() => `<p>Das Anleihensystem wird ab Unternehmenslevel ${GAME_RULES.unlockLevels.bonds} freigeschaltet. Unternehmen können Finanzierungsanfragen stellen oder in geeignete Anleihen investieren.</p>
-      <p>Aktive Anleihen erzeugen tägliche Zinsverpflichtungen.</p>`,
+    body:() => encyclopediaArticleBody({
+      short:`Anleihen ermöglichen Fremdfinanzierung und Investments.`,
+      how:`<p>Unternehmen können Finanzierungsanfragen stellen oder Kapital in passende Anleihen investieren. Aktive Positionen erzeugen tägliche Zinsverpflichtungen.</p>`,
+      example:`<p>Die Zinsverarbeitung ist täglich für ${ruleTime('bondInterest')} Uhr deutscher Zeit vorgesehen.</p>`,
+      important:`<p>Das Anleihensystem wird ab Unternehmenslevel ${GAME_RULES.unlockLevels.bonds} freigeschaltet.</p>`
+    }),
     related:['bond-interest','bond-default','company-level'], targetView:'finance'
   },
   {
@@ -5649,7 +5711,7 @@ function renderAll() {
     : `Namensänderung wieder ab ${renameAvailability.availableAt.toLocaleString(uiLocale())} möglich`;
 
   document.getElementById('companyDetails').innerHTML = renderTable(
-    ['Unternehmen','Status','Level','XP','Gebäudeplätze','Kontostand','Mitarbeiter','Unternehmenswert','Gebäudewert','Patentwert','Schulden'],
+    ['Unternehmen','Status',`Level <button type="button" class="encyclopedia-help-btn" onclick="openEncyclopediaArticle('company-level')" aria-label="Hilfe zu Level und XP" title="Enzyklopädie öffnen">?</button>`,'XP','Gebäudeplätze','Kontostand','Mitarbeiter',`Unternehmenswert <button type="button" class="encyclopedia-help-btn" onclick="openEncyclopediaArticle('company-value')" aria-label="Hilfe zum Unternehmenswert" title="Enzyklopädie öffnen">?</button>`,'Gebäudewert',`Patentwert <button type="button" class="encyclopedia-help-btn" onclick="openEncyclopediaArticle('patent-value')" aria-label="Hilfe zum Patentwert" title="Enzyklopädie öffnen">?</button>`,`Schulden <button type="button" class="encyclopedia-help-btn" onclick="openEncyclopediaArticle('bonds')" aria-label="Hilfe zu Schulden und Anleihen" title="Enzyklopädie öffnen">?</button>`],
     [`<tr>
       <td><span class="company-name-edit-wrap"><strong>${c.name}</strong><button type="button" class="company-name-edit-btn" onclick="renameCompanyFromCompanyTab()" title="${renameTitle}" aria-label="Unternehmensnamen ändern" ${renameAvailability.allowed ? '' : 'disabled'}>✎</button></span></td>
       <td><span class="company-online-status presence-status"></span></td>
