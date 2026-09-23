@@ -55,7 +55,7 @@ const I18N_EN = {
   'Lagerwert':'Inventory value','Patentwert':'Patent value','Schulden':'Debt','Gebäudewert':'Building value',
   'Lagerkapazität':'Storage capacity','Überbestand':'Overflow','Warnungen':'Warnings','Max. inkl. Überbestand':'Max. incl. overflow',
   'Tägliche Lagerhaltung':'Daily storage cost','Tägliche Überbestandsgebühr':'Daily overflow fee',
-  'Bereits gebaut':'Already built','Lagergebäude':'Warehouse','Einheiten':'units','7-Tage-Verlauf':'7-day history','Entwicklung der letzten 7 Tage':'Development over the last 7 days','Aktueller Wert':'Current value','Verlauf wird geladen …':'Loading history …','Keine Verlaufsdaten verfügbar.':'No history data available.',
+  'Bereits gebaut':'Already built','Lagergebäude':'Warehouse','Einheiten':'units','Lager öffnen':'Open storage','7-Tage-Verlauf':'7-day history','Entwicklung der letzten 7 Tage':'Development over the last 7 days','Aktueller Wert':'Current value','Verlauf wird geladen …':'Loading history …','Keine Verlaufsdaten verfügbar.':'No history data available.',
   'Firmenstatus':'Company status','Letzte Finanzbewegungen':'Latest financial transactions',
   'Bauen':'Build','Errichte neue Gebäude für Produktion, Handel und Forschung.':'Construct new buildings for production, retail and research.',
   'Gebäude bauen':'Build building','Wähle eine Kategorie und errichte ein neues Gebäude.':'Choose a category and construct a new building.',
@@ -3148,6 +3148,10 @@ function renderBuildings() {
       else if (prodJob) { statusClass='running'; statusText='Produktion läuft'; }
       else if (retailJob) { statusClass='running'; statusText='Verkauf läuft'; }
 
+      const statusHtml = isStorage && !underConstruction
+        ? ''
+        : `<span class="building-card-status ${statusClass}">${translateUiString(statusText)}</span>`;
+
       let jobHtml = '';
       if (job) {
         const finish = new Date(job.finishes_at);
@@ -3188,7 +3192,8 @@ function renderBuildings() {
         if (!inUse) actions += `<button type="button" class="building-upgrade-btn" onclick="event.stopPropagation();upgradeBuilding('${building.id}','${bt.id}')">${translateUiString('Ausbauen')}</button>
           <button type="button" class="building-demolish-btn" onclick="event.stopPropagation();downgradeBuilding('${building.id}','${bt.id}')">${translateUiString(level<=1?'Abreißen':'Abstufen')}</button>`;
       } else if (isStorage) {
-        actions = `<button type="button" class="building-upgrade-btn" onclick="event.stopPropagation();upgradeBuilding('${building.id}','${bt.id}')">${translateUiString('Ausbauen')}</button>
+        actions = `<button type="button" onclick="event.stopPropagation();openStorageFromBuildingTab()">${translateUiString('Lager öffnen')}</button>
+          <button type="button" class="building-upgrade-btn" onclick="event.stopPropagation();upgradeBuilding('${building.id}','${bt.id}')">${translateUiString('Ausbauen')}</button>
           <button type="button" class="${level<=1?'building-demolish-btn':'ghost'}" onclick="event.stopPropagation();downgradeBuilding('${building.id}','${bt.id}')">${translateUiString(level<=1?'Abreißen':'Abstufen')}</button>`;
       } else {
         actions = `<button type="button" onclick="event.stopPropagation();selectBuildingCard('${building.id}')">${translateUiString(inUse ? 'Auftrag öffnen' : 'Auswählen')}</button>`;
@@ -3202,7 +3207,7 @@ function renderBuildings() {
           <div class="building-card-title">${bt.name} #${number}</div>
           <div class="building-card-meta">Level ${level} · ${buildingCategoryLabel(bt.building_category)}</div>
         </div></div>
-        <span class="building-card-status ${statusClass}">${translateUiString(statusText)}</span>
+        ${statusHtml}
         ${jobHtml}
         ${constructionHtml}
         <div class="building-card-actions">${actions}</div>
@@ -3261,6 +3266,19 @@ window.selectBuildingCard = function(buildingId) {
   updateProductionProductsForSelectedBuilding();
   renderBuildings();
   renderProductionRecipe();
+};
+
+window.openStorageFromBuildingTab = function() {
+  const storageNav = document.querySelector('.nav-item[data-view="storage"]');
+  if (storageNav) {
+    storageNav.click();
+    return;
+  }
+
+  document.querySelectorAll('.view').forEach(view => view.classList.remove('active-view'));
+  document.getElementById('storage')?.classList.add('active-view');
+  const pageTitle = document.getElementById('pageTitle');
+  if (pageTitle) pageTitle.textContent = translateUiString('Lager');
 };
 
 window.openRetailBuilding = function(buildingId) {
