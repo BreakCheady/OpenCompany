@@ -252,7 +252,7 @@ Object.assign(I18N_EN, {
   'Neuen Unternehmensnamen eingeben:':'Enter a new company name:',
   'Kein Produkt verfügbar':'No product available',
   'Unternehmensnamen ändern':'Change company name',
-  'Produkt suchen':'Search product','Produktname oder Kategorie':'Product name or category','Keine Produkte gefunden.':'No products found.','Ausgewählt':'Selected',
+  'Produkt suchen':'Search product','Produktname oder Kategorie':'Product name or category','Keine Produkte gefunden.':'No products found.','Ausgewählt':'Selected','z. B. Smartphone oder Elektronik':'e.g. smartphone or electronics',
   'Account erstellt. Bitte ggf. E-Mail bestätigen.':'Account created. Please confirm your email if required.',
   'Bitte zuerst E-Mail eingeben.':'Please enter your email first.',
   'Passwort-Link wurde versendet.':'Password reset link has been sent.',
@@ -829,6 +829,7 @@ const state = {
   marketSearchFilter: '',
   marketTypeFilter: 'all',
   marketQualityFilter: 'all',
+  researchSearchFilter: '',
   researchSelectedProductId: null,
   selectedMarketOrderIds: [],
   selectedBuildingId: null,
@@ -4742,55 +4743,6 @@ function researchInvestmentValue(quantity, researchProduct) {
   return value;
 }
 
-function researchProductSearchLabel(product) {
-  if (!product) return '';
-  return `${translateUiString(product.name)} – Q${productQuality(product)}`;
-}
-
-function updateResearchProductSearchResults() {
-  const searchInput = document.getElementById('researchProductSearch');
-  const results = document.getElementById('researchProductSearchResults');
-  if (!searchInput || !results) return;
-
-  const query = searchInput.value.trim().toLocaleLowerCase(uiLocale());
-  if (!query) {
-    results.innerHTML = '';
-    results.classList.add('hidden');
-    return;
-  }
-
-  const matches = [...state.products]
-    .filter(product => {
-      const haystack = [
-        product.name,
-        translateUiString(product.name),
-        researchCategory(product),
-        translateUiString(researchCategory(product)),
-        `Q${productQuality(product)}`
-      ].join(' ').toLocaleLowerCase(uiLocale());
-      return haystack.includes(query);
-    })
-    .sort((a,b) =>
-      researchCategory(a).localeCompare(researchCategory(b),uiLocale()) ||
-      a.name.localeCompare(b.name,uiLocale())
-    )
-    .slice(0, 20);
-
-  if (!matches.length) {
-    results.innerHTML = `<div class="research-product-result"><strong>${translateUiString('Keine Produkte gefunden.')}</strong></div>`;
-    results.classList.remove('hidden');
-    return;
-  }
-
-  results.innerHTML = matches.map(product => `
-    <button type="button" class="research-product-result" data-product-id="${product.id}">
-      <strong>${translateUiString(product.name)}</strong>
-      <span>${translateUiString(researchCategory(product))} · Q${productQuality(product)}</span>
-    </button>
-  `).join('');
-  results.classList.remove('hidden');
-}
-
 function renderResearch() {
   const ctx = researchInventoryContext();
   const productInput = document.getElementById('researchProduct');
@@ -4807,11 +4759,15 @@ function renderResearch() {
     a.name.localeCompare(b.name,uiLocale())
   );
 
+  if (searchInput.value !== state.researchSearchFilter) {
+    searchInput.value = state.researchSearchFilter || '';
+  }
+
   let selectedId = state.researchSelectedProductId || productInput.value || '';
   if (!researchProducts.some(product => product.id === selectedId)) selectedId = '';
 
-  // Bestehendes Verhalten beibehalten: beim ersten Öffnen ist direkt ein Produkt ausgewählt.
-  if (!selectedId && !searchInput.value.trim() && researchProducts[0]) {
+  // Wie bisher beim ersten Öffnen direkt ein Produkt als Forschungsziel setzen.
+  if (!selectedId && researchProducts[0]) {
     selectedId = researchProducts[0].id;
   }
 
@@ -4819,10 +4775,6 @@ function renderResearch() {
   productInput.value = selectedId;
 
   const selected = researchProducts.find(product => product.id === selectedId) || null;
-  if (selected && document.activeElement !== searchInput) {
-    searchInput.value = researchProductSearchLabel(selected);
-  }
-
   const quality=productQuality(selected);
   const requirement=researchRequirement(quality);
   const progress=Number(selected?.research_units_progress||0);
@@ -4848,7 +4800,21 @@ function renderResearch() {
   submit.disabled=!valid;
   if (maxBtn) maxBtn.disabled=maxInvestment<=0;
 
-  table.innerHTML=renderTable(['Kategorie','Produkt','Qualität','Wertbonus','Fortschritt','Nächste Stufe','Aktion'],researchProducts.map(p=>{
+  const query=(state.researchSearchFilter || '').trim().toLocaleLowerCase(uiLocale());
+  const visibleProducts=query
+    ? researchProducts.filter(product => {
+        const haystack=[
+          product.name,
+          translateUiString(product.name),
+          researchCategory(product),
+          translateUiString(researchCategory(product)),
+          `Q${productQuality(product)}`
+        ].join(' ').toLocaleLowerCase(uiLocale());
+        return haystack.includes(query);
+      })
+    : researchProducts;
+
+  table.innerHTML=renderTable(['Kategorie','Produkt','Qualität','Wertbonus','Fortschritt','Nächste Stufe','Aktion'],visibleProducts.map(p=>{
     const q=productQuality(p), req=researchRequirement(q), prog=Number(p.research_units_progress||0);
     const isSelected=p.id===selectedId;
     return `<tr class="${isSelected ? 'research-product-selected' : ''}" data-research-product-id="${p.id}"><td>${translateUiString(researchCategory(p))}</td><td>${translateUiString(p.name)}</td><td><strong>Q${q}</strong></td><td>+${Math.round((qualityMultiplier(q)-1)*100)}%</td><td>${num(prog)} / ${num(req)}</td><td>Q${q+1}</td><td><button type="button" class="ghost research-select-btn" onclick="selectResearchProduct('${p.id}')">${translateUiString(isSelected ? 'Ausgewählt' : 'Auswählen')}</button></td></tr>`;
@@ -4862,16 +4828,9 @@ window.selectResearchProduct=function(productId){
   state.researchSelectedProductId=productId;
 
   const productInput=document.getElementById('researchProduct');
-  const searchInput=document.getElementById('researchProductSearch');
-  const results=document.getElementById('researchProductSearchResults');
   const amountInput=document.getElementById('researchInvestmentAmount');
 
   if(productInput) productInput.value=productId;
-  if(searchInput) searchInput.value=researchProductSearchLabel(product);
-  if(results) {
-    results.innerHTML='';
-    results.classList.add('hidden');
-  }
   if(amountInput) amountInput.value='1';
 
   renderResearch();
@@ -6101,21 +6060,10 @@ const researchInvestmentAmount = document.getElementById('researchInvestmentAmou
 const researchInvestmentMaxBtn = document.getElementById('researchInvestmentMaxBtn');
 const researchProduct = document.getElementById('researchProduct');
 const researchProductSearch = document.getElementById('researchProductSearch');
-const researchProductSearchResults = document.getElementById('researchProductSearchResults');
 
-researchProductSearch?.addEventListener('input', updateResearchProductSearchResults);
-researchProductSearch?.addEventListener('focus', () => {
-  if (researchProductSearch.value.trim()) updateResearchProductSearchResults();
-});
-researchProductSearchResults?.addEventListener('click', event => {
-  const button = event.target.closest('.research-product-result[data-product-id]');
-  if (!button) return;
-  selectResearchProduct(button.dataset.productId);
-});
-document.addEventListener('click', event => {
-  if (!researchProductSearchResults || !researchProductSearch) return;
-  if (researchProductSearch.contains(event.target) || researchProductSearchResults.contains(event.target)) return;
-  researchProductSearchResults.classList.add('hidden');
+researchProductSearch?.addEventListener('input', event => {
+  state.researchSearchFilter = event.target.value;
+  renderResearch();
 });
 
 researchInvestmentAmount?.addEventListener('input', () => {

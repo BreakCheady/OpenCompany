@@ -7,7 +7,7 @@
   <title>OpenCompany</title>
   <link rel="icon" type="image/png" href="favicon.png">
   <link rel="shortcut icon" href="favicon.ico">
-  <link rel="stylesheet" href="style.css?v=0.10.140">
+  <link rel="stylesheet" href="style.css?v=0.10.141">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     .password-field{display:flex;align-items:center;gap:.5rem}
@@ -187,48 +187,6 @@
       cursor:default;
     }
 
-    .research-product-search-results{
-      grid-column:1 / -1;
-      margin-top:-.45rem;
-      margin-bottom:.8rem;
-      border:1px solid #d7e0eb;
-      border-radius:10px;
-      background:#fff;
-      overflow:hidden;
-      max-height:260px;
-      overflow-y:auto;
-    }
-    .research-product-search-results.hidden{
-      display:none;
-    }
-    .research-product-result{
-      display:block;
-      width:100%;
-      padding:.7rem .8rem;
-      border:0;
-      border-bottom:1px solid #e7edf4;
-      border-radius:0;
-      background:#fff;
-      color:inherit;
-      text-align:left;
-      cursor:pointer;
-    }
-    .research-product-result:last-child{
-      border-bottom:0;
-    }
-    .research-product-result:hover,
-    .research-product-result:focus-visible{
-      background:#f4f7fb;
-    }
-    .research-product-result strong{
-      display:block;
-    }
-    .research-product-result span{
-      display:block;
-      margin-top:.15rem;
-      font-size:.84rem;
-      color:#617087;
-    }
     .research-product-selected td{
       background:#eaf4ff!important;
       font-weight:600;
@@ -476,7 +434,7 @@
       .oc-select-option{min-height:46px;padding:.7rem .8rem}
     }
   
-    /* v0.10.140 – einheitliche Navigationsleiste auf Desktop und Mobile */
+    /* v0.10.141 – einheitliche Navigationsleiste auf Desktop und Mobile */
     .app-shell{
       display:block!important;
       min-height:100dvh!important;
@@ -1260,10 +1218,9 @@
           </div>
 
           <form id="researchInvestmentForm" class="research-investment-form">
-            <label>Produkt suchen
-              <input id="researchProductSearch" type="search" autocomplete="off" placeholder="Produktname oder Kategorie">
+            <label>Suche
+              <input id="researchProductSearch" type="search" autocomplete="off" placeholder="z. B. Smartphone oder Elektronik">
             </label>
-            <div id="researchProductSearchResults" class="research-product-search-results hidden"></div>
             <input id="researchProduct" type="hidden" value="">
             <label>Forschungseinheiten investieren
               <input type="number" id="researchInvestmentAmount" min="1" step="1" value="1">
@@ -1320,7 +1277,7 @@
           <h2>Einstellungen</h2>
           <div class="kv">
             <span>Version</span>
-            <strong>0.10.140</strong>
+            <strong>0.10.141</strong>
           </div>
           <div class="kv settings-language-row">
             <span>Sprache</span>
