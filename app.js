@@ -5794,22 +5794,41 @@ function dashboardHistorySvg(points, metricLabel) {
     const xx = x(i);
     const yy = y(p.value);
     const title = `${p.fullLabel}: ${money(p.value)}`;
+    const valueLabel = new Intl.NumberFormat(uiLocale(), {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    }).format(Number(p.value || 0)) + ' OC$';
+
+    const labelY = Math.max(16, yy - 13);
     return `
-      <g class="dashboard-chart-point" tabindex="0">
-        <circle cx="${xx}" cy="${yy}" r="5"></circle>
+      <g class="dashboard-chart-point" tabindex="0" aria-label="${title}">
+        <circle cx="${xx}" cy="${yy}" r="6"></circle>
+        <text x="${xx}" y="${labelY}" text-anchor="middle" class="dashboard-chart-value">${valueLabel}</text>
         <title>${title}</title>
       </g>
     `;
   }).join('');
 
+  const exactValues = points.map(p => `
+    <div class="dashboard-history-day">
+      <span>${p.fullLabel}</span>
+      <strong>${money(p.value)}</strong>
+    </div>
+  `).join('');
+
   return `
-    <svg class="dashboard-history-svg" viewBox="0 0 ${width} ${height}" role="img" aria-label="${metricLabel}: Verlauf der letzten 7 Tage">
-      ${gridLines}
-      <line x1="${pad.left}" y1="${pad.top+chartH}" x2="${width-pad.right}" y2="${pad.top+chartH}" class="dashboard-chart-axis-line"/>
-      <polyline points="${polyline}" class="dashboard-chart-line" fill="none"/>
-      ${dots}
-      ${labels}
-    </svg>
+    <div class="dashboard-history-chart-scroll">
+      <svg class="dashboard-history-svg" viewBox="0 0 ${width} ${height}" role="img" aria-label="${metricLabel}: Verlauf der letzten 7 Tage">
+        ${gridLines}
+        <line x1="${pad.left}" y1="${pad.top+chartH}" x2="${width-pad.right}" y2="${pad.top+chartH}" class="dashboard-chart-axis-line"/>
+        <polyline points="${polyline}" class="dashboard-chart-line" fill="none"/>
+        ${dots}
+        ${labels}
+      </svg>
+    </div>
+    <div class="dashboard-history-days" aria-label="${metricLabel} Tageswerte">
+      ${exactValues}
+    </div>
   `;
 }
 
