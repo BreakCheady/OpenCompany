@@ -2794,3 +2794,94 @@ body.dashboard-history-open{
   color:#d60000!important;
 }
 
+
+
+/* v0.10.121 – Lagerkapazität */
+.storage-capacity-card{
+  margin:14px 0;
+  padding:16px;
+  border:1px solid #dfe6ed;
+  border-radius:12px;
+  background:#f8fafc;
+}
+.storage-capacity-head{
+  display:flex;
+  align-items:flex-end;
+  justify-content:space-between;
+  gap:16px;
+  margin-bottom:10px;
+}
+.storage-capacity-head > div{
+  display:grid;
+  gap:4px;
+}
+.storage-capacity-label{
+  color:var(--muted);
+  font-size:13px;
+  font-weight:700;
+}
+.storage-usage-percent{
+  font-size:20px;
+}
+.storage-capacity-progress{
+  height:18px;
+  overflow:hidden;
+  border-radius:999px;
+  background:#e8edf2;
+  border:1px solid #d8e0e8;
+}
+.storage-capacity-bar{
+  display:block;
+  height:100%;
+  width:0;
+  transition:width .2s ease;
+}
+.storage-capacity-green{ background:#00a63c; }
+.storage-capacity-yellow{ background:#e1ad01; }
+.storage-capacity-red{ background:#d60000; }
+
+.storage-capacity-meta,
+.storage-cost-grid{
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:10px;
+  margin-top:12px;
+}
+.storage-capacity-meta .kv,
+.storage-cost-grid .kv{
+  margin:0;
+  min-width:0;
+}
+.storage-warning-banner{
+  display:grid;
+  gap:8px;
+  margin:0 0 14px;
+  padding:14px 16px;
+  border:2px solid #d60000;
+  border-radius:12px;
+  background:#fff1f1;
+  color:#8f0000;
+  font-weight:700;
+}
+.storage-warning-banner.hidden{
+  display:none!important;
+}
+.storage-overflow-active,
+.storage-warning-active,
+.storage-cost-active{
+  color:#d60000!important;
+}
+.storage-capacity-note{
+  margin:12px 0 16px;
+}
+@media(max-width:760px){
+  .storage-capacity-head{
+    align-items:flex-start;
+    flex-direction:column;
+    gap:6px;
+  }
+  .storage-capacity-meta,
+  .storage-cost-grid{
+    grid-template-columns:1fr;
+  }
+}

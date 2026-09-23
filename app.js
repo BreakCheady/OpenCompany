@@ -52,7 +52,10 @@ const I18N_EN = {
   'Rangliste wird geladen …':'Loading leaderboard …','Neues Passwort festlegen':'Set new password',
   'Neues Passwort':'New password','Passwort wiederholen':'Repeat password','Passwort speichern':'Save password',
   'Unternehmen':'Company','Kontostand':'Cash balance','Belegschaft':'Workforce','Unternehmenswert':'Company value',
-  'Lagerwert':'Inventory value','Patentwert':'Patent value','Schulden':'Debt','Gebäudewert':'Building value','7-Tage-Verlauf':'7-day history','Entwicklung der letzten 7 Tage':'Development over the last 7 days','Aktueller Wert':'Current value','Verlauf wird geladen …':'Loading history …','Keine Verlaufsdaten verfügbar.':'No history data available.',
+  'Lagerwert':'Inventory value','Patentwert':'Patent value','Schulden':'Debt','Gebäudewert':'Building value',
+  'Lagerkapazität':'Storage capacity','Überbestand':'Overflow','Warnungen':'Warnings','Max. inkl. Überbestand':'Max. incl. overflow',
+  'Tägliche Lagerhaltung':'Daily storage cost','Tägliche Überbestandsgebühr':'Daily overflow fee',
+  'Bereits gebaut':'Already built','Lagergebäude':'Warehouse','Einheiten':'units','7-Tage-Verlauf':'7-day history','Entwicklung der letzten 7 Tage':'Development over the last 7 days','Aktueller Wert':'Current value','Verlauf wird geladen …':'Loading history …','Keine Verlaufsdaten verfügbar.':'No history data available.',
   'Firmenstatus':'Company status','Letzte Finanzbewegungen':'Latest financial transactions',
   'Bauen':'Build','Errichte neue Gebäude für Produktion, Handel und Forschung.':'Construct new buildings for production, retail and research.',
   'Gebäude bauen':'Build building','Wähle eine Kategorie und errichte ein neues Gebäude.':'Choose a category and construct a new building.',
@@ -813,6 +816,7 @@ const state = {
   materialInventory: [],
   storageSearchFilter: '',
   storageTypeFilter: 'all',
+  storageStatus: null,
   recipes: [],
   buildingTypes: [],
   buildings: [],
@@ -1145,7 +1149,11 @@ function transactionLabel(type) {
     bond_interest_state: 'Zinserlös vom Staat',
     bond_interest_missed: 'Zinsausfall',
     bond_default_compensation: 'Staatliche Kreditausfallentschädigung',
-    bond_default_reset: 'Insolvenzverfahren'
+    bond_default_reset: 'Insolvenzverfahren',
+    storage_fee: 'Lagerhaltungskosten',
+    storage_overflow_fee: 'Überbestandsgebühr',
+    storage_forced_auction: 'Zwangsversteigerung Lager',
+    storage_auction_fee: 'Gebühr Zwangsversteigerung'
   })[type] || type;
   return translateUiString(label);
 }
@@ -1153,7 +1161,7 @@ function transactionLabel(type) {
 function transactionAmountClass(type) {
   return [
     'market_fee','market_buy','production','construction','retail_cancel_fee','research',
-    'bond_investment','bond_repayment','bond_interest_paid'
+    'bond_investment','bond_repayment','bond_interest_paid','storage_fee','storage_overflow_fee','storage_auction_fee'
   ].includes(type) ? 'transaction-amount fee' : 'transaction-amount';
 }
 
@@ -2473,10 +2481,11 @@ async function loadGameData() {
     sb.rpc('get_company_debt', { p_company_id: cid }),
     sb.rpc('get_bond_dashboard', { p_company_id: cid }),
     sb.from('company_valuation_history').select('valuation_date,cash_balance,material_value,product_value,building_value,patent_value,loan_debt,company_value,previous_company_value,change_amount,calculated_at').eq('company_id',cid).order('valuation_date',{ascending:false}).limit(2),
-    sb.rpc('get_company_ranking', { p_company_id: cid })
+    sb.rpc('get_company_ranking', { p_company_id: cid }),
+    sb.rpc('get_storage_status', { p_company_id: cid })
   ]);
 
-  const labels = ['Produkte','Alle Produkte','Produktlager','Materialien','Materiallager','Rezepte','Gebäudetypen','Gebäude','Produktionen','Handelsverkäufe','Finanzen','Marktorders','Marktkäufe','Verträge','Firmenverzeichnis','Kreditschulden','Anleihen','Unternehmenswert-Verlauf','Unternehmensranking'];
+  const labels = ['Produkte','Alle Produkte','Produktlager','Materialien','Materiallager','Rezepte','Gebäudetypen','Gebäude','Produktionen','Handelsverkäufe','Finanzen','Marktorders','Marktkäufe','Verträge','Firmenverzeichnis','Kreditschulden','Anleihen','Unternehmenswert-Verlauf','Unternehmensranking','Lagerstatus'];
   const errors = results.map((r,i)=>r.error ? { label: labels[i], error:r.error } : null).filter(Boolean);
   if (errors.length) {
     console.error(errors);
@@ -2485,7 +2494,7 @@ async function loadGameData() {
   }
   clearGameDataError();
 
-  const [products, allProducts, inventory, materials, materialInventory, recipes, buildingTypes, buildings, productionJobs, retailSaleJobs, tx, orders, marketTrades, contracts, directory, companyDebt, bondDashboard, valuationHistory, companyRanking] = results;
+  const [products, allProducts, inventory, materials, materialInventory, recipes, buildingTypes, buildings, productionJobs, retailSaleJobs, tx, orders, marketTrades, contracts, directory, companyDebt, bondDashboard, valuationHistory, companyRanking, storageStatus] = results;
   state.products = products.data;
   state.allProducts = allProducts.data;
   state.inventory = inventory.data;
@@ -2508,6 +2517,7 @@ async function loadGameData() {
   state.valuationHistory = valuationHistory.data || [];
   state.companyValueChange = Number(state.valuationHistory?.[0]?.change_amount || 0);
   state.companyRanking = companyRanking.data || null;
+  state.storageStatus = storageStatus.data || null;
   renderAll();
 }
 
@@ -2530,7 +2540,7 @@ function currentProductionContext() {
   const buildingCanProduce = !!selectedBuilding
     && !!product
     && product.required_building_type_id === selectedBuilding.building_type_id
-    && buildingType?.building_category !== 'retail';
+    && ['production','research'].includes(buildingType?.building_category);
 
   const building = buildingCanProduce ? selectedBuilding : null;
   const multiplier = building ? buildingLevelMultiplier(building.level) : 1;
@@ -3002,6 +3012,7 @@ function scheduleProductionRefresh() {
 function buildingCategoryLabel(category) {
   if (category === 'retail') return translateUiString('Verkauf');
   if (category === 'research') return translateUiString('Forschung');
+  if (category === 'storage') return translateUiString('Lager');
   return translateUiString('Produktion');
 }
 
@@ -3021,6 +3032,11 @@ function renderBuildingCatalog() {
       const cost = Number(bt.construction_cost || 0);
       const buildHours = buildingConstructionHours(1);
       const count = state.buildings.filter(b => b.building_type_id === bt.id).length;
+      const storageAlreadyBuilt = bt.code === 'storage_warehouse' && count > 0;
+      const buildDisabled = noFreeSlot || storageAlreadyBuilt;
+      const buildLabel = storageAlreadyBuilt
+        ? translateUiString('Bereits gebaut')
+        : translateUiString(noFreeSlot ? 'Keine Plätze' : 'Bauen');
 
       return `<tr>
         <td>${bt.name}</td>
@@ -3031,9 +3047,9 @@ function renderBuildingCatalog() {
         <td>
           <button
             class="building-catalog-build-btn"
-            ${noFreeSlot ? 'disabled' : ''}
+            ${buildDisabled ? 'disabled' : ''}
             onclick="buildBuilding('${bt.id}')"
-          >${translateUiString(noFreeSlot ? 'Keine Plätze' : 'Bauen')}</button>
+          >${buildLabel}</button>
         </td>
       </tr>`;
     });
@@ -3076,7 +3092,7 @@ function renderBuildings() {
 
   const selectable = state.buildings.filter(building => {
     const type = state.buildingTypes.find(bt => bt.id === building.building_type_id);
-    return building.status === 'active' && type?.building_category !== 'retail';
+    return building.status === 'active' && ['production','research'].includes(type?.building_category);
   });
   if (!state.buildings.some(b => b.id === state.selectedBuildingId) && selectable.length) {
     state.selectedBuildingId = selectable[0].id;
@@ -3086,7 +3102,8 @@ function renderBuildings() {
   const categoryOrder = {
     production: 1,
     research: 2,
-    retail: 3
+    retail: 3,
+    storage: 4
   };
 
   const html = state.buildings
@@ -3123,6 +3140,7 @@ function renderBuildings() {
       const product = job ? state.products.find(p => p.id === job.product_id) : null;
       const inUse = !!job;
       const isRetail = bt.building_category === 'retail';
+      const isStorage = bt.building_category === 'storage';
       const level = Number(building.level || 1);
 
       let statusClass = 'free', statusText = 'Frei';
@@ -3169,13 +3187,16 @@ function renderBuildings() {
         actions = `<button type="button" onclick="event.stopPropagation();openRetailBuilding('${building.id}')">${translateUiString(inUse ? 'Verkauf öffnen' : 'Im Handel verwenden')}</button>`;
         if (!inUse) actions += `<button type="button" class="building-upgrade-btn" onclick="event.stopPropagation();upgradeBuilding('${building.id}','${bt.id}')">${translateUiString('Ausbauen')}</button>
           <button type="button" class="building-demolish-btn" onclick="event.stopPropagation();downgradeBuilding('${building.id}','${bt.id}')">${translateUiString(level<=1?'Abreißen':'Abstufen')}</button>`;
+      } else if (isStorage) {
+        actions = `<button type="button" class="building-upgrade-btn" onclick="event.stopPropagation();upgradeBuilding('${building.id}','${bt.id}')">${translateUiString('Ausbauen')}</button>
+          <button type="button" class="${level<=1?'building-demolish-btn':'ghost'}" onclick="event.stopPropagation();downgradeBuilding('${building.id}','${bt.id}')">${translateUiString(level<=1?'Abreißen':'Abstufen')}</button>`;
       } else {
         actions = `<button type="button" onclick="event.stopPropagation();selectBuildingCard('${building.id}')">${translateUiString(inUse ? 'Auftrag öffnen' : 'Auswählen')}</button>`;
         if (!inUse) actions += `<button type="button" class="building-upgrade-btn" onclick="event.stopPropagation();upgradeBuilding('${building.id}','${bt.id}')">${translateUiString('Ausbauen')}</button>
           <button type="button" class="${level<=1?'building-demolish-btn':'ghost'}" onclick="event.stopPropagation();downgradeBuilding('${building.id}','${bt.id}')">${translateUiString(level<=1?'Abreißen':'Abstufen')}</button>`;
       }
 
-      const click = underConstruction ? '' : (isRetail ? `onclick="openRetailBuilding('${building.id}')"` : `onclick="selectBuildingCard('${building.id}')"`);
+      const click = underConstruction || isStorage ? '' : (isRetail ? `onclick="openRetailBuilding('${building.id}')"` : `onclick="selectBuildingCard('${building.id}')"`);
       return `<div class="building-card ${selected?'selected':''} ${underConstruction?'under-construction':''}" ${click}>
         <div class="building-card-head"><div>
           <div class="building-card-title">${bt.name} #${number}</div>
@@ -3198,15 +3219,16 @@ function renderBuildings() {
   const selected = state.buildings.find(b => b.id === state.selectedBuildingId) || null;
   const selectedType = selected ? state.buildingTypes.find(bt => bt.id === selected.building_type_id) : null;
   const isRetailSelected = selectedType?.building_category === 'retail';
+  const isProductionSelected = ['production','research'].includes(selectedType?.building_category);
 
   const productionControl = document.getElementById('productionControlPanel');
   const retailControl = document.getElementById('retailControlPanel');
-  if (productionControl) productionControl.classList.toggle('hidden', !selected || isRetailSelected);
+  if (productionControl) productionControl.classList.toggle('hidden', !selected || !isProductionSelected);
   if (retailControl) retailControl.classList.toggle('hidden', !selected || !isRetailSelected);
 
   const heading = document.getElementById('productionSelectedHeading');
   const hint = document.getElementById('productionSelectedHint');
-  if (heading && hint && selected && selectedType && !isRetailSelected) {
+  if (heading && hint && selected && selectedType && isProductionSelected) {
     heading.textContent = `${selectedType.name} #${buildingDisplayNumber(selected)} · Produktion`;
     const running = state.productionJobs.find(j => j.building_id === selected.id && j.status === 'running');
     hint.textContent = running
@@ -3232,6 +3254,7 @@ window.selectBuildingCard = function(buildingId) {
   if (!building || building.status !== 'active') return;
   const type = state.buildingTypes.find(bt => bt.id === building.building_type_id);
   if (type?.building_category === 'retail') return openRetailBuilding(buildingId);
+  if (type?.building_category === 'storage') return;
 
   state.selectedBuildingId = buildingId;
   state.selectedRetailBuildingId = null;
@@ -3996,6 +4019,10 @@ function renderFinanceSummary() {
     .filter(t => t.transaction_type === 'retail_sale')
     .reduce((sum, t) => sum + Number(t.amount || 0), 0);
 
+  const storageAuctionRevenue = transactions
+    .filter(t => t.transaction_type === 'storage_forced_auction')
+    .reduce((sum, t) => sum + Number(t.amount || 0), 0);
+
   const fees = Math.abs(transactions
     .filter(t => ['market_fee', 'retail_cancel_fee'].includes(t.transaction_type))
     .reduce((sum, t) => sum + Number(t.amount || 0), 0));
@@ -4039,7 +4066,7 @@ function renderFinanceSummary() {
 
   const researchDisplayCosts = directResearchCosts + researchMarketBuyCosts;
 
-  const revenue = netSales + fees + retailSales + buildingRefunds + bondInterestIncome;
+  const revenue = netSales + fees + retailSales + buildingRefunds + bondInterestIncome + storageAuctionRevenue;
 
   // Produktionskosten = direkte Produktionskosten ohne erneute Beschaffungskosten.
   // Material- und Vorproduktkäufe werden separat unter "Marktkäufe" erfasst.
@@ -4487,8 +4514,85 @@ function renderStorage() {
   const container = document.getElementById('storageInventoryTable');
   if (!container) return;
 
+  const status = state.storageStatus || {};
+  const totalQuantity = Number(status.total_quantity ?? (
+    state.inventory.reduce((s,row)=>s+Number(row.quantity||0),0)
+    + state.materialInventory.reduce((s,row)=>s+Number(row.quantity||0),0)
+  ));
+  const capacity = Math.max(1, Number(status.capacity || 1000));
+  const hardLimit = Number(status.hard_limit || capacity + 1000);
+  const usage = Number(status.usage_percent ?? (totalQuantity / capacity * 100));
+  const overflow = Math.max(0, Number(status.overflow_quantity || 0));
+  const warningCount = Math.max(0, Number(status.warning_count || 0));
+  const progress = Math.max(0, Math.min(100, usage));
+
   const storageTotalValue = document.getElementById('storageTotalValue');
-  if (storageTotalValue) storageTotalValue.textContent = money(currentStorageValue());
+  if (storageTotalValue) storageTotalValue.textContent = money(Number(status.storage_value ?? currentStorageValue()));
+
+  const capacityText = document.getElementById('storageCapacityText');
+  if (capacityText) capacityText.textContent = `${num(totalQuantity)} / ${num(capacity)} ${translateUiString('Einheiten')}`;
+
+  const usageText = document.getElementById('storageUsagePercent');
+  if (usageText) usageText.textContent = `${num(usage)}%`;
+
+  const overflowText = document.getElementById('storageOverflowValue');
+  if (overflowText) {
+    overflowText.textContent = `${num(overflow)} ${translateUiString('Einheiten')}`;
+    overflowText.classList.toggle('storage-overflow-active', overflow > 0);
+  }
+
+  const warningText = document.getElementById('storageWarningCount');
+  if (warningText) {
+    warningText.textContent = `${warningCount} / 3`;
+    warningText.classList.toggle('storage-warning-active', warningCount > 0);
+  }
+
+  const hardLimitText = document.getElementById('storageHardLimit');
+  if (hardLimitText) hardLimitText.textContent = `${num(hardLimit)} ${translateUiString('Einheiten')}`;
+
+  const dailyFee = document.getElementById('storageDailyFee');
+  if (dailyFee) {
+    const value = Number(status.estimated_storage_fee || 0);
+    dailyFee.textContent = value > 0 ? `-${money(value)}` : money(0);
+    dailyFee.classList.toggle('storage-cost-active', value > 0);
+  }
+
+  const overflowFee = document.getElementById('storageOverflowFee');
+  if (overflowFee) {
+    const value = Number(status.estimated_overflow_fee || 0);
+    overflowFee.textContent = value > 0 ? `-${money(value)}` : money(0);
+    overflowFee.classList.toggle('storage-cost-active', value > 0);
+  }
+
+  const bar = document.getElementById('storageCapacityBar');
+  if (bar) {
+    bar.style.width = `${progress}%`;
+    bar.classList.remove('storage-capacity-green','storage-capacity-yellow','storage-capacity-red');
+    bar.classList.add(usage >= 90 ? 'storage-capacity-red' : usage >= 70 ? 'storage-capacity-yellow' : 'storage-capacity-green');
+  }
+
+  const warnings = [];
+  if (overflow > 1000) {
+    warnings.push(`⚠ Der bestehende Lagerbestand liegt ${num(overflow - 1000)} Einheiten über der neu zulässigen Überlagerung. Neue Einlagerungen sind gesperrt, bis du Bestand reduzierst oder die Lagerkapazität erhöhst.`);
+  }
+
+  if (status.last_forced_auction_at) {
+    const when = new Date(status.last_forced_auction_at).toLocaleString(uiLocale());
+    if (status.last_forced_auction_full) {
+      warnings.push(`⚠ ZWANGSVERSTEIGERUNG: Das gesamte Lager wurde am ${when} versteigert. Nettoerlös: ${money(status.last_forced_auction_net || 0)}.`);
+    } else {
+      warnings.push(`⚠ ZWANGSVERSTEIGERUNG: 1.000 Einheiten wurden am ${when} versteigert. Aktueller Warnstand: ${warningCount} / 3. Nettoerlös: ${money(status.last_forced_auction_net || 0)}.`);
+    }
+  } else if (warningCount > 0) {
+    warnings.push(`⚠ Lagerwarnungen: ${warningCount} / 3. Bei der dritten Warnung wird das gesamte Lager zwangsversteigert.`);
+  }
+
+  const warningBanner = document.getElementById('storageWarningBanner');
+  if (warningBanner) {
+    warningBanner.innerHTML = warnings.map(w => `<div>${w}</div>`).join('');
+    warningBanner.classList.toggle('hidden', warnings.length === 0);
+  }
+
   const search = String(state.storageSearchFilter || '').trim().toLocaleLowerCase(uiLocale());
   const type = state.storageTypeFilter || 'all';
 
@@ -4501,8 +4605,15 @@ function renderStorage() {
   const productRows = state.inventory
     .filter(inv => Number(inv.quantity || 0) > 0)
     .map(inv => ({ type:'product', name:inv.products?.name || state.products.find(p=>p.id===inv.product_id)?.name || '–', quality:Number(inv.quality_level||1), quantity:Number(inv.quantity||0), unit:'Stück', averageCost:Number(inv.average_unit_cost||0) }));
-  const rows=[...materialRows,...productRows].filter(row => (type==='all'||row.type===type) && (!search||row.name.toLocaleLowerCase(uiLocale()).includes(search))).sort((a,b)=>a.name.localeCompare(b.name,uiLocale())||a.quality-b.quality||a.type.localeCompare(b.type,uiLocale()));
-  container.innerHTML=renderTable(['Artikel','Typ','Qualität','Menge','Einheit','Ø Kosten'],rows.map(row=>`<tr><td>${translateUiString(row.name)}</td><td>${translateUiString(row.type==='material'?'Rohstoff':'Produkt')}</td><td>Q${row.quality}</td><td>${num(row.quantity)}</td><td>${translateUiString(row.unit)}</td><td>${money(row.averageCost)}</td></tr>`));
+
+  const rows=[...materialRows,...productRows]
+    .filter(row => (type==='all'||row.type===type) && (!search||row.name.toLocaleLowerCase(uiLocale()).includes(search)))
+    .sort((a,b)=>a.name.localeCompare(b.name,uiLocale())||a.quality-b.quality||a.type.localeCompare(b.type,uiLocale()));
+
+  container.innerHTML=renderTable(
+    ['Artikel','Typ','Qualität','Menge','Einheit','Ø Kosten'],
+    rows.map(row=>`<tr><td>${translateUiString(row.name)}</td><td>${translateUiString(row.type==='material'?'Rohstoff':'Produkt')}</td><td>Q${row.quality}</td><td>${num(row.quantity)}</td><td>${translateUiString(row.unit)}</td><td>${money(row.averageCost)}</td></tr>`)
+  );
 }
 
 function productOptionsGroupedByBuilding(products) {
@@ -4540,7 +4651,7 @@ function updateProductionProductsForSelectedBuilding() {
     : null;
 
   let products = [];
-  if (building && building.status === 'active' && type?.building_category !== 'retail') {
+  if (building && building.status === 'active' && ['production','research'].includes(type?.building_category)) {
     if (runningJob) {
       const p = state.products.find(product => product.id === runningJob.product_id);
       if (p) products = [p];

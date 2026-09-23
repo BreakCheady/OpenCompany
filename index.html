@@ -7,7 +7,7 @@
   <title>OpenCompany</title>
   <link rel="icon" type="image/png" href="favicon.png">
   <link rel="shortcut icon" href="favicon.ico">
-  <link rel="stylesheet" href="style.css?v=0.10.120">
+  <link rel="stylesheet" href="style.css?v=0.10.121">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     .password-field{display:flex;align-items:center;gap:.5rem}
@@ -212,7 +212,7 @@
       .oc-select-option{min-height:46px;padding:.7rem .8rem}
     }
   
-    /* v0.10.120 – einheitliche Navigationsleiste auf Desktop und Mobile */
+    /* v0.10.121 – einheitliche Navigationsleiste auf Desktop und Mobile */
     .app-shell{
       display:block!important;
       min-height:100dvh!important;
@@ -719,6 +719,7 @@
                   <option value="production">Produktion</option>
                   <option value="retail">Verkauf</option>
                   <option value="research">Forschung</option>
+                  <option value="storage">Lager</option>
                 </select>
               </label>
             </div>
@@ -743,6 +744,7 @@
             <button type="button" class="building-overview-filter" data-building-filter="production">Produktion</button>
             <button type="button" class="building-overview-filter" data-building-filter="retail">Handel</button>
             <button type="button" class="building-overview-filter" data-building-filter="research">Forschung</button>
+            <button type="button" class="building-overview-filter" data-building-filter="storage">Lager</button>
           </div>
 
           <div id="buildingCards" class="building-card-grid"></div>
@@ -819,10 +821,44 @@
               <button type="button" id="storageFilterReset" class="ghost">Zurücksetzen</button>
             </div>
           </div>
-          <div class="kv">
-            <span>Lagerwert</span>
-            <strong id="storageTotalValue">0 OC$</strong>
+          <div id="storageWarningBanner" class="storage-warning-banner hidden"></div>
+
+          <div class="storage-capacity-card">
+            <div class="storage-capacity-head">
+              <div>
+                <span class="storage-capacity-label">Lagerkapazität</span>
+                <strong id="storageCapacityText">0 / 1.000 Einheiten</strong>
+              </div>
+              <strong id="storageUsagePercent" class="storage-usage-percent">0,00%</strong>
+            </div>
+            <div class="storage-capacity-progress" aria-label="Lagerauslastung">
+              <span id="storageCapacityBar" class="storage-capacity-bar storage-capacity-green" style="width:0%"></span>
+            </div>
+            <div class="storage-capacity-meta">
+              <div class="kv"><span>Überbestand</span><strong id="storageOverflowValue">0 Einheiten</strong></div>
+              <div class="kv"><span>Warnungen</span><strong id="storageWarningCount">0 / 3</strong></div>
+              <div class="kv"><span>Max. inkl. Überbestand</span><strong id="storageHardLimit">2.000 Einheiten</strong></div>
+            </div>
           </div>
+
+          <div class="storage-cost-grid">
+            <div class="kv">
+              <span>Lagerwert</span>
+              <strong id="storageTotalValue">0 OC$</strong>
+            </div>
+            <div class="kv">
+              <span>Tägliche Lagerhaltung</span>
+              <strong id="storageDailyFee">0,00 OC$</strong>
+            </div>
+            <div class="kv">
+              <span>Tägliche Überbestandsgebühr</span>
+              <strong id="storageOverflowFee">0,00 OC$</strong>
+            </div>
+          </div>
+
+          <p class="muted storage-capacity-note">
+            Ohne Lagergebäude stehen 1.000 Einheiten zur Verfügung. Ein Lagergebäude Level 1 erhöht die Kapazität auf 4.000 Einheiten; jedes weitere Level bringt 2.000 zusätzliche Einheiten.
+          </p>
           <div id="storageInventoryTable" class="table-wrap"></div>
         </article>
       </div>
@@ -984,7 +1020,7 @@
           <h2>Einstellungen</h2>
           <div class="kv">
             <span>Version</span>
-            <strong>0.10.120</strong>
+            <strong>0.10.121</strong>
           </div>
           <div class="kv settings-language-row">
             <span>Sprache</span>
