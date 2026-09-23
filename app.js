@@ -5802,10 +5802,17 @@ function dashboardHistorySvg(points, metricLabel) {
     `;
   }).join('');
 
+  const areaPoints = [
+    `${x(0).toFixed(1)},${(pad.top + chartH).toFixed(1)}`,
+    ...points.map((p, i) => `${x(i).toFixed(1)},${y(p.value).toFixed(1)}`),
+    `${x(points.length - 1).toFixed(1)},${(pad.top + chartH).toFixed(1)}`
+  ].join(' ');
+
   return `
     <div class="dashboard-history-chart-scroll">
       <svg class="dashboard-history-svg" viewBox="0 0 ${width} ${height}" role="img" aria-label="${metricLabel}: Verlauf der letzten 7 Tage">
         ${gridLines}
+        <polygon points="${areaPoints}" class="dashboard-chart-area"/>
         <line x1="${pad.left}" y1="${pad.top+chartH}" x2="${width-pad.right}" y2="${pad.top+chartH}" class="dashboard-chart-axis-line"/>
         <polyline points="${polyline}" class="dashboard-chart-line" fill="none"/>
         ${dots}

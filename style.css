@@ -2674,7 +2674,7 @@ body.dashboard-history-open{
   }
 }
 
-/* v0.10.116 – klares Liniendiagramm mit sichtbaren Datenpunkten */
+/* v0.10.117 – Dashboard-Verlauf wie Referenzgrafik */
 .dashboard-history-chart{
   overflow:visible;
 }
@@ -2682,19 +2682,47 @@ body.dashboard-history-open{
   width:100%;
   overflow-x:auto;
 }
+.dashboard-history-svg{
+  display:block;
+  width:100%;
+  min-width:620px;
+  height:auto;
+}
+.dashboard-chart-grid{
+  stroke:#cfd5d9;
+  stroke-width:1;
+  stroke-dasharray:5 5;
+}
+.dashboard-chart-axis-line{
+  stroke:#6f8f13;
+  stroke-width:1.4;
+}
+.dashboard-chart-axis{
+  fill:#31404f;
+  font-size:12px;
+}
+.dashboard-chart-area{
+  fill:rgba(141,181,57,.72);
+  stroke:none;
+}
 .dashboard-chart-line{
-  stroke:var(--primary);
+  stroke:#5b7f0a;
   stroke-width:3;
   stroke-linecap:round;
   stroke-linejoin:round;
 }
 .dashboard-chart-point circle{
-  fill:#fff;
-  stroke:var(--primary);
-  stroke-width:4;
+  fill:#5b7f0a;
+  stroke:#5b7f0a;
+  stroke-width:2;
 }
 .dashboard-chart-point:focus circle{
-  stroke-width:5;
+  stroke:#365100;
+  stroke-width:4;
+}
+.dashboard-history-current strong,
+.dashboard-history-head h2{
+  color:#5b7f0a;
 }
 @media(max-width:720px){
   .dashboard-history-svg{
