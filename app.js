@@ -1344,20 +1344,13 @@ function renderOcbShop() {
   }
 
   if (packagesEl) {
-    packagesEl.innerHTML = GAME_RULES.ocb.packages.map(pack => {
-      const minutes = pack.amount * GAME_RULES.ocb.minutesPerBoost;
-      const hours = Math.floor(minutes / 60);
-      const mins = minutes % 60;
-      const duration = `${hours ? `${hours} Std.` : ''}${hours && mins ? ' ' : ''}${mins ? `${mins} Min.` : ''}`;
-      return `
-        <article class="ocb-shop-package">
-          <strong>${num(pack.amount)} OCB</strong>
-          <span class="ocb-shop-package-price">${pack.price.toLocaleString(uiLocale(), { minimumFractionDigits:2, maximumFractionDigits:2 })} €</span>
-          <small>${duration} Bauzeit</small>
-          <button type="button" onclick="startOcbPurchase(${pack.amount},${pack.price})">${translateUiString('Kaufen')}</button>
-        </article>
-      `;
-    }).join('');
+    packagesEl.innerHTML = GAME_RULES.ocb.packages.map(pack => `
+      <article class="ocb-shop-package">
+        <strong>${num(pack.amount)} OCB</strong>
+        <span class="ocb-shop-package-price">${pack.price.toLocaleString(uiLocale(), { minimumFractionDigits:2, maximumFractionDigits:2 })} €</span>
+        <button type="button" class="ocb-buy-btn" onclick="startOcbPurchase(${pack.amount},${pack.price})">${translateUiString('Kaufen')}</button>
+      </article>
+    `).join('');
   }
 
   const dashboardValue = document.getElementById('statOcb');
