@@ -5875,6 +5875,9 @@ async function openDashboardHistory(metricKey) {
   if (!config || !modal || !state.company?.id) return;
 
   const label = translateUiString(config.label);
+  const dialog = modal.querySelector('.dashboard-history-dialog');
+  dialog?.classList.toggle('dashboard-history-dialog-debt', metricKey === 'loan_debt');
+
   title.textContent = label;
   subtitle.textContent = translateUiString('Entwicklung der letzten 7 Tage');
   current.innerHTML = `<span>${translateUiString('Aktueller Wert')}</span><strong>${money(config.currentValue())}</strong>`;

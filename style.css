@@ -2787,3 +2787,10 @@ body.dashboard-history-open{
   }
 }
 
+
+/* v0.10.119 – Schulden-Titel und aktueller Wert kräftig Rot */
+.dashboard-history-dialog-debt #dashboardHistoryTitle,
+.dashboard-history-dialog-debt #dashboardHistoryCurrent strong{
+  color:#d60000!important;
+}
+
