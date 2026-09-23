@@ -7,7 +7,7 @@
   <title>OpenCompany</title>
   <link rel="icon" type="image/png" href="favicon.png">
   <link rel="shortcut icon" href="favicon.ico">
-  <link rel="stylesheet" href="style.css?v=0.10.136">
+  <link rel="stylesheet" href="style.css?v=0.10.137">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     .password-field{display:flex;align-items:center;gap:.5rem}
@@ -244,7 +244,7 @@
       color:#111827;
       white-space:nowrap;
       font-variant-numeric:tabular-nums;
-      font-weight:400;
+      font-weight:700;
     }
     .finance-movement-amount.finance-movement-cost{
       color:#d60000;
@@ -421,7 +421,7 @@
       .oc-select-option{min-height:46px;padding:.7rem .8rem}
     }
   
-    /* v0.10.136 – einheitliche Navigationsleiste auf Desktop und Mobile */
+    /* v0.10.137 – einheitliche Navigationsleiste auf Desktop und Mobile */
     .app-shell{
       display:block!important;
       min-height:100dvh!important;
@@ -816,6 +816,18 @@
     body,
     body *{
       font-family:"Aptos Display","Aptos","Segoe UI",Arial,sans-serif!important;
+    }
+
+
+    /* Finanz-Tab: schmale Übersicht, breite Finanzbewegungen */
+    @media (min-width:901px){
+      #finance .finance-layout{
+        grid-template-columns:minmax(280px,1fr) minmax(0,3fr)!important;
+      }
+      #finance .finance-overview-panel,
+      #finance .finance-movements-panel{
+        min-width:0;
+      }
     }
 
 </style>
@@ -1251,7 +1263,7 @@
           <h2>Einstellungen</h2>
           <div class="kv">
             <span>Version</span>
-            <strong>0.10.136</strong>
+            <strong>0.10.137</strong>
           </div>
           <div class="kv settings-language-row">
             <span>Sprache</span>
