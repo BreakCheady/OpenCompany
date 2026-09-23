@@ -4287,31 +4287,36 @@ function financeMovementTitle(transaction) {
   return transaction.description || transactionLabel(transaction.transaction_type);
 }
 
-window.toggleFinanceMovement = function(transactionId) {
-  const item = document.querySelector(`.finance-movement[data-transaction-id="${transactionId}"]`);
+window.toggleFinanceMovement = function(scope, movementId) {
+  const container = document.querySelector(`.finance-movements[data-finance-scope="${scope}"]`);
+  if (!container) return;
+
+  const item = container.querySelector(`.finance-movement[data-movement-id="${movementId}"]`);
   if (!item) return;
+
   const button = item.querySelector('.finance-movement-toggle');
   const details = item.querySelector('.finance-movement-details');
   const open = item.classList.toggle('open');
+
   if (button) button.setAttribute('aria-expanded', open ? 'true' : 'false');
   if (details) details.hidden = !open;
 };
 
-function renderFinanceMovements(transactions, idPrefix = 'finance') {
+function renderFinanceMovements(transactions, scope = 'finance') {
   if (!transactions?.length) {
     return `<p class="muted">${translateUiString('Noch keine Daten.')}</p>`;
   }
 
   return `
-    <div class="finance-movements">
+    <div class="finance-movements" data-finance-scope="${scope}">
       ${transactions.map((transaction, index) => {
-        const id = transaction.id || `${idPrefix}-${index}`;
+        const movementId = `${scope}-${transaction.id || index}`;
         const amount = Number(transaction.amount || 0);
         const isCost = amount < 0;
         return `
-          <article class="finance-movement" data-transaction-id="${id}">
+          <article class="finance-movement" data-movement-id="${movementId}">
             <button type="button" class="finance-movement-toggle" aria-expanded="false"
-              onclick="toggleFinanceMovement('${id}')">
+              onclick="toggleFinanceMovement('${scope}','${movementId}')">
               <span class="finance-movement-arrow" aria-hidden="true">›</span>
               <span class="finance-movement-date">${financeMovementDate(transaction.created_at)}</span>
               <span class="finance-movement-title">${financeMovementTitle(transaction)}</span>
