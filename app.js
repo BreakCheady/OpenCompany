@@ -861,6 +861,11 @@ const money = n => `${new Intl.NumberFormat(uiLocale(), {
   minimumFractionDigits: 2,
   maximumFractionDigits: 2
 }).format(Number(n || 0))} OC$`;
+
+const dashboardCashMoney = n => `${new Intl.NumberFormat(uiLocale(), {
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2
+}).format(Number(n || 0))} OC$`;
 const num = n => new Intl.NumberFormat(uiLocale(), { maximumFractionDigits: 2 }).format(Number(n || 0));
 const balanceMoney = n => `${new Intl.NumberFormat(uiLocale(), { maximumFractionDigits: 0 }).format(Number(n || 0))} OC$`;
 
@@ -1411,7 +1416,7 @@ function updateCompanyBalanceUI(balance) {
 
   const statCash = document.getElementById('statCash');
   if (statCash) {
-    statCash.textContent = balanceMoney(cashValue);
+    statCash.textContent = dashboardCashMoney(cashValue);
     statCash.classList.toggle('negative-balance', cashValue < 0);
   }
 
@@ -4585,7 +4590,7 @@ function renderAll() {
   document.getElementById('statCompany').textContent = c.name;
   const cashValue = Number(c.cash_balance || 0);
   const statCash = document.getElementById('statCash');
-  statCash.textContent = balanceMoney(cashValue);
+  statCash.textContent = dashboardCashMoney(cashValue);
   statCash.classList.toggle('negative-balance', cashValue < 0);
 
   const automaticEmployees = state.buildings
