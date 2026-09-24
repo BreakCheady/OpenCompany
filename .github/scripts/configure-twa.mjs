@@ -9,7 +9,7 @@ if (!file) {
 const host = process.env.TWA_HOST || "opencompanygame.com";
 const versionName = process.env.TWA_VERSION_NAME || "1.0.0";
 const versionCode = Number(process.env.TWA_VERSION_CODE || "1");
-const assetVersion = process.env.TWA_ASSET_VERSION || "0.10.160";
+const assetVersion = process.env.TWA_ASSET_VERSION || "0.10.161";
 
 const manifest = {
   packageId: process.env.TWA_PACKAGE_ID || "com.opencompany.game",
@@ -40,11 +40,13 @@ const manifest = {
   webManifestUrl: `https://${host}/manifest.webmanifest?v=${assetVersion}`,
   fallbackType: "customtabs",
   features: {},
-  alphaDependencies: { enabled: false },
+  alphaDependencies: {
+    enabled: false
+  },
   enableSiteSettingsShortcut: true,
   isChromeOSOnly: false,
   isMetaQuest: false,
-  minSdkVersion: 19,
+  minSdkVersion: 21,
   orientation: "default",
   fingerprints: [],
   additionalTrustedOrigins: [],
@@ -62,5 +64,6 @@ console.log(`Created ${file}`);
 console.log(`Package ID: ${manifest.packageId}`);
 console.log(`Host: ${manifest.host}`);
 console.log(`Version: ${manifest.appVersionName} (${manifest.appVersionCode})`);
+console.log(`Minimum Android SDK: ${manifest.minSdkVersion}`);
 console.log(`Icon: ${manifest.iconUrl}`);
 console.log(`Maskable icon: ${manifest.maskableIconUrl}`);
