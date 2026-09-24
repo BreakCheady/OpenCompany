@@ -1006,10 +1006,14 @@ const GAME_RULES = Object.freeze({
     dailyRetail: 5,
     dailyMaximum: 20,
     packages: Object.freeze([
-      Object.freeze({ amount:100, price:1.49 }),
-      Object.freeze({ amount:450, price:4.49 }),
-      Object.freeze({ amount:750, price:6.99 }),
-      Object.freeze({ amount:1000, price:8.49 })
+      Object.freeze({ amount:100, price:3.49 }),
+      Object.freeze({ amount:450, price:6.49 }),
+      Object.freeze({ amount:750, price:8.99 }),
+      Object.freeze({ amount:1000, price:10.49 }),
+      Object.freeze({ amount:1300, price:12.99 }),
+      Object.freeze({ amount:1750, price:16.99 }),
+      Object.freeze({ amount:2000, price:18.99 }),
+      Object.freeze({ amount:2500, price:22.99 })
     ])
   })
 });
