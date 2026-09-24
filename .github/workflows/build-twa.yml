@@ -3,8 +3,7 @@ name: Build OpenCompany TWA
 on:
   workflow_dispatch:
   push:
-    branches:
-      - main
+    branches: [main]
     paths:
       - "manifest.webmanifest"
       - "icon-192.png"
@@ -34,6 +33,7 @@ jobs:
       TWA_VERSION_CODE: "1"
       TWA_ASSET_VERSION: 0.10.160
       BUBBLEWRAP_IMAGE: ghcr.io/googlechromelabs/bubblewrap:latest
+      BUBBLEWRAP_VOLUME: opencompany-bubblewrap-home
 
     steps:
       - name: Checkout repository
@@ -43,22 +43,13 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-
           MANIFEST_URL="https://${TWA_HOST}/manifest.webmanifest?v=${TWA_ASSET_VERSION}"
           ICON_URL="https://${TWA_HOST}/icon-512.png?v=${TWA_ASSET_VERSION}"
           MASKABLE_URL="https://${TWA_HOST}/icon-maskable-512.png?v=${TWA_ASSET_VERSION}"
-
-          echo "Checking ${MANIFEST_URL}"
           curl --fail --silent --show-error --location "${MANIFEST_URL}" -o /tmp/manifest.webmanifest
           node -e "JSON.parse(require('fs').readFileSync('/tmp/manifest.webmanifest','utf8')); console.log('Live manifest JSON: OK')"
-
-          echo "Checking ${ICON_URL}"
           curl --fail --silent --show-error --location --output /dev/null "${ICON_URL}"
-
-          echo "Checking ${MASKABLE_URL}"
           curl --fail --silent --show-error --location --output /dev/null "${MASKABLE_URL}"
-
-          echo "Live PWA assets: OK"
 
       - name: Prepare TWA manifest
         shell: bash
@@ -68,16 +59,20 @@ jobs:
           mkdir -p "${TWA_DIR}"
           node .github/scripts/configure-twa.mjs "${TWA_DIR}/twa-manifest.json"
 
-          echo "Generated TWA manifest:"
-          cat "${TWA_DIR}/twa-manifest.json"
+      - name: Prepare persistent Bubblewrap SDK volume
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker volume rm "${BUBBLEWRAP_VOLUME}" >/dev/null 2>&1 || true
+          docker volume create "${BUBBLEWRAP_VOLUME}"
 
       - name: Generate Android project
         shell: bash
         run: |
           set -euo pipefail
-
           docker run --rm \
             -v "${GITHUB_WORKSPACE}:/work" \
+            -v "${BUBBLEWRAP_VOLUME}:/root/.bubblewrap" \
             -w "/work/${TWA_DIR}" \
             "${BUBBLEWRAP_IMAGE}" \
             update \
@@ -88,41 +83,32 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-
           docker run --rm \
             --entrypoint /bin/bash \
             -v "${GITHUB_WORKSPACE}:/work" \
+            -v "${BUBBLEWRAP_VOLUME}:/root/.bubblewrap" \
             -w "/work/${TWA_DIR}" \
             "${BUBBLEWRAP_IMAGE}" \
             -lc '
               set -euo pipefail
-
               SDK_ROOT="/root/.bubblewrap/android_sdk"
               SDKMANAGER="$(find "${SDK_ROOT}" -type f -name sdkmanager | head -n 1)"
-
               if [ -z "${SDKMANAGER}" ]; then
                 echo "sdkmanager was not found under ${SDK_ROOT}"
                 exit 1
               fi
-
               echo "Using sdkmanager: ${SDKMANAGER}"
-
-              yes | "${SDKMANAGER}" --licenses >/dev/null || true
-
-              "${SDKMANAGER}" \
-                "platforms;android-36" \
-                "build-tools;35.0.0"
-
-              echo "Android SDK licenses and required packages are ready."
+              yes | "${SDKMANAGER}" --sdk_root="${SDK_ROOT}" --licenses >/dev/null || true
+              "${SDKMANAGER}" --sdk_root="${SDK_ROOT}" "platforms;android-36" "build-tools;35.0.0"
             '
 
       - name: Build unsigned APK and App Bundle
         shell: bash
         run: |
           set -euo pipefail
-
           docker run --rm \
             -v "${GITHUB_WORKSPACE}:/work" \
+            -v "${BUBBLEWRAP_VOLUME}:/root/.bubblewrap" \
             -w "/work/${TWA_DIR}" \
             "${BUBBLEWRAP_IMAGE}" \
             build \
@@ -135,29 +121,13 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p dist
-
-          echo "Searching for generated APK/AAB files..."
-          find "${TWA_DIR}" -type f \( -name '*.apk' -o -name '*.aab' \) -print
-
           APK="$(find "${TWA_DIR}" -type f -name '*.apk' | head -n 1 || true)"
           AAB="$(find "${TWA_DIR}" -type f -name '*.aab' | head -n 1 || true)"
-
-          if [ -z "${APK}" ]; then
-            echo "No APK found."
-            exit 1
-          fi
-
-          if [ -z "${AAB}" ]; then
-            echo "No App Bundle (.aab) found."
-            exit 1
-          fi
-
+          test -n "${APK}" || { echo "No APK found."; exit 1; }
+          test -n "${AAB}" || { echo "No AAB found."; exit 1; }
           cp "${APK}" dist/OpenCompany-unsigned.apk
           cp "${AAB}" dist/OpenCompany-unsigned.aab
           cp "${TWA_DIR}/twa-manifest.json" dist/twa-manifest.json
-
-          echo "Artifacts:"
-          ls -lh dist
 
       - name: Upload TWA artifacts
         uses: actions/upload-artifact@v4
@@ -166,3 +136,8 @@ jobs:
           path: dist/
           if-no-files-found: error
           retention-days: 14
+
+      - name: Clean up Bubblewrap SDK volume
+        if: always()
+        shell: bash
+        run: docker volume rm "${BUBBLEWRAP_VOLUME}" >/dev/null 2>&1 || true
