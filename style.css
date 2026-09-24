@@ -3200,3 +3200,50 @@ body.dashboard-history-open{
     grid-template-columns: 1fr !important;
   }
 }
+
+
+/* v0.10.168 – Finanzpanels wirklich exakt 50/50 */
+#finance .finance-layout.finance-ledger-layout {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  width: 100% !important;
+  gap: 16px !important;
+  align-items: start !important;
+}
+
+#finance .finance-layout.finance-ledger-layout > .finance-movements-panel,
+#finance .finance-layout.finance-ledger-layout > .finance-overview-panel {
+  grid-column: auto !important;
+  width: auto !important;
+  min-width: 0 !important;
+  max-width: none !important;
+  flex: initial !important;
+}
+
+#finance .finance-movements-panel,
+#finance .finance-overview-panel {
+  box-sizing: border-box !important;
+}
+
+#finance .finance-movement-list-wrap {
+  height: calc(10 * 42px) !important;
+  max-height: calc(10 * 42px) !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+}
+
+#finance .finance-movement-toggle {
+  min-height: 42px !important;
+  height: 42px !important;
+}
+
+@media (max-width: 1100px) {
+  #finance .finance-layout.finance-ledger-layout {
+    grid-template-columns: 1fr !important;
+  }
+
+  #finance .finance-movement-list-wrap {
+    height: calc(10 * 42px) !important;
+    max-height: calc(10 * 42px) !important;
+  }
+}
