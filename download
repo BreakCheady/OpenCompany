@@ -1,0 +1,10 @@
+# OpenCompany TWA / Android build output
+twa-build/
+dist/
+android-keystore
+*.jks
+*.keystore
+
+# Local Android / Gradle
+.gradle/
+local.properties
