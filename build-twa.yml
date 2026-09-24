@@ -1,0 +1,140 @@
+name: Build OpenCompany TWA
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - "manifest.webmanifest"
+      - "icon-192.png"
+      - "icon-512.png"
+      - "icon-maskable-512.png"
+      - "service-worker.js"
+      - "offline.html"
+      - ".github/workflows/build-twa.yml"
+      - ".github/scripts/configure-twa.mjs"
+
+permissions:
+  contents: read
+
+jobs:
+  build-twa:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    env:
+      TWA_DIR: twa-build
+      TWA_PACKAGE_ID: com.opencompany.game
+      TWA_APP_NAME: OpenCompany
+      TWA_LAUNCHER_NAME: OpenCompany
+      TWA_HOST: opencompanygame.com
+      TWA_START_URL: /
+      TWA_VERSION_NAME: 1.0.0
+      TWA_VERSION_CODE: "1"
+      BUBBLEWRAP_IMAGE: ghcr.io/googlechromelabs/bubblewrap:latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Check live PWA manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+          MANIFEST_URL="https://opencompanygame.com/manifest.webmanifest?build=${GITHUB_SHA}"
+          echo "Checking ${MANIFEST_URL}"
+          curl --fail --silent --show-error --location "${MANIFEST_URL}" -o /tmp/manifest.webmanifest
+          node -e "JSON.parse(require('fs').readFileSync('/tmp/manifest.webmanifest','utf8')); console.log('Live manifest JSON: OK')"
+
+      - name: Prepare TWA directory
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf "${TWA_DIR}"
+          mkdir -p "${TWA_DIR}"
+
+          # Bubblewrap skips interactive key creation if the configured key path
+          # already exists. This temporary placeholder is removed before build.
+          touch "${TWA_DIR}/android-keystore"
+
+      - name: Initialize Bubblewrap project
+        shell: bash
+        run: |
+          set -euo pipefail
+          MANIFEST_URL="https://opencompanygame.com/manifest.webmanifest?build=${GITHUB_SHA}"
+
+          docker run --rm \
+            --entrypoint /bin/bash \
+            -v "${GITHUB_WORKSPACE}:/work" \
+            -w /work \
+            "${BUBBLEWRAP_IMAGE}" \
+            -lc "yes '' | bubblewrap init --manifest='${MANIFEST_URL}' --directory='/work/${TWA_DIR}'"
+
+      - name: Apply OpenCompany Android settings
+        shell: bash
+        run: |
+          set -euo pipefail
+          node .github/scripts/configure-twa.mjs "${TWA_DIR}/twa-manifest.json"
+
+      - name: Regenerate Android project from TWA manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          docker run --rm \
+            --entrypoint /bin/bash \
+            -v "${GITHUB_WORKSPACE}:/work" \
+            -w "/work/${TWA_DIR}" \
+            "${BUBBLEWRAP_IMAGE}" \
+            -lc "yes '' | bubblewrap update --skipVersionUpgrade --manifest='/work/${TWA_DIR}/twa-manifest.json'"
+
+          rm -f "${TWA_DIR}/android-keystore"
+
+      - name: Build unsigned APK and App Bundle
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          docker run --rm \
+            --entrypoint /bin/bash \
+            -v "${GITHUB_WORKSPACE}:/work" \
+            -w "/work/${TWA_DIR}" \
+            "${BUBBLEWRAP_IMAGE}" \
+            -lc "yes '' | bubblewrap build --skipSigning --skipPwaValidation --manifest='/work/${TWA_DIR}/twa-manifest.json'"
+
+      - name: Collect build artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+
+          APK="$(find "${TWA_DIR}" -type f \( -name '*release*unsigned*.apk' -o -name 'app-release.apk' \) | head -n 1 || true)"
+          AAB="$(find "${TWA_DIR}" -type f -name '*.aab' | head -n 1 || true)"
+
+          if [ -z "${APK}" ]; then
+            echo "No release APK found."
+            find "${TWA_DIR}" -type f -name '*.apk' -print
+            exit 1
+          fi
+
+          if [ -z "${AAB}" ]; then
+            echo "No App Bundle (.aab) found."
+            find "${TWA_DIR}" -type f -print | tail -n 200
+            exit 1
+          fi
+
+          cp "${APK}" dist/OpenCompany-unsigned.apk
+          cp "${AAB}" dist/OpenCompany-unsigned.aab
+          cp "${TWA_DIR}/twa-manifest.json" dist/twa-manifest.json
+
+          echo "Artifacts:"
+          ls -lh dist
+
+      - name: Upload TWA artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: opencompany-twa-unsigned
+          path: dist/
+          if-no-files-found: error
+          retention-days: 14
