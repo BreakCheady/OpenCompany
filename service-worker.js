@@ -1,9 +1,12 @@
-const CACHE_VERSION = 'opencompany-pwa-v1';
+const CACHE_VERSION = 'opencompany-pwa-v2';
 const OFFLINE_URL = '/offline.html';
 const PRECACHE_URLS = [
   OFFLINE_URL,
   '/manifest.webmanifest',
-  '/favicon.png'
+  '/favicon.png',
+  '/icon-192.png',
+  '/icon-512.png',
+  '/apple-touch-icon.png'
 ];
 
 self.addEventListener('install', event => {
