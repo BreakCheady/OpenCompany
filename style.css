@@ -2887,3 +2887,237 @@ body.dashboard-history-open{
     grid-template-columns:1fr;
   }
 }
+
+
+/* v0.10.165 – Finanzbereich als Buchungsliste + OC-Gewinn- und Verlustrechnung */
+.finance-ledger-layout {
+  grid-template-columns: minmax(0, 1.18fr) minmax(390px, .92fr);
+  gap: 18px;
+}
+
+.finance-ledger-head {
+  margin-bottom: 12px;
+}
+
+.finance-ledger-head .muted {
+  margin: 4px 0 0;
+  font-size: 11px;
+}
+
+.finance-movement-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  padding: 10px;
+  margin-bottom: 12px;
+  border: 1px solid #dce4ec;
+  border-radius: 10px;
+  background: #f4f7fa;
+}
+
+.finance-movement-filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 32px;
+  padding: 6px 9px;
+  border: 1px solid #d3dde7;
+  border-radius: 8px;
+  background: #fff;
+  color: var(--text);
+  font-size: 11px;
+  line-height: 1;
+}
+
+.finance-movement-filter strong {
+  min-width: 19px;
+  padding: 3px 5px;
+  border-radius: 999px;
+  background: #e9eef4;
+  color: #5b6876;
+  font-size: 10px;
+  text-align: center;
+}
+
+.finance-movement-filter.active {
+  border-color: #8fb7e4;
+  background: #e8f2ff;
+  color: #245b96;
+}
+
+.finance-movement-filter.active strong {
+  background: #245b96;
+  color: #fff;
+}
+
+.finance-movement-list-wrap {
+  max-height: 650px;
+  overflow-y: auto;
+  border: 1px solid #dce4ec;
+  border-radius: 10px;
+  background: #fff;
+}
+
+.finance-movement-list-wrap .finance-movements {
+  border: 0;
+  border-radius: 0;
+}
+
+.finance-statement {
+  display: grid;
+  gap: 0;
+  border: 1px solid #d9e1e9;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #fff;
+}
+
+.finance-statement-period {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 2px 10px;
+  padding: 12px 14px;
+  border-bottom: 1px solid #cfd9e3;
+  background: #eef4fa;
+}
+
+.finance-statement-period span {
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+
+.finance-statement-period strong {
+  justify-self: end;
+  color: #254f78;
+  font-size: 13px;
+}
+
+.finance-statement-period small {
+  grid-column: 1 / -1;
+  color: #6f8295;
+  font-size: 10px;
+}
+
+.finance-statement-section {
+  border-bottom: 1px solid #cfd7df;
+}
+
+.finance-statement-section h3 {
+  margin: 0;
+  padding: 9px 12px;
+  background: #f1f4f7;
+  color: #324154;
+  font-size: 11px;
+  line-height: 1.2;
+  text-transform: uppercase;
+  letter-spacing: .035em;
+}
+
+.finance-statement-section h3 small {
+  color: var(--muted);
+  font-size: 9px;
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.finance-statement-rows {
+  display: grid;
+}
+
+.finance-statement-row,
+.finance-statement-total,
+.finance-statement-grand-total {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 14px;
+}
+
+.finance-statement-row {
+  padding: 7px 12px;
+  border-bottom: 1px solid #edf1f4;
+  font-size: 11px;
+}
+
+.finance-statement-row:last-child {
+  border-bottom: 0;
+}
+
+.finance-statement-row span {
+  color: #38485a;
+}
+
+.finance-statement-row strong,
+.finance-statement-total strong,
+.finance-statement-grand-total strong {
+  white-space: nowrap;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.finance-statement-total {
+  padding: 8px 12px;
+  border-top: 1px solid #cfd7df;
+  background: #fafbfc;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.finance-statement-grand-total {
+  padding: 13px 12px;
+  border-bottom: 1px solid #cfd7df;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.finance-statement-grand-total.gain {
+  background: #f3fff5;
+}
+
+.finance-statement-grand-total.loss {
+  background: #fff1f1;
+}
+
+.finance-capital-section {
+  border-bottom: 0;
+}
+
+.finance-capital-section .finance-statement-row {
+  background: #fbfcfd;
+}
+
+@media (max-width: 1100px) {
+  .finance-ledger-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .finance-movement-list-wrap {
+    max-height: 520px;
+  }
+}
+
+@media (max-width: 560px) {
+  .finance-movement-filters {
+    gap: 5px;
+    padding: 8px;
+  }
+
+  .finance-movement-filter {
+    flex: 1 1 calc(50% - 5px);
+    justify-content: space-between;
+  }
+
+  .finance-statement-row,
+  .finance-statement-total,
+  .finance-statement-grand-total {
+    gap: 8px;
+  }
+
+  .finance-statement-row {
+    padding: 7px 10px;
+  }
+}

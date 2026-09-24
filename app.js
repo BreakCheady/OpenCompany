@@ -372,6 +372,39 @@ Object.assign(I18N_EN, {
   'Gewinn / Verlust':'Profit / loss',
   'Gewinn/Verlust':'Profit / loss',
   'Sonstige Kosten':'Other costs',
+  'Ein- und Auszahlungen':'Cash movements',
+  'Gewinn- und Verlustrechnung':'Profit and loss statement',
+  'Betriebserträge':'Operating revenue',
+  'Betriebsausgaben':'Operating expenses',
+  'Betriebsergebnis':'Operating result',
+  'Investitionen':'Investments',
+  'Investitionsergebnis':'Investment result',
+  'Finanzergebnis':'Financial result',
+  'Gesamtergebnis':'Net result',
+  'Warenbörse – Verkäufe':'Marketplace sales',
+  'Einzelhandel – Verkäufe':'Retail sales',
+  'Vertragsverkäufe':'Contract sales',
+  'Zwangsauktionen':'Forced auctions',
+  'Produktionskosten':'Production costs',
+  'Markteinkäufe':'Market purchases',
+  'Vertragskäufe':'Contract purchases',
+  'Marktgebühren':'Market fees',
+  'Storno-/Abbruchgebühren':'Cancellation fees',
+  'Forschungskosten':'Research costs',
+  'Sonstige Betriebskosten':'Other operating costs',
+  'Gebäudeerstattungen':'Building refunds',
+  'Zinserträge':'Interest income',
+  'Zinsaufwand':'Interest expense',
+  'Kapitalbewegungen':'Capital movements',
+  'nicht ergebniswirksam':'not included in profit/loss',
+  'Anleiheerlöse':'Bond proceeds',
+  'Anleiheinvestitionen':'Bond investments',
+  'Tilgungen':'Repayments',
+  'Gründungskapital':'Founding capital',
+  'Verkäufe':'Sales',
+  'Handel':'Trading',
+  'Finanzierung':'Financing',
+  'Sonstiges':'Other',
   'Restmenge':'Remaining quantity',
   'Einstandswert':'Acquisition value',
   'Gesamtwert':'Total value',
@@ -867,6 +900,7 @@ const state = {
   openDashboardAfterLogin: false,
   financePeriod: 'day',
   financePeriodOffset: 0,
+  financeMovementFilter: 'all',
   contracts: [],
   companyDirectory: [],
   companyDebt: 0,
@@ -4661,10 +4695,122 @@ function renderFinanceMovements(transactions, scope = 'finance') {
   `;
 }
 
+const FINANCE_MOVEMENT_FILTERS = [
+  { id:'all', label:'Alle' },
+  { id:'sales', label:'Verkäufe' },
+  { id:'production', label:'Produktion' },
+  { id:'trade', label:'Handel' },
+  { id:'building', label:'Bau' },
+  { id:'storage', label:'Lager' },
+  { id:'research', label:'Forschung' },
+  { id:'contracts', label:'Verträge' },
+  { id:'finance', label:'Finanzierung' },
+  { id:'other', label:'Sonstiges' }
+];
+
+function financeMovementCategory(transaction) {
+  const type = transaction?.transaction_type || '';
+
+  if (['market_sale','retail_sale'].includes(type)) return 'sales';
+  if (['production','production_refund'].includes(type)) return 'production';
+  if (['market_buy','market_fee','retail_cancel_fee','retail_cancel_refund'].includes(type)) return 'trade';
+  if (['construction','building_refund'].includes(type)) return 'building';
+  if (['storage_fee','storage_forced_auction'].includes(type)) return 'storage';
+  if (['research','research_investment'].includes(type)) return 'research';
+  if (['contract_buy','contract_sale'].includes(type)) return 'contracts';
+  if (type.startsWith('bond_')) return 'finance';
+  return 'other';
+}
+
+window.setFinanceMovementFilter = function(filter) {
+  if (!FINANCE_MOVEMENT_FILTERS.some(item => item.id === filter)) return;
+  state.financeMovementFilter = filter;
+  renderFinanceTable();
+};
+
 function renderFinanceTable() {
   const container = document.getElementById('financeTable');
   if (!container) return;
-  container.innerHTML = renderFinanceMovements(financePeriodTransactions(), 'finance');
+
+  const transactions = financePeriodTransactions();
+  const activeFilter = state.financeMovementFilter || 'all';
+
+  const counts = transactions.reduce((result, transaction) => {
+    const category = financeMovementCategory(transaction);
+    result[category] = (result[category] || 0) + 1;
+    return result;
+  }, {});
+
+  const filteredTransactions = activeFilter === 'all'
+    ? transactions
+    : transactions.filter(transaction => financeMovementCategory(transaction) === activeFilter);
+
+  container.innerHTML = `
+    <div class="finance-movement-filters" role="group" aria-label="${translateUiString('Ein- und Auszahlungen')}">
+      ${FINANCE_MOVEMENT_FILTERS.map(filter => {
+        const count = filter.id === 'all' ? transactions.length : (counts[filter.id] || 0);
+        return `
+          <button type="button"
+            class="finance-movement-filter ${activeFilter === filter.id ? 'active' : ''}"
+            onclick="setFinanceMovementFilter('${filter.id}')">
+            <span>${translateUiString(filter.label)}</span>
+            <strong>${count}</strong>
+          </button>
+        `;
+      }).join('')}
+    </div>
+    <div class="finance-movement-list-wrap">
+      ${renderFinanceMovements(filteredTransactions, 'finance')}
+    </div>
+  `;
+}
+
+function financeStatementAmount(value, options = {}) {
+  const number = Number(value || 0);
+  const { cost = false, signed = false, emphasize = false } = options;
+  const absolute = Math.abs(number);
+
+  let prefix = '';
+  let className = '';
+  if (signed) {
+    if (number < 0) {
+      prefix = '−';
+      className = 'finance-negative';
+    } else if (number > 0) {
+      prefix = '+';
+      className = 'finance-positive';
+    }
+  } else if (cost && absolute > 0) {
+    prefix = '−';
+    className = 'finance-negative';
+  } else if (!cost && number > 0) {
+    className = emphasize ? 'finance-positive' : '';
+  }
+
+  return `<strong class="${className}">${prefix}${money(absolute)}</strong>`;
+}
+
+function financeStatementRow(label, value, options = {}) {
+  const { cost = false, signed = false, muted = false } = options;
+  return `
+    <div class="finance-statement-row ${muted ? 'finance-statement-row-muted' : ''}">
+      <span>${translateUiString(label)}</span>
+      ${financeStatementAmount(value, { cost, signed })}
+    </div>
+  `;
+}
+
+function financeStatementSection(title, rows, totalLabel, totalValue, totalOptions = {}) {
+  return `
+    <section class="finance-statement-section">
+      <h3>${translateUiString(title)}</h3>
+      ${rows.length ? `<div class="finance-statement-rows">${rows.join('')}</div>` : ''}
+      <div class="finance-statement-total">
+        <span>${translateUiString(totalLabel)}</span>
+        ${financeStatementAmount(totalValue, { signed:true, emphasize:true, ...totalOptions })}
+      </div>
+    </section>
+  `;
 }
 
 function renderFinanceSummary() {
@@ -4675,138 +4821,159 @@ function renderFinanceSummary() {
   const end = financePeriodEnd(state.financePeriod, start);
   const periodRange = formatFinancePeriodRange(state.financePeriod, start, end);
   const transactions = financePeriodTransactions();
+
   const jobs = state.productionJobs.filter(j => {
     const startedAt = new Date(j.started_at);
     return startedAt >= start && startedAt <= end && j.status !== 'cancelled';
   });
 
-  // Marktverkäufe werden in den Transaktionen netto nach Marktgebühr gespeichert.
-  // Für die Übersicht rekonstruieren wir die Brutto-Einnahmen und ziehen Gebühren separat ab.
-  const netSales = transactions
-    .filter(t => t.transaction_type === 'market_sale')
+  const sumType = (...types) => transactions
+    .filter(t => types.includes(t.transaction_type))
     .reduce((sum, t) => sum + Number(t.amount || 0), 0);
 
-  const retailSales = transactions
-    .filter(t => t.transaction_type === 'retail_sale')
-    .reduce((sum, t) => sum + Number(t.amount || 0), 0);
+  const costType = (...types) => Math.abs(sumType(...types));
 
-  const storageAuctionRevenue = transactions
-    .filter(t => t.transaction_type === 'storage_forced_auction')
-    .reduce((sum, t) => sum + Number(t.amount || 0), 0);
+  // Marktverkäufe werden netto gespeichert. Für die GuV wird die Marktgebühr
+  // zum Bruttoverkauf zurückgerechnet und danach als eigene Ausgabe ausgewiesen.
+  const netMarketSales = sumType('market_sale');
+  const marketFees = costType('market_fee');
+  const grossMarketSales = netMarketSales + marketFees;
 
-  const fees = Math.abs(transactions
-    .filter(t => ['market_fee', 'retail_cancel_fee'].includes(t.transaction_type))
-    .reduce((sum, t) => sum + Number(t.amount || 0), 0));
+  const retailSales = sumType('retail_sale');
+  const contractSales = sumType('contract_sale');
+  const storageAuctionRevenue = sumType('storage_forced_auction');
+  const productionRefunds = sumType('production_refund');
+  const retailCancelRefunds = sumType('retail_cancel_refund');
 
-  const bondInterestIncome = transactions
-    .filter(t => ['bond_interest_income','bond_interest_state'].includes(t.transaction_type))
-    .reduce((sum, t) => sum + Number(t.amount || 0), 0);
-
-  const bondInterestPaid = Math.abs(transactions
-    .filter(t => t.transaction_type === 'bond_interest_paid')
-    .reduce((sum, t) => sum + Number(t.amount || 0), 0));
-
-  const netBondInterest = bondInterestIncome - bondInterestPaid;
-
-  const buildingRefunds = transactions
-    .filter(t => t.transaction_type === 'building_refund')
-    .reduce((sum, t) => sum + Number(t.amount || 0), 0);
-
-  const directResearchCosts = Math.abs(transactions
-    .filter(t => t.transaction_type === 'research')
-    .reduce((sum, t) => sum + Number(t.amount || 0), 0));
-
-  const buildingCosts = Math.abs(transactions
-    .filter(t => t.transaction_type === 'construction')
-    .reduce((sum, t) => sum + Number(t.amount || 0), 0));
-
-  const marketBuyCosts = Math.abs(transactions
-    .filter(t => t.transaction_type === 'market_buy')
-    .reduce((sum, t) => sum + Number(t.amount || 0), 0));
-
-  const contractSales = transactions
-    .filter(t => t.transaction_type === 'contract_sale')
-    .reduce((sum, t) => sum + Number(t.amount || 0), 0);
-
-  const contractBuyCosts = Math.abs(transactions
-    .filter(t => t.transaction_type === 'contract_buy')
-    .reduce((sum, t) => sum + Number(t.amount || 0), 0));
-
-  // Gekaufte Forschungseinheiten werden zusätzlich in "Forschung" sichtbar,
-  // bleiben für Gewinn/Verlust aber ausschließlich unter "Marktkäufe" kostenwirksam.
-  const researchMarketBuyCosts = state.marketTrades
-    .filter(trade => {
-      const executedAt = new Date(trade.executed_at);
-      return executedAt >= start && executedAt <= end &&
-        trade.buyer_company_id === state.company?.id &&
-        trade.products?.category === 'research' &&
-        trade.products?.name === 'Forschungseinheit';
-    })
-    .reduce((sum, trade) => sum + Number(trade.total_value || 0), 0);
-
-  const researchDisplayCosts = directResearchCosts + researchMarketBuyCosts;
-
-  const storageHoldingCosts = Math.abs(transactions
-    .filter(t => t.transaction_type === 'storage_fee')
-    .reduce((sum, t) => sum + Number(t.amount || 0), 0));
-
-  const revenue = netSales + fees + retailSales + buildingRefunds + bondInterestIncome + storageAuctionRevenue + contractSales;
-
-  // Produktionskosten = direkte Produktionskosten ohne erneute Beschaffungskosten.
-  // Material- und Vorproduktkäufe werden separat unter "Marktkäufe" erfasst.
   const productionCosts = jobs.reduce(
     (sum, j) => sum + Number(j.production_cash_cost || 0),
     0
   );
+  const marketBuyCosts = costType('market_buy');
+  const contractBuyCosts = costType('contract_buy');
+  const retailCancelFees = costType('retail_cancel_fee');
+  const storageHoldingCosts = costType('storage_fee');
+  const directResearchCosts = costType('research', 'research_investment');
 
-  const excludedCostTypes = new Set([
-    'production',
-    'production_refund',
-    'market_fee',
-    'retail_cancel_fee',
-    'market_buy',
-    'research',
-    'construction',
-    'bond_investment',
-    'bond_repayment',
-    'bond_interest_paid',
-    'contract_buy',
-    'contract_sale',
-    'storage_fee'
+  const buildingCosts = costType('construction');
+  const buildingRefunds = sumType('building_refund');
+
+  const bondInterestIncome = sumType('bond_interest_income', 'bond_interest_state');
+  const bondInterestPaid = costType('bond_interest_paid');
+
+  const excludedResultTypes = new Set([
+    'market_sale','retail_sale','contract_sale','storage_forced_auction',
+    'production_refund','retail_cancel_refund',
+    'production','market_buy','contract_buy','market_fee','retail_cancel_fee',
+    'storage_fee','research','research_investment',
+    'construction','building_refund',
+    'bond_interest_income','bond_interest_state','bond_interest_paid',
+    'bond_investment','bond_proceeds','bond_repayment','founding_capital'
   ]);
 
-  const otherCosts = Math.abs(transactions
-    .filter(t => Number(t.amount || 0) < 0 && !excludedCostTypes.has(t.transaction_type))
+  const otherOperatingIncome = transactions
+    .filter(t => Number(t.amount || 0) > 0 && !excludedResultTypes.has(t.transaction_type))
+    .reduce((sum, t) => sum + Number(t.amount || 0), 0);
+
+  const otherOperatingCosts = Math.abs(transactions
+    .filter(t => Number(t.amount || 0) < 0 && !excludedResultTypes.has(t.transaction_type))
     .reduce((sum, t) => sum + Number(t.amount || 0), 0));
 
-  // Forschungseinheiten aus Marktkäufen dürfen nicht doppelt abgezogen werden:
-  // researchDisplayCosts ist nur Anzeige; kostenwirksam sind directResearchCosts + marketBuyCosts.
-  const profit = revenue - productionCosts - directResearchCosts - fees - buildingCosts - marketBuyCosts - contractBuyCosts - bondInterestPaid - storageHoldingCosts - otherCosts;
-  const profitClass = profit < 0 ? 'finance-negative' : 'finance-positive';
+  const operatingRevenue =
+    grossMarketSales +
+    retailSales +
+    contractSales +
+    storageAuctionRevenue +
+    productionRefunds +
+    retailCancelRefunds +
+    otherOperatingIncome;
+
+  const operatingCosts =
+    productionCosts +
+    marketBuyCosts +
+    contractBuyCosts +
+    marketFees +
+    retailCancelFees +
+    storageHoldingCosts +
+    directResearchCosts +
+    otherOperatingCosts;
+
+  const operatingResult = operatingRevenue - operatingCosts;
+  const investmentResult = buildingRefunds - buildingCosts;
+  const financeResult = bondInterestIncome - bondInterestPaid;
+  const profit = operatingResult + investmentResult + financeResult;
+
+  const bondProceeds = sumType('bond_proceeds');
+  const bondInvestments = Math.abs(sumType('bond_investment'));
+  const bondRepayments = Math.abs(sumType('bond_repayment'));
+  const foundingCapital = sumType('founding_capital');
 
   const periodLabel =
     state.financePeriodOffset === 0
       ? (state.financePeriod === 'day' ? 'Heute' : state.financePeriod === 'month' ? 'Aktueller Monat' : 'Aktuelle Woche')
       : (state.financePeriod === 'day' ? 'Tag' : state.financePeriod === 'month' ? 'Monat' : 'Woche');
 
+  const revenueRows = [
+    financeStatementRow('Warenbörse – Verkäufe', grossMarketSales),
+    financeStatementRow('Einzelhandel – Verkäufe', retailSales),
+    financeStatementRow('Vertragsverkäufe', contractSales),
+    financeStatementRow('Zwangsauktionen', storageAuctionRevenue)
+  ];
+  if (productionRefunds > 0) revenueRows.push(financeStatementRow('Produktionserstattungen', productionRefunds));
+  if (retailCancelRefunds > 0) revenueRows.push(financeStatementRow('Verkaufserstattungen', retailCancelRefunds));
+  if (otherOperatingIncome > 0) revenueRows.push(financeStatementRow('Sonstige Einnahmen', otherOperatingIncome));
+
+  const expenseRows = [
+    financeStatementRow('Produktionskosten', productionCosts, { cost:true }),
+    financeStatementRow('Markteinkäufe', marketBuyCosts, { cost:true }),
+    financeStatementRow('Vertragskäufe', contractBuyCosts, { cost:true }),
+    financeStatementRow('Marktgebühren', marketFees, { cost:true }),
+    financeStatementRow('Storno-/Abbruchgebühren', retailCancelFees, { cost:true }),
+    financeStatementRow('Lagerhaltungskosten', storageHoldingCosts, { cost:true }),
+    financeStatementRow('Forschungskosten', directResearchCosts, { cost:true })
+  ];
+  if (otherOperatingCosts > 0) expenseRows.push(financeStatementRow('Sonstige Betriebskosten', otherOperatingCosts, { cost:true }));
+
+  const investmentRows = [
+    financeStatementRow('Baukosten', buildingCosts, { cost:true }),
+    financeStatementRow('Gebäudeerstattungen', buildingRefunds)
+  ];
+
+  const financeRows = [
+    financeStatementRow('Zinserträge', bondInterestIncome),
+    financeStatementRow('Zinsaufwand', bondInterestPaid, { cost:true })
+  ];
+
+  const capitalRows = [];
+  if (foundingCapital !== 0) capitalRows.push(financeStatementRow('Gründungskapital', foundingCapital, { signed:true }));
+  if (bondProceeds !== 0) capitalRows.push(financeStatementRow('Anleiheerlöse', bondProceeds, { signed:true }));
+  if (bondInvestments !== 0) capitalRows.push(financeStatementRow('Anleiheinvestitionen', -bondInvestments, { signed:true }));
+  if (bondRepayments !== 0) capitalRows.push(financeStatementRow('Tilgungen', -bondRepayments, { signed:true }));
+
   container.innerHTML = `
-    <div class="finance-summary-card finance-period-card"><span>Zeitraum</span><strong>${periodLabel}</strong><small>${periodRange}</small></div>
-    <div class="finance-summary-card"><span>Einnahmen / Gewinne</span><strong>${money(revenue)}</strong></div>
-    <div class="finance-summary-card finance-cost-card"><span>Produktionskosten</span><strong>-${money(productionCosts)}</strong></div>
-    <div class="finance-summary-card finance-cost-card"><span>Forschung</span><strong>${researchDisplayCosts > 0 ? `-${money(researchDisplayCosts)}` : money(0)}</strong></div>
-    <div class="finance-summary-card finance-cost-card"><span>Gebühren</span><strong>-${money(fees)}</strong></div>
-    <div class="finance-summary-card finance-cost-card"><span>Baukosten</span><strong>${buildingCosts > 0 ? `-${money(buildingCosts)}` : money(0)}</strong></div>
-    <div class="finance-summary-card finance-cost-card"><span>Marktkäufe</span><strong>${marketBuyCosts > 0 ? `-${money(marketBuyCosts)}` : money(0)}</strong></div>
-    <div class="finance-summary-card finance-cost-card"><span>${translateUiString('Lagerhaltungskosten')}</span><strong>${storageHoldingCosts > 0 ? `-${money(storageHoldingCosts)}` : money(0)}</strong></div>
-    <div class="finance-summary-card finance-cost-card"><span>${translateUiString('Verträge')}</span><strong>${contractBuyCosts > 0 ? `-${money(contractBuyCosts)}` : money(0)}</strong></div>
-    <div class="finance-summary-card ${netBondInterest < 0 ? 'finance-cost-card' : ''}">
-      <span>Zinsen</span>
-      <strong class="${netBondInterest < 0 ? 'finance-negative' : netBondInterest > 0 ? 'finance-positive' : ''}">
-        ${netBondInterest < 0 ? '-' : netBondInterest > 0 ? '+' : ''}${money(Math.abs(netBondInterest))}
-      </strong>
+    <div class="finance-statement-period">
+      <span>${translateUiString('Zeitraum')}</span>
+      <strong>${translateUiString(periodLabel)}</strong>
+      <small>${periodRange}</small>
     </div>
-    ${otherCosts > 0 ? `<div class="finance-summary-card finance-cost-card"><span>${translateUiString('Sonstige Kosten')}</span><strong>-${money(otherCosts)}</strong></div>` : ''}
-    <div class="finance-summary-card finance-profit-card ${profit < 0 ? 'finance-profit-loss' : 'finance-profit-gain'}"><span>Gewinn / Verlust</span><strong class="${profitClass}">${profit < 0 ? '-' : ''}${money(Math.abs(profit))}</strong></div>
+
+    ${financeStatementSection('Betriebserträge', revenueRows, 'Betriebserträge', operatingRevenue)}
+    ${financeStatementSection('Betriebsausgaben', expenseRows, 'Betriebsausgaben', -operatingCosts)}
+    ${financeStatementSection('Betriebsergebnis', [], 'Betriebsergebnis', operatingResult)}
+    ${financeStatementSection('Investitionen', investmentRows, 'Investitionsergebnis', investmentResult)}
+    ${financeStatementSection('Finanzierung', financeRows, 'Finanzergebnis', financeResult)}
+
+    <div class="finance-statement-grand-total ${profit < 0 ? 'loss' : 'gain'}">
+      <span>${translateUiString('Gesamtergebnis')}</span>
+      ${financeStatementAmount(profit, { signed:true, emphasize:true })}
+    </div>
+
+    ${capitalRows.length ? `
+      <section class="finance-statement-section finance-capital-section">
+        <h3>${translateUiString('Kapitalbewegungen')} <small>(${translateUiString('nicht ergebniswirksam')})</small></h3>
+        <div class="finance-statement-rows">${capitalRows.join('')}</div>
+      </section>
+    ` : ''}
   `;
 
   document.querySelectorAll('.finance-period-btn').forEach(btn => {

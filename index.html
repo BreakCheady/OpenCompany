@@ -5,14 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta name="theme-color" content="#0d2d55">
   <title>OpenCompany</title>
-  <link rel="icon" type="image/png" href="favicon.png?v=0.10.164">
-  <link rel="shortcut icon" href="favicon.ico?v=0.10.164">
-  <link rel="icon" type="image/x-icon" href="favicon.ico?v=0.10.164">
-  <link rel="manifest" href="/manifest.webmanifest?v=0.10.164">
-  <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=0.10.164">
+  <link rel="icon" type="image/png" href="favicon.png?v=0.10.165">
+  <link rel="shortcut icon" href="favicon.ico?v=0.10.165">
+  <link rel="icon" type="image/x-icon" href="favicon.ico?v=0.10.165">
+  <link rel="manifest" href="/manifest.webmanifest?v=0.10.165">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=0.10.165">
   <meta name="application-name" content="OpenCompany">
   <meta name="mobile-web-app-capable" content="yes">
-  <link rel="stylesheet" href="style.css?v=0.10.164">
+  <link rel="stylesheet" href="style.css?v=0.10.165">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     .password-field{display:flex;align-items:center;gap:.5rem}
@@ -882,7 +882,7 @@
       .oc-select-option{min-height:46px;padding:.7rem .8rem}
     }
   
-    /* v0.10.164 – einheitliche Navigationsleiste auf Desktop und Mobile */
+    /* v0.10.165 – einheitliche Navigationsleiste auf Desktop und Mobile */
     .app-shell{
       display:block!important;
       min-height:100dvh!important;
@@ -1707,11 +1707,21 @@
           <div id="bondFinanceContent"></div>
         </article>
 
-        <div class="finance-layout">
+        <div class="finance-layout finance-ledger-layout">
+          <article class="panel finance-movements-panel">
+            <div class="panel-head finance-ledger-head">
+              <div>
+                <h2>Ein- und Auszahlungen <button type="button" class="encyclopedia-help-btn" onclick="openEncyclopediaArticle('financial-transactions')" aria-label="Hilfe zu Finanzbewegungen" title="Enzyklopädie öffnen">?</button></h2>
+                <p class="muted">Alle Buchungen des gewählten Zeitraums, nach Bereichen filterbar.</p>
+              </div>
+            </div>
+            <div id="financeTable"></div>
+          </article>
+
           <article class="panel finance-overview-panel">
             <div class="panel-head finance-head">
               <div>
-                <h2>Finanzübersicht <button type="button" class="encyclopedia-help-btn" onclick="openEncyclopediaArticle('finance')" aria-label="Hilfe zu Finanzen" title="Enzyklopädie öffnen">?</button></h2>
+                <h2>Gewinn- und Verlustrechnung <button type="button" class="encyclopedia-help-btn" onclick="openEncyclopediaArticle('finance')" aria-label="Hilfe zu Finanzen" title="Enzyklopädie öffnen">?</button></h2>
               </div>
             </div>
             <div class="finance-period-navigation">
@@ -1723,12 +1733,7 @@
               </div>
               <button type="button" id="financeNextPeriod" class="finance-period-arrow" aria-label="Nächster Zeitraum">›</button>
             </div>
-            <div id="financeSummary" class="finance-summary finance-summary-vertical"></div>
-          </article>
-
-          <article class="panel finance-movements-panel">
-            <h2>Finanzbewegungen</h2>
-            <div id="financeTable" class="table-wrap"></div>
+            <div id="financeSummary" class="finance-statement"></div>
           </article>
         </div>
       </div>
@@ -1770,7 +1775,7 @@
           <h2>Einstellungen</h2>
           <div class="kv">
             <span>Version</span>
-            <strong>0.10.164</strong>
+            <strong>0.10.165</strong>
           </div>
           <div class="kv settings-language-row">
             <span>Sprache</span>
