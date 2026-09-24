@@ -1,11 +1,39 @@
-const CACHE_VERSION = 'opencompany-push-v1';
+const CACHE_VERSION = 'opencompany-pwa-v1';
+const OFFLINE_URL = '/offline.html';
+const PRECACHE_URLS = [
+  OFFLINE_URL,
+  '/manifest.webmanifest',
+  '/favicon.png'
+];
 
-self.addEventListener('install', () => {
-  self.skipWaiting();
+self.addEventListener('install', event => {
+  event.waitUntil(
+    caches.open(CACHE_VERSION)
+      .then(cache => cache.addAll(PRECACHE_URLS))
+      .then(() => self.skipWaiting())
+  );
 });
 
 self.addEventListener('activate', event => {
-  event.waitUntil(self.clients.claim());
+  event.waitUntil((async () => {
+    const cacheNames = await caches.keys();
+    await Promise.all(
+      cacheNames
+        .filter(name => name.startsWith('opencompany-pwa-') && name !== CACHE_VERSION)
+        .map(name => caches.delete(name))
+    );
+    await self.clients.claim();
+  })());
+});
+
+self.addEventListener('fetch', event => {
+  if (event.request.method !== 'GET') return;
+
+  if (event.request.mode === 'navigate') {
+    event.respondWith(
+      fetch(event.request).catch(() => caches.match(OFFLINE_URL))
+    );
+  }
 });
 
 self.addEventListener('push', event => {
@@ -19,8 +47,8 @@ self.addEventListener('push', event => {
   const title = data.title || 'OpenCompany';
   const options = {
     body: data.body || '',
-    icon: 'favicon.png',
-    badge: 'favicon.png',
+    icon: '/favicon.png',
+    badge: '/favicon.png',
     tag: data.tag || undefined,
     data: { url: data.url || '/' }
   };
@@ -30,14 +58,22 @@ self.addEventListener('push', event => {
 
 self.addEventListener('notificationclick', event => {
   event.notification.close();
-  const targetUrl = new URL(event.notification.data?.url || '/', self.registration.scope).href;
+  const targetUrl = new URL(
+    event.notification.data?.url || '/',
+    self.registration.scope
+  ).href;
 
   event.waitUntil((async () => {
-    const windows = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    const windows = await self.clients.matchAll({
+      type: 'window',
+      includeUncontrolled: true
+    });
+
     for (const client of windows) {
       if ('navigate' in client) await client.navigate(targetUrl);
       return client.focus();
     }
+
     return self.clients.openWindow(targetUrl);
   })());
 });

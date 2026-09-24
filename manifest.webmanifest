@@ -1,0 +1,22 @@
+{
+  "id": "/",
+  "name": "OpenCompany",
+  "short_name": "OpenCompany",
+  "description": "Spielbare Online-Unternehmenssimulation mit Produktion, Handel, Forschung und Finanzen.",
+  "lang": "de",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f4f7fb",
+  "theme_color": "#0d2d55",
+  "orientation": "any",
+  "prefer_related_applications": false,
+  "icons": [
+    {
+      "src": "/favicon.png",
+      "sizes": "any",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}

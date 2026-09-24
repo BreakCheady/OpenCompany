@@ -7,7 +7,10 @@
   <title>OpenCompany</title>
   <link rel="icon" type="image/png" href="favicon.png">
   <link rel="shortcut icon" href="favicon.ico">
-  <link rel="stylesheet" href="style.css?v=0.10.152">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <meta name="application-name" content="OpenCompany">
+  <meta name="mobile-web-app-capable" content="yes">
+  <link rel="stylesheet" href="style.css?v=0.10.153">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     .password-field{display:flex;align-items:center;gap:.5rem}
@@ -877,7 +880,7 @@
       .oc-select-option{min-height:46px;padding:.7rem .8rem}
     }
   
-    /* v0.10.152 – einheitliche Navigationsleiste auf Desktop und Mobile */
+    /* v0.10.153 – einheitliche Navigationsleiste auf Desktop und Mobile */
     .app-shell{
       display:block!important;
       min-height:100dvh!important;
@@ -1287,6 +1290,14 @@
     }
 
 </style>
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/service-worker.js', { scope: '/' })
+          .catch(error => console.warn('Service Worker konnte nicht registriert werden:', error));
+      });
+    }
+  </script>
 </head>
 <body>
 <div class="app-shell">
@@ -1757,7 +1768,7 @@
           <h2>Einstellungen</h2>
           <div class="kv">
             <span>Version</span>
-            <strong>0.10.152</strong>
+            <strong>0.10.153</strong>
           </div>
           <div class="kv settings-language-row">
             <span>Sprache</span>
