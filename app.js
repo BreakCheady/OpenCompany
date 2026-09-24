@@ -4746,6 +4746,10 @@ function renderFinanceSummary() {
 
   const researchDisplayCosts = directResearchCosts + researchMarketBuyCosts;
 
+  const storageHoldingCosts = Math.abs(transactions
+    .filter(t => t.transaction_type === 'storage_fee')
+    .reduce((sum, t) => sum + Number(t.amount || 0), 0));
+
   const revenue = netSales + fees + retailSales + buildingRefunds + bondInterestIncome + storageAuctionRevenue + contractSales;
 
   // Produktionskosten = direkte Produktionskosten ohne erneute Beschaffungskosten.
@@ -4767,7 +4771,8 @@ function renderFinanceSummary() {
     'bond_repayment',
     'bond_interest_paid',
     'contract_buy',
-    'contract_sale'
+    'contract_sale',
+    'storage_fee'
   ]);
 
   const otherCosts = Math.abs(transactions
@@ -4776,7 +4781,7 @@ function renderFinanceSummary() {
 
   // Forschungseinheiten aus Marktkäufen dürfen nicht doppelt abgezogen werden:
   // researchDisplayCosts ist nur Anzeige; kostenwirksam sind directResearchCosts + marketBuyCosts.
-  const profit = revenue - productionCosts - directResearchCosts - fees - buildingCosts - marketBuyCosts - contractBuyCosts - bondInterestPaid - otherCosts;
+  const profit = revenue - productionCosts - directResearchCosts - fees - buildingCosts - marketBuyCosts - contractBuyCosts - bondInterestPaid - storageHoldingCosts - otherCosts;
   const profitClass = profit < 0 ? 'finance-negative' : 'finance-positive';
 
   const periodLabel =
@@ -4792,6 +4797,7 @@ function renderFinanceSummary() {
     <div class="finance-summary-card finance-cost-card"><span>Gebühren</span><strong>-${money(fees)}</strong></div>
     <div class="finance-summary-card finance-cost-card"><span>Baukosten</span><strong>${buildingCosts > 0 ? `-${money(buildingCosts)}` : money(0)}</strong></div>
     <div class="finance-summary-card finance-cost-card"><span>Marktkäufe</span><strong>${marketBuyCosts > 0 ? `-${money(marketBuyCosts)}` : money(0)}</strong></div>
+    <div class="finance-summary-card finance-cost-card"><span>${translateUiString('Lagerhaltungskosten')}</span><strong>${storageHoldingCosts > 0 ? `-${money(storageHoldingCosts)}` : money(0)}</strong></div>
     <div class="finance-summary-card finance-cost-card"><span>${translateUiString('Verträge')}</span><strong>${contractBuyCosts > 0 ? `-${money(contractBuyCosts)}` : money(0)}</strong></div>
     <div class="finance-summary-card ${netBondInterest < 0 ? 'finance-cost-card' : ''}">
       <span>Zinsen</span>
