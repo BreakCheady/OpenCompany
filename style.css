@@ -3121,3 +3121,50 @@ body.dashboard-history-open{
     padding: 7px 10px;
   }
 }
+
+
+/* v0.10.166 – Finanzen 50/50 + besser lesbare GuV */
+.finance-ledger-layout {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+}
+
+.finance-statement-period span {
+  font-size: 11px;
+}
+
+.finance-statement-period strong {
+  font-size: 15px;
+}
+
+.finance-statement-period small {
+  font-size: 11px;
+}
+
+.finance-statement-section h3 {
+  font-size: 13px;
+}
+
+.finance-statement-section h3 small {
+  font-size: 10px;
+}
+
+.finance-statement-row {
+  font-size: 13px;
+  padding: 9px 12px;
+}
+
+.finance-statement-total {
+  font-size: 13px;
+  padding: 10px 12px;
+}
+
+.finance-statement-grand-total {
+  font-size: 15px;
+  padding: 14px 12px;
+}
+
+@media (max-width: 1100px) {
+  .finance-ledger-layout {
+    grid-template-columns: 1fr;
+  }
+}
