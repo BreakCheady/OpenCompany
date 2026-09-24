@@ -64,7 +64,7 @@ const I18N_EN = {
   'Gebäudeplätze':'Building slots','Produktionsauftrag':'Production order','Wähle oben ein Produktionsgebäude aus.':'Select a production building above.',
   'Produkt':'Product','Anzahl Einheiten':'Number of units','Produktion starten':'Start production','Produktionsrezept':'Production recipe',
   'Im Handel verkaufen':'Sell in retail','Wähle oben ein Verkaufsgebäude aus.':'Select a retail building above.',
-  'Qualität':'Quality','Preis je Einheit':'Price per unit','Menge':'Quantity','Suche':'Search','Typ':'Type',
+  'Qualität':'Quality','Preis je Einheit':'Price per unit','Gesamtbetrag':'Total amount','Menge':'Quantity','Suche':'Search','Typ':'Type',
   'Rohstoffe':'Raw materials','Produkte':'Products','Zurücksetzen':'Reset','Am Markt verkaufen':'Sell on marketplace',
   'Art':'Type','Rohstoff':'Raw material','Gut':'Item','Order erstellen':'Create order','Offene Marktorders':'Open market orders',
   'Nächste Marktaktualisierung':'Next market update','Gesamtkosten':'Total cost','Kaufen':'Buy',
@@ -4546,6 +4546,37 @@ function financeMovementItemName(productId, materialId, trade = null) {
   return null;
 }
 
+function resolveFinanceContract(transaction) {
+  if (!transaction || !['contract_buy','contract_sale'].includes(transaction.transaction_type)) return null;
+
+  if (transaction.reference_type === 'contract' && transaction.reference_id) {
+    const exact = state.contracts.find(c => c.id === transaction.reference_id);
+    if (exact) return exact;
+  }
+
+  const isBuy = transaction.transaction_type === 'contract_buy';
+  const companyId = state.company?.id;
+  const txAmount = Math.abs(Number(transaction.amount || 0));
+  const txTime = new Date(transaction.created_at).getTime();
+
+  const candidates = state.contracts
+    .filter(contract => {
+      if (isBuy && contract.buyer_company_id !== companyId) return false;
+      if (!isBuy && contract.seller_company_id !== companyId) return false;
+
+      const contractTotal = Math.abs(Number(contract.quantity || 0) * Number(contract.unit_price || 0));
+      const amountTolerance = Math.max(0.01, txAmount * 0.0001);
+      return Math.abs(contractTotal - txAmount) <= amountTolerance;
+    })
+    .sort((a, b) => {
+      const aTime = new Date(a.fulfilled_at || a.accepted_at || a.created_at || 0).getTime();
+      const bTime = new Date(b.fulfilled_at || b.accepted_at || b.created_at || 0).getTime();
+      return Math.abs(aTime - txTime) - Math.abs(bTime - txTime);
+    });
+
+  return candidates[0] || null;
+}
+
 function financeMovementDetails(transaction) {
   const rows = [];
   const add = (label, value) => {
@@ -4555,19 +4586,18 @@ function financeMovementDetails(transaction) {
 
   add('Zeit', financeMovementTime(transaction.created_at));
 
-  if (transaction.reference_type === 'contract' && transaction.reference_id) {
-    const contract = state.contracts.find(c => c.id === transaction.reference_id);
-    if (contract) {
-      const isBuy = transaction.transaction_type === 'contract_buy';
-      const partnerId = isBuy ? contract.seller_company_id : contract.buyer_company_id;
-      add('Partner', financeMovementCompanyName(partnerId));
-      add(contract.material_id ? 'Rohstoff' : 'Produkt',
-        financeMovementItemName(contract.product_id, contract.material_id));
-      add('Menge', num(contract.quantity));
-      add('Qualität', `Q${Number(contract.quality_level || 1)}`);
-      add('Preis je Einheit', money(contract.unit_price));
-      add(isBuy ? 'Kaufsumme' : 'Verkaufssumme', money(Number(contract.quantity || 0) * Number(contract.unit_price || 0)));
-    }
+  const financeContract = resolveFinanceContract(transaction);
+  if (financeContract) {
+    const isBuy = transaction.transaction_type === 'contract_buy';
+    const partnerId = isBuy ? financeContract.seller_company_id : financeContract.buyer_company_id;
+    add('Beschreibung', transaction.description);
+    add('Partner', financeMovementCompanyName(partnerId));
+    add(financeContract.material_id ? 'Rohstoff' : 'Produkt',
+      financeMovementItemName(financeContract.product_id, financeContract.material_id));
+    add('Qualität', `Q${Number(financeContract.quality_level || 1)}`);
+    add('Menge', num(financeContract.quantity));
+    add('Preis je Einheit', money(financeContract.unit_price));
+    add('Gesamtbetrag', money(Number(financeContract.quantity || 0) * Number(financeContract.unit_price || 0)));
   } else if (transaction.reference_type === 'market_order' && transaction.reference_id) {
     const txTime = new Date(transaction.created_at).getTime();
     const candidates = state.marketTrades
@@ -4607,23 +4637,23 @@ function financeMovementDetails(transaction) {
     add('Level', building?.level ? String(building.level) : null);
   }
 
-  if (transaction.description) add('Beschreibung', transaction.description);
-  add('Betrag', money(transaction.amount));
+  if (!financeContract) {
+    if (transaction.description) add('Beschreibung', transaction.description);
+    add('Betrag', money(transaction.amount));
+  }
 
   return rows.join('');
 }
 
 function financeMovementTitle(transaction) {
-  if (transaction.reference_type === 'contract' && transaction.reference_id) {
-    const contract = state.contracts.find(c => c.id === transaction.reference_id);
-    if (contract) {
-      const isBuy = transaction.transaction_type === 'contract_buy';
-      const partnerId = isBuy ? contract.seller_company_id : contract.buyer_company_id;
-      const partner = financeMovementCompanyName(partnerId);
-      const item = financeMovementItemName(contract.product_id, contract.material_id);
-      const action = isBuy ? 'Vertrag von' : 'Vertrag an';
-      return `${item || translateUiString('Vertrag')} ${action} ${partner || translateUiString('Unternehmen')}`;
-    }
+  const financeContract = resolveFinanceContract(transaction);
+  if (financeContract) {
+    const isBuy = transaction.transaction_type === 'contract_buy';
+    const partnerId = isBuy ? financeContract.seller_company_id : financeContract.buyer_company_id;
+    const partner = financeMovementCompanyName(partnerId);
+    const item = financeMovementItemName(financeContract.product_id, financeContract.material_id);
+    const action = isBuy ? 'Vertrag von' : 'Vertrag an';
+    return `${item || translateUiString('Vertrag')} ${action} ${partner || translateUiString('Unternehmen')}`;
   }
 
   if (transaction.reference_type === 'market_order' && transaction.reference_id) {
