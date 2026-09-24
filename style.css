@@ -6,9 +6,8 @@
   --border: #dfe6ef;
   --accent: #1976ed;
   --accent-dark: #0e63cc;
-  --danger: #d60000;
-  --success: #00a63c;
-  --success-hover: #008c33;
+  --danger: #c9342b;
+  --success: #16835b;
   --sidebar: #102f52;
   --sidebar-hover: #173e6a;
   --shadow: 0 4px 14px rgba(30, 56, 88, .06);
@@ -145,7 +144,7 @@ select:focus-visible {
 
 .sidebar-footer::before {
   content: "●  Online";
-  color: var(--success);
+  color: #42d995;
   font-weight: 700;
 }
 
@@ -179,23 +178,6 @@ select:focus-visible {
 }
 
 .topbar .muted { margin: 0; }
-
-.header-chat-btn {
-  flex: 0 0 auto;
-  min-width: 88px;
-  min-height: 42px;
-  padding: 0 18px;
-  border-radius: 10px;
-  background: var(--sidebar);
-  border: 2px solid #fff;
-  color: #fff;
-}
-
-.header-chat-btn:hover {
-  background: var(--sidebar);
-  border-color: #fff;
-  color: #fff;
-}
 
 h1, h2, h3, p { margin-top: 0; }
 
@@ -631,7 +613,7 @@ td button {
 }
 
 #productionForm button[type="submit"]:hover {
-  background: var(--success-hover);
+  background: #116b4a;
 }
 
 
@@ -655,7 +637,7 @@ td button {
   cursor: pointer;
 }
 #productionStartBtn.production-ready:not(:disabled):hover {
-  background: var(--success-hover);
+  background: #116b4a;
 }
 .material-amount {
   color: var(--text);
@@ -694,14 +676,11 @@ button:disabled {
 
 
 #productionStartBtn.production-cancel:not(:disabled) {
-  background: #d60000 !important;
-  border-color: #d60000 !important;
-  color: #fff !important;
+  background: var(--danger);
   cursor: pointer;
 }
 #productionStartBtn.production-cancel:not(:disabled):hover {
-  background: #b30000 !important;
-  border-color: #b30000 !important;
+  background: #a92b24;
 }
 
 
@@ -753,8 +732,8 @@ button:disabled {
 }
 
 .badge.order-status-filled {
-  background: var(--success);
-  color: #fff;
+  background: #e9f7ef;
+  color: var(--success);
 }
 
 .badge.order-status-cancelled {
@@ -768,7 +747,7 @@ button:disabled {
 }
 
 .sell-order-submit:hover {
-  background: var(--success-hover);
+  background: #116b4a;
 }
 
 
@@ -792,7 +771,7 @@ button:disabled {
 .sell-order-submit:hover,
 .market-buy-btn:hover,
 .building-upgrade-btn:hover {
-  background: var(--success-hover);
+  background: #116b4a;
 }
 
 
@@ -805,7 +784,7 @@ button:disabled {
 
 #market #marketOrders button.market-buy-btn:hover,
 #buildings #buildingsTable button.building-upgrade-btn:hover {
-  background: var(--success-hover) !important;
+  background: #116b4a !important;
   color: #fff !important;
 }
 
@@ -821,8 +800,8 @@ button:disabled {
 
 #marketOrders button[onclick^="buyOrder"]:hover,
 #buildingsTable button[onclick^="upgradeBuilding"]:not(:disabled):hover {
-  background-color: var(--success-hover) !important;
-  background: var(--success-hover) !important;
+  background-color: #116b4a !important;
+  background: #116b4a !important;
   color: #fff !important;
 }
 
@@ -1318,17 +1297,17 @@ td button {
 }
 
 .finance-profit-gain {
-  background: #f3fff5 !important;
-  border-color: #57bf75 !important;
-  box-shadow: inset 0 0 0 1px rgba(87, 191, 117, .10);
+  background: #eefaf3 !important;
+  border-color: #2e9b69 !important;
+  box-shadow: inset 0 0 0 1px rgba(46, 155, 105, .10);
 }
 
 .finance-profit-gain span {
-  color: #2d8747 !important;
+  color: #267b56;
 }
 
 .finance-profit-gain strong {
-  color: var(--success) !important;
+  color: var(--success);
 }
 
 
@@ -1382,8 +1361,8 @@ td button {
 }
 
 .retail-sale-submit:not(:disabled):hover {
-  background: var(--success-hover);
-  border-color: var(--success-hover);
+  background: #116b4a;
+  border-color: #116b4a;
 }
 
 .retail-ready {
@@ -1415,8 +1394,8 @@ td button {
 }
 
 .building-builder-open-btn:hover {
-  background: var(--success-hover);
-  border-color: var(--success-hover);
+  background: #116b4a;
+  border-color: #116b4a;
 }
 
 .building-builder {
@@ -1463,8 +1442,8 @@ td button {
 }
 
 .building-catalog-build-btn:not(:disabled):hover {
-  background: var(--success-hover);
-  border-color: var(--success-hover);
+  background: #116b4a;
+  border-color: #116b4a;
 }
 
 .building-actions {
@@ -1480,8 +1459,8 @@ td button {
 }
 
 #buildingsTable .building-upgrade-btn:not(:disabled):hover {
-  background: var(--success-hover) !important;
-  border-color: var(--success-hover) !important;
+  background: #116b4a !important;
+  border-color: #116b4a !important;
 }
 
 #buildingsTable .building-downgrade-btn:not(:disabled) {
@@ -1553,8 +1532,8 @@ td button {
 }
 
 .production-running .production-claim-btn:not(:disabled):hover {
-  background: var(--success-hover);
-  border-color: var(--success-hover);
+  background: #116b4a;
+  border-color: #116b4a;
 }
 
 .production-running .production-claim-btn:disabled {
@@ -1571,7 +1550,7 @@ td button {
 }
 
 .production-claimable.has-output strong {
-  color: var(--success);
+  color: #4f6f27;
 }
 
 @media (max-width: 560px) {
@@ -1695,8 +1674,8 @@ td button {
 }
 
 .production-buy-input-btn:hover {
-  background: var(--success-hover) !important;
-  border-color: var(--success-hover) !important;
+  background: #116b4a !important;
+  border-color: #116b4a !important;
 }
 
 
@@ -1770,8 +1749,8 @@ td button {
 }
 
 .research-invest-button:hover {
-  background: var(--success-hover) !important;
-  border-color: var(--success-hover) !important;
+  background: #116b4a !important;
+  border-color: #116b4a !important;
 }
 
 
@@ -2438,7 +2417,6 @@ body.game-dialog-open { overflow: hidden; }
   }
 }
 
-
 /* v0.10.99 – einheitliches kräftiges Grün */
 :root {
   --success: #00a63c;
@@ -2848,6 +2826,7 @@ body.dashboard-history-open{
   grid-template-columns:repeat(3,minmax(0,1fr));
   gap:10px;
   margin-top:12px;
+
 }
 .storage-capacity-meta .kv,
 .storage-cost-grid .kv{
@@ -3245,5 +3224,43 @@ body.dashboard-history-open{
   #finance .finance-movement-list-wrap {
     height: calc(10 * 42px) !important;
     max-height: calc(10 * 42px) !important;
+  }
+}
+
+
+/* v0.10.171 – Mobile Finanzbuchungen nicht abschneiden */
+@media (max-width: 700px) {
+  #finance .finance-movement-toggle {
+    height: auto !important;
+    min-height: 64px !important;
+    align-items: center;
+    row-gap: 4px;
+    padding-top: 8px;
+    padding-bottom: 8px;
+  }
+
+  #finance .finance-movement-arrow {
+    grid-column: 1;
+    grid-row: 1 / span 2;
+    align-self: center;
+  }
+
+  #finance .finance-movement-date {
+    grid-column: 2;
+    grid-row: 1;
+    align-self: center;
+  }
+
+  #finance .finance-movement-title {
+    grid-column: 3;
+    grid-row: 1;
+    align-self: center;
+  }
+
+  #finance .finance-movement-amount {
+    grid-column: 3;
+    grid-row: 2;
+    align-self: start;
+    line-height: 1.25;
   }
 }
