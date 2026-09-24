@@ -3168,3 +3168,35 @@ body.dashboard-history-open{
     grid-template-columns: 1fr;
   }
 }
+
+
+/* v0.10.167 – Finanzen exakt 50/50 + 10 sichtbare Buchungen */
+#finance .finance-ledger-layout {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) !important;
+  gap: 16px !important;
+  align-items: start;
+}
+
+#finance .finance-movements-panel,
+#finance .finance-overview-panel {
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: none !important;
+}
+
+#finance .finance-movement-list-wrap {
+  max-height: calc(10 * 42px);
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+#finance .finance-movement-toggle {
+  min-height: 42px;
+}
+
+@media (max-width: 1100px) {
+  #finance .finance-ledger-layout {
+    grid-template-columns: 1fr !important;
+  }
+}
