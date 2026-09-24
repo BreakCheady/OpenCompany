@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'opencompany-pwa-v2';
+const CACHE_VERSION = 'opencompany-pwa-v3';
 const OFFLINE_URL = '/offline.html';
 const PRECACHE_URLS = [
   OFFLINE_URL,
@@ -6,6 +6,7 @@ const PRECACHE_URLS = [
   '/favicon.png',
   '/icon-192.png',
   '/icon-512.png',
+  '/icon-maskable-512.png',
   '/apple-touch-icon.png'
 ];
 
