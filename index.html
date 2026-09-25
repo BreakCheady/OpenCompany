@@ -5,14 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta name="theme-color" content="#0d2d55">
   <title>OpenCompany</title>
-  <link rel="icon" type="image/png" href="favicon.png?v=0.10.178">
-  <link rel="shortcut icon" href="favicon.ico?v=0.10.178">
-  <link rel="icon" type="image/x-icon" href="favicon.ico?v=0.10.178">
-  <link rel="manifest" href="/manifest.webmanifest?v=0.10.178">
-  <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=0.10.178">
+  <link rel="icon" type="image/png" href="favicon.png?v=0.10.179">
+  <link rel="shortcut icon" href="favicon.ico?v=0.10.179">
+  <link rel="icon" type="image/x-icon" href="favicon.ico?v=0.10.179">
+  <link rel="manifest" href="/manifest.webmanifest?v=0.10.179">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=0.10.179">
   <meta name="application-name" content="OpenCompany">
   <meta name="mobile-web-app-capable" content="yes">
-  <link rel="stylesheet" href="style.css?v=0.10.178">
+  <link rel="stylesheet" href="style.css?v=0.10.179">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     .password-field{display:flex;align-items:center;gap:.5rem}
@@ -491,7 +491,45 @@
     }
 
     .encyclopedia-recipe-calculator h3{
-      margin-top:0;
+      margin:0;
+    }
+
+    .encyclopedia-recipe-calculator-head{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:.75rem;
+      margin-bottom:.35rem;
+    }
+
+    .encyclopedia-market-refresh-btn{
+      width:auto;
+      min-width:0;
+      padding:.42rem .65rem;
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      gap:.35rem;
+      border:1px solid #c9d5e4;
+      border-radius:9px;
+      background:#fff;
+      color:#1769d2;
+      white-space:nowrap;
+    }
+
+    .encyclopedia-market-refresh-btn:hover{
+      background:#eef5ff;
+      border-color:#8fb8ec;
+    }
+
+    .encyclopedia-market-refresh-btn:disabled{
+      opacity:.55;
+      cursor:wait;
+    }
+
+    .encyclopedia-market-refresh-btn.is-refreshing span{
+      display:inline-block;
+      animation:market-refresh-spin .7s linear infinite;
     }
 
     .encyclopedia-recipe-calculator-input{
@@ -546,9 +584,48 @@
       border-bottom:0;
     }
 
-    .encyclopedia-recipe-calculator-row strong{
+    .encyclopedia-recipe-calculator-row > .encyclopedia-recipe-calculator-item{
+      min-width:0;
+      display:flex;
+      flex-direction:column;
+      gap:.2rem;
+    }
+
+    .encyclopedia-recipe-calculator-item > strong{
+      text-align:left;
+      white-space:normal;
+    }
+
+    .encyclopedia-recipe-calculator-item small{
+      color:#617087;
+      font-size:.8rem;
+      line-height:1.35;
+    }
+
+    .encyclopedia-recipe-calculator-item small.market-shortage{
+      color:#b45309;
+      font-weight:700;
+    }
+
+    .encyclopedia-recipe-calculator-required{
+      flex:0 0 auto;
+      text-align:right;
+    }
+
+    .encyclopedia-recipe-calculator-required strong{
       text-align:right;
       white-space:nowrap;
+    }
+
+    .encyclopedia-recipe-calculator-summary .market-shortage-summary{
+      border-color:#f4c27a;
+      background:#fffaf0;
+    }
+
+    .encyclopedia-recipe-calculator-summary .market-shortage-summary small{
+      color:#b45309;
+      font-weight:700;
+      line-height:1.3;
     }
 
     .encyclopedia-recipe-calculator-note{
@@ -627,9 +704,19 @@
         gap:.15rem;
       }
 
-      .encyclopedia-recipe-calculator-row strong{
+      .encyclopedia-recipe-calculator-required{
+        width:100%;
+        text-align:left;
+      }
+
+      .encyclopedia-recipe-calculator-required strong{
         text-align:left;
         white-space:normal;
+      }
+
+      .encyclopedia-recipe-calculator-head{
+        align-items:flex-start;
+        flex-direction:column;
       }
     }
     @media(max-width:900px){
@@ -1033,7 +1120,7 @@
       .oc-select-option{min-height:46px;padding:.7rem .8rem}
     }
   
-    /* v0.10.178 – einheitliche Navigationsleiste auf Desktop und Mobile */
+    /* v0.10.179 – einheitliche Navigationsleiste auf Desktop und Mobile */
     .app-shell{
       display:block!important;
       min-height:100dvh!important;
@@ -1987,7 +2074,7 @@
           <h2>Einstellungen</h2>
           <div class="kv">
             <span>Version</span>
-            <strong>0.10.178</strong>
+            <strong>0.10.179</strong>
           </div>
           <div class="kv settings-language-row">
             <span>Sprache</span>

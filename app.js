@@ -195,6 +195,7 @@ Object.assign(I18N_EN, {
   'Einheiten':'Units','Benötigtes Gebäude':'Required building','Keines':'None','Benötigt':'Required',
   'Mindestqualität Inputs':'Minimum input quality','Gebäudelevel':'Building level','Produktionsrate':'Production rate',
   'Produktionsmenge':'Production quantity','Produktionsdauer':'Production duration',
+  'Beschaffungskosten Warenbörse':'Marketplace procurement costs','Marktpreise':'Market prices',
   'Grund-Produktionskosten':'Base production costs','Produktionskosten gesamt':'Total production costs',
   'Produktion abbrechen':'Cancel production','Benötigtes Gebäude fehlt.':'Required building is missing.',
   'Es muss mindestens 1 Einheit produziert werden können.':'At least 1 unit must be producible.',
@@ -3033,7 +3034,10 @@ function handleProductionUnitsInput(event) {
 
 function marketOrdersForProductionInput(input) {
   const requiredQuality = Number(input.minQuality || 1);
-  const component = input.component_product_id ? state.products.find(p => p.id === input.component_product_id) : null;
+  const component = input.component_product_id
+    ? ((state.products || []).find(p => p.id === input.component_product_id)
+      || (state.allProducts || []).find(p => p.id === input.component_product_id))
+    : null;
   return state.marketOrders
     .filter(order => {
       if (order.order_type !== 'sell' || !['open','partially_filled'].includes(order.status) || order.company_id === state.company?.id || Number(order.remaining_quantity || 0) <= 0) return false;
@@ -6254,18 +6258,69 @@ function encyclopediaRecipeQuantity(value) {
   }).format(Number(value || 0));
 }
 
+function encyclopediaRecipeMarketProcurement(row, required, product) {
+  const minQuality = minimumInputQuality(product);
+  const input = {
+    ...row,
+    required,
+    available: 0,
+    minQuality
+  };
+
+  const orders = marketOrdersForProductionInput(input);
+  let remaining = Math.max(0, Number(required || 0));
+  let available = 0;
+  let cost = 0;
+  let usedOrders = 0;
+
+  for (const order of orders) {
+    if (remaining <= 1e-9) break;
+    const orderQuantity = Math.max(0, Number(order.remaining_quantity || 0));
+    if (orderQuantity <= 0) continue;
+
+    const take = Math.min(remaining, orderQuantity);
+    available += take;
+    cost += take * Number(order.price_per_unit || 0);
+    remaining -= take;
+    usedOrders += 1;
+  }
+
+  return {
+    minQuality,
+    required: Math.max(0, Number(required || 0)),
+    available,
+    missing: Math.max(0, remaining),
+    cost,
+    averagePrice: available > 0 ? cost / available : 0,
+    fullyAvailable: remaining <= 1e-9,
+    usedOrders
+  };
+}
+
 function encyclopediaRecipeCalculatorHtml(product) {
   const rows = encyclopediaRecipeRows(product);
   if (!rows.length) return '';
 
   const calculatorId = `encyclopedia-recipe-calculator-${encyclopediaSlug(product.id || product.name)}`;
   const resultId = `${calculatorId}-result`;
+  const refreshId = `${calculatorId}-market-refresh`;
   const productId = encyclopediaEscapeHtml(product.id || '');
 
   return `
     <div class="encyclopedia-recipe-calculator">
-      <h3>Materialrechner</h3>
-      <p class="muted">Menge oder Produktionszeit eingeben, z. B. <strong>500</strong>, <strong>6hrs</strong>, <strong>6h</strong>, <strong>18:00</strong> oder <strong>6pm</strong>.</p>
+      <div class="encyclopedia-recipe-calculator-head">
+        <h3>Materialrechner</h3>
+        <button
+          type="button"
+          id="${refreshId}"
+          class="encyclopedia-market-refresh-btn"
+          onclick="refreshEncyclopediaProcurementPrices('${productId}','${calculatorId}','${resultId}','${refreshId}')"
+          title="Aktuelle Marktpreise laden"
+          aria-label="Aktuelle Marktpreise laden">
+          <span aria-hidden="true">↻</span> Marktpreise
+        </button>
+      </div>
+      <p class="muted">Menge oder Produktionszeit eingeben, z. B. <strong>500</strong>, <strong>6hrs</strong>, <strong>6h</strong>, <strong>18:00</strong> oder <strong>6pm</strong>. Die Beschaffungskosten werden aus den günstigsten aktuell geladenen Verkaufsorders der Warenbörse berechnet.</p>
       <label for="${calculatorId}">Menge / Stunden / Uhrzeit
         <input
           id="${calculatorId}"
@@ -6277,11 +6332,50 @@ function encyclopediaRecipeCalculatorHtml(product) {
           oninput="updateEncyclopediaRecipeCalculator('${productId}', this.value, '${resultId}')">
       </label>
       <div id="${resultId}" class="encyclopedia-recipe-calculator-result muted">
-        Eingabe machen, um den Materialbedarf zu berechnen.
+        Eingabe machen, um Materialbedarf und Beschaffungskosten zu berechnen.
       </div>
     </div>
   `;
 }
+
+window.refreshEncyclopediaProcurementPrices = async function(productId, inputId, resultId, refreshId) {
+  if (!sb) return;
+
+  const button = document.getElementById(refreshId);
+  const input = document.getElementById(inputId);
+
+  if (button?.disabled) return;
+  if (button) {
+    button.disabled = true;
+    button.classList.add('is-refreshing');
+    button.setAttribute('aria-busy', 'true');
+  }
+
+  try {
+    const { data, error } = await sb
+      .from('market_orders')
+      .select('*, products(name,category), materials(name)')
+      .eq('order_type', 'sell')
+      .in('status', ['open','partially_filled'])
+      .gt('remaining_quantity', 0)
+      .order('price_per_unit', { ascending:true })
+      .limit(1000);
+
+    if (error) {
+      await gameAlert(`Marktpreise konnten nicht aktualisiert werden. ${error.message || 'Unbekannter Fehler'}`);
+      return;
+    }
+
+    state.marketOrders = data || [];
+    updateEncyclopediaRecipeCalculator(productId, input?.value || '', resultId);
+  } finally {
+    if (button) {
+      button.disabled = false;
+      button.classList.remove('is-refreshing');
+      button.removeAttribute('aria-busy');
+    }
+  }
+};
 
 window.updateEncyclopediaRecipeCalculator = function(productId, rawValue, resultId) {
   const result = document.getElementById(resultId);
@@ -6303,7 +6397,7 @@ window.updateEncyclopediaRecipeCalculator = function(productId, rawValue, result
 
   const parsed = encyclopediaProductionInput(rawValue, product);
   if (!String(rawValue ?? '').trim()) {
-    result.innerHTML = '<p class="muted">Eingabe machen, um den Materialbedarf zu berechnen.</p>';
+    result.innerHTML = '<p class="muted">Eingabe machen, um Materialbedarf und Beschaffungskosten zu berechnen.</p>';
     return;
   }
 
@@ -6314,6 +6408,8 @@ window.updateEncyclopediaRecipeCalculator = function(productId, rawValue, result
       : '<p class="status error">Bitte eine gültige Menge oder Zeitangabe eingeben, z. B. 500, 6hrs, 6h, 18:00 oder 6pm.</p>';
     return;
   }
+
+  const procurementResults = [];
 
   const materialRows = rows.map(row => {
     const material = row.material_id
@@ -6327,12 +6423,37 @@ window.updateEncyclopediaRecipeCalculator = function(productId, rawValue, result
     const name = material?.name || component?.name || 'Unbekannte Komponente';
     const unit = material?.unit || (component ? 'Stück' : '');
     const required = Number(row.quantity_per_unit || 0) * parsed.units;
+    const procurement = encyclopediaRecipeMarketProcurement(row, required, product);
+    procurementResults.push(procurement);
+
+    let procurementText = '';
+    if (procurement.required <= 0) {
+      procurementText = 'Keine Beschaffung erforderlich';
+    } else if (procurement.fullyAvailable) {
+      procurementText = `Warenbörse: ${money(procurement.cost)} · Ø ${money(procurement.averagePrice)} / Einheit · Q${procurement.minQuality}+`;
+    } else if (procurement.available > 0) {
+      procurementText = `Warenbörse aktuell: ${money(procurement.cost)} für ${encyclopediaRecipeQuantity(procurement.available)}${unit ? ` ${encyclopediaEscapeHtml(unit)}` : ''} · ${encyclopediaRecipeQuantity(procurement.missing)}${unit ? ` ${encyclopediaEscapeHtml(unit)}` : ''} fehlen`;
+    } else {
+      procurementText = `Warenbörse: aktuell kein passendes Angebot in Q${procurement.minQuality}+`;
+    }
 
     return `<div class="encyclopedia-recipe-calculator-row">
-      <span>${encyclopediaEscapeHtml(name)}</span>
-      <strong>${encyclopediaRecipeQuantity(required)}${unit ? ` ${encyclopediaEscapeHtml(unit)}` : ''}</strong>
+      <span class="encyclopedia-recipe-calculator-item">
+        <strong>${encyclopediaEscapeHtml(name)}</strong>
+        <small class="${procurement.fullyAvailable ? '' : 'market-shortage'}">${procurementText}</small>
+      </span>
+      <span class="encyclopedia-recipe-calculator-required">
+        <strong>${encyclopediaRecipeQuantity(required)}${unit ? ` ${encyclopediaEscapeHtml(unit)}` : ''}</strong>
+      </span>
     </div>`;
   }).join('');
+
+  const totalProcurementCost = procurementResults.reduce(
+    (sum, item) => sum + Number(item.cost || 0),
+    0
+  );
+  const allMarketAvailable = procurementResults.every(item => item.fullyAvailable);
+  const missingCount = procurementResults.filter(item => !item.fullyAvailable).length;
 
   const context = parsed.context;
   const buildingText = context.usesOwnedBuilding
@@ -6347,15 +6468,23 @@ window.updateEncyclopediaRecipeCalculator = function(productId, rawValue, result
     ? ` · Ziel ${parsed.targetTime.toLocaleTimeString(uiLocale(), { hour:'2-digit', minute:'2-digit' })} Uhr`
     : '';
 
+  const procurementSummary = allMarketAvailable
+    ? `<strong>${money(totalProcurementCost)}</strong>`
+    : `<strong>${money(totalProcurementCost)} bisher gedeckt</strong><small>${missingCount} Position${missingCount === 1 ? '' : 'en'} nicht vollständig verfügbar</small>`;
+
   result.innerHTML = `
     <div class="encyclopedia-recipe-calculator-summary">
       <div><span>Produktionsmenge</span><strong>${num(parsed.units)} Einheiten</strong></div>
       <div><span>Produktionsdauer</span><strong>${durationText}${targetText}</strong></div>
+      <div class="${allMarketAvailable ? '' : 'market-shortage-summary'}">
+        <span>Beschaffungskosten Warenbörse</span>
+        ${procurementSummary}
+      </div>
     </div>
     <div class="encyclopedia-recipe-calculator-materials">
       ${materialRows}
     </div>
-    <p class="muted encyclopedia-recipe-calculator-note">${buildingText}</p>
+    <p class="muted encyclopedia-recipe-calculator-note">${buildingText} · Marktpreise aus den aktuell geladenen Verkaufsorders; eigene Orders werden nicht als Beschaffung berücksichtigt.</p>
   `;
 
   applyLanguageToDom(result);
