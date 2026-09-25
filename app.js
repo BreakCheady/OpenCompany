@@ -1003,7 +1003,13 @@ const GAME_RULES = Object.freeze({
     valueBonusPerLevel: 0.05
   }),
   pricing: Object.freeze({
-    playerRecommendedCostMultiplier: 2
+    playerRecommendedCostMultiplier: 2,
+    retailAverageCostMultiplier: 2.50,
+    retailMinAverageMultiplier: 0.75,
+    retailMaxAverageMultiplier: 1.20,
+    retailPeakBand: 0.05,
+    marketMinCostMultiplier: 1.10,
+    npcMaxCostMultiplier: 2.50
   }),
   ocb: Object.freeze({
     minutesPerBoost: 1,
@@ -1028,6 +1034,63 @@ const rulePercent = rate => Math.round(Number(rate || 0) * 100);
 const ruleTime = key => GAME_RULES.schedules[key] || '–';
 const qualityMultiplier = quality =>
   1 + Math.max(0, Number(quality || 1) - 1) * GAME_RULES.quality.valueBonusPerLevel;
+const retailAveragePrice = unitCost =>
+  Math.round(Math.max(0, Number(unitCost || 0)) * GAME_RULES.pricing.retailAverageCostMultiplier * 100) / 100;
+const retailMinPrice = unitCost =>
+  Math.round(retailAveragePrice(unitCost) * GAME_RULES.pricing.retailMinAverageMultiplier * 100) / 100;
+const retailMaxPrice = unitCost =>
+  Math.round(retailAveragePrice(unitCost) * GAME_RULES.pricing.retailMaxAverageMultiplier * 100) / 100;
+const retailProfitFactor = (unitCost, unitPrice) => {
+  const average = retailAveragePrice(unitCost);
+  const minimum = retailMinPrice(unitCost);
+  const maximum = retailMaxPrice(unitCost);
+  const peakLow = average * (1 - GAME_RULES.pricing.retailPeakBand);
+  const peakHigh = average * (1 + GAME_RULES.pricing.retailPeakBand);
+  const price = Number(unitPrice || 0);
+
+  if (!(average > 0) || price <= minimum || price >= maximum) return 0;
+  if (price < peakLow) return Math.max(0, Math.min(1, (price - minimum) / Math.max(0.000001, peakLow - minimum)));
+  if (price <= peakHigh) return 1;
+  return Math.max(0, Math.min(1, (maximum - price) / Math.max(0.000001, maximum - peakHigh)));
+};
+const retailEffectiveUnitRevenue = (unitCost, unitPrice) => {
+  const cost = Math.max(0, Number(unitCost || 0));
+  return cost + Math.max(0, retailAveragePrice(cost) - cost) * retailProfitFactor(cost, unitPrice);
+};
+
+function transportContainerFreight(quantity) {
+  const requested = Math.max(0, Number(quantity || 0));
+  const container = state.products.find(product => product.name === 'Transportcontainer');
+  if (!container || requested <= 0) {
+    return { required: requested, available: 0, cost: 0, sufficient: requested <= 0 };
+  }
+
+  const lots = productInventoryLots(container.id)
+    .filter(lot => Number(lot.quantity || 0) > 0)
+    .sort((a,b) =>
+      Number(a.quality_level || 1) - Number(b.quality_level || 1) ||
+      String(a.id || '').localeCompare(String(b.id || ''))
+    );
+
+  const available = lots.reduce((sum, lot) => sum + Number(lot.quantity || 0), 0);
+  let remaining = requested;
+  let cost = 0;
+
+  for (const lot of lots) {
+    if (remaining <= 0) break;
+    const take = Math.min(remaining, Number(lot.quantity || 0));
+    cost += take * Number(lot.average_unit_cost || 0);
+    remaining -= take;
+  }
+
+  return {
+    required: requested,
+    available,
+    cost: Math.round(cost * 100) / 100,
+    sufficient: available + 1e-9 >= requested
+  };
+}
+
 const researchRequirement = quality => Number(quality || 1) <= 1 ? 1000 : 2500 * (Number(quality || 1) - 1);
 const productQuality = product => Math.max(1, Number(product?.quality_level || 1));
 const minimumInputQuality = product => Math.max(1, productQuality(product) - 1);
@@ -1190,7 +1253,10 @@ function retailSelectableProducts() {
     }
 
     return stockedProducts()
-      .filter(product => product.required_retail_building_type_id === selectedBuilding.building_type_id)
+      .filter(product =>
+        product.name !== 'Transportcontainer' &&
+        product.required_retail_building_type_id === selectedBuilding.building_type_id
+      )
       .sort((a,b) => a.name.localeCompare(b.name,uiLocale()));
   }
 
@@ -1312,7 +1378,8 @@ function transactionLabel(type) {
     storage_forced_auction: 'Zwangsversteigerung Lager',
     storage_auction_fee: 'Gebühr Zwangsversteigerung',
     contract_buy: 'Vertragskauf',
-    contract_sale: 'Vertragsverkauf'
+    contract_sale: 'Vertragsverkauf',
+    freight_cost: 'Frachtkosten'
   })[type] || type;
   return translateUiString(label);
 }
@@ -3781,19 +3848,23 @@ function retailSaleContext() {
     : 0;
 
   const productionCost = Number(inventory?.average_unit_cost || 0);
-  const referencePrice = productionCost * 2 * qualityMultiplier(quality);
+  const referencePrice = retailAveragePrice(productionCost);
+  const minimumPrice = retailMinPrice(productionCost);
+  const maximumPrice = retailMaxPrice(productionCost);
   const priceInput = document.getElementById('retailPrice');
   const enteredPrice = Number(priceInput?.value || 0);
   const price = enteredPrice > 0 ? enteredPrice : referencePrice;
-  const priceRatio = referencePrice > 0 ? price / referencePrice : 1;
-  const demandFactor = Math.max(0.10, Math.min(2.00, 1 - 0.375 * (priceRatio - 1)));
-  const unitsPerHour = baseUnitsPerHour > 0 ? Math.max(1, Math.floor(baseUnitsPerHour * demandFactor)) : 0;
+  const profitFactor = retailProfitFactor(productionCost, price);
+  const effectiveUnitRevenue = retailEffectiveUnitRevenue(productionCost, price);
+  const demandFactor = 1;
+  const unitsPerHour = baseUnitsPerHour;
 
   return {
     product, inventory, buildingType, building, runningJob,
     baseProductRetailRate, baseUnitsPerHour, unitsPerHour,
     available: Number(inventory?.quantity || 0),
-    productionCost, quality, referencePrice, price, demandFactor
+    productionCost, quality, referencePrice, minimumPrice, maximumPrice,
+    price, profitFactor, effectiveUnitRevenue, demandFactor
   };
 }
 
@@ -4007,7 +4078,9 @@ function renderRetailSale() {
   const hasStock = ctx.product && qty > 0 && wholeUnits && ctx.available + 1e-9 >= qty;
   const saleHours = ctx.unitsPerHour > 0 ? qty / ctx.unitsPerHour : 0;
   const within24h = saleHours > 0 && saleHours <= 24;
-  const hasPrice = ctx.productionCost > 0 && Number(ctx.price || 0) > 0;
+  const hasPrice = ctx.productionCost > 0 &&
+    Number(ctx.price || 0) >= Number(ctx.minimumPrice || 0) &&
+    Number(ctx.price || 0) <= Number(ctx.maximumPrice || 0);
   const ready = !!ctx.product && !!ctx.building && !ctx.runningJob && hasStock && hasPrice && within24h;
 
   button.classList.remove('retail-cancel-mode');
@@ -4064,7 +4137,7 @@ function renderRetailSale() {
     return;
   }
 
-  const expectedRevenue = ctx.price * Math.max(0, qty);
+  const expectedRevenue = ctx.effectiveUnitRevenue * Math.max(0, qty);
   const cancellationFee = expectedRevenue * GAME_RULES.fees.retailCancellationRate;
   details.innerHTML = ctx.product ? [
     `<div class="kv"><span>Verkaufsgebäude</span><strong>${ctx.buildingType?.name || '–'}</strong></div>`,
@@ -4074,9 +4147,8 @@ function renderRetailSale() {
     `<div class="kv"><span>Qualität</span><strong>Q${ctx.quality} (+${Math.round((qualityMultiplier(ctx.quality)-1)*100)}% Wert)</strong></div>`,
     `<div class="kv"><span>Verfügbarer Bestand</span><strong>${num(ctx.available)} Einheiten</strong></div>`,
     `<div class="kv"><span>Ausgewählte Menge</span><strong>${qty > 0 ? `${num(qty)} Einheiten` : '–'}</strong></div>`,
-    `<div class="kv"><span>${translateUiString('Referenzpreis')}</span><strong>${money(ctx.referencePrice)} / Einheit</strong></div>`,
+    `<div class="kv"><span>${translateUiString('Vorgeschlagener Preis')}</span><strong>${money(ctx.referencePrice)} / Einheit</strong></div>`,
     `<div class="kv"><span>Gewählter Verkaufspreis</span><strong>${money(ctx.price)} / Einheit</strong></div>`,
-    `<div class="kv"><span>Preisbedingte Nachfrage</span><strong>${Math.round(ctx.demandFactor * 100)}%</strong></div>`,
     `<div class="kv"><span>Verkaufsdauer</span><strong>${ctx.building && saleHours > 0 ? formatProductionDuration(saleHours) : '–'}</strong></div>`,
     `<div class="kv"><span>Voraussichtliches Ende</span><strong>${ctx.building && saleHours > 0 ? formatProductionFinish(saleHours) : '–'}</strong></div>`,
     `<div class="kv"><span>Erwarteter Erlös</span><strong class="retail-revenue-positive">${money(expectedRevenue)}</strong></div>`,
@@ -4449,11 +4521,11 @@ function contractOfferContext() {
     ? materialInventoryLots(itemId).find(l => Number(l.quality_level || 1) === quality)
     : productLot(itemId, quality);
 
-  const referencePrice = type === 'product'
-    ? Number(lot?.average_unit_cost || 0) * 2
-    : 0;
+  const unitCost = Number(lot?.average_unit_cost || 0);
+  const referencePrice = unitCost * GAME_RULES.pricing.playerRecommendedCostMultiplier;
+  const freight = transportContainerFreight(quantity);
 
-  return { type, item, lot, quality, quantity, price, referencePrice };
+  return { type, item, lot, quality, quantity, price, unitCost, referencePrice, freight };
 }
 
 function renderContractPreview() {
@@ -4467,16 +4539,20 @@ function renderContractPreview() {
   }
 
   const available = Number(ctx.lot.quantity || 0);
-  const unitCost = Number(ctx.lot.average_unit_cost || 0);
+  const unitCost = Number(ctx.unitCost || ctx.lot.average_unit_cost || 0);
   const totalCost = ctx.quantity * unitCost;
+  const freightCost = Number(ctx.freight?.cost || 0);
   const revenue = ctx.quantity * ctx.price;
-  const profit = revenue - totalCost;
+  const profit = revenue - totalCost - freightCost;
   const costLabel = ctx.type === 'material' ? 'Einstandskosten' : 'Produktionskosten';
   const profitClass = profit >= 0 ? 'retail-revenue-positive' : 'retail-cancel-fee';
+  const freightClass = ctx.freight?.sufficient ? 'retail-cancel-fee' : 'missing-building-warning';
 
   preview.innerHTML = `
     <div class="kv"><span>Verfügbarer Bestand</span><strong>${num(available)}</strong></div>
     <div class="kv"><span>${translateUiString(costLabel)}</span><strong class="retail-cancel-fee">${totalCost > 0 ? `-${money(totalCost)}` : money(0)}</strong></div>
+    <div class="kv"><span>Frachtkosten</span><strong class="${freightClass}">${freightCost > 0 ? `-${money(freightCost)}` : money(0)}</strong></div>
+    <div class="kv"><span>Transportcontainer</span><strong class="${ctx.freight?.sufficient ? '' : 'missing-building-warning'}">${num(ctx.freight?.available || 0)} / ${num(ctx.quantity)} verfügbar</strong></div>
     <div class="kv"><span>${translateUiString('Erlös')}</span><strong class="retail-revenue-positive">${money(revenue)}</strong></div>
     <div class="kv"><span>${translateUiString('Gewinn / Verlust')}</span><strong class="${profitClass}">${profit >= 0 ? '+' : '-'}${money(Math.abs(profit))}</strong></div>
   `;
@@ -4509,7 +4585,7 @@ function updateContractQualityOptions() {
 
   const priceInput = document.getElementById('contractPrice');
   const ctx = contractOfferContext();
-  if (priceInput && ctx.type === 'product' && ctx.referencePrice > 0) {
+  if (priceInput && ctx.referencePrice > 0) {
     priceInput.value = ctx.referencePrice.toFixed(2);
   }
 
@@ -4807,7 +4883,7 @@ function financeMovementCategory(transaction) {
 
   if (['market_sale','retail_sale'].includes(type)) return 'sales';
   if (['production','production_refund'].includes(type)) return 'production';
-  if (['market_buy','market_fee','retail_cancel_fee','retail_cancel_refund'].includes(type)) return 'trade';
+  if (['market_buy','market_fee','freight_cost','retail_cancel_fee','retail_cancel_refund'].includes(type)) return 'trade';
   if (['construction','building_refund'].includes(type)) return 'building';
   if (['storage_fee','storage_forced_auction'].includes(type)) return 'storage';
   if (['research','research_investment'].includes(type)) return 'research';
@@ -4949,6 +5025,7 @@ function renderFinanceSummary() {
   );
   const marketBuyCosts = costType('market_buy');
   const contractBuyCosts = costType('contract_buy');
+  const freightCosts = costType('freight_cost');
   const retailCancelFees = costType('retail_cancel_fee');
   const storageHoldingCosts = costType('storage_fee');
   const directResearchCosts =
@@ -4965,7 +5042,7 @@ function renderFinanceSummary() {
   const excludedResultTypes = new Set([
     'market_sale','retail_sale','contract_sale','storage_forced_auction',
     'production_refund','retail_cancel_refund',
-    'production','market_buy','contract_buy','market_fee','retail_cancel_fee',
+    'production','market_buy','contract_buy','market_fee','freight_cost','retail_cancel_fee',
     'storage_fee','research','research_investment',
     'construction','building_refund',
     'bond_interest_income','bond_interest_state','bond_interest_paid',
@@ -4995,6 +5072,7 @@ function renderFinanceSummary() {
     marketBuyCosts +
     contractBuyCosts +
     marketFees +
+    freightCosts +
     retailCancelFees +
     storageHoldingCosts +
     directResearchCosts +
@@ -5031,6 +5109,7 @@ function renderFinanceSummary() {
     financeStatementRow('Markteinkäufe', marketBuyCosts, { cost:true }),
     financeStatementRow('Vertragskäufe', contractBuyCosts, { cost:true }),
     financeStatementRow('Marktgebühren', marketFees, { cost:true }),
+    financeStatementRow('Frachtkosten', freightCosts, { cost:true }),
     financeStatementRow('Storno-/Abbruchgebühren', retailCancelFees, { cost:true }),
     financeStatementRow('Lagerhaltungskosten', storageHoldingCosts, { cost:true }),
     financeStatementRow('Forschungskosten', directResearchCosts, { cost:true })
@@ -7712,14 +7791,20 @@ function sellOrderContext() {
   if (type === 'material') {
     const item = state.materials.find(m => m.id === itemId);
     const lot = materialInventoryLots(itemId).find(l => Number(l.quality_level || 1) === quality);
-    const referencePrice = Number(item?.base_cost || 0) * qualityMultiplier(quality);
-    return { type, item, lot, quality, quantity, price, referencePrice };
+    const unitCost = Number(lot?.average_unit_cost || 0);
+    const referencePrice = unitCost * GAME_RULES.pricing.playerRecommendedCostMultiplier;
+    const minimumPrice = unitCost * GAME_RULES.pricing.marketMinCostMultiplier;
+    const freight = transportContainerFreight(quantity);
+    return { type, item, lot, quality, quantity, price, unitCost, referencePrice, minimumPrice, freight };
   }
 
   const item = state.products.find(p => p.id === itemId);
   const lot = productLot(itemId, quality);
-  const referencePrice = Number(lot?.average_unit_cost || 0) * 2;
-  return { type, item, lot, quality, quantity, price, referencePrice };
+  const unitCost = Number(lot?.average_unit_cost || 0);
+  const referencePrice = unitCost * GAME_RULES.pricing.playerRecommendedCostMultiplier;
+  const minimumPrice = unitCost * GAME_RULES.pricing.marketMinCostMultiplier;
+  const freight = transportContainerFreight(quantity);
+  return { type, item, lot, quality, quantity, price, unitCost, referencePrice, minimumPrice, freight };
 }
 
 function renderSellOrderPreview() {
@@ -7735,16 +7820,22 @@ function renderSellOrderPreview() {
   const gross = ctx.quantity * ctx.price;
   const fee = gross * GAME_RULES.fees.marketRate;
   const net = gross - fee;
-  const unitCost = Number(ctx.lot?.average_unit_cost || 0);
+  const unitCost = Number(ctx.unitCost || ctx.lot?.average_unit_cost || 0);
   const totalCost = ctx.quantity * unitCost;
-  const profit = net - totalCost;
+  const freightCost = Number(ctx.freight?.cost || 0);
+  const profit = net - totalCost - freightCost;
   const costLabel = ctx.type === 'material' ? 'Einstandskosten' : 'Produktionskosten';
   const profitClass = profit >= 0 ? 'retail-revenue-positive' : 'retail-cancel-fee';
+  const freightClass = ctx.freight?.sufficient ? 'retail-cancel-fee' : 'missing-building-warning';
 
   preview.innerHTML = `
+    <div class="kv"><span>Vorgeschlagener Preis</span><strong>${money(ctx.referencePrice)} / Einheit</strong></div>
+    <div class="kv"><span>Mindestpreis</span><strong>${money(ctx.minimumPrice)} / Einheit</strong></div>
     <div class="kv"><span>Gewählter Orderpreis</span><strong>${money(ctx.price)} / Einheit</strong></div>
     <div class="kv"><span>Bruttoerlös</span><strong>${money(gross)}</strong></div>
     <div class="kv"><span>${translateUiString(costLabel)}</span><strong class="retail-cancel-fee">${totalCost > 0 ? `-${money(totalCost)}` : money(0)}</strong></div>
+    <div class="kv"><span>Frachtkosten</span><strong class="${freightClass}">${freightCost > 0 ? `-${money(freightCost)}` : money(0)}</strong></div>
+    <div class="kv"><span>Transportcontainer</span><strong class="${ctx.freight?.sufficient ? '' : 'missing-building-warning'}">${num(ctx.freight?.available || 0)} / ${num(ctx.quantity)} verfügbar</strong></div>
     <div class="kv"><span>Marktgebühr (${rulePercent(GAME_RULES.fees.marketRate)}%)</span><strong class="retail-cancel-fee">${fee > 0 ? `-${money(fee)}` : money(0)}</strong></div>
     <div class="kv"><span>Nettoerlös</span><strong class="retail-revenue-positive">${money(net)}</strong></div>
     <div class="kv"><span>${translateUiString('Gewinn / Verlust')}</span><strong class="${profitClass}">${profit >= 0 ? '+' : '-'}${money(Math.abs(profit))}</strong></div>
@@ -7811,8 +7902,15 @@ document.getElementById('sellOrderForm').addEventListener('submit', async e => {
   e.preventDefault();
 
   const ctx = sellOrderContext();
-  if (!ctx.item || !ctx.lot || ctx.quantity <= 0 || ctx.price <= 0) {
+  if (
+    !ctx.item || !ctx.lot || ctx.quantity <= 0 ||
+    ctx.price < Number(ctx.minimumPrice || 0) ||
+    !ctx.freight?.sufficient
+  ) {
     renderSellOrderPreview();
+    if (ctx.quantity > 0 && !ctx.freight?.sufficient) {
+      gameAlert(`Nicht genügend Transportcontainer. Benötigt: ${num(ctx.quantity)}, verfügbar: ${num(ctx.freight?.available || 0)}`);
+    }
     return;
   }
 
@@ -8214,7 +8312,7 @@ document.getElementById('contractItem')?.addEventListener('change', updateContra
 document.getElementById('contractQuality')?.addEventListener('change', () => {
   const priceInput = document.getElementById('contractPrice');
   const ctx = contractOfferContext();
-  if (priceInput && ctx.type === 'product' && ctx.referencePrice > 0) {
+  if (priceInput && ctx.referencePrice > 0) {
     priceInput.value = ctx.referencePrice.toFixed(2);
   }
   renderContractPreview();
@@ -8241,6 +8339,10 @@ document.getElementById('contractForm').addEventListener('submit',async e=>{
   }
   if (ctx.quantity <= 0 || ctx.quantity > Number(ctx.lot.quantity || 0)) {
     gameAlert(`Die Vertragsmenge darf höchstens ${num(ctx.lot.quantity || 0)} betragen.`);
+    return;
+  }
+  if (!ctx.freight?.sufficient) {
+    gameAlert(`Nicht genügend Transportcontainer. Benötigt: ${num(ctx.quantity)}, verfügbar: ${num(ctx.freight?.available || 0)}`);
     return;
   }
 
