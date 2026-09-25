@@ -1120,7 +1120,7 @@
       .oc-select-option{min-height:46px;padding:.7rem .8rem}
     }
   
-    /* v0.10.180 – einheitliche Navigationsleiste auf Desktop und Mobile */
+    /* v0.10.181 – Handelssystem-Korrekturen */
     .app-shell{
       display:block!important;
       min-height:100dvh!important;
@@ -1556,6 +1556,17 @@
     .nav-logout:hover,
     .company-reset-btn:hover,
     .company-delete-btn:hover{
+      background:var(--danger-button-hover)!important;
+      border-color:var(--danger-button-hover)!important;
+      color:#fff!important;
+    }
+
+    .production-cancel{
+      background:var(--danger-button)!important;
+      border-color:var(--danger-button)!important;
+      color:#fff!important;
+    }
+    .production-cancel:hover{
       background:var(--danger-button-hover)!important;
       border-color:var(--danger-button-hover)!important;
       color:#fff!important;
@@ -2074,7 +2085,7 @@
           <h2>Einstellungen</h2>
           <div class="kv">
             <span>Version</span>
-            <strong>0.10.180</strong>
+            <strong>0.10.181</strong>
           </div>
           <div class="kv settings-language-row">
             <span>Sprache</span>

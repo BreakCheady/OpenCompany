@@ -88,7 +88,7 @@ const I18N_EN = {
   'Nur gleicher Artikel':'Same item only','Frei':'Available','Im Bau / Ausbau':'Under construction / upgrade',
   'Produktion läuft':'Production running','Verkauf läuft':'Retail sale running','Auftrag öffnen':'Open order',
   'Verkauf öffnen':'Open sale','Im Handel verwenden':'Use for retail','Ausbauen':'Upgrade','Abreißen':'Demolish','Abstufen':'Downgrade',
-  'Bau abbrechen':'Cancel construction','Auswählen':'Select','Produktionskosten fehlen':'Production costs missing',
+  'Bau abbrechen':'Cancel construction','Auswählen':'Select','Produktionskosten fehlen':'Production costs missing','Verkauf nicht möglich':'Sale not possible',
   'Nicht genügend Bestand':'Insufficient inventory','Maximal 24 Std. Verkaufsdauer':'Maximum retail duration: 24 hours',
   'Keine Auswahl verfügbar':'No options available','Bitte wählen':'Please select','Keine passenden Bestände im Lager':'No matching stock in storage',
   'Keine passenden Produkte verfügbar':'No matching products available','Keine Qualität auf Lager':'No quality in storage',
@@ -1054,8 +1054,8 @@ const retailProfitFactor = (unitCost, unitPrice) => {
   return Math.max(0, Math.min(1, (maximum - price) / Math.max(0.000001, maximum - peakHigh)));
 };
 const retailEffectiveUnitRevenue = (unitCost, unitPrice) => {
-  const cost = Math.max(0, Number(unitCost || 0));
-  return cost + Math.max(0, retailAveragePrice(cost) - cost) * retailProfitFactor(cost, unitPrice);
+  const price = Math.max(0, Number(unitPrice || 0));
+  return price * retailProfitFactor(unitCost, price);
 };
 
 function transportContainerFreight(quantity) {
@@ -1900,6 +1900,36 @@ function startNpcMarketHeartbeat() {
   npcMarketCountdownTimer = setInterval(updateMarketRefreshTimer, 1000);
 }
 
+async function fetchPermanentTransportContainerMarketOrder() {
+  if (!sb) return null;
+  const container = state.allProducts.find(product => product.name === 'Transportcontainer');
+  if (!container) return null;
+
+  const { data, error } = await sb
+    .from('market_orders')
+    .select('*, products(name), materials(name)')
+    .eq('product_id', container.id)
+    .in('status', ['open','partially_filled'])
+    .gt('remaining_quantity', 0)
+    .order('created_at', { ascending:false })
+    .limit(1);
+
+  if (error) {
+    console.error('Permanente Transportcontainer-Order konnte nicht geladen werden:', error);
+    return null;
+  }
+  return data?.[0] || null;
+}
+
+function withPermanentTransportContainerOrder(orders, permanentOrder) {
+  const rows = [...(orders || [])];
+  if (!permanentOrder) return rows;
+  const index = rows.findIndex(order => order.id === permanentOrder.id);
+  if (index >= 0) rows[index] = permanentOrder;
+  else rows.push(permanentOrder);
+  return rows;
+}
+
 async function refreshMarketData() {
   if (!sb || !state.company?.id) return;
 
@@ -1932,7 +1962,8 @@ async function refreshMarketData() {
       return;
     }
 
-    state.marketOrders = ordersResult.data || [];
+    const permanentTransportOrder = await fetchPermanentTransportContainerMarketOrder();
+    state.marketOrders = withPermanentTransportContainerOrder(ordersResult.data || [], permanentTransportOrder);
     state.companyDirectory = directoryResult.data || [];
     state.selectedMarketOrderIds = state.selectedMarketOrderIds.filter(id =>
       state.marketOrders.some(order => order.id === id)
@@ -2973,7 +3004,9 @@ async function loadGameData() {
   state.productionJobs = productionJobs.data;
   state.retailSaleJobs = retailSaleJobs.data;
   state.transactions = tx.data;
-  state.marketOrders = orders.data;
+  state.marketOrders = orders.data || [];
+  const permanentTransportOrder = await fetchPermanentTransportContainerMarketOrder();
+  state.marketOrders = withPermanentTransportContainerOrder(state.marketOrders, permanentTransportOrder);
   state.marketTrades = marketTrades.data || [];
   state.contracts = contracts.data;
   state.companyDirectory = directory.data || [];
@@ -4078,10 +4111,11 @@ function renderRetailSale() {
   const hasStock = ctx.product && qty > 0 && wholeUnits && ctx.available + 1e-9 >= qty;
   const saleHours = ctx.unitsPerHour > 0 ? qty / ctx.unitsPerHour : 0;
   const within24h = saleHours > 0 && saleHours <= 24;
-  const hasPrice = ctx.productionCost > 0 &&
+  const hasProductionCost = ctx.productionCost > 0;
+  const priceWithinRange = hasProductionCost &&
     Number(ctx.price || 0) >= Number(ctx.minimumPrice || 0) &&
     Number(ctx.price || 0) <= Number(ctx.maximumPrice || 0);
-  const ready = !!ctx.product && !!ctx.building && !ctx.runningJob && hasStock && hasPrice && within24h;
+  const ready = !!ctx.product && !!ctx.building && !ctx.runningJob && hasStock && priceWithinRange && within24h;
 
   button.classList.remove('retail-cancel-mode');
   select.disabled = !!ctx.runningJob;
@@ -4165,8 +4199,10 @@ function renderRetailSale() {
     button.textContent = 'Nur ganze Einheiten';
   } else if (!hasStock) {
     button.textContent = 'Nicht genügend Bestand';
-  } else if (!hasPrice) {
+  } else if (!hasProductionCost) {
     button.textContent = 'Produktionskosten fehlen';
+  } else if (!priceWithinRange) {
+    button.textContent = 'Verkauf nicht möglich';
   } else if (!within24h) {
     button.textContent = 'Maximal 24 Std. Verkaufsdauer';
   } else {
@@ -4192,8 +4228,9 @@ function filteredMarketOrders() {
 
     if (o.product_id && o.company_id !== state.company?.id) {
       const orderProduct = state.allProducts.find(p => p.id === o.product_id);
+      const isPermanentTransportContainer = orderProduct?.name === 'Transportcontainer';
       const key = orderProduct ? `${orderProduct.name}::${orderProduct.category}` : '';
-      if (!visibleProductKeys.has(key)) return false;
+      if (!isPermanentTransportContainer && !visibleProductKeys.has(key)) return false;
     }
 
     const orderQuality = Number(o.quality_level || 1);
