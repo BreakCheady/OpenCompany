@@ -2841,7 +2841,7 @@ async function loadGameData() {
   state.inventory = inventory.data;
   state.materials = materials.data;
   state.materialInventory = materialInventory.data;
-  state.recipes = recipes.data.filter(r => state.products.some(p => p.id === r.product_id));
+  state.recipes = recipes.data || [];
   state.buildingTypes = buildingTypes.data;
   state.buildings = buildings.data;
   if (state.selectedBuildingId && !state.buildings.some(b => b.id === state.selectedBuildingId)) state.selectedBuildingId = null;
@@ -6063,10 +6063,238 @@ function encyclopediaRecipeRows(product) {
     candidate.id === product.id ||
     (candidate.name === product.name && candidate.category === product.category)
   );
-  if (!ownedProduct) return [];
 
-  return (state.recipes || []).filter(row => row.product_id === ownedProduct.id);
+  const recipeProduct = ownedProduct || product;
+  if (!recipeProduct?.id) return [];
+
+  return (state.recipes || []).filter(row => row.product_id === recipeProduct.id);
 }
+
+function encyclopediaCalculatorBuildingContext(product) {
+  const matchingBuildings = (state.buildings || [])
+    .filter(building =>
+      building.status === 'active' &&
+      building.building_type_id === product?.required_building_type_id
+    )
+    .sort((a, b) => Number(b.level || 1) - Number(a.level || 1));
+
+  const building = matchingBuildings[0] || null;
+  const level = Math.max(1, Number(building?.level || 1));
+  const baseRate = Math.max(0, Number(product?.base_production_rate || 0));
+  const unitsPerHour = baseRate > 0
+    ? Math.max(1, Math.floor(baseRate * buildingLevelMultiplier(level)))
+    : 0;
+
+  return {
+    building,
+    level,
+    baseRate,
+    unitsPerHour,
+    usesOwnedBuilding: !!building
+  };
+}
+
+function encyclopediaProductionInput(rawValue, product) {
+  const raw = String(rawValue ?? '').trim().toLowerCase();
+  const context = encyclopediaCalculatorBuildingContext(product);
+
+  const hoursMatch = raw.match(/^(\d{1,2}(?:[.,]\d{1,2})?)\s*(?:h|hr|hrs|std|stunden)$/i);
+  if (hoursMatch) {
+    const hours = Number(hoursMatch[1].replace(',', '.'));
+    if (hours > 0 && hours <= 24 && context.unitsPerHour > 0) {
+      return {
+        valid: true,
+        mode: 'hours',
+        hours,
+        units: Math.floor(context.unitsPerHour * hours),
+        context
+      };
+    }
+  }
+
+  const clock24Match = raw.match(/^([01]?\d|2[0-3]):([0-5]\d)$/);
+  if (clock24Match && context.unitsPerHour > 0) {
+    const now = new Date();
+    const target = new Date(now);
+    target.setHours(Number(clock24Match[1]), Number(clock24Match[2]), 0, 0);
+    if (target <= now) target.setDate(target.getDate() + 1);
+
+    const hours = (target.getTime() - now.getTime()) / 3600000;
+    if (hours > 0 && hours <= 24.01) {
+      return {
+        valid: true,
+        mode: 'time',
+        hours,
+        units: Math.floor(context.unitsPerHour * hours),
+        targetTime: target,
+        context
+      };
+    }
+  }
+
+  const amPmMatch = raw.match(/^(\d{1,2})(?::([0-5]\d))?\s*(am|pm)$/i);
+  if (amPmMatch && context.unitsPerHour > 0) {
+    let hour = Number(amPmMatch[1]);
+    const minute = Number(amPmMatch[2] || 0);
+    const meridiem = amPmMatch[3].toLowerCase();
+
+    if (hour >= 1 && hour <= 12) {
+      if (hour === 12) hour = 0;
+      if (meridiem === 'pm') hour += 12;
+
+      const now = new Date();
+      const target = new Date(now);
+      target.setHours(hour, minute, 0, 0);
+      if (target <= now) target.setDate(target.getDate() + 1);
+
+      const hours = (target.getTime() - now.getTime()) / 3600000;
+      if (hours > 0 && hours <= 24.01) {
+        return {
+          valid: true,
+          mode: 'time',
+          hours,
+          units: Math.floor(context.unitsPerHour * hours),
+          targetTime: target,
+          context
+        };
+      }
+    }
+  }
+
+  const numeric = Number(raw.replace(',', '.'));
+  if (Number.isFinite(numeric) && numeric > 0) {
+    const units = Math.floor(numeric);
+    return {
+      valid: units > 0,
+      mode: 'units',
+      hours: context.unitsPerHour > 0 ? units / context.unitsPerHour : null,
+      units,
+      context
+    };
+  }
+
+  return {
+    valid: false,
+    mode: 'invalid',
+    hours: null,
+    units: 0,
+    context
+  };
+}
+
+function encyclopediaRecipeQuantity(value) {
+  return new Intl.NumberFormat(uiLocale(), {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 4
+  }).format(Number(value || 0));
+}
+
+function encyclopediaRecipeCalculatorHtml(product) {
+  const rows = encyclopediaRecipeRows(product);
+  if (!rows.length) return '';
+
+  const calculatorId = `encyclopedia-recipe-calculator-${encyclopediaSlug(product.id || product.name)}`;
+  const resultId = `${calculatorId}-result`;
+  const productId = encyclopediaEscapeHtml(product.id || '');
+
+  return `
+    <div class="encyclopedia-recipe-calculator">
+      <h3>Materialrechner</h3>
+      <p class="muted">Menge oder Produktionszeit eingeben, z. B. <strong>500</strong>, <strong>6hrs</strong>, <strong>6h</strong>, <strong>18:00</strong> oder <strong>6pm</strong>.</p>
+      <label for="${calculatorId}">Menge / Stunden / Uhrzeit
+        <input
+          id="${calculatorId}"
+          class="encyclopedia-recipe-calculator-input"
+          type="text"
+          inputmode="text"
+          autocomplete="off"
+          placeholder="z. B. 500, 6hrs oder 18:00"
+          oninput="updateEncyclopediaRecipeCalculator('${productId}', this.value, '${resultId}')">
+      </label>
+      <div id="${resultId}" class="encyclopedia-recipe-calculator-result muted">
+        Eingabe machen, um den Materialbedarf zu berechnen.
+      </div>
+    </div>
+  `;
+}
+
+window.updateEncyclopediaRecipeCalculator = function(productId, rawValue, resultId) {
+  const result = document.getElementById(resultId);
+  if (!result) return;
+
+  const product = (state.products || []).find(item => item.id === productId)
+    || (state.allProducts || []).find(item => item.id === productId);
+
+  if (!product) {
+    result.innerHTML = `<p class="status error">${translateUiString('Produkt nicht gefunden.')}</p>`;
+    return;
+  }
+
+  const rows = encyclopediaRecipeRows(product);
+  if (!rows.length) {
+    result.innerHTML = '<p class="muted">Für dieses Produkt ist kein Rezept verfügbar.</p>';
+    return;
+  }
+
+  const parsed = encyclopediaProductionInput(rawValue, product);
+  if (!String(rawValue ?? '').trim()) {
+    result.innerHTML = '<p class="muted">Eingabe machen, um den Materialbedarf zu berechnen.</p>';
+    return;
+  }
+
+  if (!parsed.valid) {
+    const timeUnavailable = parsed.context.unitsPerHour <= 0;
+    result.innerHTML = timeUnavailable
+      ? '<p class="status error">Bitte eine gültige Stückzahl eingeben. Für Zeitangaben ist bei diesem Produkt keine Produktionsrate verfügbar.</p>'
+      : '<p class="status error">Bitte eine gültige Menge oder Zeitangabe eingeben, z. B. 500, 6hrs, 6h, 18:00 oder 6pm.</p>';
+    return;
+  }
+
+  const materialRows = rows.map(row => {
+    const material = row.material_id
+      ? (state.materials || []).find(item => item.id === row.material_id)
+      : null;
+    const component = row.component_product_id
+      ? ((state.products || []).find(item => item.id === row.component_product_id)
+        || (state.allProducts || []).find(item => item.id === row.component_product_id))
+      : null;
+
+    const name = material?.name || component?.name || 'Unbekannte Komponente';
+    const unit = material?.unit || (component ? 'Stück' : '');
+    const required = Number(row.quantity_per_unit || 0) * parsed.units;
+
+    return `<div class="encyclopedia-recipe-calculator-row">
+      <span>${encyclopediaEscapeHtml(name)}</span>
+      <strong>${encyclopediaRecipeQuantity(required)}${unit ? ` ${encyclopediaEscapeHtml(unit)}` : ''}</strong>
+    </div>`;
+  }).join('');
+
+  const context = parsed.context;
+  const buildingText = context.usesOwnedBuilding
+    ? `Berechnung mit deinem höchsten aktiven passenden Gebäude: Level ${context.level} · ${num(context.unitsPerHour)} Einheiten / Std.`
+    : `Planungswert mit Gebäude Level 1: ${num(context.unitsPerHour)} Einheiten / Std.`;
+
+  const durationText = parsed.hours !== null
+    ? `${parsed.hours.toLocaleString(uiLocale(), { minimumFractionDigits: 0, maximumFractionDigits: 2 })} Std.`
+    : '–';
+
+  const targetText = parsed.targetTime
+    ? ` · Ziel ${parsed.targetTime.toLocaleTimeString(uiLocale(), { hour:'2-digit', minute:'2-digit' })} Uhr`
+    : '';
+
+  result.innerHTML = `
+    <div class="encyclopedia-recipe-calculator-summary">
+      <div><span>Produktionsmenge</span><strong>${num(parsed.units)} Einheiten</strong></div>
+      <div><span>Produktionsdauer</span><strong>${durationText}${targetText}</strong></div>
+    </div>
+    <div class="encyclopedia-recipe-calculator-materials">
+      ${materialRows}
+    </div>
+    <p class="muted encyclopedia-recipe-calculator-note">${buildingText}</p>
+  `;
+
+  applyLanguageToDom(result);
+};
 
 function encyclopediaRecipeText(product) {
   const rows = encyclopediaRecipeRows(product);
@@ -6123,6 +6351,7 @@ function dynamicProductEncyclopediaArticles() {
           ${currentQuality ? `<p><strong>Deine aktuelle Qualität:</strong> Q${currentQuality} (+${rulePercent(qualityMultiplier(currentQuality)-1)} % Wertbonus)</p>` : '<p><strong>Dein Unternehmen:</strong> Dieses Produkt ist aktuell nicht in deinem eigenen Produktkatalog vorhanden.</p>'}
           <h3>Produktionsrezept</h3>
           ${encyclopediaRecipeText(product)}
+          ${encyclopediaRecipeCalculatorHtml(product)}
         `,
         example: currentQuality
           ? `<p>Bei Q${currentQuality} beträgt der aktuelle Qualitätsbonus +${rulePercent(qualityMultiplier(currentQuality)-1)} %.</p>`
