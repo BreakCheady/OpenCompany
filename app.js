@@ -4588,8 +4588,8 @@ function renderContractPreview() {
   preview.innerHTML = `
     <div class="kv"><span>Verfügbarer Bestand</span><strong>${num(available)}</strong></div>
     <div class="kv"><span>${translateUiString(costLabel)}</span><strong class="retail-cancel-fee">${totalCost > 0 ? `-${money(totalCost)}` : money(0)}</strong></div>
-    <div class="kv"><span>Frachtkosten</span><strong class="${freightClass}">${freightCost > 0 ? `-${money(freightCost)}` : money(0)}</strong></div>
-    <div class="kv"><span>Transportcontainer</span><strong class="${ctx.freight?.sufficient ? '' : 'missing-building-warning'}">${num(ctx.freight?.available || 0)} / ${num(ctx.quantity)} verfügbar</strong></div>
+    <div class="kv"><span>Frachtkosten</span><strong class="${freightClass}">${ctx.freight?.exempt ? 'Nicht erforderlich' : (freightCost > 0 ? `-${money(freightCost)}` : money(0))}</strong></div>
+    <div class="kv"><span>Transportcontainer</span><strong class="${ctx.freight?.sufficient ? '' : 'missing-building-warning'}">${ctx.freight?.exempt ? 'Nicht erforderlich' : `${num(ctx.freight?.available || 0)} / ${num(ctx.quantity)} verfügbar`}</strong></div>
     <div class="kv"><span>${translateUiString('Erlös')}</span><strong class="retail-revenue-positive">${money(revenue)}</strong></div>
     <div class="kv"><span>${translateUiString('Gewinn / Verlust')}</span><strong class="${profitClass}">${profit >= 0 ? '+' : '-'}${money(Math.abs(profit))}</strong></div>
   `;
@@ -7840,8 +7840,11 @@ function sellOrderContext() {
   const unitCost = Number(lot?.average_unit_cost || 0);
   const referencePrice = unitCost * GAME_RULES.pricing.playerRecommendedCostMultiplier;
   const minimumPrice = unitCost * GAME_RULES.pricing.marketMinCostMultiplier;
-  const freight = transportContainerFreight(quantity);
-  return { type, item, lot, quality, quantity, price, unitCost, referencePrice, minimumPrice, freight };
+  const isTransportContainer = item?.name === 'Transportcontainer';
+  const freight = isTransportContainer
+    ? { required: 0, available: 0, cost: 0, sufficient: true, exempt: true }
+    : transportContainerFreight(quantity);
+  return { type, item, lot, quality, quantity, price, unitCost, referencePrice, minimumPrice, freight, isTransportContainer };
 }
 
 function renderSellOrderPreview() {
