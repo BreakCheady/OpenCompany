@@ -218,6 +218,10 @@ Object.assign(I18N_EN, {
   'Verkaufsrate':'Sales rate','Verfügbarer Bestand':'Available stock','Ausgewählte Menge':'Selected quantity',
   'Gewählter Verkaufspreis':'Selected retail price','Preisbedingte Nachfrage':'Price-driven demand',
   'Verkaufsdauer':'Sale duration','Erwarteter Erlös':'Expected revenue','Abbruchgebühr':'Cancellation fee',
+  'Verkaufsrechner':'Retail calculator','Gebäudelevel':'Building level','Produkt auswählen':'Select product',
+  'Menge / Stunden / Uhrzeit':'Quantity / hours / time','Verkaufspreis':'Sale price',
+  'Nachfrage':'Demand','Effektive Verkaufsrate':'Effective sales rate','Basis-Verkaufsrate':'Base sales rate',
+  'Referenzpreis':'Reference price','Erwarteter Umsatz':'Expected revenue',
   'Wert':'value','Einheit':'unit',
 
   // Market
@@ -6425,6 +6429,288 @@ function dynamicProductEncyclopediaArticles() {
   });
 }
 
+
+function encyclopediaRetailProductLot(product, quality) {
+  if (!product?.id) return null;
+  return (state.inventory || []).find(row =>
+    row.product_id === product.id &&
+    Number(row.quality_level || 1) === Number(quality || 1) &&
+    Number(row.average_unit_cost || 0) > 0
+  ) || null;
+}
+
+function encyclopediaRetailReferencePrice(product, quality) {
+  const q = Math.max(1, Number(quality || 1));
+  const ownedProduct = (state.products || []).find(candidate =>
+    candidate.id === product?.id ||
+    (candidate.name === product?.name && candidate.category === product?.category)
+  ) || product;
+
+  const lot = encyclopediaRetailProductLot(ownedProduct, q);
+  if (lot?.average_unit_cost > 0) {
+    return { value:Number(lot.average_unit_cost) * 2 * qualityMultiplier(q), source:'inventory' };
+  }
+
+  const suggested = Number(ownedProduct?.suggested_retail_price || product?.suggested_retail_price || 0);
+  if (suggested > 0) {
+    return { value:suggested * qualityMultiplier(q), source:'suggested' };
+  }
+
+  const productionCost = Number(ownedProduct?.production_cost || product?.production_cost || 0);
+  if (productionCost > 0) {
+    return { value:productionCost * 2 * qualityMultiplier(q), source:'production' };
+  }
+
+  return { value:0, source:'none' };
+}
+
+function encyclopediaRetailInput(rawValue, unitsPerHour) {
+  const raw = String(rawValue ?? '').trim().toLowerCase();
+  const rate = Math.max(0, Number(unitsPerHour || 0));
+
+  const hoursMatch = raw.match(/^(\d{1,2}(?:[.,]\d{1,2})?)\s*(?:h|hr|hrs|std|stunden)$/i);
+  if (hoursMatch && rate > 0) {
+    const hours = Number(hoursMatch[1].replace(',', '.'));
+    if (hours > 0 && hours <= 24) {
+      return { valid:true, mode:'hours', hours, units:Math.floor(rate * hours), targetTime:null };
+    }
+  }
+
+  const clock24Match = raw.match(/^([01]?\d|2[0-3]):([0-5]\d)$/);
+  if (clock24Match && rate > 0) {
+    const now = new Date();
+    const target = new Date(now);
+    target.setHours(Number(clock24Match[1]), Number(clock24Match[2]), 0, 0);
+    if (target <= now) target.setDate(target.getDate() + 1);
+    const hours = (target.getTime() - now.getTime()) / 3600000;
+    if (hours > 0 && hours <= 24.01) {
+      return { valid:true, mode:'time', hours, units:Math.floor(rate * hours), targetTime:target };
+    }
+  }
+
+  const amPmMatch = raw.match(/^(\d{1,2})(?::([0-5]\d))?\s*(am|pm)$/i);
+  if (amPmMatch && rate > 0) {
+    let hour = Number(amPmMatch[1]);
+    const minute = Number(amPmMatch[2] || 0);
+    const meridiem = amPmMatch[3].toLowerCase();
+
+    if (hour >= 1 && hour <= 12) {
+      if (hour === 12) hour = 0;
+      if (meridiem === 'pm') hour += 12;
+
+      const now = new Date();
+      const target = new Date(now);
+      target.setHours(hour, minute, 0, 0);
+      if (target <= now) target.setDate(target.getDate() + 1);
+
+      const hours = (target.getTime() - now.getTime()) / 3600000;
+      if (hours > 0 && hours <= 24.01) {
+        return { valid:true, mode:'time', hours, units:Math.floor(rate * hours), targetTime:target };
+      }
+    }
+  }
+
+  const numeric = Number(raw.replace(',', '.'));
+  if (Number.isFinite(numeric) && numeric > 0 && rate > 0) {
+    const units = Math.floor(numeric);
+    const hours = units / rate;
+    return {
+      valid:units > 0 && hours <= 24,
+      mode:'units',
+      hours,
+      units,
+      targetTime:null,
+      exceeds24Hours:hours > 24
+    };
+  }
+
+  return { valid:false, mode:'invalid', hours:null, units:0, targetTime:null };
+}
+
+function encyclopediaRetailCalculatorHtml(buildingType, retailProducts) {
+  if (buildingType?.building_category !== 'retail' || !retailProducts?.length) return '';
+
+  const slug = encyclopediaSlug(buildingType.id || buildingType.name);
+  const firstProduct = retailProducts[0];
+  const initialQuality = Math.max(1, Number(firstProduct?.quality_level || 1));
+  const initialReference = encyclopediaRetailReferencePrice(firstProduct, initialQuality);
+
+  const productOptions = retailProducts.map(product =>
+    `<option value="${encyclopediaEscapeHtml(product.id)}">${encyclopediaEscapeHtml(product.name)}</option>`
+  ).join('');
+
+  return `
+    <div class="encyclopedia-retail-calculator">
+      <h3>${translateUiString('Verkaufsrechner')}</h3>
+      <p class="muted">Gebäudelevel, Produkt, Menge oder Zeit und Verkaufspreis eingeben. Die Berechnung nutzt dieselbe Preis-/Nachfrageformel wie der Handel.</p>
+
+      <div class="encyclopedia-retail-calculator-grid">
+        <label>${translateUiString('Produkt auswählen')}
+          <select id="encyclopedia-retail-product-${slug}"
+            onchange="syncEncyclopediaRetailCalculator('${encyclopediaEscapeHtml(buildingType.id)}','${slug}')">
+            ${productOptions}
+          </select>
+        </label>
+
+        <label>${translateUiString('Gebäudelevel')}
+          <input id="encyclopedia-retail-level-${slug}" type="number" min="1" max="30" step="1" value="1"
+            oninput="updateEncyclopediaRetailCalculator('${encyclopediaEscapeHtml(buildingType.id)}','${slug}')">
+        </label>
+
+        <label>Qualität
+          <input id="encyclopedia-retail-quality-${slug}" type="number" min="1" max="10" step="1" value="${initialQuality}"
+            oninput="syncEncyclopediaRetailCalculator('${encyclopediaEscapeHtml(buildingType.id)}','${slug}')">
+        </label>
+
+        <label>${translateUiString('Menge / Stunden / Uhrzeit')}
+          <input id="encyclopedia-retail-amount-${slug}" type="text" autocomplete="off"
+            placeholder="z. B. 500, 6hrs oder 18:00"
+            oninput="updateEncyclopediaRetailCalculator('${encyclopediaEscapeHtml(buildingType.id)}','${slug}')">
+        </label>
+
+        <label>${translateUiString('Verkaufspreis')}
+          <input id="encyclopedia-retail-price-${slug}" type="number" min="0.01" step="0.01"
+            value="${initialReference.value > 0 ? Number(initialReference.value).toFixed(2) : ''}"
+            oninput="updateEncyclopediaRetailCalculator('${encyclopediaEscapeHtml(buildingType.id)}','${slug}')">
+        </label>
+      </div>
+
+      <div id="encyclopedia-retail-result-${slug}" class="encyclopedia-retail-calculator-result muted">
+        Eingaben machen, um Verkaufsrate, Menge, Dauer und Umsatz zu berechnen.
+      </div>
+    </div>
+  `;
+}
+
+window.syncEncyclopediaRetailCalculator = function(buildingTypeId, slug) {
+  const productSelect = document.getElementById(`encyclopedia-retail-product-${slug}`);
+  const qualityInput = document.getElementById(`encyclopedia-retail-quality-${slug}`);
+  const priceInput = document.getElementById(`encyclopedia-retail-price-${slug}`);
+
+  const product = (state.products || []).find(item => item.id === productSelect?.value)
+    || (state.allProducts || []).find(item => item.id === productSelect?.value);
+  if (!product) return;
+
+  const quality = Math.max(1, Math.floor(Number(qualityInput?.value || product.quality_level || 1)));
+  if (qualityInput) qualityInput.value = quality;
+
+  const reference = encyclopediaRetailReferencePrice(product, quality);
+  if (priceInput && reference.value > 0) priceInput.value = Number(reference.value).toFixed(2);
+
+  updateEncyclopediaRetailCalculator(buildingTypeId, slug);
+};
+
+window.updateEncyclopediaRetailCalculator = function(buildingTypeId, slug) {
+  const productSelect = document.getElementById(`encyclopedia-retail-product-${slug}`);
+  const levelInput = document.getElementById(`encyclopedia-retail-level-${slug}`);
+  const qualityInput = document.getElementById(`encyclopedia-retail-quality-${slug}`);
+  const amountInput = document.getElementById(`encyclopedia-retail-amount-${slug}`);
+  const priceInput = document.getElementById(`encyclopedia-retail-price-${slug}`);
+  const result = document.getElementById(`encyclopedia-retail-result-${slug}`);
+  if (!result) return;
+
+  const product = (state.products || []).find(item => item.id === productSelect?.value)
+    || (state.allProducts || []).find(item => item.id === productSelect?.value);
+  const buildingType = (state.buildingTypes || []).find(item => item.id === buildingTypeId);
+
+  const level = Math.max(1, Math.floor(Number(levelInput?.value || 1)));
+  const quality = Math.max(1, Math.floor(Number(qualityInput?.value || 1)));
+  const price = Number(priceInput?.value || 0);
+
+  if (!product || !buildingType) {
+    result.innerHTML = '<p class="status error">Produkt oder Verkaufsgebäude nicht gefunden.</p>';
+    return;
+  }
+
+  const baseRetailRate = Math.max(0, Number(product.base_retail_rate || 0));
+  const baseUnitsPerHour = baseRetailRate > 0
+    ? Math.max(1, Math.floor(baseRetailRate * buildingLevelMultiplier(level)))
+    : 0;
+
+  const reference = encyclopediaRetailReferencePrice(product, quality);
+  const referencePrice = Number(reference.value || 0);
+
+  if (baseUnitsPerHour <= 0) {
+    result.innerHTML = '<p class="status error">Für dieses Produkt ist keine Verkaufsrate verfügbar.</p>';
+    return;
+  }
+
+  if (!(price > 0)) {
+    result.innerHTML = '<p class="muted">Bitte einen Verkaufspreis größer als 0 OC$ eingeben.</p>';
+    return;
+  }
+
+  if (!(referencePrice > 0)) {
+    result.innerHTML = '<p class="status error">Für dieses Produkt ist kein Referenzpreis verfügbar. Die preisabhängige Nachfrage kann nicht berechnet werden.</p>';
+    return;
+  }
+
+  const priceRatio = price / referencePrice;
+  const demandFactor = Math.max(0.10, Math.min(2.00, 1 - (0.375 * (priceRatio - 1))));
+  const unitsPerHour = Math.max(1, Math.floor(baseUnitsPerHour * demandFactor));
+
+  const sourceText = reference.source === 'inventory'
+    ? 'Referenzpreis aus deinem aktuellen Lager-Einstandswert'
+    : reference.source === 'suggested'
+      ? 'Planungs-Referenzpreis aus den Produktdaten'
+      : 'Planungs-Referenzpreis aus den Produktionskosten';
+
+  if (demandFactor < 0.70) {
+    result.innerHTML = `
+      <p class="status error">Die berechnete Nachfrage liegt bei ${Math.round(demandFactor * 100)} %. Im Spiel muss sie mindestens 70 % betragen.</p>
+      <p class="muted">${sourceText}: ${money(referencePrice)} / Einheit.</p>
+    `;
+    return;
+  }
+
+  const rawAmount = String(amountInput?.value ?? '').trim();
+  if (!rawAmount) {
+    result.innerHTML = `
+      <div class="encyclopedia-retail-calculator-summary">
+        <div><span>${translateUiString('Basis-Verkaufsrate')}</span><strong>${num(baseUnitsPerHour)} Einheiten / Std.</strong></div>
+        <div><span>${translateUiString('Nachfrage')}</span><strong>${Math.round(demandFactor * 100)} %</strong></div>
+        <div><span>${translateUiString('Effektive Verkaufsrate')}</span><strong>${num(unitsPerHour)} Einheiten / Std.</strong></div>
+        <div><span>${translateUiString('Referenzpreis')}</span><strong>${money(referencePrice)}</strong></div>
+      </div>
+      <p class="muted encyclopedia-retail-calculator-note">${sourceText}. Gebäudelevel ${level}, Qualität Q${quality}.</p>
+    `;
+    return;
+  }
+
+  const parsed = encyclopediaRetailInput(rawAmount, unitsPerHour);
+  if (!parsed.valid) {
+    result.innerHTML = parsed.exceeds24Hours
+      ? '<p class="status error">Diese Menge würde länger als 24 Stunden dauern. Im Handel sind maximal 24 Stunden erlaubt.</p>'
+      : '<p class="status error">Bitte eine gültige Menge oder Zeitangabe eingeben, z. B. 500, 6hrs, 6h, 18:00 oder 6pm.</p>';
+    return;
+  }
+
+  const revenue = parsed.units * price;
+  const durationText = `${parsed.hours.toLocaleString(uiLocale(), {
+    minimumFractionDigits:0,
+    maximumFractionDigits:2
+  })} Std.`;
+  const targetText = parsed.targetTime
+    ? ` · Ziel ${parsed.targetTime.toLocaleTimeString(uiLocale(), { hour:'2-digit', minute:'2-digit' })} Uhr`
+    : '';
+
+  result.innerHTML = `
+    <div class="encyclopedia-retail-calculator-summary">
+      <div><span>${translateUiString('Basis-Verkaufsrate')}</span><strong>${num(baseUnitsPerHour)} Einheiten / Std.</strong></div>
+      <div><span>${translateUiString('Nachfrage')}</span><strong>${Math.round(demandFactor * 100)} %</strong></div>
+      <div><span>${translateUiString('Effektive Verkaufsrate')}</span><strong>${num(unitsPerHour)} Einheiten / Std.</strong></div>
+      <div><span>${translateUiString('Referenzpreis')}</span><strong>${money(referencePrice)}</strong></div>
+      <div><span>${translateUiString('Ausgewählte Menge')}</span><strong>${num(parsed.units)} Einheiten</strong></div>
+      <div><span>${translateUiString('Verkaufsdauer')}</span><strong>${durationText}${targetText}</strong></div>
+      <div><span>${translateUiString('Verkaufspreis')}</span><strong>${money(price)} / Einheit</strong></div>
+      <div><span>${translateUiString('Erwarteter Umsatz')}</span><strong>${money(revenue)}</strong></div>
+    </div>
+    <p class="muted encyclopedia-retail-calculator-note">${sourceText}. Gebäudelevel ${level}, Qualität Q${quality}.</p>
+  `;
+
+  applyLanguageToDom(result);
+};
+
 function dynamicBuildingEncyclopediaArticles() {
   return (state.buildingTypes || [])
     .map(buildingType => {
@@ -6466,6 +6752,9 @@ function dynamicBuildingEncyclopediaArticles() {
             <p><strong>In deinem Unternehmen:</strong> ${num(activeBuildings.length)} aktiv${activeBuildings.length === 1 ? 'es Gebäude' : 'e Gebäude'}${highestLevel ? ` · höchste Stufe L${highestLevel}` : ''}</p>
             ${productionProducts.length ? `<h3>Produzierbare Produkte</h3>${productLinks(productionProducts)}` : ''}
             ${retailProducts.length ? `<h3>Verkaufbare Produkte</h3>${productLinks(retailProducts)}` : ''}
+            ${buildingType.building_category === 'retail'
+              ? encyclopediaRetailCalculatorHtml(buildingType, retailProducts)
+              : ''}
           `,
           example:`<p>Der Ausbau auf Level 2 benötigt ${formatBuildingConstructionTime(buildingConstructionHours(2))}. Die Baukosten und Leistungswerte werden entsprechend der Gebäudelevel-Regeln angepasst.</p>`,
           important:`<p>Dieser Artikel wird automatisch aus den geladenen Gebäudetypen, deinen Unternehmensgebäuden und den zugeordneten Produktdaten erzeugt.</p>`

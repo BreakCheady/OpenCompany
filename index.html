@@ -5,14 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta name="theme-color" content="#0d2d55">
   <title>OpenCompany</title>
-  <link rel="icon" type="image/png" href="favicon.png?v=0.10.177">
-  <link rel="shortcut icon" href="favicon.ico?v=0.10.177">
-  <link rel="icon" type="image/x-icon" href="favicon.ico?v=0.10.177">
-  <link rel="manifest" href="/manifest.webmanifest?v=0.10.177">
-  <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=0.10.177">
+  <link rel="icon" type="image/png" href="favicon.png?v=0.10.178">
+  <link rel="shortcut icon" href="favicon.ico?v=0.10.178">
+  <link rel="icon" type="image/x-icon" href="favicon.ico?v=0.10.178">
+  <link rel="manifest" href="/manifest.webmanifest?v=0.10.178">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=0.10.178">
   <meta name="application-name" content="OpenCompany">
   <meta name="mobile-web-app-capable" content="yes">
-  <link rel="stylesheet" href="style.css?v=0.10.177">
+  <link rel="stylesheet" href="style.css?v=0.10.178">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     .password-field{display:flex;align-items:center;gap:.5rem}
@@ -556,6 +556,66 @@
       font-size:.84rem;
     }
 
+    .encyclopedia-retail-calculator{
+      margin-top:1rem;
+      padding:1rem;
+      border:1px solid #dfe6ef;
+      border-radius:12px;
+      background:#f8fafc;
+    }
+
+    .encyclopedia-retail-calculator h3{
+      margin-top:0;
+    }
+
+    .encyclopedia-retail-calculator-grid{
+      display:grid;
+      grid-template-columns:repeat(2,minmax(0,1fr));
+      gap:.7rem;
+      margin-top:.8rem;
+    }
+
+    .encyclopedia-retail-calculator-grid label{
+      margin:0;
+    }
+
+    .encyclopedia-retail-calculator-result{
+      margin-top:.9rem;
+    }
+
+    .encyclopedia-retail-calculator-summary{
+      display:grid;
+      grid-template-columns:repeat(2,minmax(0,1fr));
+      gap:.65rem;
+    }
+
+    .encyclopedia-retail-calculator-summary > div{
+      display:flex;
+      flex-direction:column;
+      gap:.2rem;
+      padding:.65rem .75rem;
+      border:1px solid #e2e8f0;
+      border-radius:9px;
+      background:#fff;
+    }
+
+    .encyclopedia-retail-calculator-summary span{
+      color:#617087;
+      font-size:.82rem;
+    }
+
+    .encyclopedia-retail-calculator-note{
+      margin:.65rem 0 0!important;
+      font-size:.84rem;
+    }
+
+    @media(max-width:560px){
+      .encyclopedia-retail-calculator-grid,
+      .encyclopedia-retail-calculator-summary{
+        grid-template-columns:1fr;
+      }
+    }
+
     @media(max-width:560px){
       .encyclopedia-recipe-calculator-summary{
         grid-template-columns:1fr;
@@ -973,7 +1033,7 @@
       .oc-select-option{min-height:46px;padding:.7rem .8rem}
     }
   
-    /* v0.10.177 – einheitliche Navigationsleiste auf Desktop und Mobile */
+    /* v0.10.178 – einheitliche Navigationsleiste auf Desktop und Mobile */
     .app-shell{
       display:block!important;
       min-height:100dvh!important;
@@ -1927,7 +1987,7 @@
           <h2>Einstellungen</h2>
           <div class="kv">
             <span>Version</span>
-            <strong>0.10.177</strong>
+            <strong>0.10.178</strong>
           </div>
           <div class="kv settings-language-row">
             <span>Sprache</span>
