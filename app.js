@@ -391,6 +391,7 @@ Object.assign(I18N_EN, {
   'Marktgebühren':'Market fees',
   'Storno-/Abbruchgebühren':'Cancellation fees',
   'Forschungskosten':'Research costs',
+  'Patentwert-Gewinne':'Patent value gains',
   'Sonstige Betriebskosten':'Other operating costs',
   'Gebäudeerstattungen':'Building refunds',
   'Zinserträge':'Interest income',
@@ -4938,7 +4939,8 @@ function renderFinanceSummary() {
   const contractBuyCosts = costType('contract_buy');
   const retailCancelFees = costType('retail_cancel_fee');
   const storageHoldingCosts = costType('storage_fee');
-  const directResearchCosts = costType('research', 'research_investment');
+  const directResearchCosts = costType('research');
+  const patentValueGains = sumType('research_investment');
 
   const buildingCosts = costType('construction');
   const buildingRefunds = sumType('building_refund');
@@ -4971,6 +4973,7 @@ function renderFinanceSummary() {
     storageAuctionRevenue +
     productionRefunds +
     retailCancelRefunds +
+    patentValueGains +
     otherOperatingIncome;
 
   const operatingCosts =
@@ -5006,6 +5009,7 @@ function renderFinanceSummary() {
   ];
   if (productionRefunds > 0) revenueRows.push(financeStatementRow('Produktionserstattungen', productionRefunds));
   if (retailCancelRefunds > 0) revenueRows.push(financeStatementRow('Verkaufserstattungen', retailCancelRefunds));
+  if (patentValueGains > 0) revenueRows.push(financeStatementRow('Patentwert-Gewinne', patentValueGains));
   if (otherOperatingIncome > 0) revenueRows.push(financeStatementRow('Sonstige Einnahmen', otherOperatingIncome));
 
   const expenseRows = [
