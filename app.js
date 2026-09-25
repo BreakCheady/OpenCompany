@@ -1827,6 +1827,57 @@ function startNpcMarketHeartbeat() {
   npcMarketCountdownTimer = setInterval(updateMarketRefreshTimer, 1000);
 }
 
+async function refreshMarketData() {
+  if (!sb || !state.company?.id) return;
+
+  const button = document.getElementById('marketManualRefreshBtn');
+  if (button?.disabled) return;
+
+  if (button) {
+    button.disabled = true;
+    button.classList.add('is-refreshing');
+    button.setAttribute('aria-busy', 'true');
+  }
+
+  try {
+    const [ordersResult, directoryResult] = await Promise.all([
+      sb.from('market_orders')
+        .select('*, products(name), materials(name)')
+        .in('status',['open','partially_filled'])
+        .order('created_at',{ascending:false})
+        .limit(100),
+      sb.rpc('list_companies')
+    ]);
+
+    const errors = [
+      ordersResult.error ? `Marktorders: ${ordersResult.error.message || 'Unbekannter Fehler'}` : null,
+      directoryResult.error ? `Firmenverzeichnis: ${directoryResult.error.message || 'Unbekannter Fehler'}` : null
+    ].filter(Boolean);
+
+    if (errors.length) {
+      await gameAlert(`Markt konnte nicht aktualisiert werden. ${errors.join(' | ')}`);
+      return;
+    }
+
+    state.marketOrders = ordersResult.data || [];
+    state.companyDirectory = directoryResult.data || [];
+    state.selectedMarketOrderIds = state.selectedMarketOrderIds.filter(id =>
+      state.marketOrders.some(order => order.id === id)
+    );
+
+    renderMarket();
+    updateMarketRefreshTimer();
+  } finally {
+    if (button) {
+      button.disabled = false;
+      button.classList.remove('is-refreshing');
+      button.removeAttribute('aria-busy');
+    }
+  }
+}
+
+window.refreshMarketData = refreshMarketData;
+
 function isCompanyOnline() {
   if (!state.company?.last_seen_at) return false;
   return Date.now() - new Date(state.company.last_seen_at).getTime() < 120000;
