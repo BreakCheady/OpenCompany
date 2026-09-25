@@ -4917,6 +4917,10 @@ function renderFinanceSummary() {
     .filter(t => types.includes(t.transaction_type))
     .reduce((sum, t) => sum + Number(t.amount || 0), 0);
 
+  const sumCostBasisType = (...types) => transactions
+    .filter(t => types.includes(t.transaction_type))
+    .reduce((sum, t) => sum + Number(t.cost_basis || 0), 0);
+
   const costType = (...types) => Math.abs(sumType(...types));
 
   // Marktverkäufe werden netto gespeichert. Für die GuV wird die Marktgebühr
@@ -4939,7 +4943,9 @@ function renderFinanceSummary() {
   const contractBuyCosts = costType('contract_buy');
   const retailCancelFees = costType('retail_cancel_fee');
   const storageHoldingCosts = costType('storage_fee');
-  const directResearchCosts = costType('research');
+  const directResearchCosts =
+    costType('research') +
+    sumCostBasisType('research_investment');
   const patentValueGains = sumType('research_investment');
 
   const buildingCosts = costType('construction');
