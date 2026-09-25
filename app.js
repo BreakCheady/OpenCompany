@@ -3477,7 +3477,13 @@ function renderProductionRecipe() {
     button.disabled = false;
     button.textContent = 'Produktion abbrechen';
     button.classList.add('production-cancel');
+    button.style.setProperty('background', 'var(--danger-button)', 'important');
+    button.style.setProperty('border-color', 'var(--danger-button)', 'important');
+    button.style.setProperty('color', '#fff', 'important');
   } else {
+    button.style.removeProperty('background');
+    button.style.removeProperty('border-color');
+    button.style.removeProperty('color');
     button.disabled = !plan.runnable;
     button.textContent = 'Produktion starten';
     button.classList.toggle('production-ready', plan.runnable);
