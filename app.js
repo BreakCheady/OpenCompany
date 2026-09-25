@@ -5368,16 +5368,37 @@ window.selectResearchProduct=function(productId){
   renderResearch();
 };
 
+function buildingValuationLevelMultiplier(level) {
+  const lvl = Math.max(1, Number(level || 1));
+  if (lvl <= 1) return 1;
+  return Math.round((1 + 0.25 * (lvl - 1) * (lvl + 2)) * 10000) / 10000;
+}
+
+function buildingValuationUpgradeCost(baseCost, targetLevel) {
+  const base = Number(baseCost || 0);
+  const level = Math.max(1, Number(targetLevel || 1));
+  if (level <= 1) return Math.round(base * 100) / 100;
+
+  const increase = Math.max(
+    0,
+    buildingValuationLevelMultiplier(level) - buildingValuationLevelMultiplier(level - 1)
+  );
+
+  return Math.round((base * increase * 1.75) * 100) / 100;
+}
+
 function currentCompanyBuildingValue() {
   return state.buildings
     .reduce((total, building) => {
       const type = state.buildingTypes.find(bt => bt.id === building.building_type_id);
       const baseCost = Number(type?.construction_cost || 0);
       const level = Math.max(1, Number(building.construction_target_level || building.level || 1));
+
       let value = baseCost;
       for (let lvl = 2; lvl <= level; lvl += 1) {
-        value += Math.round((baseCost * buildingLevelMultiplier(lvl)) * 100) / 100;
+        value += buildingValuationUpgradeCost(baseCost, lvl);
       }
+
       return total + value;
     }, 0);
 }
@@ -5685,8 +5706,9 @@ const ENCYCLOPEDIA_ARTICLES = [
     id:'company-value', category:'Grundlagen', title:'Unternehmenswert',
     keywords:['wert','bewertung','ranking','unternehmenswert'],
     summary:'Der Unternehmenswert bündelt mehrere Vermögensbestandteile des Unternehmens.',
-    body:() => `<p>Der Unternehmenswert wird automatisch aus den hierfür vorgesehenen Unternehmensdaten berechnet und dient unter anderem als Grundlage für die Rangliste.</p>
-      <p>Die tägliche Berechnung ist für <strong>${ruleTime('companyValuation')} Uhr deutscher Zeit</strong> vorgesehen.</p>`,
+    body:() => `<p>Der Unternehmenswert entspricht dem bei der täglichen Bewertung gespeicherten Nettovermögen des Unternehmens.</p>
+      <p>Berechnet werden <strong>Kontostand + Lagerwert + Gebäudewert + Patentwert + Anleiheforderungen − Schulden</strong>. Ein zusätzlicher Performance-Aufschlag auf das Tagesergebnis wird nicht verwendet.</p>
+      <p>Die tägliche Berechnung ist für <strong>${ruleTime('companyValuation')} Uhr deutscher Zeit</strong> vorgesehen. Spätere Buchungen am selben Tag verändern diesen gespeicherten Tageswert nicht rückwirkend.</p>`,
     related:['ranking','finance','storage-value','patent-value'], targetView:'dashboard'
   },
   {
