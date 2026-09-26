@@ -1093,7 +1093,14 @@ function transportContainerFreight(quantity) {
   };
 }
 
-const researchRequirement = quality => Number(quality || 1) <= 1 ? 1000 : 2500 * (Number(quality || 1) - 1);
+const researchRequirement = quality => {
+  const q = Math.max(1, Number(quality || 1));
+  if (q <= 1) return 400;
+  if (q === 2) return 1000;
+  if (q === 3) return 2000;
+  if (q === 4) return 3500;
+  return 5000 + Math.max(0, q - 5) * 2000;
+};
 const productQuality = product => Math.max(1, Number(product?.quality_level || 1));
 const minimumInputQuality = product => Math.max(1, productQuality(product) - 1);
 
@@ -5618,7 +5625,7 @@ function renderResearch() {
   const remaining=Math.max(0,requirement-progress);
   const availableWhole=Math.max(0,Math.floor(ctx.quantity));
   const requested=Math.max(0,Math.floor(Number(qtyInput.value||0)));
-  const maxInvestment=Math.min(availableWhole,Math.floor(remaining));
+  const maxInvestment=availableWhole;
   const valid=!!selected && requested>=1 && requested<=maxInvestment;
   const investmentValue=researchInvestmentValue(Math.min(requested,availableWhole),ctx.product);
   const patentMin=investmentValue*0.80;
@@ -5633,6 +5640,7 @@ function renderResearch() {
     <div class="kv"><span>Fortschritt zu Q${quality+1}</span><strong>${num(progress)} / ${num(requirement)}</strong></div>
     <div class="kv"><span>Noch benötigt</span><strong>${num(remaining)} Forschungseinheiten</strong></div>
     <div class="kv"><span>Geplante Investition</span><strong>${num(requested)} Forschungseinheiten</strong></div>
+    ${requested > remaining ? `<div class="kv"><span>Übertrag in Q${quality+1}</span><strong>${num(requested-remaining)} Forschungseinheiten</strong></div>` : ''}
     <div class="kv"><span>Patentwertsteigerung</span><strong>${requested > 0 ? `${money(patentMin)} – ${money(patentMax)}` : money(0)}</strong></div>` : '';
   submit.disabled=!valid;
   if (maxBtn) maxBtn.disabled=maxInvestment<=0;
@@ -8404,9 +8412,7 @@ researchInvestmentAmount?.addEventListener('input', () => {
 
 researchInvestmentMaxBtn?.addEventListener('click', () => {
   const ctx = researchInventoryContext();
-  const target=state.products.find(p=>p.id===researchProduct?.value);
-  const remaining=Math.max(0,researchRequirement(productQuality(target))-Number(target?.research_units_progress||0));
-  researchInvestmentAmount.value = String(Math.max(0, Math.min(Math.floor(ctx.quantity),Math.floor(remaining))));
+  researchInvestmentAmount.value = String(Math.max(0, Math.floor(ctx.quantity)));
   renderResearch();
 });
 
@@ -8416,10 +8422,7 @@ if (researchInvestmentForm) {
     const ctx = researchInventoryContext();
     const target = state.products.find(p => p.id === researchProduct?.value);
     const quantity = Math.max(0, Math.floor(Number(researchInvestmentAmount.value || 0)));
-    const requirement = researchRequirement(productQuality(target));
-    const remaining = Math.max(0, requirement - Number(target?.research_units_progress || 0));
-
-    if (!ctx.product || !target || quantity < 1 || quantity > Math.floor(ctx.quantity) || quantity > remaining) {
+    if (!ctx.product || !target || quantity < 1 || quantity > Math.floor(ctx.quantity)) {
       renderResearch();
       return;
     }
