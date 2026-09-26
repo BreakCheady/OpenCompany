@@ -2971,7 +2971,7 @@ async function loadGameData() {
     sb.from('production_jobs').select('*').eq('company_id', cid).order('started_at', {ascending:false}).limit(500),
     sb.from('retail_sale_jobs').select('*').eq('company_id', cid).order('started_at', {ascending:false}).limit(500),
     sb.from('financial_transactions').select('*').eq('company_id', cid).order('created_at', {ascending:false}).limit(500),
-    sb.from('market_orders').select('*, products(name), materials(name)').in('status',['open','partially_filled']).order('created_at',{ascending:false}).limit(100),
+    sb.from('market_orders').select('*, products(name), materials(name)').in('status',['open','partially_filled']).order('created_at',{ascending:false}).limit(1000),
     sb.from('market_trades').select('id,order_id,buyer_company_id,seller_company_id,product_id,material_id,quantity,price_per_unit,total_value,quality_level,executed_at,products(name,category),materials(name)').or(`buyer_company_id.eq.${cid},seller_company_id.eq.${cid}`).order('executed_at',{ascending:false}).limit(500),
     sb.from('contracts').select('*').or(`seller_company_id.eq.${cid},buyer_company_id.eq.${cid}`).order('created_at',{ascending:false}),
     sb.rpc('list_companies'),
