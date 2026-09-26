@@ -893,6 +893,8 @@ const state = {
   marketSearchFilter: '',
   marketTypeFilter: 'all',
   marketQualityFilter: 'all',
+  marketView: 'catalog',
+  marketSelectedItemKey: '',
   researchSearchFilter: '',
   researchSelectedProductId: null,
   encyclopediaSearch: '',
@@ -1948,7 +1950,7 @@ async function refreshMarketData() {
         .select('*, products(name), materials(name)')
         .in('status',['open','partially_filled'])
         .order('created_at',{ascending:false})
-        .limit(100),
+        .limit(1000),
       sb.rpc('list_companies')
     ]);
 
@@ -4219,169 +4221,221 @@ function renderRetailSale() {
   scheduleProductionRefresh();
 }
 
-function filteredMarketOrders() {
-  const search = String(state.marketSearchFilter || '').trim().toLocaleLowerCase(uiLocale());
-  const type = state.marketTypeFilter || 'all';
-  const quality = state.marketQualityFilter || 'all';
+function marketProductIdentity(product) {
+  return `${product?.name || ''}::${product?.category || ''}`;
+}
 
-  const visibleProductKeys = operationalProductIdentitySet();
+function marketItemKeyFromOrder(order) {
+  if (order?.material_id) return `material:${order.material_id}`;
+  const product = state.allProducts.find(p => p.id === order?.product_id);
+  return product ? `product:${marketProductIdentity(product)}` : `product-id:${order?.product_id || ''}`;
+}
 
-  let orders = state.marketOrders.filter(o => {
-    const matchesType =
-      type === 'all' ||
-      (type === 'material' && !!o.material_id) ||
-      (type === 'product' && !!o.product_id);
+function marketCatalogCategory(item) {
+  if (item.type === 'material') return 'Rohstoffe';
+  const product = item.product;
+  const category = researchCategory(product);
+  return category === 'Energietechnik' ? 'Energie' : category;
+}
 
-    if (o.product_id && o.company_id !== state.company?.id) {
-      const orderProduct = state.allProducts.find(p => p.id === o.product_id);
-      const isPermanentTransportContainer = orderProduct?.name === 'Transportcontainer';
-      const key = orderProduct ? `${orderProduct.name}::${orderProduct.category}` : '';
-      if (!isPermanentTransportContainer && !visibleProductKeys.has(key)) return false;
-    }
+function marketItemIcon(item) {
+  const name = String(item.name || '').toLocaleLowerCase(uiLocale());
+  if (name.includes('transportcontainer')) return '📦';
+  if (name.includes('prozessor')) return '🧩';
+  if (name.includes('elektronik')) return '🔌';
+  if (name.includes('smartphone')) return '📱';
+  if (name.includes('display')) return '🖥️';
+  if (name.includes('batter')) return '🔋';
+  if (name.includes('stahl')) return '🔩';
+  if (name.includes('aluminium')) return '⚙️';
+  if (name.includes('kupfer')) return '🟠';
+  if (name.includes('silizium')) return '💠';
+  if (name.includes('glas')) return '◫';
+  if (name.includes('lithium')) return '🔋';
+  return ({
+    Rohstoffe:'⛏️', Elektronik:'💻', Maschinen:'⚙️', Automobil:'🚗', Chemie:'🧪',
+    Bau:'🏗️', Textil:'🧵', Lebensmittel:'🍞', Energie:'⚡', Forschung:'🔬', Sonstige:'📦'
+  })[marketCatalogCategory(item)] || '📦';
+}
 
-    const orderQuality = Number(o.quality_level || 1);
-    const matchesQuality = quality === 'all' || (quality === '5' ? orderQuality >= 5 : orderQuality === Number(quality));
-    if (!matchesType || !matchesQuality) return false;
-    if (!search) return true;
+function marketCatalogItems() {
+  const items = [];
+  state.materials
+    .filter(m => m.status !== 'inactive')
+    .forEach(material => items.push({
+      key:`material:${material.id}`,
+      type:'material', id:material.id, name:material.name, material
+    }));
 
-    const item = itemName(o).toLocaleLowerCase(uiLocale());
-    return item.includes(search);
+  const seen = new Set();
+  state.allProducts
+    .filter(p => p.status === 'active')
+    .forEach(product => {
+      const identity = marketProductIdentity(product);
+      if (!identity || seen.has(identity)) return;
+      seen.add(identity);
+      items.push({
+        key:`product:${identity}`,
+        type:'product', name:product.name, category:product.category, product
+      });
+    });
+  return items;
+}
+
+function marketItemDescriptor(key=state.marketSelectedItemKey) {
+  return marketCatalogItems().find(item => item.key === key) || null;
+}
+
+function marketOrdersForItem(item, { includeOwn=true, quality=state.marketQualityFilter } = {}) {
+  if (!item) return [];
+  return state.marketOrders
+    .filter(order => marketItemKeyFromOrder(order) === item.key)
+    .filter(order => includeOwn || order.company_id !== state.company?.id)
+    .filter(order => {
+      const q = Number(order.quality_level || 1);
+      return quality === 'all' || (quality === '5' ? q >= 5 : q === Number(quality));
+    })
+    .filter(order => ['open','partially_filled'].includes(order.status) && Number(order.remaining_quantity || 0) > 0)
+    .sort((a,b) => Number(a.price_per_unit || 0)-Number(b.price_per_unit || 0) || Number(b.quality_level||1)-Number(a.quality_level||1));
+}
+
+function marketCategorySort(a,b) {
+  const order=['Rohstoffe','Elektronik','Maschinen','Automobil','Chemie','Bau','Textil','Lebensmittel','Energie','Forschung','Sonstige'];
+  const ai=order.indexOf(a), bi=order.indexOf(b);
+  return (ai<0?999:ai)-(bi<0?999:bi) || a.localeCompare(b,uiLocale());
+}
+
+function renderMarketCatalog() {
+  const root=document.getElementById('marketCatalog');
+  if (!root) return;
+  const search=String(state.marketSearchFilter||'').trim().toLocaleLowerCase(uiLocale());
+  const items=marketCatalogItems().filter(item => !search || item.name.toLocaleLowerCase(uiLocale()).includes(search));
+  const groups=new Map();
+  items.forEach(item => {
+    const category=marketCatalogCategory(item);
+    if (!groups.has(category)) groups.set(category,[]);
+    groups.get(category).push(item);
   });
 
-  orders = [...orders].sort((a,b) =>
-    itemName(a).localeCompare(itemName(b), uiLocale()) ||
-    Number(a.price_per_unit || 0) - Number(b.price_per_unit || 0) ||
-    companyName(a.company_id).localeCompare(companyName(b.company_id), uiLocale())
-  );
-
-  return orders;
-}
-
-function selectedMarketOrders() {
-  return state.selectedMarketOrderIds
-    .map(id => state.marketOrders.find(o => o.id === id))
-    .filter(Boolean);
-}
-
-function marketOrderItemKey(order) {
-  if (order.material_id) return `material:${order.material_id}:q${Number(order.quality_level || 1)}`;
-  const product = state.allProducts.find(p => p.id === order.product_id);
-  return product ? `product:${product.name}:${product.category}:q${Number(order.quality_level || 1)}` : `product:${order.product_id}:q${Number(order.quality_level || 1)}`;
-}
-
-function updateMarketBuyPreview() {
-  const qtyInput = document.getElementById('marketBuyQty');
-  const totalEl = document.getElementById('marketBuyTotal');
-  const buyBtn = document.getElementById('marketBuyCheapest');
-  if (!qtyInput || !totalEl || !buyBtn) return;
-
-  const selected = selectedMarketOrders().filter(o => o.company_id !== state.company?.id);
-  const qty = Number(qtyInput.value || 0);
-  const validQty = Number.isFinite(qty) && qty > 0;
-
-  if (!selected.length) {
-    totalEl.textContent = 'Position auswählen';
-    buyBtn.disabled = true;
+  if (!items.length) {
+    root.innerHTML='<div class="market-empty-state">Keine Waren gefunden.</div>';
     return;
   }
 
-  if (!validQty) {
-    totalEl.textContent = '–';
-    buyBtn.disabled = true;
-    return;
-  }
+  root.innerHTML=[...groups.entries()]
+    .sort(([a],[b])=>marketCategorySort(a,b))
+    .map(([category,group])=>`<section class="market-category-section">
+      <h3>${category}</h3>
+      <div class="market-product-grid">
+        ${group.sort((a,b)=>a.name.localeCompare(b.name,uiLocale())).map(item=>{
+          const orders=marketOrdersForItem(item,{includeOwn:false,quality:'all'});
+          const total=orders.reduce((sum,o)=>sum+Number(o.remaining_quantity||0),0);
+          const best=orders.length ? Number(orders[0].price_per_unit||0) : 0;
+          return `<button type="button" class="market-product-tile" data-market-item="${encodeURIComponent(item.key)}">
+            <span class="market-product-icon" aria-hidden="true">${marketItemIcon(item)}</span>
+            <strong>${item.name}</strong>
+            <span>${orders.length ? `${num(total)} verfügbar` : 'Kein Angebot'}</span>
+            <small>${orders.length ? `ab ${money(best)}` : '–'}</small>
+          </button>`;
+        }).join('')}
+      </div>
+    </section>`).join('');
 
-  const keys = [...new Set(selected.map(marketOrderItemKey))];
-  if (keys.length !== 1) {
-    totalEl.textContent = 'Nur gleicher Artikel';
-    buyBtn.disabled = true;
-    return;
-  }
+  root.querySelectorAll('[data-market-item]').forEach(button=>button.addEventListener('click',()=>{
+    state.marketSelectedItemKey=decodeURIComponent(button.dataset.marketItem||'');
+    state.marketQualityFilter='all';
+    state.marketView='product';
+    const qty=document.getElementById('marketProductBuyQty');
+    if (qty) qty.value='1';
+    renderMarket();
+  }));
+}
 
-  const sorted = [...selected].sort((a,b) => Number(a.price_per_unit || 0) - Number(b.price_per_unit || 0));
-  const available = sorted.reduce((sum,o) => sum + Number(o.remaining_quantity || 0), 0);
-  let remaining = qty;
-  let total = 0;
+function marketCanSellItem(item) {
+  if (!item) return false;
+  if (item.type==='material') return materialInventoryLots(item.id).some(l=>Number(l.quantity||0)>0);
+  return state.products.some(p => marketProductIdentity(p)===item.key.replace(/^product:/,'') && hasProductInventory(p.id));
+}
 
-  for (const order of sorted) {
-    if (remaining <= 0) break;
-    const take = Math.min(remaining, Number(order.remaining_quantity || 0));
-    total += take * Number(order.price_per_unit || 0);
+function marketProductBuyPlan() {
+  const item=marketItemDescriptor();
+  const qty=Math.max(0,Number(document.getElementById('marketProductBuyQty')?.value||0));
+  const orders=marketOrdersForItem(item,{includeOwn:false});
+  let remaining=qty,total=0;
+  const fills=[];
+  for (const order of orders) {
+    if (remaining<=0) break;
+    const take=Math.min(remaining,Number(order.remaining_quantity||0));
+    if (take<=0) continue;
+    fills.push({order,quantity:take});
+    total += take*Number(order.price_per_unit||0);
     remaining -= take;
   }
-
-  totalEl.textContent = remaining > 0 ? `Max. ${num(available)} verfügbar` : money(total);
-  buyBtn.disabled = remaining > 0;
+  return {item,qty,orders,fills,total,remaining,available:orders.reduce((s,o)=>s+Number(o.remaining_quantity||0),0)};
 }
 
-function toggleMarketOrderSelection(orderId) {
-  const order = state.marketOrders.find(o => o.id === orderId);
-  if (!order) return;
+function updateMarketProductBuyPreview() {
+  const totalEl=document.getElementById('marketProductBuyTotal');
+  const button=document.getElementById('marketProductBuyBtn');
+  const availability=document.getElementById('marketProductBuyAvailability');
+  if (!totalEl || !button) return;
+  const plan=marketProductBuyPlan();
+  if (availability) availability.textContent=`${num(plan.available)} verfügbar`;
+  if (!plan.item || !(plan.qty>0)) {
+    totalEl.textContent='–'; button.disabled=true; return;
+  }
+  if (plan.remaining>0) {
+    totalEl.textContent=`Max. ${num(plan.available)} verfügbar`; button.disabled=true; return;
+  }
+  totalEl.textContent=money(plan.total);
+  button.disabled=false;
+}
 
-  const current = selectedMarketOrders();
-  const exists = state.selectedMarketOrderIds.includes(orderId);
-
-  if (exists) {
-    state.selectedMarketOrderIds = state.selectedMarketOrderIds.filter(id => id !== orderId);
-    renderMarket();
+function renderMarketProductPage() {
+  const item=marketItemDescriptor();
+  const page=document.getElementById('marketProductPage');
+  if (!page || !item) {
+    state.marketView='catalog';
+    state.marketSelectedItemKey='';
     return;
   }
-
-  if (order.company_id === state.company?.id) {
-    return;
+  document.getElementById('marketProductCategory').textContent=marketCatalogCategory(item);
+  document.getElementById('marketProductTitle').textContent=item.name;
+  document.getElementById('marketProductHeroIcon').textContent=marketItemIcon(item);
+  const sellBtn=document.getElementById('marketSellOpenBtn');
+  if (sellBtn) {
+    sellBtn.disabled=!marketCanSellItem(item);
+    sellBtn.textContent=marketCanSellItem(item)?'Verkaufsorder erstellen':'Kein Bestand zum Verkaufen';
   }
 
-  if (current.length) {
-    const currentKey = marketOrderItemKey(current[0]);
-    const newKey = marketOrderItemKey(order);
-    if (currentKey !== newKey) {
-      gameAlert('Mehrfachauswahl ist nur für denselben Artikel in derselben Qualität möglich.');
-      return;
-    }
-  }
+  document.querySelectorAll('.market-quality-btn').forEach(btn=>btn.classList.toggle('active',btn.dataset.quality===state.marketQualityFilter));
 
-  state.selectedMarketOrderIds.push(orderId);
-  renderMarket();
+  const orders=marketOrdersForItem(item,{includeOwn:true});
+  const body=document.getElementById('marketOrderBookBody');
+  if (body) body.innerHTML=orders.length ? orders.map(order=>{
+    const own=order.company_id===state.company?.id;
+    return `<tr class="${own?'own-market-order':''}">
+      <td><strong>${companyName(order.company_id)}</strong>${own?'<span class="market-own-badge">Du</span>':''}</td>
+      <td><span class="market-quality-badge">Q${Number(order.quality_level||1)}</span></td>
+      <td>${num(order.remaining_quantity)}</td>
+      <td><strong>${money(order.price_per_unit)}</strong></td>
+      <td>${own?`<button type="button" class="strong-danger-btn market-cancel-order" data-order-id="${order.id}">Stornieren</button>`:''}</td>
+    </tr>`;
+  }).join('') : '<tr><td colspan="5" class="market-empty-cell">Für diese Auswahl gibt es aktuell keine Verkaufsangebote.</td></tr>';
+
+  body?.querySelectorAll('.market-cancel-order').forEach(btn=>btn.addEventListener('click',()=>cancelOrder(btn.dataset.orderId)));
+  updateMarketProductBuyPreview();
 }
 
 function renderMarket() {
-  const orders = filteredMarketOrders();
-
-  state.selectedMarketOrderIds = state.selectedMarketOrderIds.filter(id =>
-    state.marketOrders.some(o => o.id === id)
-  );
-
-  document.getElementById('marketOrders').innerHTML = renderTable(
-    ['Firma','Gut','Art','Qualität','Menge','Preis','Gebühr','Aktion'],
-    orders.map(o => {
-      const selected = state.selectedMarketOrderIds.includes(o.id);
-      const isOwnOrder = o.company_id === state.company.id;
-      return `<tr class="market-order-row ${selected ? 'selected' : ''} ${isOwnOrder ? 'own-market-order' : ''}" data-order-id="${o.id}" tabindex="0" aria-selected="${selected}">
-        <td>${companyName(o.company_id)}</td>
-        <td>${itemName(o)}</td>
-        <td>${translateUiString(o.material_id ? 'Rohstoff' : 'Produkt')}</td>
-        <td><strong>Q${Number(o.quality_level || 1)}</strong></td>
-        <td>${num(o.remaining_quantity)}</td>
-        <td>${money(o.price_per_unit)}</td>
-        <td>5%</td>
-        <td>${o.company_id === state.company.id ? `<button class="strong-danger-btn" onclick="event.stopPropagation(); cancelOrder('${o.id}')">${translateUiString('Stornieren')}</button>` : selected ? `<strong>${translateUiString('Ausgewählt')}</strong>` : translateUiString('Auswählen')}</td>
-      </tr>`;
-    })
-  );
-
-  document.querySelectorAll('#marketOrders .market-order-row').forEach(row => {
-    const choose = () => toggleMarketOrderSelection(row.dataset.orderId);
-    row.addEventListener('click', choose);
-    row.addEventListener('keydown', event => {
-      if (event.key === 'Enter' || event.key === ' ') {
-        event.preventDefault();
-        choose();
-      }
-    });
-  });
-
-  updateMarketBuyPreview();
-  if (currentLanguage === 'en') applyLanguageToDom(document.getElementById('market'));
+  const catalogView=document.getElementById('marketCatalogView');
+  const productView=document.getElementById('marketProductView');
+  if (!catalogView || !productView) return;
+  const showProduct=state.marketView==='product' && !!marketItemDescriptor();
+  catalogView.classList.toggle('hidden',showProduct);
+  productView.classList.toggle('hidden',!showProduct);
+  if (showProduct) renderMarketProductPage(); else renderMarketCatalog();
+  if (currentLanguage==='en') applyLanguageToDom(document.getElementById('market'));
 }
 
 
@@ -7982,7 +8036,10 @@ document.getElementById('sellOrderForm').addEventListener('submit', async e => {
 
   const { error } = await sb.rpc(rpc, args);
   if (error) gameAlert(error.message);
-  else await loadCompany();
+  else {
+    closeMarketSellModal();
+    await loadCompany();
+  }
 });
 
 document.getElementById('sellItemType')?.addEventListener('change', updateSellItemOptions);
@@ -8163,104 +8220,90 @@ window.cancelOrder = async function(orderId) {
   if(error) gameAlert(error.message); else await loadCompany();
 };
 
-const marketSearchFilter = document.getElementById('marketSearchFilter');
-const marketTypeFilter = document.getElementById('marketTypeFilter');
-const marketQualityFilter = document.getElementById('marketQualityFilter');
-const marketBuyQty = document.getElementById('marketBuyQty');
-const marketBuyCheapest = document.getElementById('marketBuyCheapest');
-const marketFilterReset = document.getElementById('marketFilterReset');
+const marketCatalogSearch = document.getElementById('marketCatalogSearch');
+const marketProductBuyQty = document.getElementById('marketProductBuyQty');
+const marketProductBuyBtn = document.getElementById('marketProductBuyBtn');
+const marketBackBtn = document.getElementById('marketBackBtn');
+const marketSellOpenBtn = document.getElementById('marketSellOpenBtn');
+const marketSellModal = document.getElementById('marketSellModal');
 
-marketBuyQty?.addEventListener('input', updateMarketBuyPreview);
+marketCatalogSearch?.addEventListener('input', event => {
+  state.marketSearchFilter=event.target.value;
+  renderMarketCatalog();
+});
 
-marketBuyCheapest?.addEventListener('click', async () => {
-  const selected = selectedMarketOrders().filter(o => o.company_id !== state.company.id);
-  const qty = Number(marketBuyQty?.value || 0);
+marketBackBtn?.addEventListener('click',()=>{
+  state.marketView='catalog';
+  state.marketSelectedItemKey='';
+  state.marketQualityFilter='all';
+  renderMarket();
+});
 
-  if (!selected.length) {
-    await gameAlert('Bitte wähle mindestens eine Marktposition aus.');
-    return;
-  }
+document.querySelectorAll('.market-quality-btn').forEach(button=>button.addEventListener('click',()=>{
+  state.marketQualityFilter=button.dataset.quality||'all';
+  renderMarketProductPage();
+}));
 
-  if (!Number.isFinite(qty) || qty <= 0) {
-    await gameAlert('Bitte gib eine gültige Menge ein.');
-    return;
-  }
+marketProductBuyQty?.addEventListener('input',updateMarketProductBuyPreview);
 
-  const keys = [...new Set(selected.map(marketOrderItemKey))];
-  if (keys.length !== 1) {
-    await gameAlert('Es dürfen nur Positionen desselben Artikels ausgewählt werden.');
-    return;
-  }
-
-  const sorted = [...selected].sort((a,b) => Number(a.price_per_unit || 0) - Number(b.price_per_unit || 0));
-  const available = sorted.reduce((sum,o) => sum + Number(o.remaining_quantity || 0), 0);
-  if (available < qty) {
-    await gameAlert(`Die ausgewählten Positionen enthalten zusammen nur ${num(available)} Einheiten.`);
-    return;
-  }
-
-  let remaining = qty;
-  let total = 0;
-  for (const order of sorted) {
-    if (remaining <= 0) break;
-    const take = Math.min(remaining, Number(order.remaining_quantity || 0));
-    total += take * Number(order.price_per_unit || 0);
-    remaining -= take;
-  }
-
-  const confirmed = await gameConfirm(`${num(qty)} × ${itemName(sorted[0])} aus ${selected.length} ausgewählten Marktposition(en) für insgesamt ${money(total)} kaufen?`);
-  if (!confirmed) return;
-
-  marketBuyCheapest.disabled = true;
+marketProductBuyBtn?.addEventListener('click', async ()=>{
+  const plan=marketProductBuyPlan();
+  if (!plan.item || !(plan.qty>0) || plan.remaining>0) return;
+  if (!await gameConfirm(`${num(plan.qty)} × ${plan.item.name} automatisch aus den günstigsten verfügbaren Angeboten für insgesamt ${money(plan.total)} kaufen?`)) return;
+  marketProductBuyBtn.disabled=true;
+  let bought=0, paid=0;
   try {
-    const { data, error } = await sb.rpc('buy_selected_market_orders', {
-      p_buyer_company_id: state.company.id,
-      p_order_ids: selected.map(o => o.id),
-      p_quantity: qty
-    });
-
-    if (error) {
-      await gameAlert(error.message);
-      return;
+    for (const fill of plan.fills) {
+      const { error }=await sb.rpc('buy_market_order',{
+        p_buyer_company_id:state.company.id,
+        p_order_id:fill.order.id,
+        p_quantity:fill.quantity
+      });
+      if (error) {
+        await gameAlert(`${error.message}${bought>0?` Bereits gekauft: ${num(bought)} Einheiten.`:''}`);
+        break;
+      }
+      bought += fill.quantity;
+      paid += fill.quantity*Number(fill.order.price_per_unit||0);
     }
-
-    state.selectedMarketOrderIds = [];
     await loadCompany();
-    await gameAlert(`${num(data?.quantity || qty)} × ${itemName(sorted[0])} für ${money(data?.total_value || total)} gekauft. Durchschnittspreis: ${money(data?.average_unit_price || 0)} pro Einheit.`, 'Kauf abgeschlossen');
+    if (bought>0) await gameAlert(`${num(bought)} × ${plan.item.name} für ${money(paid)} gekauft.`, 'Kauf abgeschlossen');
   } finally {
-    updateMarketBuyPreview();
+    updateMarketProductBuyPreview();
   }
 });
 
-marketSearchFilter?.addEventListener('input', e => {
-  state.marketSearchFilter = e.target.value;
-  state.selectedMarketOrderIds = [];
-  renderMarket();
-});
+function closeMarketSellModal() {
+  marketSellModal?.classList.add('hidden');
+  marketSellModal?.setAttribute('aria-hidden','true');
+}
+window.closeMarketSellModal=closeMarketSellModal;
 
-marketTypeFilter?.addEventListener('change', e => {
-  state.marketTypeFilter = e.target.value;
-  state.selectedMarketOrderIds = [];
-  renderMarket();
-});
-
-marketQualityFilter?.addEventListener('change', e => {
-  state.marketQualityFilter = e.target.value;
-  state.selectedMarketOrderIds = [];
-  renderMarket();
-});
-
-marketFilterReset?.addEventListener('click', () => {
-  state.marketSearchFilter = '';
-  state.marketTypeFilter = 'all';
-  state.marketQualityFilter = 'all';
-  state.selectedMarketOrderIds = [];
-  if (marketSearchFilter) marketSearchFilter.value = '';
-  if (marketTypeFilter) marketTypeFilter.value = 'all';
-  if (marketQualityFilter) marketQualityFilter.value = 'all';
-  if (marketBuyQty) marketBuyQty.value = '1';
-  renderMarket();
-});
+function openMarketSellModal() {
+  const item=marketItemDescriptor();
+  if (!item || !marketCanSellItem(item)) return;
+  const typeSelect=document.getElementById('sellItemType');
+  const itemSelect=document.getElementById('sellProduct');
+  if (!typeSelect || !itemSelect) return;
+  typeSelect.value=item.type;
+  updateSellItemOptions();
+  if (item.type==='material') {
+    itemSelect.value=item.id;
+  } else {
+    const playerProduct=state.products.find(p=>marketProductIdentity(p)===item.key.replace(/^product:/,'') && hasProductInventory(p.id));
+    if (!playerProduct) return;
+    itemSelect.value=playerProduct.id;
+  }
+  updateSellQualityOptions();
+  const title=document.getElementById('marketSellItemTitle');
+  if (title) title.textContent=item.name;
+  marketSellModal?.classList.remove('hidden');
+  marketSellModal?.setAttribute('aria-hidden','false');
+  renderSellOrderPreview();
+}
+marketSellOpenBtn?.addEventListener('click',openMarketSellModal);
+document.getElementById('marketSellCloseBtn')?.addEventListener('click',closeMarketSellModal);
+marketSellModal?.addEventListener('click',event=>{ if (event.target===marketSellModal) closeMarketSellModal(); });
 
 document.querySelectorAll('.finance-period-btn').forEach(btn => btn.addEventListener('click', () => {
   state.financePeriod = btn.dataset.period;

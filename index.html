@@ -1120,7 +1120,7 @@
       .oc-select-option{min-height:46px;padding:.7rem .8rem}
     }
   
-    /* v0.10.183 – Handelssystem-Korrekturen */
+    /* v0.10.184 – Handelssystem-Korrekturen */
     .app-shell{
       display:block!important;
       min-height:100dvh!important;
@@ -1592,6 +1592,55 @@
       }
     }
 
+
+    /* Warenbörse: produktzentriertes Orderbuch */
+    .market-main-panel{overflow:visible}
+    .market-redesign-head{align-items:flex-start;gap:18px}
+    .market-refresh-line{margin-top:6px;max-width:330px}
+    .market-catalog-toolbar{display:flex;gap:12px;margin:8px 0 22px}
+    .market-search-field{width:min(520px,100%)}
+    .market-catalog{display:flex;flex-direction:column;gap:24px}
+    .market-category-section h3{margin:0 0 10px;font-size:1.15rem}
+    .market-product-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(125px,1fr));gap:8px}
+    .market-product-tile{min-height:128px;padding:12px 10px;border:1px solid var(--border);border-radius:10px;background:var(--panel-soft,rgba(255,255,255,.035));color:inherit;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;text-align:center;cursor:pointer}
+    .market-product-tile:hover{transform:translateY(-1px);border-color:var(--accent);background:rgba(89,156,255,.08)}
+    .market-product-tile strong{font-size:.93rem;line-height:1.15}
+    .market-product-tile span:not(.market-product-icon),.market-product-tile small{font-size:.76rem;color:var(--muted)}
+    .market-product-icon{font-size:2rem;line-height:1.1;margin-bottom:3px}
+    .market-empty-state,.market-empty-cell{padding:28px;text-align:center;color:var(--muted)}
+    .market-product-topbar{display:flex;justify-content:space-between;align-items:center;gap:12px;margin:2px 0 18px}
+    .market-back-btn{width:auto!important}
+    .market-product-hero{display:flex;align-items:center;gap:14px;margin-bottom:16px}
+    .market-product-hero h2{margin:2px 0 0}
+    .market-product-hero-icon{width:62px;height:62px;border:1px solid var(--border);border-radius:12px;display:grid;place-items:center;font-size:2.25rem;background:rgba(255,255,255,.04)}
+    .market-quality-tabs{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:14px}
+    .market-quality-btn{width:auto!important;padding:8px 13px!important;background:transparent!important;color:inherit!important;border:1px solid var(--border)!important}
+    .market-quality-btn.active{background:var(--accent)!important;border-color:var(--accent)!important;color:#fff!important}
+    .market-orderbook-wrap{margin-bottom:0}
+    .market-orderbook{width:100%;border-collapse:collapse}
+    .market-orderbook th,.market-orderbook td{padding:12px 10px;text-align:left;border-bottom:1px solid var(--border)}
+    .market-orderbook th:nth-child(3),.market-orderbook th:nth-child(4),.market-orderbook td:nth-child(3),.market-orderbook td:nth-child(4){text-align:right}
+    .market-quality-badge,.market-own-badge{display:inline-flex;align-items:center;border-radius:999px;padding:3px 8px;font-size:.78rem;font-weight:700;background:rgba(89,156,255,.12)}
+    .market-own-badge{margin-left:7px;background:rgba(0,166,60,.13)}
+    .market-purchase-bar{position:sticky;bottom:10px;z-index:5;margin-top:14px;padding:14px;border:1px solid var(--border);border-radius:12px;background:var(--panel,#171d28);box-shadow:0 10px 28px rgba(0,0,0,.22);display:grid;grid-template-columns:minmax(120px,170px) 1fr 1fr auto;gap:12px;align-items:end}
+    .market-purchase-info{display:flex;flex-direction:column;gap:4px}.market-purchase-info span{font-size:.78rem;color:var(--muted)}
+    .market-purchase-bar button{min-width:130px}
+    .market-sell-modal{position:fixed;inset:0;z-index:1200;background:rgba(0,0,0,.58);display:flex;align-items:center;justify-content:center;padding:20px}
+    .market-sell-modal.hidden{display:none!important}
+    .market-sell-dialog{width:min(680px,100%);max-height:90vh;overflow:auto;margin:0}
+    .market-sell-hidden-fields{display:none}
+    .market-sell-form{display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:10px;align-items:end}
+    .market-sell-form button{height:42px}
+    @media(max-width:760px){
+      .market-product-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
+      .market-product-tile{min-height:112px;padding:9px 6px}
+      .market-product-topbar{align-items:stretch;flex-direction:column}.market-product-topbar button{width:100%!important}
+      .market-orderbook th:nth-child(5),.market-orderbook td:nth-child(5){display:table-cell}
+      .market-purchase-bar{grid-template-columns:1fr 1fr;bottom:6px}.market-purchase-bar button{grid-column:1/-1;width:100%}
+      .market-sell-form{grid-template-columns:1fr}.market-sell-form button{width:100%}
+    }
+    @media(max-width:460px){.market-product-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.market-orderbook th,.market-orderbook td{padding:10px 6px;font-size:.86rem}}
+
 </style>
   <script>
     if ('serviceWorker' in navigator) {
@@ -1868,77 +1917,87 @@
       </div>
 
       <div id="market" class="view">
-        <article class="panel">
-          <h2>Am Markt verkaufen</h2>
-          <form id="sellOrderForm">
-            <label>Art
-              <select id="sellItemType">
-                <option value="product">Produkt</option>
-                <option value="material">Rohstoff</option>
-              </select>
-            </label>
-            <label>Gut<select id="sellProduct"></select></label>
-            <label>Qualität<select id="sellQuality"></select></label>
-            <label>Menge<input type="number" id="sellQty" min="1" step="1" value="5"></label>
-            <label>Preis je Einheit<input type="number" id="sellPrice" min="0.01" step="0.01" value="800"></label>
-            <button type="submit" class="sell-order-submit">Order erstellen</button>
-          </form>
-          <div id="sellOrderPreview" class="retail-sale-details"></div>
-          <p class="muted market-fee-note">Du kannst Produkte und Rohstoffe aus deinem Lager anbieten. Bei erfolgreichen Marktverkäufen werden 5% Marktgebühr vom Verkaufserlös abgezogen. <button type="button" class="encyclopedia-help-btn" onclick="openEncyclopediaArticle('market-fee')" aria-label="Hilfe zur Marktgebühr" title="Enzyklopädie öffnen">?</button></p>
+        <article class="panel market-main-panel">
+          <div class="panel-head market-redesign-head">
+            <div>
+              <h2>Warenbörse <button type="button" class="encyclopedia-help-btn" onclick="openEncyclopediaArticle('market')" aria-label="Hilfe zur Warenbörse">?</button></h2>
+              <div class="kv market-refresh-line"><span>Nächste Marktaktualisierung</span><strong id="marketRefreshTimer">–</strong></div>
+            </div>
+            <button type="button" id="marketManualRefreshBtn" class="market-manual-refresh-btn" onclick="refreshMarketData()" aria-label="Markt aktualisieren" title="Markt aktualisieren"><span aria-hidden="true">↻</span></button>
+          </div>
+
+          <section id="marketCatalogView">
+            <div class="market-catalog-toolbar">
+              <label class="market-search-field">Ware suchen
+                <input id="marketCatalogSearch" type="search" placeholder="z. B. Prozessor, Stahl oder Transportcontainer" autocomplete="off">
+              </label>
+            </div>
+            <div id="marketCatalog" class="market-catalog"></div>
+          </section>
+
+          <section id="marketProductView" class="hidden">
+            <div class="market-product-topbar">
+              <button type="button" id="marketBackBtn" class="ghost market-back-btn">← <span id="marketProductCategory">Warenbörse</span></button>
+              <button type="button" id="marketSellOpenBtn" class="sell-order-submit">Verkaufsorder erstellen</button>
+            </div>
+
+            <div id="marketProductPage" class="market-product-page">
+              <div class="market-product-hero">
+                <div id="marketProductHeroIcon" class="market-product-hero-icon" aria-hidden="true">📦</div>
+                <div>
+                  <span class="muted">Orderbuch</span>
+                  <h2 id="marketProductTitle">Produkt</h2>
+                </div>
+              </div>
+
+              <div class="market-quality-tabs" aria-label="Qualität filtern">
+                <button type="button" class="market-quality-btn active" data-quality="all">Alle</button>
+                <button type="button" class="market-quality-btn" data-quality="1">Q1</button>
+                <button type="button" class="market-quality-btn" data-quality="2">Q2</button>
+                <button type="button" class="market-quality-btn" data-quality="3">Q3</button>
+                <button type="button" class="market-quality-btn" data-quality="4">Q4</button>
+                <button type="button" class="market-quality-btn" data-quality="5">Q5+</button>
+              </div>
+
+              <div class="table-wrap market-orderbook-wrap">
+                <table class="market-orderbook">
+                  <thead><tr><th>Anbieter</th><th>Qualität</th><th>Menge</th><th>Preis / Einheit</th><th>Aktion</th></tr></thead>
+                  <tbody id="marketOrderBookBody"></tbody>
+                </table>
+              </div>
+
+              <div class="market-purchase-bar">
+                <label>Menge
+                  <input id="marketProductBuyQty" type="number" min="1" step="1" value="1">
+                </label>
+                <div class="market-purchase-info"><span>Marktbestand</span><strong id="marketProductBuyAvailability">0 verfügbar</strong></div>
+                <div class="market-purchase-info"><span>Voraussichtliche Kosten</span><strong id="marketProductBuyTotal">–</strong></div>
+                <button type="button" id="marketProductBuyBtn" class="market-buy-cheapest-btn" disabled>Kaufen</button>
+              </div>
+            </div>
+          </section>
         </article>
 
-        <article class="panel">
-          <div class="panel-head market-orders-head">
-            <div>
-              <h2>Offene Marktorders <button type="button" class="encyclopedia-help-btn" onclick="openEncyclopediaArticle('market')" aria-label="Hilfe zur Warenbörse" title="Enzyklopädie öffnen">?</button></h2>
-              <div class="kv">
-                <span>Nächste Marktaktualisierung <button type="button" class="encyclopedia-help-btn" onclick="openEncyclopediaArticle('npc-market')" aria-label="Hilfe zur Marktaktualisierung" title="Enzyklopädie öffnen">?</button></span>
-                <strong id="marketRefreshTimer">–</strong>
-              </div>
+        <div id="marketSellModal" class="market-sell-modal hidden" aria-hidden="true">
+          <article class="panel market-sell-dialog" role="dialog" aria-modal="true" aria-labelledby="marketSellItemTitle">
+            <div class="panel-head">
+              <div><span class="muted">Verkaufsorder erstellen</span><h2 id="marketSellItemTitle">Ware</h2></div>
+              <button type="button" id="marketSellCloseBtn" class="ghost">Schließen</button>
             </div>
-            <div class="market-filter-controls">
-              <label>Suche
-                <input id="marketSearchFilter" type="search" placeholder="z. B. Silizium oder Smartphone" autocomplete="off">
-              </label>
-              <label>Art
-                <select id="marketTypeFilter">
-                  <option value="all">Alle</option>
-                  <option value="material">Rohstoffe</option>
-                  <option value="product">Produkte</option>
-                </select>
-              </label>
-              <label>Qualität
-                <select id="marketQualityFilter">
-                  <option value="all">Alle</option>
-                  <option value="1">Q1</option>
-                  <option value="2">Q2</option>
-                  <option value="3">Q3</option>
-                  <option value="4">Q4</option>
-                  <option value="5">Q5+</option>
-                </select>
-              </label>
-              <label>Menge
-                <input id="marketBuyQty" type="number" min="1" step="1" value="1">
-              </label>
-              <div class="market-buy-total">
-                <span>Gesamtkosten</span>
-                <strong id="marketBuyTotal">–</strong>
+            <form id="sellOrderForm" class="market-sell-form">
+              <div class="market-sell-hidden-fields">
+                <label>Art<select id="sellItemType"><option value="product">Produkt</option><option value="material">Rohstoff</option></select></label>
+                <label>Gut<select id="sellProduct"></select></label>
               </div>
-              <button type="button" id="marketBuyCheapest" class="market-buy-cheapest-btn" disabled>Kaufen</button>
-              <button type="button" id="marketFilterReset" class="ghost">Zurücksetzen</button>
-            </div>
-            <button
-              type="button"
-              id="marketManualRefreshBtn"
-              class="market-manual-refresh-btn"
-              onclick="refreshMarketData()"
-              aria-label="Markt aktualisieren"
-              title="Markt aktualisieren">
-              <span aria-hidden="true">↻</span>
-            </button>
-          </div>
-          <div id="marketOrders" class="table-wrap"></div>
-        </article>
+              <label>Qualität<select id="sellQuality"></select></label>
+              <label>Menge<input type="number" id="sellQty" min="1" step="1" value="5"></label>
+              <label>Preis je Einheit<input type="number" id="sellPrice" min="0.01" step="0.01" value="800"></label>
+              <button type="submit" class="sell-order-submit">Order erstellen</button>
+            </form>
+            <div id="sellOrderPreview" class="retail-sale-details"></div>
+            <p class="muted market-fee-note">Bei erfolgreichen Marktverkäufen werden 5% Marktgebühr vom Verkaufserlös abgezogen.</p>
+          </article>
+        </div>
       </div>
 
       <div id="contracts" class="view">
@@ -2085,7 +2144,7 @@
           <h2>Einstellungen</h2>
           <div class="kv">
             <span>Version</span>
-            <strong>0.10.183</strong>
+            <strong>0.10.184</strong>
           </div>
           <div class="kv settings-language-row">
             <span>Sprache</span>
