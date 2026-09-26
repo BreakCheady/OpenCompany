@@ -5192,9 +5192,11 @@ function renderFinanceSummary() {
   const freightCosts = costType('freight_cost');
   const retailCancelFees = costType('retail_cancel_fee');
   const storageHoldingCosts = costType('storage_fee');
-  const directResearchCosts =
-    costType('research') +
-    sumCostBasisType('research_investment');
+  // Der Einstandswert investierter Forschungseinheiten wurde bereits beim
+  // Einkauf (Markt/Vertrag) oder bei der Produktion als Aufwand erfasst.
+  // research_investment.cost_basis dient nur der Nachvollziehbarkeit und darf
+  // deshalb hier nicht nochmals als Forschungskosten gezählt werden.
+  const directResearchCosts = costType('research');
   const patentValueGains = sumType('research_investment');
 
   const buildingCosts = costType('construction');
