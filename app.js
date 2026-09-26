@@ -4427,6 +4427,65 @@ function renderMarketProductPage() {
   updateMarketProductBuyPreview();
 }
 
+function renderMyOpenMarketOrders() {
+  const root=document.getElementById('myOpenMarketOrders');
+  const countEl=document.getElementById('myOpenMarketOrdersCount');
+  if (!root || !state.company?.id) return;
+
+  const orders=state.marketOrders
+    .filter(order =>
+      order.company_id===state.company.id &&
+      order.order_type==='sell' &&
+      ['open','partially_filled'].includes(order.status) &&
+      Number(order.remaining_quantity||0)>0
+    )
+    .sort((a,b) =>
+      itemName(a).localeCompare(itemName(b),uiLocale()) ||
+      Number(a.price_per_unit||0)-Number(b.price_per_unit||0)
+    );
+
+  if (countEl) countEl.textContent=`${orders.length} offen`;
+
+  if (!orders.length) {
+    root.innerHTML='<div class="market-empty-state">Du hast aktuell keine offenen Verkaufsorders.</div>';
+    return;
+  }
+
+  root.innerHTML=`
+    <div class="table-wrap">
+      <table class="market-orderbook my-market-orders-table">
+        <thead>
+          <tr>
+            <th>Artikel</th>
+            <th>Qualität</th>
+            <th>Restmenge</th>
+            <th>Preis / Einheit</th>
+            <th>Aktion</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${orders.map(order=>`
+            <tr>
+              <td><strong>${itemName(order)}</strong></td>
+              <td><span class="market-quality-badge">Q${Number(order.quality_level||1)}</span></td>
+              <td>${num(order.remaining_quantity)}</td>
+              <td><strong>${money(order.price_per_unit)}</strong></td>
+              <td>
+                <button type="button" class="strong-danger-btn my-market-cancel-order" data-order-id="${order.id}">
+                  Stornieren
+                </button>
+              </td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    </div>`;
+
+  root.querySelectorAll('.my-market-cancel-order').forEach(button=>{
+    button.addEventListener('click',()=>cancelOrder(button.dataset.orderId));
+  });
+}
+
 function renderMarket() {
   const catalogView=document.getElementById('marketCatalogView');
   const productView=document.getElementById('marketProductView');
@@ -4435,6 +4494,7 @@ function renderMarket() {
   catalogView.classList.toggle('hidden',showProduct);
   productView.classList.toggle('hidden',!showProduct);
   if (showProduct) renderMarketProductPage(); else renderMarketCatalog();
+  renderMyOpenMarketOrders();
   if (currentLanguage==='en') applyLanguageToDom(document.getElementById('market'));
 }
 

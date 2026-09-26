@@ -1120,7 +1120,7 @@
       .oc-select-option{min-height:46px;padding:.7rem .8rem}
     }
   
-    /* v0.10.185 – Handelssystem-Korrekturen */
+    /* v0.10.186 – Handelssystem-Korrekturen */
     .app-shell{
       display:block!important;
       min-height:100dvh!important;
@@ -1595,6 +1595,22 @@
 
     /* Warenbörse: produktzentriertes Orderbuch */
     .market-main-panel{overflow:visible}
+    .my-market-orders-panel{margin-top:16px}
+    .my-market-orders-head{align-items:flex-start;gap:16px}
+    .my-market-orders-head h2{margin-bottom:4px}
+    .my-market-orders-head .muted{margin:0}
+    .my-market-orders-count{
+      flex:0 0 auto;
+      padding:7px 11px;
+      border:1px solid var(--border);
+      border-radius:999px;
+      white-space:nowrap;
+    }
+    .my-market-orders-table th:nth-child(3),
+    .my-market-orders-table th:nth-child(4),
+    .my-market-orders-table td:nth-child(3),
+    .my-market-orders-table td:nth-child(4){text-align:right}
+    .my-market-orders-table td:last-child{text-align:right}
     .market-redesign-head{align-items:flex-start;gap:18px}
     .market-refresh-line{margin-top:6px;max-width:330px}
     .market-catalog-toolbar{display:flex;gap:12px;margin:8px 0 22px}
@@ -1639,7 +1655,13 @@
       .market-purchase-bar{grid-template-columns:1fr 1fr;bottom:6px}.market-purchase-bar button{grid-column:1/-1;width:100%}
       .market-sell-form{grid-template-columns:1fr}.market-sell-form button{width:100%}
     }
-    @media(max-width:460px){.market-product-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.market-orderbook th,.market-orderbook td{padding:10px 6px;font-size:.86rem}}
+    @media(max-width:460px){
+      .market-product-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+      .market-orderbook th,.market-orderbook td{padding:10px 6px;font-size:.86rem}
+      .my-market-orders-head{display:block}
+      .my-market-orders-count{display:inline-block;margin-top:8px}
+      .my-market-orders-table th:nth-child(2),.my-market-orders-table td:nth-child(2){display:none}
+    }
 
 </style>
   <script>
@@ -1978,6 +2000,17 @@
           </section>
         </article>
 
+        <article class="panel my-market-orders-panel">
+          <div class="panel-head my-market-orders-head">
+            <div>
+              <h2>Meine Orders</h2>
+              <p class="muted">Nur aktuell offene oder teilweise ausgeführte Verkaufsorders.</p>
+            </div>
+            <strong id="myOpenMarketOrdersCount" class="my-market-orders-count">0 offen</strong>
+          </div>
+          <div id="myOpenMarketOrders"></div>
+        </article>
+
         <div id="marketSellModal" class="market-sell-modal hidden" aria-hidden="true">
           <article class="panel market-sell-dialog" role="dialog" aria-modal="true" aria-labelledby="marketSellItemTitle">
             <div class="panel-head">
@@ -2144,7 +2177,7 @@
           <h2>Einstellungen</h2>
           <div class="kv">
             <span>Version</span>
-            <strong>0.10.185</strong>
+            <strong>0.10.186</strong>
           </div>
           <div class="kv settings-language-row">
             <span>Sprache</span>
