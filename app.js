@@ -923,6 +923,7 @@ let presenceTimer = null;
 let productionRefreshTimer = null;
 let productionClaimDisplayTimer = null;
 let npcMarketCountdownTimer = null;
+let marketAutoRefreshTimer = null;
 let companyValueRefreshTimer = null;
 let buildingConstructionTimer = null;
 let companyBalancePollTimer = null;
@@ -1901,12 +1902,19 @@ function updateMarketRefreshTimer() {
 function stopNpcMarketHeartbeat() {
   if (npcMarketCountdownTimer) clearInterval(npcMarketCountdownTimer);
   npcMarketCountdownTimer = null;
+  if (marketAutoRefreshTimer) clearInterval(marketAutoRefreshTimer);
+  marketAutoRefreshTimer = null;
 }
 
 function startNpcMarketHeartbeat() {
   stopNpcMarketHeartbeat();
   updateMarketRefreshTimer();
   npcMarketCountdownTimer = setInterval(updateMarketRefreshTimer, 1000);
+  marketAutoRefreshTimer = setInterval(() => {
+    if (document.visibilityState !== 'visible') return;
+    if (!document.getElementById('market')?.classList.contains('active-view')) return;
+    refreshMarketData();
+  }, 30000);
 }
 
 async function fetchPermanentTransportContainerMarketOrder() {
@@ -1942,15 +1950,6 @@ function withPermanentTransportContainerOrder(orders, permanentOrder) {
 async function refreshMarketData() {
   if (!sb || !state.company?.id) return;
 
-  const button = document.getElementById('marketManualRefreshBtn');
-  if (button?.disabled) return;
-
-  if (button) {
-    button.disabled = true;
-    button.classList.add('is-refreshing');
-    button.setAttribute('aria-busy', 'true');
-  }
-
   try {
     const [ordersResult, directoryResult] = await Promise.all([
       sb.from('market_orders')
@@ -1981,11 +1980,7 @@ async function refreshMarketData() {
     renderMarket();
     updateMarketRefreshTimer();
   } finally {
-    if (button) {
-      button.disabled = false;
-      button.classList.remove('is-refreshing');
-      button.removeAttribute('aria-busy');
-    }
+    // automatische Marktaktualisierung benötigt keinen manuellen Buttonzustand
   }
 }
 
@@ -5192,11 +5187,6 @@ function renderFinanceSummary() {
   const freightCosts = costType('freight_cost');
   const retailCancelFees = costType('retail_cancel_fee');
   const storageHoldingCosts = costType('storage_fee');
-  // Der Einstandswert investierter Forschungseinheiten wurde bereits beim
-  // Einkauf (Markt/Vertrag) oder bei der Produktion als Aufwand erfasst.
-  // research_investment.cost_basis dient nur der Nachvollziehbarkeit und darf
-  // deshalb hier nicht nochmals als Forschungskosten gezählt werden.
-  const directResearchCosts = costType('research');
   const patentValueGains = sumType('research_investment');
 
   const buildingCosts = costType('construction');
@@ -5241,7 +5231,6 @@ function renderFinanceSummary() {
     freightCosts +
     retailCancelFees +
     storageHoldingCosts +
-    directResearchCosts +
     otherOperatingCosts;
 
   const operatingResult = operatingRevenue - operatingCosts;
@@ -5277,8 +5266,7 @@ function renderFinanceSummary() {
     financeStatementRow('Marktgebühren', marketFees, { cost:true }),
     financeStatementRow('Frachtkosten', freightCosts, { cost:true }),
     financeStatementRow('Storno-/Abbruchgebühren', retailCancelFees, { cost:true }),
-    financeStatementRow('Lagerhaltungskosten', storageHoldingCosts, { cost:true }),
-    financeStatementRow('Forschungskosten', directResearchCosts, { cost:true })
+    financeStatementRow('Lagerhaltungskosten', storageHoldingCosts, { cost:true })
   ];
   if (otherOperatingCosts > 0) expenseRows.push(financeStatementRow('Sonstige Betriebskosten', otherOperatingCosts, { cost:true }));
 
