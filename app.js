@@ -6002,7 +6002,19 @@ const ENCYCLOPEDIA_ARTICLES = [
     keywords:['level','xp','erfahrung','freischaltung'],
     summary:'Level bestimmen unter anderem Gebäudeplätze und Funktionsfreischaltungen.',
     body:() => `<p>Unternehmens-XP erhöhen dein Level. Bestimmte Funktionen werden erst ab einem festgelegten Level freigeschaltet.</p>
-      <h3>Beispiele</h3><ul><li>Verträge werden ab Level ${GAME_RULES.unlockLevels.contracts} freigeschaltet.</li><li>Forschung wird ab Level ${GAME_RULES.unlockLevels.research} freigeschaltet.</li><li>Anleihen werden ab Level ${GAME_RULES.unlockLevels.bonds} freigeschaltet.</li><li>Mit höheren Leveln stehen zusätzliche Gebäudeplätze zur Verfügung.</li></ul>`,
+      <h3>Funktionsfreischaltungen</h3>
+      <ul><li>Verträge werden ab Level ${GAME_RULES.unlockLevels.contracts} freigeschaltet.</li><li>Forschung wird ab Level ${GAME_RULES.unlockLevels.research} freigeschaltet.</li><li>Anleihen werden ab Level ${GAME_RULES.unlockLevels.bonds} freigeschaltet.</li></ul>
+      <h3>Gebäudeplätze nach Unternehmenslevel</h3>
+      <p>Mit steigendem Unternehmenslevel erhöht sich die maximale Anzahl gleichzeitig verfügbarer Gebäudeplätze.</p>
+      <ul>
+        <li><strong>Level 0–4:</strong> 4 Gebäudeplätze</li>
+        <li><strong>Level 5–9:</strong> 6 Gebäudeplätze</li>
+        <li><strong>Level 10–14:</strong> 8 Gebäudeplätze</li>
+        <li><strong>Level 15–19:</strong> 10 Gebäudeplätze</li>
+        <li><strong>Level 20–24:</strong> 12 Gebäudeplätze</li>
+        <li><strong>Level 25–29:</strong> 14 Gebäudeplätze</li>
+        <li><strong>Ab Level 30:</strong> 16 Gebäudeplätze</li>
+      </ul>`,
     related:['buildings','contracts','research','bonds'], targetView:'dashboard'
   },
   {
