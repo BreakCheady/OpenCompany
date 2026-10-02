@@ -1120,7 +1120,7 @@
       .oc-select-option{min-height:46px;padding:.7rem .8rem}
     }
   
-    /* v0.10.196 – Handelssystem-Korrekturen */
+    /* v0.10.197 – Handelssystem-Korrekturen */
     .app-shell{
       display:block!important;
       min-height:100dvh!important;
@@ -1671,6 +1671,215 @@
       .my-market-orders-table th:nth-child(2),.my-market-orders-table td:nth-child(2){display:none}
     }
 
+    /* Chat */
+    .header-chat-btn.active{box-shadow:0 0 0 2px rgba(255,255,255,.18) inset}
+    .chat-panel{padding:0;overflow:hidden}
+    .chat-layout{
+      display:grid;
+      grid-template-columns:280px minmax(0,1fr);
+      min-height:600px;
+      height:min(720px,calc(100vh - 170px));
+      background:var(--panel,#fff);
+    }
+    .chat-sidebar{
+      min-width:0;
+      border-right:1px solid var(--border,#d8dee8);
+      background:var(--panel-soft,#f6f8fb);
+      overflow-y:auto;
+      overscroll-behavior:contain;
+    }
+    .chat-section-title{
+      padding:11px 14px;
+      background:rgba(15,23,42,.06);
+      color:var(--muted,#64748b);
+      font-size:.78rem;
+      font-weight:800;
+      text-transform:uppercase;
+      letter-spacing:.06em;
+    }
+    .chat-nav-list{display:flex;flex-direction:column;padding:6px}
+    .chat-nav-button{
+      width:100%;
+      display:flex;
+      align-items:center;
+      justify-content:flex-start;
+      gap:10px;
+      min-height:52px;
+      padding:7px 9px!important;
+      border:0!important;
+      border-radius:10px!important;
+      background:transparent!important;
+      color:inherit!important;
+      text-align:left;
+      box-shadow:none!important;
+    }
+    .chat-nav-button:hover{background:rgba(23,105,210,.08)!important}
+    .chat-nav-button.active{
+      background:rgba(23,105,210,.14)!important;
+      box-shadow:inset 3px 0 0 var(--accent,#1769d2)!important;
+    }
+    .chat-nav-icon,.chat-contact-avatar{
+      flex:0 0 40px;
+      width:40px;
+      height:40px;
+      border-radius:10px;
+      display:grid;
+      place-items:center;
+      font-size:1.25rem;
+      font-weight:800;
+      background:#0d6c64;
+      color:#fff;
+    }
+    .chat-contact-avatar{border-radius:50%;background:#334155}
+    .chat-nav-label{
+      min-width:0;
+      overflow:hidden;
+      text-overflow:ellipsis;
+      white-space:nowrap;
+      font-weight:650;
+    }
+    .chat-contact-search{padding:8px 10px}
+    .chat-contact-search input{width:100%;margin:0}
+    .chat-nav-empty{padding:12px 10px;margin:0;color:var(--muted,#64748b);font-size:.86rem}
+    .chat-conversation{
+      min-width:0;
+      display:flex;
+      flex-direction:column;
+      background:var(--panel,#fff);
+    }
+    .chat-conversation-header{
+      display:flex;
+      align-items:center;
+      gap:10px;
+      min-height:64px;
+      padding:8px 14px;
+      border-bottom:1px solid var(--border,#d8dee8);
+      background:var(--panel,#fff);
+    }
+    .chat-conversation-icon{
+      flex:0 0 42px;
+      width:42px;height:42px;
+      display:grid;place-items:center;
+      border-radius:10px;
+      background:#0d6c64;
+      color:#fff;
+      font-size:1.25rem;
+      font-weight:800;
+    }
+    .chat-conversation-heading{min-width:0;display:flex;flex-direction:column}
+    .chat-conversation-heading strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .chat-conversation-heading small{color:var(--muted,#64748b)}
+    .chat-mobile-back{display:none;width:auto!important;padding:8px 10px!important}
+    .chat-messages{
+      flex:1 1 auto;
+      min-height:0;
+      overflow-y:auto;
+      overscroll-behavior:contain;
+      padding:10px 14px 18px;
+      background:rgba(148,163,184,.06);
+    }
+    .chat-message{
+      display:grid;
+      grid-template-columns:42px minmax(0,1fr);
+      gap:10px;
+      padding:10px 0;
+      border-bottom:1px solid rgba(148,163,184,.22);
+    }
+    .chat-message:last-child{border-bottom:0}
+    .chat-message-avatar{
+      width:42px;height:42px;
+      border-radius:50%;
+      display:grid;place-items:center;
+      background:#334155;color:#fff;
+      font-weight:800;
+    }
+    .chat-message-own .chat-message-avatar{background:var(--accent,#1769d2)}
+    .chat-message-main{min-width:0}
+    .chat-message-meta{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:4px}
+    .chat-message-meta strong{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .chat-message-meta time{flex:0 0 auto;color:var(--muted,#64748b);font-size:.78rem}
+    .chat-message-body{
+      display:inline-block;
+      max-width:min(760px,100%);
+      padding:8px 11px;
+      border-radius:12px;
+      background:rgba(148,163,184,.14);
+      line-height:1.4;
+      overflow-wrap:anywhere;
+    }
+    .chat-message-own .chat-message-body{background:rgba(23,105,210,.12)}
+    .chat-empty-conversation{
+      min-height:100%;
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      justify-content:center;
+      text-align:center;
+      color:var(--muted,#64748b);
+      padding:28px;
+    }
+    .chat-empty-conversation>span{font-size:2.4rem;margin-bottom:8px}
+    .chat-empty-conversation p{max-width:420px;margin:.35rem 0 0}
+    .chat-message-form{
+      display:grid;
+      grid-template-columns:minmax(0,1fr) auto;
+      gap:8px;
+      align-items:end;
+      padding:10px;
+      border-top:1px solid var(--border,#d8dee8);
+      background:var(--panel,#fff);
+    }
+    .chat-message-form textarea{
+      width:100%;
+      min-height:46px;
+      max-height:130px;
+      resize:vertical;
+      margin:0;
+      border-radius:14px;
+      padding:11px 13px;
+    }
+    .chat-send-btn{
+      width:46px!important;height:46px;
+      padding:0!important;
+      border-radius:50%!important;
+      display:grid!important;place-items:center;
+      font-size:1.15rem;
+    }
+    @media(max-width:760px){
+      .chat-panel{margin-left:-2px;margin-right:-2px}
+      .chat-layout{
+        grid-template-columns:1fr;
+        height:calc(100dvh - 150px);
+        min-height:520px;
+      }
+      .chat-conversation{display:none}
+      .chat-layout.chat-has-selection{grid-template-columns:72px minmax(0,1fr)}
+      .chat-layout.chat-has-selection .chat-conversation{display:flex}
+      .chat-layout.chat-has-selection .chat-sidebar{overflow-x:hidden}
+      .chat-layout.chat-has-selection .chat-section-title,
+      .chat-layout.chat-has-selection .chat-contact-search,
+      .chat-layout.chat-has-selection .chat-nav-label,
+      .chat-layout.chat-has-selection .chat-nav-empty{display:none}
+      .chat-layout.chat-has-selection .chat-nav-list{padding:4px}
+      .chat-layout.chat-has-selection .chat-nav-button{
+        justify-content:center;
+        min-height:58px;
+        padding:7px 4px!important;
+      }
+      .chat-layout.chat-has-selection .chat-nav-icon,
+      .chat-layout.chat-has-selection .chat-contact-avatar{
+        flex-basis:44px;width:44px;height:44px;
+      }
+      .chat-mobile-back{display:inline-flex}
+      .chat-conversation-header{padding:7px 9px}
+      .chat-messages{padding:8px 10px 14px}
+      .chat-message{grid-template-columns:36px minmax(0,1fr);gap:8px}
+      .chat-message-avatar{width:36px;height:36px;font-size:.86rem}
+      .chat-message-meta{gap:8px}
+      .chat-message-meta strong{font-size:.9rem}
+      .chat-message-body{font-size:.94rem}
+    }
+
 </style>
   <script>
     if ('serviceWorker' in navigator) {
@@ -1771,6 +1980,48 @@
           <article class="panel"><h2>Firmenstatus</h2><div id="companySummary" class="stack"></div></article>
           <article class="panel"><h2>Letzte Finanzbewegungen</h2><div id="recentTransactions" class="table-wrap"></div></article>
         </div>
+      </div>
+
+      <div id="chat" class="view">
+        <article class="panel chat-panel">
+          <div id="chatLayout" class="chat-layout">
+            <aside class="chat-sidebar" aria-label="Chatnavigation">
+              <div class="chat-section-title">Chaträume</div>
+              <div id="chatRoomList" class="chat-nav-list">
+                <p class="chat-nav-empty">Chaträume werden geladen …</p>
+              </div>
+              <div class="chat-section-title">Kontakte</div>
+              <label class="chat-contact-search" aria-label="Kontakte suchen">
+                <input id="chatContactSearch" type="search" placeholder="Unternehmen suchen" autocomplete="off">
+              </label>
+              <div id="chatContactList" class="chat-nav-list">
+                <p class="chat-nav-empty">Keine Kontakte geladen.</p>
+              </div>
+            </aside>
+
+            <section class="chat-conversation" aria-label="Unterhaltung">
+              <header class="chat-conversation-header">
+                <button type="button" id="chatMobileBack" class="ghost chat-mobile-back" aria-label="Zur Chatübersicht">←</button>
+                <div id="chatConversationIcon" class="chat-conversation-icon" aria-hidden="true">💬</div>
+                <div class="chat-conversation-heading">
+                  <strong id="chatConversationTitle">Chat</strong>
+                  <small id="chatConversationSubtitle">Wähle links einen Chatraum oder Kontakt.</small>
+                </div>
+              </header>
+              <div id="chatMessages" class="chat-messages" aria-live="polite">
+                <div class="chat-empty-conversation">
+                  <span aria-hidden="true">💬</span>
+                  <strong>Unterhaltung auswählen</strong>
+                  <p>Öffne einen Chatraum oder wähle ein Unternehmen aus deinen Kontakten.</p>
+                </div>
+              </div>
+              <form id="chatMessageForm" class="chat-message-form hidden">
+                <textarea id="chatMessageInput" maxlength="1000" rows="1" placeholder="Nachricht schreiben …" aria-label="Nachricht"></textarea>
+                <button type="submit" class="chat-send-btn" aria-label="Nachricht senden" title="Nachricht senden">➤</button>
+              </form>
+            </section>
+          </div>
+        </article>
       </div>
 
       <div id="company" class="view">
@@ -2185,7 +2436,7 @@
           <h2>Einstellungen</h2>
           <div class="kv">
             <span>Version</span>
-            <strong>0.10.196</strong>
+            <strong>0.10.197</strong>
           </div>
           <div class="kv settings-language-row">
             <span>Sprache</span>
