@@ -895,6 +895,11 @@ const state = {
   marketItemOrdersKey: '',
   marketItemOrdersLoading: false,
   marketTrades: [],
+  chatRooms: [],
+  chatMessages: [],
+  chatSelectedType: '',
+  chatSelectedId: '',
+  chatContactSearch: '',
   marketSearchFilter: '',
   marketTypeFilter: 'all',
   marketQualityFilter: 'all',
@@ -934,6 +939,7 @@ let buildingConstructionTimer = null;
 let companyBalancePollTimer = null;
 let companyBalanceChannel = null;
 let publicLeaderboardTimer = null;
+let chatRealtimeChannel = null;
 let inactivityLogoutTimer = null;
 let lastUserActivityAt = 0;
 let inactivityListenersInstalled = false;
@@ -2104,6 +2110,337 @@ function bindNavigation() {
 }
 bindNavigation();
 
+function escapeChatText(value) {
+  return String(value ?? '').replace(/[&<>"']/g, character => ({
+    '&':'&amp;',
+    '<':'&lt;',
+    '>':'&gt;',
+    '"':'&quot;',
+    "'":'&#39;'
+  })[character]);
+}
+
+function chatCompany(companyId) {
+  if (companyId === state.company?.id) return state.company;
+  return state.companyDirectory.find(company => company.id === companyId) || null;
+}
+
+function chatCompanyInitial(company) {
+  return String(company?.name || '?').trim().charAt(0).toLocaleUpperCase(uiLocale()) || '?';
+}
+
+function chatContacts() {
+  const search = String(state.chatContactSearch || '').trim().toLocaleLowerCase(uiLocale());
+  return (state.companyDirectory || [])
+    .filter(company =>
+      company.company_type === 'player' &&
+      company.id !== state.company?.id &&
+      company.status !== 'inactive'
+    )
+    .filter(company => !search || String(company.name || '').toLocaleLowerCase(uiLocale()).includes(search))
+    .sort((a,b) => String(a.name || '').localeCompare(String(b.name || ''), uiLocale()));
+}
+
+function selectedChatTarget() {
+  if (state.chatSelectedType === 'room') {
+    const room = state.chatRooms.find(item => item.id === state.chatSelectedId);
+    return room ? { type:'room', id:room.id, name:room.name, icon:room.icon || '💬' } : null;
+  }
+  if (state.chatSelectedType === 'contact') {
+    const company = chatCompany(state.chatSelectedId);
+    return company ? {
+      type:'contact',
+      id:company.id,
+      name:company.name,
+      icon:chatCompanyInitial(company)
+    } : null;
+  }
+  return null;
+}
+
+function formatChatTime(value) {
+  if (!value) return '';
+  const date = new Date(value);
+  const now = new Date();
+  const sameDay =
+    date.getFullYear() === now.getFullYear() &&
+    date.getMonth() === now.getMonth() &&
+    date.getDate() === now.getDate();
+
+  if (sameDay) {
+    return date.toLocaleTimeString(uiLocale(), { hour:'2-digit', minute:'2-digit' });
+  }
+  return date.toLocaleDateString(uiLocale(), { day:'2-digit', month:'2-digit' })
+    + ' · '
+    + date.toLocaleTimeString(uiLocale(), { hour:'2-digit', minute:'2-digit' });
+}
+
+function renderChatNavigation() {
+  const roomList = document.getElementById('chatRoomList');
+  const contactList = document.getElementById('chatContactList');
+  const contactSearch = document.getElementById('chatContactSearch');
+  if (!roomList || !contactList) return;
+
+  roomList.innerHTML = state.chatRooms.length
+    ? state.chatRooms.map(room => `
+        <button type="button"
+                class="chat-nav-button ${state.chatSelectedType === 'room' && state.chatSelectedId === room.id ? 'active' : ''}"
+                data-chat-room-id="${room.id}"
+                title="${escapeChatText(room.name)}">
+          <span class="chat-nav-icon">${escapeChatText(room.icon || '💬')}</span>
+          <span class="chat-nav-label">${escapeChatText(room.name)}</span>
+        </button>
+      `).join('')
+    : '<p class="chat-nav-empty">Keine Chaträume verfügbar.</p>';
+
+  const contacts = chatContacts();
+  contactList.innerHTML = contacts.length
+    ? contacts.map(company => `
+        <button type="button"
+                class="chat-nav-button ${state.chatSelectedType === 'contact' && state.chatSelectedId === company.id ? 'active' : ''}"
+                data-chat-contact-id="${company.id}"
+                title="${escapeChatText(company.name)}">
+          <span class="chat-contact-avatar">${escapeChatText(chatCompanyInitial(company))}</span>
+          <span class="chat-nav-label">${escapeChatText(company.name)}</span>
+        </button>
+      `).join('')
+    : '<p class="chat-nav-empty">Keine Kontakte gefunden.</p>';
+
+  if (contactSearch && contactSearch.value !== state.chatContactSearch) {
+    contactSearch.value = state.chatContactSearch || '';
+  }
+
+  roomList.querySelectorAll('[data-chat-room-id]').forEach(button => {
+    button.addEventListener('click', () => openChatTarget('room', button.dataset.chatRoomId));
+  });
+  contactList.querySelectorAll('[data-chat-contact-id]').forEach(button => {
+    button.addEventListener('click', () => openChatTarget('contact', button.dataset.chatContactId));
+  });
+}
+
+function renderChatMessages() {
+  const layout = document.getElementById('chatLayout');
+  const title = document.getElementById('chatConversationTitle');
+  const subtitle = document.getElementById('chatConversationSubtitle');
+  const icon = document.getElementById('chatConversationIcon');
+  const messages = document.getElementById('chatMessages');
+  const form = document.getElementById('chatMessageForm');
+  const input = document.getElementById('chatMessageInput');
+  if (!layout || !title || !subtitle || !icon || !messages || !form || !input) return;
+
+  const target = selectedChatTarget();
+  layout.classList.toggle('chat-has-selection', !!target);
+  form.classList.toggle('hidden', !target);
+  input.disabled = !target;
+
+  if (!target) {
+    title.textContent = 'Chat';
+    subtitle.textContent = 'Wähle links einen Chatraum oder Kontakt.';
+    icon.textContent = '💬';
+    messages.innerHTML = `
+      <div class="chat-empty-conversation">
+        <span aria-hidden="true">💬</span>
+        <strong>Unterhaltung auswählen</strong>
+        <p>Öffne einen Chatraum oder wähle ein Unternehmen aus deinen Kontakten.</p>
+      </div>`;
+    return;
+  }
+
+  title.textContent = target.name;
+  subtitle.textContent = target.type === 'room' ? 'Öffentlicher Chatraum' : 'Direktnachricht';
+  icon.textContent = target.icon;
+
+  if (!state.chatMessages.length) {
+    messages.innerHTML = '<div class="chat-empty-conversation"><strong>Noch keine Nachrichten.</strong><p>Starte die Unterhaltung mit der ersten Nachricht.</p></div>';
+    return;
+  }
+
+  messages.innerHTML = state.chatMessages.map(message => {
+    const sender = chatCompany(message.sender_company_id);
+    const own = message.sender_company_id === state.company?.id;
+    const senderName = sender?.name || 'Unbekanntes Unternehmen';
+    const body = escapeChatText(message.body).replace(/\n/g,'<br>');
+    return `
+      <article class="chat-message ${own ? 'chat-message-own' : ''}">
+        <div class="chat-message-avatar">${escapeChatText(chatCompanyInitial(sender || {name:senderName}))}</div>
+        <div class="chat-message-main">
+          <div class="chat-message-meta">
+            <strong>${escapeChatText(senderName)}${own ? ' · Du' : ''}</strong>
+            <time datetime="${escapeChatText(message.created_at)}">${escapeChatText(formatChatTime(message.created_at))}</time>
+          </div>
+          <div class="chat-message-body">${body}</div>
+        </div>
+      </article>`;
+  }).join('');
+
+  requestAnimationFrame(() => {
+    messages.scrollTop = messages.scrollHeight;
+  });
+}
+
+function renderChat() {
+  renderChatNavigation();
+  renderChatMessages();
+}
+
+async function loadChatRooms() {
+  if (!sb) return false;
+  const { data, error } = await sb
+    .from('chat_rooms')
+    .select('id,slug,name,icon,sort_order')
+    .eq('is_active', true)
+    .order('sort_order', { ascending:true });
+
+  if (error) {
+    console.error('Chaträume konnten nicht geladen werden:', error);
+    await gameAlert('Chaträume konnten nicht geladen werden.');
+    return false;
+  }
+
+  state.chatRooms = data || [];
+  return true;
+}
+
+async function loadChatConversation({ silent=false } = {}) {
+  const target = selectedChatTarget();
+  if (!sb || !target || !state.company?.id) {
+    state.chatMessages = [];
+    renderChatMessages();
+    return;
+  }
+
+  let query = sb
+    .from('chat_messages')
+    .select('id,room_id,sender_company_id,recipient_company_id,body,created_at')
+    .order('created_at', { ascending:false })
+    .limit(100);
+
+  if (target.type === 'room') {
+    query = query.eq('room_id', target.id);
+  } else {
+    const self = state.company.id;
+    query = query.or(
+      `and(sender_company_id.eq.${self},recipient_company_id.eq.${target.id}),and(sender_company_id.eq.${target.id},recipient_company_id.eq.${self})`
+    );
+  }
+
+  const { data, error } = await query;
+  if (error) {
+    console.error('Chat konnte nicht geladen werden:', error);
+    if (!silent) await gameAlert('Nachrichten konnten nicht geladen werden.');
+    return;
+  }
+
+  const currentTarget = selectedChatTarget();
+  if (!currentTarget || currentTarget.type !== target.type || currentTarget.id !== target.id) return;
+
+  state.chatMessages = (data || []).reverse();
+  renderChatMessages();
+}
+
+async function openChatTarget(type, id) {
+  state.chatSelectedType = type;
+  state.chatSelectedId = id;
+  state.chatMessages = [];
+  renderChat();
+  await loadChatConversation();
+}
+
+function stopChatRealtime() {
+  if (chatRealtimeChannel && sb) {
+    sb.removeChannel(chatRealtimeChannel);
+  }
+  chatRealtimeChannel = null;
+}
+
+function startChatRealtime() {
+  if (!sb || !state.company?.id || chatRealtimeChannel) return;
+  chatRealtimeChannel = sb
+    .channel(`opencompany-chat-${state.company.id}`)
+    .on(
+      'postgres_changes',
+      { event:'INSERT', schema:'public', table:'chat_messages' },
+      payload => {
+        const target = selectedChatTarget();
+        if (!target) return;
+        const row = payload.new || {};
+        const matches = target.type === 'room'
+          ? row.room_id === target.id
+          : (
+              (row.sender_company_id === state.company.id && row.recipient_company_id === target.id)
+              || (row.sender_company_id === target.id && row.recipient_company_id === state.company.id)
+            );
+        if (matches) loadChatConversation({ silent:true });
+      }
+    )
+    .subscribe();
+}
+
+async function openChatView() {
+  if (!state.company?.id) return;
+  activateView('chat');
+  history.replaceState(null, '', '#chat');
+  const loaded = state.chatRooms.length ? true : await loadChatRooms();
+  if (!loaded) return;
+  startChatRealtime();
+  renderChat();
+}
+
+document.getElementById('headerChatBtn')?.addEventListener('click', openChatView);
+
+document.getElementById('chatContactSearch')?.addEventListener('input', event => {
+  state.chatContactSearch = event.target.value || '';
+  renderChatNavigation();
+});
+
+document.getElementById('chatMobileBack')?.addEventListener('click', () => {
+  state.chatSelectedType = '';
+  state.chatSelectedId = '';
+  state.chatMessages = [];
+  renderChat();
+});
+
+document.getElementById('chatMessageInput')?.addEventListener('keydown', event => {
+  if (event.key === 'Enter' && !event.shiftKey) {
+    event.preventDefault();
+    document.getElementById('chatMessageForm')?.requestSubmit();
+  }
+});
+
+document.getElementById('chatMessageForm')?.addEventListener('submit', async event => {
+  event.preventDefault();
+  const input = document.getElementById('chatMessageInput');
+  const target = selectedChatTarget();
+  const body = String(input?.value || '').trim();
+  if (!target || !body || !state.company?.id) return;
+  if (body.length > 1000) {
+    await gameAlert('Eine Chatnachricht darf maximal 1.000 Zeichen enthalten.');
+    return;
+  }
+
+  const payload = {
+    sender_company_id: state.company.id,
+    body
+  };
+  if (target.type === 'room') payload.room_id = target.id;
+  else payload.recipient_company_id = target.id;
+
+  input.disabled = true;
+  const { error } = await sb.from('chat_messages').insert(payload);
+  input.disabled = false;
+
+  if (error) {
+    console.error('Chatnachricht konnte nicht gesendet werden:', error);
+    await gameAlert(error.message || 'Nachricht konnte nicht gesendet werden.');
+    input.focus();
+    return;
+  }
+
+  input.value = '';
+  input.focus();
+  await loadChatConversation({ silent:true });
+});
+
 document.getElementById('ocbShopClose')?.addEventListener('click', closeOcbShop);
 document.getElementById('ocbShopOverlay')?.addEventListener('click', event => {
   if (event.target.id === 'ocbShopOverlay') closeOcbShop();
@@ -2919,6 +3256,7 @@ async function handleSession(session) {
     stopPresenceHeartbeat();
     stopNpcMarketHeartbeat();
     stopCompanyBalanceWatcher();
+    stopChatRealtime();
     stopInactivityWatcher();
     state.accountCode = null;
     document.getElementById('gameView').classList.add('hidden');
@@ -7484,14 +7822,19 @@ function renderEncyclopedia() {
 
 function activateView(view) {
   const target = document.getElementById(view);
-  const navButton = document.querySelector(`.nav-item[data-view="${view}"]`);
+  const navButton = view === 'chat'
+    ? document.getElementById('headerChatBtn')
+    : document.querySelector(`.nav-item[data-view="${view}"]`);
   if (!target || !navButton) return false;
 
   document.querySelectorAll('.nav-item').forEach(button => button.classList.remove('active'));
-  navButton.classList.add('active');
+  document.getElementById('headerChatBtn')?.classList.toggle('active', view === 'chat');
+  if (view !== 'chat') navButton.classList.add('active');
   document.querySelectorAll('.view').forEach(item => item.classList.remove('active-view'));
   target.classList.add('active-view');
-  document.getElementById('pageTitle').textContent = navButton.dataset.baseLabel || navButton.textContent;
+  document.getElementById('pageTitle').textContent = view === 'chat'
+    ? 'Chat'
+    : (navButton.dataset.baseLabel || navButton.textContent);
   return true;
 }
 
