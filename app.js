@@ -926,6 +926,8 @@ const state = {
   valuationHistory: [],
   companyRanking: null,
   bondDashboard: null,
+  companyPublicProfile: { slogan:'', description:'', logo_path:null },
+  companyPublicProfileExists: false,
   recoveringPassword: false
 };
 
@@ -1631,6 +1633,23 @@ function companyName(id) {
   if (id === state.company?.id) return state.company.name;
   return state.companyDirectory.find(c => c.id === id)?.name || '–';
 }
+
+function isPlayerCompany(companyId) {
+  if (companyId === state.company?.id) return true;
+  return state.companyDirectory.some(company => company.id === companyId && company.company_type === 'player');
+}
+
+function companyProfileNameButton(companyId, label = companyName(companyId)) {
+  const safeLabel = escapeChatText(label || '–');
+  if (!companyId || !isPlayerCompany(companyId)) return safeLabel;
+  return `<button type="button" class="company-profile-link" onclick="openCompanyProfile('${companyId}')">${safeLabel}</button>`;
+}
+
+function publicCompanyLogoUrl(path) {
+  if (!path || !sb?.storage) return '';
+  return sb.storage.from('company-logos').getPublicUrl(path)?.data?.publicUrl || '';
+}
+
 function itemName(row) {
   return row.products?.name || row.materials?.name || '–';
 }
@@ -3443,6 +3462,7 @@ async function loadCompany({ preserveView='' } = {}) {
 
     startCompanyBalanceWatcher();
     await loadGameData();
+    await loadOwnCompanyPublicProfile();
     await loadPushSettings();
     renderAccountSettings();
     if (requestedView) {
