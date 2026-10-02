@@ -1120,7 +1120,7 @@
       .oc-select-option{min-height:46px;padding:.7rem .8rem}
     }
   
-    /* v0.10.205 – Handelssystem-Korrekturen */
+    /* v0.10.206 – Handelssystem-Korrekturen */
     .app-shell{
       display:block!important;
       min-height:100dvh!important;
@@ -1717,7 +1717,7 @@
     }
     .settings-company-logo-avatar img{width:100%;height:100%;object-fit:cover;display:block}
     .settings-company-logo-avatar img.hidden{display:none!important}
-    .company-profile-overlay{position:fixed;inset:0;z-index:1450;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(4,8,15,.72);backdrop-filter:blur(4px)}
+    .company-profile-overlay{position:fixed;inset:0;z-index:2147483500;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(4,8,15,.72);backdrop-filter:blur(4px)}
     .company-profile-overlay.hidden{display:none!important}
     body.company-profile-open{overflow:hidden}
     .company-profile-dialog{position:relative;width:min(920px,100%);max-height:92vh;overflow:auto;border:1px solid var(--border);border-radius:18px;background:var(--panel,#fff);box-shadow:0 24px 70px rgba(0,0,0,.34)}
@@ -1741,7 +1741,19 @@
       margin-top:16px
     }
     .company-profile-actions.company-profile-actions-own{grid-template-columns:repeat(3,minmax(0,1fr))}
-    .company-profile-actions button{width:100%!important;min-width:0!important;white-space:nowrap}
+    .company-profile-actions button{
+      width:100%!important;
+      min-width:0!important;
+      min-height:46px;
+      padding:11px 12px!important;
+      white-space:normal;
+      line-height:1.2;
+      display:flex!important;
+      align-items:center;
+      justify-content:center;
+      text-align:center;
+      font-weight:700;
+    }
     .company-profile-inline-editor,.company-profile-private-note{
       margin:0 24px 20px;
       padding:16px;
@@ -1768,16 +1780,36 @@
     .company-profile-offers th,.company-profile-offers td{padding:10px;border-bottom:1px solid var(--border);text-align:left}
     .company-profile-offer-open{width:auto!important;padding:7px 10px!important}
     @media(max-width:700px){
-      .company-profile-overlay{padding:8px}
-      .company-profile-dialog{max-height:96vh;border-radius:14px}
+      .company-profile-overlay{
+        align-items:flex-start;
+        padding:8px 8px calc(8px + env(safe-area-inset-bottom,0px));
+        overflow:hidden;
+      }
+      .company-profile-dialog{
+        width:100%;
+        max-height:calc(100dvh - 16px - env(safe-area-inset-bottom,0px));
+        border-radius:14px;
+        overscroll-behavior:contain;
+        -webkit-overflow-scrolling:touch;
+        scroll-padding-bottom:24px;
+      }
       .company-profile-hero{grid-template-columns:78px minmax(0,1fr);gap:12px;padding:18px 48px 16px 16px}
       .company-profile-avatar{width:78px;height:78px;border-radius:16px;font-size:2rem}
       .company-profile-title-row{display:block}
       .company-profile-title-row h2{font-size:1.35rem}
       .company-profile-presence{display:inline-flex;margin-top:8px}
-      .company-profile-actions{grid-column:1/-1}
-      .company-profile-actions,.company-profile-actions.company-profile-actions-own{gap:5px}
-      .company-profile-actions button{padding:9px 6px!important;font-size:.78rem}
+      .company-profile-actions{
+        grid-column:1/-1;
+        margin-top:14px;
+      }
+      .company-profile-actions,.company-profile-actions.company-profile-actions-own{gap:8px}
+      .company-profile-actions button{
+        min-height:52px;
+        padding:10px 7px!important;
+        font-size:.88rem;
+        line-height:1.15;
+        border-radius:11px!important;
+      }
       .company-profile-description,.company-profile-offers-section{padding:16px}
       .company-profile-inline-editor,.company-profile-private-note{margin:0 16px 16px;padding:14px}
       .company-profile-stats{grid-template-columns:1fr 1fr;padding:0 16px 16px}
@@ -2599,7 +2631,7 @@
           <h2>Einstellungen</h2>
           <div class="kv">
             <span>Version</span>
-            <strong>0.10.205</strong>
+            <strong>0.10.206</strong>
           </div>
           <div class="kv settings-language-row">
             <span>Sprache</span>
