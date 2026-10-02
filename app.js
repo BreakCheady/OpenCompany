@@ -3601,6 +3601,12 @@ async function loadOwnCompanyPublicProfile() {
   renderCompanyProfileEditor();
   renderHeaderCompanyAvatar();
   renderSettingsCompanyLogo();
+  if (state.company?.id) {
+    state.chatCompanyLogos[state.company.id] = state.companyPublicProfile.logo_path || null;
+  }
+  if (document.getElementById('chat')?.classList.contains('active-view')) {
+    renderChat();
+  }
 }
 
 function renderHeaderCompanyAvatar() {
