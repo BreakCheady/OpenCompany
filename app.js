@@ -3127,9 +3127,37 @@ function openViewFromHash() {
         return;
       }
     }
+
+    if (view === 'chat') {
+      openChatView();
+      return;
+    }
+
+    const hashButton = document.querySelector(`.nav-item[data-view="${view}"]`);
+    if (hashButton && (!featureRequiredLevel(view) || featureUnlocked(view))) {
+      activateView(view);
+      if (view === 'encyclopedia') renderEncyclopedia();
+      return;
+    }
   }
 
-  // Nach einem Neuladen ist das Dashboard immer die Standardansicht.
+  const savedView = loadLastView();
+  if (savedView === 'chat') {
+    openChatView();
+    return;
+  }
+
+  const savedButton = savedView
+    ? document.querySelector(`.nav-item[data-view="${savedView}"]`)
+    : null;
+
+  if (savedButton && (!featureRequiredLevel(savedView) || featureUnlocked(savedView))) {
+    history.replaceState(null, '', `#${savedView}`);
+    activateView(savedView);
+    if (savedView === 'encyclopedia') renderEncyclopedia();
+    return;
+  }
+
   history.replaceState(null, '', '#dashboard');
   activateView('dashboard');
 }
@@ -3412,7 +3440,6 @@ async function loadCompany({ preserveView='' } = {}) {
     if (!refreshed.error && refreshed.data) state.company = refreshed.data;
 
     startCompanyBalanceWatcher();
-    clearLastView();
     await loadGameData();
     await loadPushSettings();
     renderAccountSettings();
@@ -7921,6 +7948,7 @@ function activateView(view) {
   document.getElementById('pageTitle').textContent = view === 'chat'
     ? 'Chat'
     : (navButton.dataset.baseLabel || navButton.textContent);
+  saveLastView(view);
   return true;
 }
 
