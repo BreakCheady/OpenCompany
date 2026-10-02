@@ -1120,7 +1120,7 @@
       .oc-select-option{min-height:46px;padding:.7rem .8rem}
     }
   
-    /* v0.10.190 – Handelssystem-Korrekturen */
+    /* v0.10.191 – Handelssystem-Korrekturen */
     .app-shell{
       display:block!important;
       min-height:100dvh!important;
@@ -1613,8 +1613,15 @@
     .my-market-orders-table td:last-child{text-align:right}
     .market-redesign-head{align-items:flex-start;gap:18px}
     .market-refresh-line{margin-top:6px;max-width:330px}
-    .market-catalog-toolbar{display:flex;gap:12px;margin:8px 0 22px}
+    .market-catalog-toolbar{display:flex;flex-direction:column;align-items:flex-start;gap:10px;margin:8px 0 22px}
     .market-search-field{width:min(520px,100%)}
+    .market-catalog-sell-btn{width:auto!important;min-width:210px}
+    .market-sell-form.market-sell-generic .market-sell-hidden-fields{
+      display:grid;
+      grid-column:1/-1;
+      grid-template-columns:1fr 2fr;
+      gap:10px;
+    }
     .market-catalog{display:flex;flex-direction:column;gap:24px}
     .market-category-section h3{margin:0 0 10px;font-size:1.15rem}
     .market-product-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(125px,1fr));gap:8px}
@@ -1654,6 +1661,7 @@
       .market-orderbook th:nth-child(5),.market-orderbook td:nth-child(5){display:table-cell}
       .market-purchase-bar{grid-template-columns:1fr 1fr;bottom:6px}.market-purchase-bar button{grid-column:1/-1;width:100%}
       .market-sell-form{grid-template-columns:1fr}.market-sell-form button{width:100%}
+      .market-sell-form.market-sell-generic .market-sell-hidden-fields{grid-template-columns:1fr}
     }
     @media(max-width:460px){
       .market-product-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
@@ -1952,6 +1960,7 @@
               <label class="market-search-field">Ware suchen
                 <input id="marketCatalogSearch" type="search" placeholder="z. B. Prozessor, Stahl oder Transportcontainer" autocomplete="off">
               </label>
+              <button type="button" id="marketCatalogSellOpenBtn" class="sell-order-submit market-catalog-sell-btn">Verkaufsorder erstellen</button>
             </div>
             <div id="marketCatalog" class="market-catalog"></div>
           </section>
@@ -2176,7 +2185,7 @@
           <h2>Einstellungen</h2>
           <div class="kv">
             <span>Version</span>
-            <strong>0.10.190</strong>
+            <strong>0.10.191</strong>
           </div>
           <div class="kv settings-language-row">
             <span>Sprache</span>

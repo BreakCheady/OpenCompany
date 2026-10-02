@@ -1947,16 +1947,32 @@ function withPermanentTransportContainerOrder(orders, permanentOrder) {
   return rows;
 }
 
+async function fetchOpenMarketOrders() {
+  const pageSize = 1000;
+  const rows = [];
+
+  for (let from = 0; from < 10000; from += pageSize) {
+    const { data, error } = await sb.from('market_orders')
+      .select('*, products(name), materials(name)')
+      .in('status',['open','partially_filled'])
+      .order('created_at',{ascending:false})
+      .order('id',{ascending:false})
+      .range(from, from + pageSize - 1);
+
+    if (error) return { data:rows, error };
+    rows.push(...(data || []));
+    if (!data || data.length < pageSize) break;
+  }
+
+  return { data:rows, error:null };
+}
+
 async function refreshMarketData() {
   if (!sb || !state.company?.id) return;
 
   try {
     const [ordersResult, directoryResult] = await Promise.all([
-      sb.from('market_orders')
-        .select('*, products(name), materials(name)')
-        .in('status',['open','partially_filled'])
-        .order('created_at',{ascending:false})
-        .limit(1000),
+      fetchOpenMarketOrders(),
       sb.rpc('list_companies')
     ]);
 
@@ -4233,11 +4249,50 @@ function marketItemKeyFromOrder(order) {
   return product ? `product:${marketProductIdentity(product)}` : `product-id:${order?.product_id || ''}`;
 }
 
+const MARKET_MATERIAL_CATEGORY_BY_NAME = Object.freeze({
+  Ammoniak:'Lebensmittel',
+  Aromastoff:'Lebensmittel',
+  Hafer:'Lebensmittel',
+  Kaffeebohnen:'Lebensmittel',
+  Kakaobohnen:'Lebensmittel',
+  Kartoffeln:'Lebensmittel',
+  Milch:'Lebensmittel',
+  Orangen:'Lebensmittel',
+  Pflanzenöl:'Lebensmittel',
+  Tomate:'Lebensmittel',
+  Wasser:'Lebensmittel',
+  Weizen:'Lebensmittel',
+  Zuckerrohr:'Lebensmittel',
+  Tierhaut:'Lebensmittel',
+  Trockenfrüchte:'Lebensmittel',
+  Wirkstoff:'Lebensmittel',
+  Glas:'Bau',
+  Kalkstein:'Bau',
+  Kies:'Bau',
+  Sand:'Bau',
+  Ton:'Bau',
+  Stahl:'Bau',
+  Kupfer:'Bau',
+  Aluminium:'Bau',
+  Lithium:'Elektronik',
+  Phosphat:'Chemie',
+  Chemikalien:'Chemie',
+  Kautschuk:'Textil',
+  Baumwolle:'Textil',
+  Wolle:'Textil',
+  Erdöl:'Energie'
+});
+
 function marketCatalogCategory(item) {
-  if (item.type === 'material') return 'Rohstoffe';
+  if (item.type === 'material') {
+    return MARKET_MATERIAL_CATEGORY_BY_NAME[item.name] || 'Rohstoffe';
+  }
+
   const product = item.product;
   const category = researchCategory(product);
-  return category === 'Energietechnik' ? 'Energie' : category;
+  if (category === 'Energietechnik') return 'Energie';
+  if (category === 'Maschinen') return 'Automobil';
+  return category;
 }
 
 function marketItemIcon(item) {
@@ -4302,7 +4357,7 @@ function marketOrdersForItem(item, { includeOwn=true, quality=state.marketQualit
 }
 
 function marketCategorySort(a,b) {
-  const order=['Rohstoffe','Elektronik','Maschinen','Automobil','Chemie','Bau','Textil','Lebensmittel','Energie','Forschung','Sonstige'];
+  const order=['Rohstoffe','Lebensmittel','Bau','Elektronik','Automobil','Chemie','Textil','Energie','Forschung','Sonstige'];
   const ai=order.indexOf(a), bi=order.indexOf(b);
   return (ai<0?999:ai)-(bi<0?999:bi) || a.localeCompare(b,uiLocale());
 }
@@ -8112,8 +8167,14 @@ document.getElementById('sellOrderForm').addEventListener('submit', async e => {
   }
 });
 
-document.getElementById('sellItemType')?.addEventListener('change', updateSellItemOptions);
-document.getElementById('sellProduct')?.addEventListener('change', updateSellQualityOptions);
+document.getElementById('sellItemType')?.addEventListener('change', () => {
+  updateSellItemOptions();
+  syncGenericMarketSellTitle();
+});
+document.getElementById('sellProduct')?.addEventListener('change', () => {
+  updateSellQualityOptions();
+  syncGenericMarketSellTitle();
+});
 document.getElementById('sellQuality')?.addEventListener('change', updateSellQualityOptions);
 document.getElementById('sellQty')?.addEventListener('input', renderSellOrderPreview);
 document.getElementById('sellPrice')?.addEventListener('input', renderSellOrderPreview);
@@ -8349,29 +8410,57 @@ function closeMarketSellModal() {
 }
 window.closeMarketSellModal=closeMarketSellModal;
 
-function openMarketSellModal() {
-  const item=marketItemDescriptor();
-  if (!item || !marketCanSellItem(item)) return;
+function syncGenericMarketSellTitle() {
+  const form=document.getElementById('sellOrderForm');
+  if (!form?.classList.contains('market-sell-generic')) return;
+  const title=document.getElementById('marketSellItemTitle');
+  const ctx=sellOrderContext();
+  if (title) title.textContent=ctx.item?.name || 'Ware auswählen';
+}
+
+function openMarketSellModal(item=marketItemDescriptor()) {
   const typeSelect=document.getElementById('sellItemType');
   const itemSelect=document.getElementById('sellProduct');
-  if (!typeSelect || !itemSelect) return;
-  typeSelect.value=item.type;
-  updateSellItemOptions();
-  if (item.type==='material') {
-    itemSelect.value=item.id;
+  const form=document.getElementById('sellOrderForm');
+  if (!typeSelect || !itemSelect || !form) return;
+
+  const generic=!item;
+  form.classList.toggle('market-sell-generic',generic);
+
+  if (generic) {
+    const hasProducts=stockedProducts().length>0;
+    const hasMaterials=state.materials.some(material =>
+      materialInventoryLots(material.id).some(lot => Number(lot.quantity || 0)>0)
+    );
+    typeSelect.value=hasProducts ? 'product' : hasMaterials ? 'material' : 'product';
+    updateSellItemOptions();
+    syncGenericMarketSellTitle();
   } else {
-    const playerProduct=state.products.find(p=>marketProductIdentity(p)===item.key.replace(/^product:/,'') && hasProductInventory(p.id));
-    if (!playerProduct) return;
-    itemSelect.value=playerProduct.id;
+    if (!marketCanSellItem(item)) return;
+    typeSelect.value=item.type;
+    updateSellItemOptions();
+
+    if (item.type==='material') {
+      itemSelect.value=item.id;
+    } else {
+      const playerProduct=state.products.find(p =>
+        marketProductIdentity(p)===item.key.replace(/^product:/,'') && hasProductInventory(p.id)
+      );
+      if (!playerProduct) return;
+      itemSelect.value=playerProduct.id;
+    }
+
+    updateSellQualityOptions();
+    const title=document.getElementById('marketSellItemTitle');
+    if (title) title.textContent=item.name;
   }
-  updateSellQualityOptions();
-  const title=document.getElementById('marketSellItemTitle');
-  if (title) title.textContent=item.name;
+
   marketSellModal?.classList.remove('hidden');
   marketSellModal?.setAttribute('aria-hidden','false');
   renderSellOrderPreview();
 }
-marketSellOpenBtn?.addEventListener('click',openMarketSellModal);
+marketSellOpenBtn?.addEventListener('click',()=>openMarketSellModal(marketItemDescriptor()));
+document.getElementById('marketCatalogSellOpenBtn')?.addEventListener('click',()=>openMarketSellModal(null));
 document.getElementById('marketSellCloseBtn')?.addEventListener('click',closeMarketSellModal);
 marketSellModal?.addEventListener('click',event=>{ if (event.target===marketSellModal) closeMarketSellModal(); });
 
