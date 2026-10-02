@@ -900,6 +900,7 @@ const state = {
   chatSelectedType: '',
   chatSelectedId: '',
   chatContactSearch: '',
+  chatCompanyLogos: {},
   marketSearchFilter: '',
   marketTypeFilter: 'all',
   marketQualityFilter: 'all',
@@ -2148,6 +2149,36 @@ function chatCompanyInitial(company) {
   return String(company?.name || '?').trim().charAt(0).toLocaleUpperCase(uiLocale()) || '?';
 }
 
+function chatCompanyLogoPath(companyId) {
+  if (companyId === state.company?.id) return state.companyPublicProfile?.logo_path || null;
+  return state.chatCompanyLogos?.[companyId] || null;
+}
+
+function chatCompanyAvatarHtml(company, className = 'chat-contact-avatar') {
+  const logoUrl = publicCompanyLogoUrl(chatCompanyLogoPath(company?.id));
+  const initial = escapeChatText(chatCompanyInitial(company));
+  if (logoUrl) {
+    return '<span class="' + className + ' chat-avatar-has-image"><img src="' + escapeChatText(logoUrl) + '" alt="" loading="lazy"></span>';
+  }
+  return '<span class="' + className + '">' + initial + '</span>';
+}
+
+async function loadChatCompanyLogos() {
+  if (!sb) return;
+  const { data, error } = await sb
+    .from('company_public_profiles')
+    .select('company_id,logo_path');
+
+  if (error) {
+    console.error('Firmenlogos für den Chat konnten nicht geladen werden:', error);
+    return;
+  }
+
+  state.chatCompanyLogos = Object.fromEntries(
+    (data || []).filter(row => row.company_id).map(row => [row.company_id, row.logo_path || null])
+  );
+}
+
 function chatContacts() {
   const search = String(state.chatContactSearch || '').trim().toLocaleLowerCase(uiLocale());
   return (state.companyDirectory || [])
@@ -2219,7 +2250,7 @@ function renderChatNavigation() {
                 class="chat-nav-button ${state.chatSelectedType === 'contact' && state.chatSelectedId === company.id ? 'active' : ''}"
                 data-chat-contact-id="${company.id}"
                 title="${escapeChatText(company.name)}">
-          <span class="chat-contact-avatar">${escapeChatText(chatCompanyInitial(company))}</span>
+          ${chatCompanyAvatarHtml(company)}
           <span class="chat-nav-label">${escapeChatText(company.name)}</span>
         </button>
       `).join('')
@@ -2287,7 +2318,7 @@ function renderChatMessages() {
       </div>` : '';
     return `
       <article class="chat-message ${own ? 'chat-message-own' : ''}">
-        <div class="chat-message-avatar">${escapeChatText(chatCompanyInitial(sender || {name:senderName}))}</div>
+        ${chatCompanyAvatarHtml(sender || { id:message.sender_company_id, name:senderName }, "chat-message-avatar")}
         <div class="chat-message-main">
           <div class="chat-message-meta">
             <strong>${companyProfileNameButton(message.sender_company_id, senderName)}${own ? ' · Du' : ''}</strong>
@@ -2477,8 +2508,11 @@ async function openChatView() {
   if (!state.company?.id) return;
   activateView('chat');
   history.replaceState(null, '', '#chat');
-  const loaded = state.chatRooms.length ? true : await loadChatRooms();
-  if (!loaded) return;
+  const results = await Promise.all([
+    state.chatRooms.length ? Promise.resolve(true) : loadChatRooms(),
+    loadChatCompanyLogos()
+  ]);
+  if (!results[0]) return;
   startChatRealtime();
   renderChat();
 }
@@ -3703,9 +3737,11 @@ async function saveCompanyLogoFromSettings(event) {
 
   state.companyPublicProfileExists = true;
   state.companyPublicProfile = { ...state.companyPublicProfile, logo_path:logoPath };
+  state.chatCompanyLogos[state.company.id] = logoPath;
   if (input) input.value = '';
   renderHeaderCompanyAvatar();
   renderSettingsCompanyLogo();
+  renderChat();
   if (status) status.textContent = 'Firmenlogo gespeichert.';
 }
 

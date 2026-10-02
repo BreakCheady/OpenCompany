@@ -1120,7 +1120,7 @@
       .oc-select-option{min-height:46px;padding:.7rem .8rem}
     }
   
-    /* v0.10.206 – Handelssystem-Korrekturen */
+    /* v0.10.207 – Handelssystem-Korrekturen */
     .app-shell{
       display:block!important;
       min-height:100dvh!important;
@@ -1877,7 +1877,9 @@
       background:#0d6c64;
       color:#fff;
     }
-    .chat-contact-avatar{border-radius:50%;background:#334155}
+    .chat-contact-avatar{border-radius:50%;background:#334155;overflow:hidden}
+    .chat-contact-avatar img,.chat-message-avatar img{width:100%;height:100%;object-fit:cover;display:block}
+    .chat-avatar-has-image{background:transparent!important}
     .chat-nav-label{
       min-width:0;
       overflow:hidden;
@@ -2631,7 +2633,7 @@
           <h2>Einstellungen</h2>
           <div class="kv">
             <span>Version</span>
-            <strong>0.10.206</strong>
+            <strong>0.10.207</strong>
           </div>
           <div class="kv settings-language-row">
             <span>Sprache</span>
