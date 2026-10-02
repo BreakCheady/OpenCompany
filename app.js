@@ -3566,6 +3566,7 @@ async function loadOwnCompanyPublicProfile() {
   };
   renderCompanyProfileEditor();
   renderHeaderCompanyAvatar();
+  renderSettingsCompanyLogo();
 }
 
 function renderHeaderCompanyAvatar() {
@@ -3601,6 +3602,113 @@ function renderHeaderCompanyAvatar() {
   }
 }
 
+function renderSettingsCompanyLogo() {
+  const preview = document.getElementById('settingsCompanyLogoPreview');
+  const image = document.getElementById('settingsCompanyLogoImage');
+  const fallback = document.getElementById('settingsCompanyLogoFallback');
+  const status = document.getElementById('settingsCompanyLogoStatus');
+  if (!preview || !image || !fallback) return;
+
+  const logoUrl = publicCompanyLogoUrl(state.companyPublicProfile?.logo_path);
+  const initial = String(state.company?.name || '?').trim().charAt(0).toUpperCase() || '?';
+
+  if (logoUrl) {
+    image.src = logoUrl;
+    image.alt = `Firmenlogo von ${state.company?.name || 'Unternehmen'}`;
+    image.classList.remove('hidden');
+    fallback.classList.add('hidden');
+    if (status) status.textContent = 'Firmenlogo gespeichert.';
+  } else {
+    image.classList.add('hidden');
+    image.removeAttribute('src');
+    fallback.classList.remove('hidden');
+    fallback.textContent = initial;
+    if (status) status.textContent = 'Noch kein Firmenlogo hinterlegt.';
+  }
+}
+
+async function saveCompanyLogoFromSettings(event) {
+  event?.preventDefault();
+  if (!sb || !state.company?.id || !state.session?.user?.id) return;
+
+  const input = document.getElementById('settingsCompanyLogoInput');
+  const button = document.getElementById('settingsCompanyLogoSaveBtn');
+  const status = document.getElementById('settingsCompanyLogoStatus');
+  const file = input?.files?.[0] || null;
+
+  if (!file) {
+    await gameAlert('Bitte zuerst ein Firmenlogo auswählen.');
+    return;
+  }
+
+  const allowedTypes = ['image/png','image/jpeg','image/webp'];
+  if (!allowedTypes.includes(file.type)) {
+    await gameAlert('Als Firmenlogo sind PNG, JPG und WEBP erlaubt.');
+    return;
+  }
+  if (file.size > 2 * 1024 * 1024) {
+    await gameAlert('Das Firmenlogo darf maximal 2 MB groß sein.');
+    return;
+  }
+
+  if (button) button.disabled = true;
+  if (status) status.textContent = 'Logo wird hochgeladen …';
+
+  const logoPath = `${state.session.user.id}/company-logo`;
+  const { error: uploadError } = await sb.storage
+    .from('company-logos')
+    .upload(logoPath, file, {
+      cacheControl:'3600',
+      contentType:file.type,
+      upsert:true
+    });
+
+  if (uploadError) {
+    if (button) button.disabled = false;
+    console.error('Firmenlogo konnte nicht hochgeladen werden:', uploadError);
+    if (status) status.textContent = 'Logo-Upload fehlgeschlagen.';
+    await gameAlert(uploadError.message || 'Firmenlogo konnte nicht hochgeladen werden.');
+    return;
+  }
+
+  const payload = {
+    slogan: state.companyPublicProfile?.slogan || '',
+    description: state.companyPublicProfile?.description || '',
+    logo_path: logoPath,
+    updated_at: new Date().toISOString()
+  };
+
+  let saveError = null;
+  if (state.companyPublicProfileExists) {
+    const result = await sb
+      .from('company_public_profiles')
+      .update({ logo_path:logoPath, updated_at:payload.updated_at })
+      .eq('company_id', state.company.id);
+    saveError = result.error;
+  } else {
+    const result = await sb
+      .from('company_public_profiles')
+      .insert({ company_id:state.company.id, ...payload });
+    saveError = result.error;
+  }
+
+  if (button) button.disabled = false;
+
+  if (saveError) {
+    console.error('Firmenlogo konnte nicht gespeichert werden:', saveError);
+    if (status) status.textContent = 'Logo konnte nicht gespeichert werden.';
+    await gameAlert(saveError.message || 'Firmenlogo konnte nicht gespeichert werden.');
+    return;
+  }
+
+  state.companyPublicProfileExists = true;
+  state.companyPublicProfile = { ...state.companyPublicProfile, logo_path:logoPath };
+  if (input) input.value = '';
+  renderHeaderCompanyAvatar();
+  renderSettingsCompanyLogo();
+  if (status) status.textContent = 'Firmenlogo gespeichert.';
+}
+
 function renderCompanyProfileEditor() {
   const slogan = document.getElementById('companyProfileSlogan');
   const description = document.getElementById('companyProfileDescription');
@@ -3609,11 +3717,7 @@ function renderCompanyProfileEditor() {
 
   slogan.value = state.companyPublicProfile?.slogan || '';
   description.value = state.companyPublicProfile?.description || '';
-  if (status) {
-    status.textContent = state.companyPublicProfile?.logo_path
-      ? 'Firmenlogo gespeichert.'
-      : 'Noch kein Firmenlogo hinterlegt.';
-  }
+  if (status) status.textContent = '';
 }
 
 async function saveOwnCompanyPublicProfile(event) {
@@ -3622,7 +3726,6 @@ async function saveOwnCompanyPublicProfile(event) {
 
   const sloganInput = document.getElementById('companyProfileSlogan');
   const descriptionInput = document.getElementById('companyProfileDescription');
-  const logoInput = document.getElementById('companyProfileLogo');
   const saveButton = document.getElementById('companyProfileSaveBtn');
   const status = document.getElementById('companyProfileEditStatus');
 
@@ -3638,35 +3741,7 @@ async function saveOwnCompanyPublicProfile(event) {
     return;
   }
 
-  let logoPath = state.companyPublicProfile?.logo_path || null;
-  const file = logoInput?.files?.[0] || null;
-
-  if (file) {
-    const allowedTypes = ['image/png','image/jpeg','image/webp'];
-    if (!allowedTypes.includes(file.type)) {
-      await gameAlert('Als Firmenlogo sind PNG, JPG und WEBP erlaubt.');
-      return;
-    }
-    if (file.size > 2 * 1024 * 1024) {
-      await gameAlert('Das Firmenlogo darf maximal 2 MB groß sein.');
-      return;
-    }
-
-    logoPath = `${state.session.user.id}/company-logo`;
-    const { error: uploadError } = await sb.storage
-      .from('company-logos')
-      .upload(logoPath, file, {
-        cacheControl:'3600',
-        contentType:file.type,
-        upsert:true
-      });
-
-    if (uploadError) {
-      console.error('Firmenlogo konnte nicht hochgeladen werden:', uploadError);
-      await gameAlert(uploadError.message || 'Firmenlogo konnte nicht hochgeladen werden.');
-      return;
-    }
-  }
+  const logoPath = state.companyPublicProfile?.logo_path || null;
 
   if (saveButton) saveButton.disabled = true;
   if (status) status.textContent = 'Profil wird gespeichert …';
@@ -3704,7 +3779,7 @@ async function saveOwnCompanyPublicProfile(event) {
   state.companyPublicProfileExists = true;
   state.companyPublicProfile = { slogan, description, logo_path:logoPath };
   renderHeaderCompanyAvatar();
-  if (logoInput) logoInput.value = '';
+  renderSettingsCompanyLogo();
   if (status) status.textContent = 'Öffentliches Profil gespeichert.';
 }
 
@@ -3733,10 +3808,19 @@ function renderPublicCompanyProfile(profile) {
     ? `<img src="${escapeChatText(logoUrl)}" alt="Firmenlogo von ${escapeChatText(profile.name)}">`
     : `<span>${initial}</span>`;
 
-  const interactionButtons = state.session && !own ? `
+  const interactionButtons = state.session ? `
     <div class="company-profile-actions">
-      <button type="button" onclick="messageCompanyFromProfile('${companyId}')">Nachricht senden</button>
-      <button type="button" class="ghost" onclick="contractCompanyFromProfile('${companyId}')">Vertrag erstellen</button>
+      <button type="button"
+              onclick="messageCompanyFromProfile('${companyId}')"
+              ${own ? 'disabled title="Du kannst dir selbst keine Nachricht senden."' : ''}>
+        Nachricht senden
+      </button>
+      <button type="button"
+              class="ghost"
+              onclick="contractCompanyFromProfile('${companyId}')"
+              ${own ? 'disabled title="Du kannst keinen Vertrag mit dir selbst erstellen."' : ''}>
+        Vertrag schicken
+      </button>
     </div>` : '';
 
   const offersHtml = offers.length ? `
@@ -8458,6 +8542,7 @@ storageFilterReset?.addEventListener('click', () => {
 });
 
 document.getElementById('companyPublicProfileForm')?.addEventListener('submit', saveOwnCompanyPublicProfile);
+document.getElementById('settingsCompanyLogoForm')?.addEventListener('submit', saveCompanyLogoFromSettings);
 document.getElementById('companyProfileViewOwnBtn')?.addEventListener('click', () => {
   if (state.company?.id) openCompanyProfile(state.company.id);
 });
