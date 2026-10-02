@@ -1120,7 +1120,7 @@
       .oc-select-option{min-height:46px;padding:.7rem .8rem}
     }
   
-    /* v0.10.204 – Handelssystem-Korrekturen */
+    /* v0.10.205 – Handelssystem-Korrekturen */
     .app-shell{
       display:block!important;
       min-height:100dvh!important;
@@ -1734,8 +1734,28 @@
     .company-profile-presence.online{color:#138a47;background:rgba(19,138,71,.12)}
     .company-profile-presence.offline{color:var(--muted)}
     .company-profile-hero-meta{display:flex;gap:8px 14px;flex-wrap:wrap;margin-top:12px;color:var(--muted);font-size:.88rem}
-    .company-profile-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px}
-    .company-profile-actions button{width:auto!important}
+    .company-profile-actions{
+      display:grid;
+      grid-template-columns:repeat(2,minmax(0,1fr));
+      gap:8px;
+      margin-top:16px
+    }
+    .company-profile-actions.company-profile-actions-own{grid-template-columns:repeat(3,minmax(0,1fr))}
+    .company-profile-actions button{width:100%!important;min-width:0!important;white-space:nowrap}
+    .company-profile-inline-editor,.company-profile-private-note{
+      margin:0 24px 20px;
+      padding:16px;
+      border:1px solid var(--border);
+      border-radius:12px;
+      background:rgba(148,163,184,.06);
+    }
+    .company-profile-inline-editor h3,.company-profile-private-note h3{margin:0 0 10px}
+    .company-profile-inline-editor form{display:grid;gap:12px}
+    .company-profile-inline-editor textarea,.company-profile-private-note textarea{width:100%;resize:vertical}
+    .company-profile-inline-actions,.company-profile-note-actions{display:flex;align-items:center;justify-content:flex-end;gap:8px}
+    .company-profile-inline-actions button,.company-profile-note-actions button{width:auto!important}
+    .company-profile-note-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+    .company-profile-note-head p{margin:0 0 10px}
     .company-profile-description,.company-profile-offers-section{padding:20px 24px}
     .company-profile-description h3,.company-profile-offers-section h3{margin:0 0 10px}
     .company-profile-description p{margin:0;line-height:1.58;white-space:normal}
@@ -1756,7 +1776,10 @@
       .company-profile-title-row h2{font-size:1.35rem}
       .company-profile-presence{display:inline-flex;margin-top:8px}
       .company-profile-actions{grid-column:1/-1}
+      .company-profile-actions,.company-profile-actions.company-profile-actions-own{gap:5px}
+      .company-profile-actions button{padding:9px 6px!important;font-size:.78rem}
       .company-profile-description,.company-profile-offers-section{padding:16px}
+      .company-profile-inline-editor,.company-profile-private-note{margin:0 16px 16px;padding:14px}
       .company-profile-stats{grid-template-columns:1fr 1fr;padding:0 16px 16px}
       .company-profile-offers th:nth-child(3),.company-profile-offers td:nth-child(3){display:none}
       .company-profile-editor-actions{align-items:stretch;flex-direction:column}
@@ -2576,7 +2599,7 @@
           <h2>Einstellungen</h2>
           <div class="kv">
             <span>Version</span>
-            <strong>0.10.204</strong>
+            <strong>0.10.205</strong>
           </div>
           <div class="kv settings-language-row">
             <span>Sprache</span>

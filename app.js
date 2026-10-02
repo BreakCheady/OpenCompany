@@ -3809,7 +3809,7 @@ function renderPublicCompanyProfile(profile) {
     : `<span>${initial}</span>`;
 
   const interactionButtons = state.session ? `
-    <div class="company-profile-actions">
+    <div class="company-profile-actions ${own ? 'company-profile-actions-own' : ''}">
       <button type="button"
               onclick="messageCompanyFromProfile('${companyId}')"
               ${own ? 'disabled title="Du kannst dir selbst keine Nachricht senden."' : ''}>
@@ -3821,6 +3821,10 @@ function renderPublicCompanyProfile(profile) {
               ${own ? 'disabled title="Du kannst keinen Vertrag mit dir selbst erstellen."' : ''}>
         Vertrag schicken
       </button>
+      ${own ? `
+        <button type="button" class="ghost" onclick="openOwnCompanyProfileEditor()">
+          Profil bearbeiten
+        </button>` : ''}
     </div>` : '';
 
   const offersHtml = offers.length ? `
@@ -3872,6 +3876,39 @@ function renderPublicCompanyProfile(profile) {
       <p>${editableProfile.description ? escapeChatText(editableProfile.description).replace(/\n/g,'<br>') : 'Noch keine Unternehmensbeschreibung hinterlegt.'}</p>
     </section>
 
+    ${own ? `
+      <section id="companyProfileInlineEditor" class="company-profile-inline-editor hidden">
+        <h3>Profil bearbeiten</h3>
+        <form id="companyProfileInlineEditForm" onsubmit="saveOwnCompanyProfileFromProfile(event)">
+          <label>Slogan
+            <input id="companyProfileInlineSlogan" type="text" maxlength="120" value="${escapeChatText(editableProfile.slogan || '')}" placeholder="Kurzer Satz über dein Unternehmen">
+          </label>
+          <label>Unternehmensbeschreibung
+            <textarea id="companyProfileInlineDescription" maxlength="1000" rows="6" placeholder="Beschreibe dein Unternehmen.">${escapeChatText(editableProfile.description || '')}</textarea>
+          </label>
+          <div class="company-profile-inline-actions">
+            <button type="submit">Speichern</button>
+            <button type="button" class="ghost" onclick="closeOwnCompanyProfileEditor()">Abbrechen</button>
+          </div>
+          <p id="companyProfileInlineStatus" class="status"></p>
+        </form>
+      </section>` : ''}
+
+    ${state.session ? `
+      <section class="company-profile-private-note">
+        <div class="company-profile-note-head">
+          <div>
+            <h3>Notizen</h3>
+            <p class="muted">Privat · nur für dich sichtbar</p>
+          </div>
+        </div>
+        <textarea id="companyProfilePrivateNote" maxlength="4000" rows="5" placeholder="Private Notiz zu diesem Unternehmen …"></textarea>
+        <div class="company-profile-note-actions">
+          <span id="companyProfilePrivateNoteStatus" class="muted"></span>
+          <button type="button" onclick="saveCompanyPrivateNote('${companyId}')">Notiz speichern</button>
+        </div>
+      </section>` : ''}
+
     <section class="company-profile-stats">
       <div><span>Unternehmenswert</span><strong>${money(profile.company_value)}</strong></div>
       <div><span>Ranking</span><strong>${rank ? `#${num(rank)}${totalCompanies ? ` / ${num(totalCompanies)}` : ''}` : '–'}</strong></div>
@@ -3897,14 +3934,133 @@ window.openCompanyProfile = async function(companyId) {
   document.body.classList.add('company-profile-open');
   content.innerHTML = '<div class="company-profile-loading">Unternehmensprofil wird geladen …</div>';
 
-  const { data, error } = await sb.rpc('get_public_company_profile', { p_company_id:companyId });
-  if (error) {
-    console.error('Unternehmensprofil konnte nicht geladen werden:', error);
+  const [profileResult, noteResult] = await Promise.all([
+    sb.rpc('get_public_company_profile', { p_company_id:companyId }),
+    state.session
+      ? sb
+          .from('company_private_notes')
+          .select('note,updated_at')
+          .eq('target_company_id', companyId)
+          .maybeSingle()
+      : Promise.resolve({ data:null, error:null })
+  ]);
+
+  if (profileResult.error) {
+    console.error('Unternehmensprofil konnte nicht geladen werden:', profileResult.error);
     content.innerHTML = '<div class="company-profile-loading status error">Unternehmensprofil konnte nicht geladen werden.</div>';
     return;
   }
 
-  renderPublicCompanyProfile(data || {});
+  renderPublicCompanyProfile(profileResult.data || {});
+
+  if (noteResult.error) {
+    console.error('Private Unternehmensnotiz konnte nicht geladen werden:', noteResult.error);
+    const status = document.getElementById('companyProfilePrivateNoteStatus');
+    if (status) status.textContent = 'Notiz konnte nicht geladen werden.';
+  } else {
+    const noteInput = document.getElementById('companyProfilePrivateNote');
+    if (noteInput) noteInput.value = noteResult.data?.note || '';
+  }
+};
+
+window.openOwnCompanyProfileEditor = function() {
+  const editor = document.getElementById('companyProfileInlineEditor');
+  if (!editor || !state.company?.id) return;
+  editor.classList.remove('hidden');
+  document.getElementById('companyProfileInlineSlogan')?.focus();
+};
+
+window.closeOwnCompanyProfileEditor = function() {
+  document.getElementById('companyProfileInlineEditor')?.classList.add('hidden');
+};
+
+window.saveOwnCompanyProfileFromProfile = async function(event) {
+  event?.preventDefault();
+  if (!sb || !state.company?.id) return;
+
+  const slogan = String(document.getElementById('companyProfileInlineSlogan')?.value || '').trim();
+  const description = String(document.getElementById('companyProfileInlineDescription')?.value || '').trim();
+  const status = document.getElementById('companyProfileInlineStatus');
+
+  if (slogan.length > 120) {
+    await gameAlert('Der Slogan darf maximal 120 Zeichen enthalten.');
+    return;
+  }
+  if (description.length > 1000) {
+    await gameAlert('Die Unternehmensbeschreibung darf maximal 1.000 Zeichen enthalten.');
+    return;
+  }
+
+  if (status) status.textContent = 'Profil wird gespeichert …';
+
+  const payload = {
+    slogan,
+    description,
+    logo_path: state.companyPublicProfile?.logo_path || null,
+    updated_at: new Date().toISOString()
+  };
+
+  let error = null;
+  if (state.companyPublicProfileExists) {
+    const result = await sb
+      .from('company_public_profiles')
+      .update({ slogan, description, updated_at:payload.updated_at })
+      .eq('company_id', state.company.id);
+    error = result.error;
+  } else {
+    const result = await sb
+      .from('company_public_profiles')
+      .insert({ company_id:state.company.id, ...payload });
+    error = result.error;
+  }
+
+  if (error) {
+    console.error('Unternehmensprofil konnte nicht gespeichert werden:', error);
+    if (status) status.textContent = 'Speichern fehlgeschlagen.';
+    await gameAlert(error.message || 'Unternehmensprofil konnte nicht gespeichert werden.');
+    return;
+  }
+
+  state.companyPublicProfileExists = true;
+  state.companyPublicProfile = { ...state.companyPublicProfile, slogan, description };
+  renderCompanyProfileEditor();
+  if (status) status.textContent = 'Profil gespeichert.';
+  await openCompanyProfile(state.company.id);
+};
+
+window.saveCompanyPrivateNote = async function(companyId) {
+  if (!sb || !state.session?.user?.id || !companyId) return;
+
+  const input = document.getElementById('companyProfilePrivateNote');
+  const status = document.getElementById('companyProfilePrivateNoteStatus');
+  const note = String(input?.value || '');
+
+  if (note.length > 4000) {
+    await gameAlert('Eine private Notiz darf maximal 4.000 Zeichen enthalten.');
+    return;
+  }
+
+  if (status) status.textContent = 'Notiz wird gespeichert …';
+
+  const { error } = await sb
+    .from('company_private_notes')
+    .upsert({
+      user_id: state.session.user.id,
+      target_company_id: companyId,
+      note,
+      updated_at: new Date().toISOString()
+    }, {
+      onConflict:'user_id,target_company_id'
+    });
+
+  if (error) {
+    console.error('Private Unternehmensnotiz konnte nicht gespeichert werden:', error);
+    if (status) status.textContent = 'Notiz konnte nicht gespeichert werden.';
+    await gameAlert(error.message || 'Private Notiz konnte nicht gespeichert werden.');
+    return;
+  }
+
+  if (status) status.textContent = 'Private Notiz gespeichert.';
 };
 
 window.messageCompanyFromProfile = async function(companyId) {
