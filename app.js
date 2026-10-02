@@ -3371,6 +3371,7 @@ async function handleSession(session) {
   const loggedIn = !!session;
   document.getElementById('mainNavigation')?.classList.toggle('hidden', !loggedIn);
   document.getElementById('headerChatBtn')?.classList.toggle('hidden', !loggedIn);
+  document.getElementById('headerCompanyAvatarBtn')?.classList.toggle('hidden', !loggedIn || !state.company?.id);
   document.getElementById('authView').classList.toggle('hidden', loggedIn);
   document.getElementById('publicLeaderboardView')?.classList.toggle('hidden', loggedIn);
   document.getElementById('recoveryView').classList.add('hidden');
@@ -3564,6 +3565,40 @@ async function loadOwnCompanyPublicProfile() {
     logo_path: data?.logo_path || null
   };
   renderCompanyProfileEditor();
+  renderHeaderCompanyAvatar();
+}
+
+function renderHeaderCompanyAvatar() {
+  const button = document.getElementById('headerCompanyAvatarBtn');
+  const image = document.getElementById('headerCompanyAvatarImage');
+  const fallback = document.getElementById('headerCompanyAvatarFallback');
+  if (!button || !image || !fallback) return;
+
+  const hasCompany = !!state.company?.id;
+  button.classList.toggle('hidden', !state.session || !hasCompany);
+
+  if (!hasCompany) {
+    image.classList.add('hidden');
+    image.removeAttribute('src');
+    fallback.classList.remove('hidden');
+    fallback.textContent = '?';
+    return;
+  }
+
+  const logoUrl = publicCompanyLogoUrl(state.companyPublicProfile?.logo_path);
+  const initial = String(state.company?.name || '?').trim().charAt(0).toUpperCase() || '?';
+
+  if (logoUrl) {
+    image.src = logoUrl;
+    image.alt = `Firmenlogo von ${state.company.name}`;
+    image.classList.remove('hidden');
+    fallback.classList.add('hidden');
+  } else {
+    image.classList.add('hidden');
+    image.removeAttribute('src');
+    fallback.classList.remove('hidden');
+    fallback.textContent = initial;
+  }
 }
 
 function renderCompanyProfileEditor() {
@@ -3668,6 +3703,7 @@ async function saveOwnCompanyPublicProfile(event) {
 
   state.companyPublicProfileExists = true;
   state.companyPublicProfile = { slogan, description, logo_path:logoPath };
+  renderHeaderCompanyAvatar();
   if (logoInput) logoInput.value = '';
   if (status) status.textContent = 'Öffentliches Profil gespeichert.';
 }
@@ -8423,6 +8459,9 @@ storageFilterReset?.addEventListener('click', () => {
 
 document.getElementById('companyPublicProfileForm')?.addEventListener('submit', saveOwnCompanyPublicProfile);
 document.getElementById('companyProfileViewOwnBtn')?.addEventListener('click', () => {
+  if (state.company?.id) openCompanyProfile(state.company.id);
+});
+document.getElementById('headerCompanyAvatarBtn')?.addEventListener('click', () => {
   if (state.company?.id) openCompanyProfile(state.company.id);
 });
 document.getElementById('companyProfileClose')?.addEventListener('click', closeCompanyProfile);
