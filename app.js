@@ -3543,6 +3543,303 @@ async function loadGameData() {
   renderAll();
 }
 
+async function loadOwnCompanyPublicProfile() {
+  if (!sb || !state.company?.id) return;
+
+  const { data, error } = await sb
+    .from('company_public_profiles')
+    .select('company_id,slogan,description,logo_path,updated_at')
+    .eq('company_id', state.company.id)
+    .maybeSingle();
+
+  if (error) {
+    console.error('Öffentliches Unternehmensprofil konnte nicht geladen werden:', error);
+    return;
+  }
+
+  state.companyPublicProfileExists = !!data;
+  state.companyPublicProfile = {
+    slogan: data?.slogan || '',
+    description: data?.description || '',
+    logo_path: data?.logo_path || null
+  };
+  renderCompanyProfileEditor();
+}
+
+function renderCompanyProfileEditor() {
+  const slogan = document.getElementById('companyProfileSlogan');
+  const description = document.getElementById('companyProfileDescription');
+  const status = document.getElementById('companyProfileEditStatus');
+  if (!slogan || !description) return;
+
+  slogan.value = state.companyPublicProfile?.slogan || '';
+  description.value = state.companyPublicProfile?.description || '';
+  if (status) {
+    status.textContent = state.companyPublicProfile?.logo_path
+      ? 'Firmenlogo gespeichert.'
+      : 'Noch kein Firmenlogo hinterlegt.';
+  }
+}
+
+async function saveOwnCompanyPublicProfile(event) {
+  event?.preventDefault();
+  if (!sb || !state.company?.id || !state.session?.user?.id) return;
+
+  const sloganInput = document.getElementById('companyProfileSlogan');
+  const descriptionInput = document.getElementById('companyProfileDescription');
+  const logoInput = document.getElementById('companyProfileLogo');
+  const saveButton = document.getElementById('companyProfileSaveBtn');
+  const status = document.getElementById('companyProfileEditStatus');
+
+  const slogan = String(sloganInput?.value || '').trim();
+  const description = String(descriptionInput?.value || '').trim();
+
+  if (slogan.length > 120) {
+    await gameAlert('Der Slogan darf maximal 120 Zeichen enthalten.');
+    return;
+  }
+  if (description.length > 1000) {
+    await gameAlert('Die Beschreibung darf maximal 1.000 Zeichen enthalten.');
+    return;
+  }
+
+  let logoPath = state.companyPublicProfile?.logo_path || null;
+  const file = logoInput?.files?.[0] || null;
+
+  if (file) {
+    const allowedTypes = ['image/png','image/jpeg','image/webp'];
+    if (!allowedTypes.includes(file.type)) {
+      await gameAlert('Als Firmenlogo sind PNG, JPG und WEBP erlaubt.');
+      return;
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      await gameAlert('Das Firmenlogo darf maximal 2 MB groß sein.');
+      return;
+    }
+
+    logoPath = `${state.session.user.id}/company-logo`;
+    const { error: uploadError } = await sb.storage
+      .from('company-logos')
+      .upload(logoPath, file, {
+        cacheControl:'3600',
+        contentType:file.type,
+        upsert:true
+      });
+
+    if (uploadError) {
+      console.error('Firmenlogo konnte nicht hochgeladen werden:', uploadError);
+      await gameAlert(uploadError.message || 'Firmenlogo konnte nicht hochgeladen werden.');
+      return;
+    }
+  }
+
+  if (saveButton) saveButton.disabled = true;
+  if (status) status.textContent = 'Profil wird gespeichert …';
+
+  const payload = {
+    slogan,
+    description,
+    logo_path:logoPath,
+    updated_at:new Date().toISOString()
+  };
+
+  let saveError = null;
+  if (state.companyPublicProfileExists) {
+    const result = await sb
+      .from('company_public_profiles')
+      .update(payload)
+      .eq('company_id', state.company.id);
+    saveError = result.error;
+  } else {
+    const result = await sb
+      .from('company_public_profiles')
+      .insert({ company_id:state.company.id, ...payload });
+    saveError = result.error;
+  }
+
+  if (saveButton) saveButton.disabled = false;
+
+  if (saveError) {
+    console.error('Unternehmensprofil konnte nicht gespeichert werden:', saveError);
+    if (status) status.textContent = 'Speichern fehlgeschlagen.';
+    await gameAlert(saveError.message || 'Unternehmensprofil konnte nicht gespeichert werden.');
+    return;
+  }
+
+  state.companyPublicProfileExists = true;
+  state.companyPublicProfile = { slogan, description, logo_path:logoPath };
+  if (logoInput) logoInput.value = '';
+  if (status) status.textContent = 'Öffentliches Profil gespeichert.';
+}
+
+function closeCompanyProfile() {
+  const overlay = document.getElementById('companyProfileOverlay');
+  if (!overlay) return;
+  overlay.classList.add('hidden');
+  overlay.setAttribute('aria-hidden','true');
+  document.body.classList.remove('company-profile-open');
+}
+
+function renderPublicCompanyProfile(profile) {
+  const content = document.getElementById('companyProfileContent');
+  if (!content) return;
+
+  const companyId = profile.id;
+  const own = companyId === state.company?.id;
+  const editableProfile = profile.profile || {};
+  const logoUrl = publicCompanyLogoUrl(editableProfile.logo_path);
+  const initial = escapeChatText(String(profile.name || '?').trim().charAt(0).toUpperCase() || '?');
+  const rank = profile.ranking?.company_value_rank;
+  const totalCompanies = profile.ranking?.total_companies;
+  const offers = Array.isArray(profile.current_offers) ? profile.current_offers : [];
+
+  const logo = logoUrl
+    ? `<img src="${escapeChatText(logoUrl)}" alt="Firmenlogo von ${escapeChatText(profile.name)}">`
+    : `<span>${initial}</span>`;
+
+  const interactionButtons = state.session && !own ? `
+    <div class="company-profile-actions">
+      <button type="button" onclick="messageCompanyFromProfile('${companyId}')">Nachricht senden</button>
+      <button type="button" class="ghost" onclick="contractCompanyFromProfile('${companyId}')">Vertrag erstellen</button>
+    </div>` : '';
+
+  const offersHtml = offers.length ? `
+    <div class="table-wrap">
+      <table class="company-profile-offers">
+        <thead>
+          <tr><th>Artikel</th><th>Qualität</th><th>Menge</th><th>Preis</th><th></th></tr>
+        </thead>
+        <tbody>
+          ${offers.map(offer => {
+            const canOpen = !!state.session;
+            const encodedName = encodeURIComponent(offer.item_name || '');
+            const encodedCategory = encodeURIComponent(offer.product_category || '');
+            return `<tr>
+              <td><strong>${escapeChatText(offer.item_name || '–')}</strong></td>
+              <td>Q${Number(offer.quality_level || 1)}</td>
+              <td>${num(offer.remaining_quantity)}</td>
+              <td><strong>${money(offer.price_per_unit)}</strong></td>
+              <td>${canOpen ? `<button type="button" class="ghost company-profile-offer-open" onclick="openProfileOfferInMarket('${offer.item_type}','${offer.material_id || ''}','${encodedName}','${encodedCategory}')">Ansehen</button>` : ''}</td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>
+    </div>`
+    : '<p class="muted">Dieses Unternehmen hat aktuell keine öffentlichen Verkaufsangebote.</p>';
+
+  content.innerHTML = `
+    <section class="company-profile-hero">
+      <div class="company-profile-avatar">${logo}</div>
+      <div class="company-profile-hero-main">
+        <div class="company-profile-title-row">
+          <div>
+            <h2>${escapeChatText(profile.name || 'Unternehmen')}</h2>
+            <p class="company-profile-slogan">${escapeChatText(editableProfile.slogan || 'Kein Slogan hinterlegt.')}</p>
+          </div>
+          <span class="company-profile-presence ${profile.is_online ? 'online' : 'offline'}">${profile.is_online ? '● Online' : '○ Offline'}</span>
+        </div>
+        <div class="company-profile-hero-meta">
+          <span>Level ${num(profile.company_level)}</span>
+          <span>${profile.company_code ? escapeChatText(profile.company_code) : ''}</span>
+          <span>Gegründet ${profile.created_at ? new Date(profile.created_at).toLocaleDateString(uiLocale()) : '–'}</span>
+        </div>
+        ${interactionButtons}
+      </div>
+    </section>
+
+    <section class="company-profile-description">
+      <h3>Über das Unternehmen</h3>
+      <p>${editableProfile.description ? escapeChatText(editableProfile.description).replace(/\n/g,'<br>') : 'Noch keine Unternehmensbeschreibung hinterlegt.'}</p>
+    </section>
+
+    <section class="company-profile-stats">
+      <div><span>Unternehmenswert</span><strong>${money(profile.company_value)}</strong></div>
+      <div><span>Ranking</span><strong>${rank ? `#${num(rank)}${totalCompanies ? ` / ${num(totalCompanies)}` : ''}` : '–'}</strong></div>
+      <div><span>Gebäude</span><strong>${num(profile.active_buildings)}</strong></div>
+      <div class="company-profile-debt"><span>Schulden</span><strong>${money(Math.max(0,Number(profile.debt || 0)))}</strong></div>
+    </section>
+
+    <section class="company-profile-offers-section">
+      <h3>Aktuelle Angebote</h3>
+      ${offersHtml}
+    </section>
+  `;
+}
+
+window.openCompanyProfile = async function(companyId) {
+  if (!sb || !companyId) return;
+  const overlay = document.getElementById('companyProfileOverlay');
+  const content = document.getElementById('companyProfileContent');
+  if (!overlay || !content) return;
+
+  overlay.classList.remove('hidden');
+  overlay.setAttribute('aria-hidden','false');
+  document.body.classList.add('company-profile-open');
+  content.innerHTML = '<div class="company-profile-loading">Unternehmensprofil wird geladen …</div>';
+
+  const { data, error } = await sb.rpc('get_public_company_profile', { p_company_id:companyId });
+  if (error) {
+    console.error('Unternehmensprofil konnte nicht geladen werden:', error);
+    content.innerHTML = '<div class="company-profile-loading status error">Unternehmensprofil konnte nicht geladen werden.</div>';
+    return;
+  }
+
+  renderPublicCompanyProfile(data || {});
+};
+
+window.messageCompanyFromProfile = async function(companyId) {
+  if (!state.session || !state.company?.id || companyId === state.company.id) return;
+  closeCompanyProfile();
+  await openChatView();
+  await openChatTarget('contact', companyId);
+};
+
+window.contractCompanyFromProfile = function(companyId) {
+  if (!state.session || !state.company?.id || companyId === state.company.id) return;
+  if (!featureUnlocked('contracts')) {
+    gameAlert(`Verträge werden auf Unternehmenslevel ${featureRequiredLevel('contracts')} freigeschaltet.`);
+    return;
+  }
+
+  closeCompanyProfile();
+  activateView('contracts');
+  history.replaceState(null, '', '#contracts');
+
+  const company = state.companyDirectory.find(item => item.id === companyId);
+  const hiddenInput = document.getElementById('contractPartner');
+  const searchInput = document.getElementById('contractPartnerSearch');
+  const displayInput = document.getElementById('contractPartnerDisplay');
+
+  if (hiddenInput) hiddenInput.value = companyId;
+  if (searchInput) searchInput.value = '';
+  if (displayInput) displayInput.value = company
+    ? `${company.name}${company.company_code ? ` · ${company.company_code}` : ''}`
+    : companyId;
+  updateContractPartnerOptions();
+};
+
+window.openProfileOfferInMarket = function(itemType, materialId, encodedName, encodedCategory) {
+  if (!state.session) return;
+  const name = decodeURIComponent(encodedName || '');
+  const category = decodeURIComponent(encodedCategory || '');
+  const itemKey = itemType === 'material'
+    ? `material:${materialId}`
+    : `product:${name}::${category}`;
+
+  state.marketSelectedItemKey = itemKey;
+  state.marketQualityFilter = 'all';
+  state.marketView = 'product';
+  state.marketItemOrders = [];
+  state.marketItemOrdersKey = '';
+  state.marketItemOrdersLoading = true;
+
+  closeCompanyProfile();
+  activateView('market');
+  history.replaceState(null, '', '#market');
+  renderMarket();
+  loadMarketItemOrders(marketItemDescriptor());
+};
+
 function currentProductionContext() {
   const selectedBuilding = state.buildings.find(
     building => building.id === state.selectedBuildingId && building.status === 'active'
