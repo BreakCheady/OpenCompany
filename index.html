@@ -1120,7 +1120,7 @@
       .oc-select-option{min-height:46px;padding:.7rem .8rem}
     }
   
-    /* v0.10.200 – Handelssystem-Korrekturen */
+    /* v0.10.201 – Handelssystem-Korrekturen */
     .app-shell{
       display:block!important;
       min-height:100dvh!important;
@@ -1671,6 +1671,61 @@
       .my-market-orders-table th:nth-child(2),.my-market-orders-table td:nth-child(2){display:none}
     }
 
+    /* Unternehmensprofile */
+    .company-profile-link{width:auto!important;min-width:0!important;padding:0!important;border:0!important;background:transparent!important;color:inherit!important;box-shadow:none!important;font:inherit;font-weight:inherit;text-align:left;text-decoration:underline;text-decoration-color:transparent;text-underline-offset:3px}
+    .company-profile-link:hover{color:var(--accent,#1769d2)!important;text-decoration-color:currentColor}
+    .company-profile-editor-panel{margin-top:16px}
+    .company-profile-editor-form{display:grid;gap:14px}
+    .company-profile-editor-form textarea{width:100%;resize:vertical;min-height:130px}
+    .company-profile-editor-form small{display:block;margin-top:6px;color:var(--muted)}
+    .company-profile-editor-actions{display:flex;align-items:center;justify-content:space-between;gap:12px}
+    .company-profile-editor-actions button{width:auto!important;min-width:150px}
+    .company-profile-overlay{position:fixed;inset:0;z-index:1450;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(4,8,15,.72);backdrop-filter:blur(4px)}
+    .company-profile-overlay.hidden{display:none!important}
+    body.company-profile-open{overflow:hidden}
+    .company-profile-dialog{position:relative;width:min(920px,100%);max-height:92vh;overflow:auto;border:1px solid var(--border);border-radius:18px;background:var(--panel,#fff);box-shadow:0 24px 70px rgba(0,0,0,.34)}
+    .company-profile-close{position:absolute;top:12px;right:12px;z-index:3;width:38px!important;height:38px;padding:0!important;border-radius:50%!important;background:rgba(15,23,42,.78)!important;color:#fff!important;font-size:1.45rem;line-height:1}
+    .company-profile-loading{padding:80px 24px;text-align:center;color:var(--muted)}
+    .company-profile-hero{display:grid;grid-template-columns:112px minmax(0,1fr);gap:18px;padding:24px 64px 22px 24px;border-bottom:1px solid var(--border);background:linear-gradient(135deg,rgba(23,105,210,.12),rgba(13,108,100,.08))}
+    .company-profile-avatar{width:112px;height:112px;border-radius:22px;overflow:hidden;display:grid;place-items:center;background:#20334f;color:#fff;font-size:2.8rem;font-weight:800;border:1px solid rgba(255,255,255,.16)}
+    .company-profile-avatar img{width:100%;height:100%;object-fit:cover;display:block}
+    .company-profile-hero-main{min-width:0}
+    .company-profile-title-row{display:flex;justify-content:space-between;gap:16px;align-items:flex-start}
+    .company-profile-title-row h2{margin:0;font-size:1.7rem}
+    .company-profile-slogan{margin:.35rem 0 0;color:var(--muted);font-size:1rem}
+    .company-profile-presence{flex:0 0 auto;border-radius:999px;padding:5px 9px;font-size:.8rem;font-weight:700;background:rgba(148,163,184,.14)}
+    .company-profile-presence.online{color:#138a47;background:rgba(19,138,71,.12)}
+    .company-profile-presence.offline{color:var(--muted)}
+    .company-profile-hero-meta{display:flex;gap:8px 14px;flex-wrap:wrap;margin-top:12px;color:var(--muted);font-size:.88rem}
+    .company-profile-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px}
+    .company-profile-actions button{width:auto!important}
+    .company-profile-description,.company-profile-offers-section{padding:20px 24px}
+    .company-profile-description h3,.company-profile-offers-section h3{margin:0 0 10px}
+    .company-profile-description p{margin:0;line-height:1.58;white-space:normal}
+    .company-profile-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;padding:0 24px 20px}
+    .company-profile-stats>div{padding:14px;border:1px solid var(--border);border-radius:12px;background:rgba(148,163,184,.07);display:flex;flex-direction:column;gap:5px}
+    .company-profile-stats span{color:var(--muted);font-size:.8rem}
+    .company-profile-stats strong{font-size:1.02rem}
+    .company-profile-debt strong{color:#d60000}
+    .company-profile-offers{width:100%;border-collapse:collapse}
+    .company-profile-offers th,.company-profile-offers td{padding:10px;border-bottom:1px solid var(--border);text-align:left}
+    .company-profile-offer-open{width:auto!important;padding:7px 10px!important}
+    @media(max-width:700px){
+      .company-profile-overlay{padding:8px}
+      .company-profile-dialog{max-height:96vh;border-radius:14px}
+      .company-profile-hero{grid-template-columns:78px minmax(0,1fr);gap:12px;padding:18px 48px 16px 16px}
+      .company-profile-avatar{width:78px;height:78px;border-radius:16px;font-size:2rem}
+      .company-profile-title-row{display:block}
+      .company-profile-title-row h2{font-size:1.35rem}
+      .company-profile-presence{display:inline-flex;margin-top:8px}
+      .company-profile-actions{grid-column:1/-1}
+      .company-profile-description,.company-profile-offers-section{padding:16px}
+      .company-profile-stats{grid-template-columns:1fr 1fr;padding:0 16px 16px}
+      .company-profile-offers th:nth-child(3),.company-profile-offers td:nth-child(3){display:none}
+      .company-profile-editor-actions{align-items:stretch;flex-direction:column}
+      .company-profile-editor-actions button{width:100%!important}
+    }
+
     /* Chat */
     .header-chat-btn.active{box-shadow:0 0 0 2px rgba(255,255,255,.18) inset}
     .chat-panel{padding:0;overflow:hidden}
@@ -2048,6 +2103,32 @@
         <article class="panel">
           <h2>Unternehmen</h2>
           <div id="companyDetails" class="table-wrap"></div>
+        </article>
+
+        <article class="panel company-profile-editor-panel">
+          <div class="panel-head">
+            <div>
+              <h2>Öffentliches Profil</h2>
+              <p class="muted">Diese Angaben sind für andere Spieler auf deinem Unternehmensprofil sichtbar.</p>
+            </div>
+            <button type="button" id="companyProfileViewOwnBtn" class="ghost">Öffentliches Profil ansehen</button>
+          </div>
+          <form id="companyPublicProfileForm" class="company-profile-editor-form">
+            <label>Slogan
+              <input id="companyProfileSlogan" type="text" maxlength="120" placeholder="Kurzer Satz über dein Unternehmen">
+            </label>
+            <label>Beschreibung
+              <textarea id="companyProfileDescription" maxlength="1000" rows="6" placeholder="Beschreibe dein Unternehmen, seine Ausrichtung und Ziele."></textarea>
+            </label>
+            <label>Firmenlogo / Avatar
+              <input id="companyProfileLogo" type="file" accept="image/png,image/jpeg,image/webp">
+              <small>PNG, JPG oder WEBP · maximal 2 MB. Das Logo erscheint nur im Kopfbereich des öffentlichen Profils.</small>
+            </label>
+            <div class="company-profile-editor-actions">
+              <span id="companyProfileEditStatus" class="muted"></span>
+              <button type="submit" id="companyProfileSaveBtn">Profil speichern</button>
+            </div>
+          </form>
         </article>
       </div>
 
@@ -2456,7 +2537,7 @@
           <h2>Einstellungen</h2>
           <div class="kv">
             <span>Version</span>
-            <strong>0.10.200</strong>
+            <strong>0.10.201</strong>
           </div>
           <div class="kv settings-language-row">
             <span>Sprache</span>
@@ -2609,6 +2690,15 @@
 
     <div id="ocbShopPackages" class="ocb-shop-packages"></div>
     <p class="muted ocb-shop-payment-note">Käufe werden erst nach bestätigter serverseitiger Zahlung gutgeschrieben.</p>
+  </div>
+</div>
+
+<div id="companyProfileOverlay" class="company-profile-overlay hidden" aria-hidden="true">
+  <div class="company-profile-dialog" role="dialog" aria-modal="true" aria-label="Unternehmensprofil">
+    <button type="button" id="companyProfileClose" class="company-profile-close" aria-label="Schließen" title="Schließen">×</button>
+    <div id="companyProfileContent">
+      <div class="company-profile-loading">Unternehmensprofil wird geladen …</div>
+    </div>
   </div>
 </div>
 
