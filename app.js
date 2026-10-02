@@ -2290,7 +2290,7 @@ function renderChatMessages() {
         <div class="chat-message-avatar">${escapeChatText(chatCompanyInitial(sender || {name:senderName}))}</div>
         <div class="chat-message-main">
           <div class="chat-message-meta">
-            <strong>${escapeChatText(senderName)}${own ? ' · Du' : ''}</strong>
+            <strong>${companyProfileNameButton(message.sender_company_id, senderName)}${own ? ' · Du' : ''}</strong>
             <div class="chat-message-meta-right">
               ${edited}
               <time datetime="${escapeChatText(message.created_at)}">${escapeChatText(formatChatTime(message.created_at))}</time>
@@ -3307,7 +3307,7 @@ async function loadPublicLeaderboard() {
     <tbody>
       ${rows.map(row => `<tr>
         <td>#${num(row.rank)}</td>
-        <td>${escapePublicLeaderboardText(row.company_name)}</td>
+        <td><button type="button" class="company-profile-link" onclick="openCompanyProfile('${row.company_id}')">${escapePublicLeaderboardText(row.company_name)}</button></td>
         <td>${row.founded_date ? new Date(`${row.founded_date}T12:00:00`).toLocaleDateString(uiLocale()) : '–'}</td>
         <td>${money(row.company_value)}</td>
       </tr>`).join('')}
@@ -5292,7 +5292,7 @@ function renderMarketProductPage() {
   if (body) body.innerHTML=orders.length ? orders.map(order=>{
     const own=order.company_id===state.company?.id;
     return `<tr class="${own?'own-market-order':''}">
-      <td><strong>${companyName(order.company_id)}</strong>${own?'<span class="market-own-badge">Du</span>':''}</td>
+      <td><strong>${companyProfileNameButton(order.company_id)}</strong>${own?'<span class="market-own-badge">Du</span>':''}</td>
       <td><span class="market-quality-badge">Q${Number(order.quality_level||1)}</span></td>
       <td>${num(order.remaining_quantity)}</td>
       <td><strong>${money(order.price_per_unit)}</strong></td>
@@ -8380,6 +8380,7 @@ function renderAll() {
     </tr>`]
   );
   renderCompanyStatus();
+  renderCompanyProfileEditor();
 
   document.getElementById('recentTransactions').innerHTML = renderFinanceMovements(state.transactions.slice(0,8), 'dashboard-finance');
   renderFinanceSummary();
@@ -8418,6 +8419,15 @@ storageFilterReset?.addEventListener('click', () => {
   if (storageSearchFilter) storageSearchFilter.value = '';
   if (storageTypeFilter) storageTypeFilter.value = 'all';
   renderStorage();
+});
+
+document.getElementById('companyPublicProfileForm')?.addEventListener('submit', saveOwnCompanyPublicProfile);
+document.getElementById('companyProfileViewOwnBtn')?.addEventListener('click', () => {
+  if (state.company?.id) openCompanyProfile(state.company.id);
+});
+document.getElementById('companyProfileClose')?.addEventListener('click', closeCompanyProfile);
+document.getElementById('companyProfileOverlay')?.addEventListener('click', event => {
+  if (event.target.id === 'companyProfileOverlay') closeCompanyProfile();
 });
 
 // Auth
