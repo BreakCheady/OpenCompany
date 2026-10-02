@@ -5540,14 +5540,14 @@ function renderBonds() {
     return `<tr>
       <td>${i.lender_name}${i.lender_type === 'npc' ? ' (NPC)' : ''}</td>
       <td>${money(i.original_principal)}</td>
-      <td>${money(i.outstanding_principal)}</td>
+      <td>${money(i.remaining_debt)}</td>
       <td>${num(i.daily_interest_rate)}%</td>
       <td>${money(i.total_received)} / ${money(i.target_received)}</td>
       <td>${formatBondDate(i.matures_at)}</td>
       <td>${bondStatusLabel(i.status)}</td>
       <td>
         ${active ? `<div class="bond-inline-action">
-          <input type="number" id="bondRepay-${i.id}" min="0.01" step="0.01" max="${Number(i.outstanding_principal || 0)}" placeholder="OC$" ${matured ? '' : 'disabled'}>
+          <input type="number" id="bondRepay-${i.id}" min="0.01" step="0.01" max="${Number(i.remaining_debt || 0)}" placeholder="OC$" ${matured ? '' : 'disabled'}>
           <button type="button" onclick="repayBondInvestment('${i.id}')" ${matured ? '' : 'disabled'}>${matured ? 'Tilgen' : '14 Tage'}</button>
         </div>` : '–'}
       </td>
@@ -5557,7 +5557,7 @@ function renderBonds() {
   const investmentRows = investments.map(i => `<tr>
     <td>${i.borrower_name}${i.borrower_type === 'npc' ? ' (NPC)' : ''}</td>
     <td>${money(i.original_principal)}</td>
-    <td>${money(i.outstanding_principal)}</td>
+    <td>${money(i.remaining_debt)}</td>
     <td>${num(i.daily_interest_rate)}%</td>
     <td class="finance-positive">+${money(i.interest_received)}</td>
     <td>${money(i.total_received)} / ${money(i.target_received)}</td>
