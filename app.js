@@ -889,6 +889,11 @@ const state = {
   retailSaleJobs: [],
   transactions: [],
   marketOrders: [],
+  marketCatalogSummary: [],
+  marketOwnOrders: [],
+  marketItemOrders: [],
+  marketItemOrdersKey: '',
+  marketItemOrdersLoading: false,
   marketTrades: [],
   marketSearchFilter: '',
   marketTypeFilter: 'all',
@@ -1917,87 +1922,118 @@ function startNpcMarketHeartbeat() {
   }, 30000);
 }
 
-async function fetchPermanentTransportContainerMarketOrder() {
-  if (!sb) return null;
-  const container = state.allProducts.find(product => product.name === 'Transportcontainer');
-  if (!container) return null;
+async function fetchMarketCatalogSummary() {
+  return sb.rpc('get_market_catalog_summary');
+}
 
-  const { data, error } = await sb
-    .from('market_orders')
-    .select('*, products(name), materials(name)')
-    .eq('product_id', container.id)
+async function fetchMarketOwnOrders() {
+  if (!state.company?.id) return { data:[], error:null };
+  return sb.from('market_orders')
+    .select('*, products(name,category), materials(name)')
+    .eq('company_id', state.company.id)
+    .eq('order_type', 'sell')
     .in('status', ['open','partially_filled'])
     .gt('remaining_quantity', 0)
     .order('created_at', { ascending:false })
-    .limit(1);
-
-  if (error) {
-    console.error('Permanente Transportcontainer-Order konnte nicht geladen werden:', error);
-    return null;
-  }
-  return data?.[0] || null;
+    .limit(500);
 }
 
-function withPermanentTransportContainerOrder(orders, permanentOrder) {
-  const rows = [...(orders || [])];
-  if (!permanentOrder) return rows;
-  const index = rows.findIndex(order => order.id === permanentOrder.id);
-  if (index >= 0) rows[index] = permanentOrder;
-  else rows.push(permanentOrder);
-  return rows;
-}
+async function fetchMarketItemOrders(item) {
+  if (!item) return { data:[], error:null };
 
-async function fetchOpenMarketOrders() {
-  const pageSize = 1000;
-  const rows = [];
+  let query = sb.from('market_orders')
+    .select('*, products(name,category), materials(name)')
+    .eq('order_type', 'sell')
+    .in('status', ['open','partially_filled'])
+    .gt('remaining_quantity', 0)
+    .order('price_per_unit', { ascending:true })
+    .order('created_at', { ascending:true })
+    .limit(500);
 
-  for (let from = 0; from < 10000; from += pageSize) {
-    const { data, error } = await sb.from('market_orders')
-      .select('*, products(name), materials(name)')
-      .in('status',['open','partially_filled'])
-      .order('created_at',{ascending:false})
-      .order('id',{ascending:false})
-      .range(from, from + pageSize - 1);
-
-    if (error) return { data:rows, error };
-    rows.push(...(data || []));
-    if (!data || data.length < pageSize) break;
+  if (item.type === 'material') {
+    return query.eq('material_id', item.id);
   }
 
-  return { data:rows, error:null };
+  const productIds = state.allProducts
+    .filter(product => marketProductIdentity(product) === marketProductIdentity(item.product))
+    .map(product => product.id);
+
+  if (!productIds.length) return { data:[], error:null };
+  return query.in('product_id', productIds);
+}
+
+async function loadMarketItemOrders(item=marketItemDescriptor(), { showLoading=true } = {}) {
+  if (!item || !sb) {
+    state.marketItemOrders = [];
+    state.marketItemOrdersKey = '';
+    state.marketItemOrdersLoading = false;
+    return { data:[], error:null };
+  }
+
+  const requestedKey = item.key;
+  if (showLoading) {
+    state.marketItemOrdersLoading = true;
+    if (state.marketView === 'product' && state.marketSelectedItemKey === requestedKey) {
+      renderMarketProductPage();
+    }
+  }
+
+  const result = await fetchMarketItemOrders(item);
+
+  // Ignore a stale response if the user has already opened another item.
+  if (state.marketSelectedItemKey !== requestedKey && state.marketView === 'product') {
+    return result;
+  }
+
+  state.marketItemOrdersLoading = false;
+  if (result.error) {
+    console.error('Orderbuch konnte nicht geladen werden:', result.error);
+    if (state.marketItemOrdersKey === requestedKey) state.marketItemOrders = [];
+    return result;
+  }
+
+  state.marketItemOrdersKey = requestedKey;
+  state.marketItemOrders = result.data || [];
+
+  if (state.marketView === 'product' && state.marketSelectedItemKey === requestedKey) {
+    renderMarketProductPage();
+  }
+
+  return result;
 }
 
 async function refreshMarketData() {
   if (!sb || !state.company?.id) return;
 
-  try {
-    const [ordersResult, directoryResult] = await Promise.all([
-      fetchOpenMarketOrders(),
-      sb.rpc('list_companies')
-    ]);
+  const item = state.marketView === 'product' ? marketItemDescriptor() : null;
+  const [summaryResult, ownOrdersResult, itemOrdersResult] = await Promise.all([
+    fetchMarketCatalogSummary(),
+    fetchMarketOwnOrders(),
+    item ? fetchMarketItemOrders(item) : Promise.resolve({ data:null, error:null })
+  ]);
 
-    const errors = [
-      ordersResult.error ? `Marktorders: ${ordersResult.error.message || 'Unbekannter Fehler'}` : null,
-      directoryResult.error ? `Firmenverzeichnis: ${directoryResult.error.message || 'Unbekannter Fehler'}` : null
-    ].filter(Boolean);
+  const errors = [
+    summaryResult.error ? `Marktübersicht: ${summaryResult.error.message || 'Unbekannter Fehler'}` : null,
+    ownOrdersResult.error ? `Eigene Orders: ${ownOrdersResult.error.message || 'Unbekannter Fehler'}` : null,
+    itemOrdersResult.error ? `Orderbuch: ${itemOrdersResult.error.message || 'Unbekannter Fehler'}` : null
+  ].filter(Boolean);
 
-    if (errors.length) {
-      await gameAlert(`Markt konnte nicht aktualisiert werden. ${errors.join(' | ')}`);
-      return;
-    }
-
-    const permanentTransportOrder = await fetchPermanentTransportContainerMarketOrder();
-    state.marketOrders = withPermanentTransportContainerOrder(ordersResult.data || [], permanentTransportOrder);
-    state.companyDirectory = directoryResult.data || [];
-    state.selectedMarketOrderIds = state.selectedMarketOrderIds.filter(id =>
-      state.marketOrders.some(order => order.id === id)
-    );
-
-    renderMarket();
-    updateMarketRefreshTimer();
-  } finally {
-    // automatische Marktaktualisierung benötigt keinen manuellen Buttonzustand
+  if (errors.length) {
+    await gameAlert(`Markt konnte nicht aktualisiert werden. ${errors.join(' | ')}`);
+    return;
   }
+
+  state.marketCatalogSummary = summaryResult.data || [];
+  state.marketOwnOrders = ownOrdersResult.data || [];
+
+  if (item) {
+    state.marketItemOrdersKey = item.key;
+    state.marketItemOrders = itemOrdersResult.data || [];
+    state.marketItemOrdersLoading = false;
+  }
+
+  renderMarket();
+  updateMarketRefreshTimer();
 }
 
 window.refreshMarketData = refreshMarketData;
@@ -2050,6 +2086,9 @@ function bindNavigation() {
     }
 
     activateView(view);
+    if (view === 'market') {
+      await refreshMarketData();
+    }
     if (view === 'encyclopedia') {
       renderEncyclopedia();
       if (!location.hash.startsWith('#encyclopedia/')) {
@@ -2989,7 +3028,8 @@ async function loadGameData() {
     sb.from('production_jobs').select('*').eq('company_id', cid).order('started_at', {ascending:false}).limit(500),
     sb.from('retail_sale_jobs').select('*').eq('company_id', cid).order('started_at', {ascending:false}).limit(500),
     sb.from('financial_transactions').select('*').eq('company_id', cid).order('created_at', {ascending:false}).limit(500),
-    sb.from('market_orders').select('*, products(name), materials(name)').in('status',['open','partially_filled']).order('created_at',{ascending:false}).limit(1000),
+    sb.rpc('get_market_catalog_summary'),
+    sb.from('market_orders').select('*, products(name,category), materials(name)').eq('company_id',cid).eq('order_type','sell').in('status',['open','partially_filled']).gt('remaining_quantity',0).order('created_at',{ascending:false}).limit(500),
     sb.from('market_trades').select('id,order_id,buyer_company_id,seller_company_id,product_id,material_id,quantity,price_per_unit,total_value,quality_level,executed_at,products(name,category),materials(name)').or(`buyer_company_id.eq.${cid},seller_company_id.eq.${cid}`).order('executed_at',{ascending:false}).limit(500),
     sb.from('contracts').select('*').or(`seller_company_id.eq.${cid},buyer_company_id.eq.${cid}`).order('created_at',{ascending:false}),
     sb.rpc('list_companies'),
@@ -3001,7 +3041,7 @@ async function loadGameData() {
     sb.rpc('get_ocb_status', { p_company_id: cid })
   ]);
 
-  const labels = ['Produkte','Alle Produkte','Produktlager','Materialien','Materiallager','Rezepte','Gebäudetypen','Gebäude','Produktionen','Handelsverkäufe','Finanzen','Marktorders','Marktkäufe','Verträge','Firmenverzeichnis','Kreditschulden','Anleihen','Unternehmenswert-Verlauf','Unternehmensranking','Lagerstatus','OC-Boost'];
+  const labels = ['Produkte','Alle Produkte','Produktlager','Materialien','Materiallager','Rezepte','Gebäudetypen','Gebäude','Produktionen','Handelsverkäufe','Finanzen','Marktübersicht','Eigene Marktorders','Marktkäufe','Verträge','Firmenverzeichnis','Kreditschulden','Anleihen','Unternehmenswert-Verlauf','Unternehmensranking','Lagerstatus','OC-Boost'];
   const errors = results.map((r,i)=>r.error ? { label: labels[i], error:r.error } : null).filter(Boolean);
   if (errors.length) {
     console.error(errors);
@@ -3010,7 +3050,7 @@ async function loadGameData() {
   }
   clearGameDataError();
 
-  const [products, allProducts, inventory, materials, materialInventory, recipes, buildingTypes, buildings, productionJobs, retailSaleJobs, tx, orders, marketTrades, contracts, directory, companyDebt, bondDashboard, valuationHistory, companyRanking, storageStatus, ocbStatus] = results;
+  const [products, allProducts, inventory, materials, materialInventory, recipes, buildingTypes, buildings, productionJobs, retailSaleJobs, tx, marketSummary, ownMarketOrders, marketTrades, contracts, directory, companyDebt, bondDashboard, valuationHistory, companyRanking, storageStatus, ocbStatus] = results;
   state.products = products.data;
   state.allProducts = allProducts.data;
   state.inventory = inventory.data;
@@ -3024,9 +3064,8 @@ async function loadGameData() {
   state.productionJobs = productionJobs.data;
   state.retailSaleJobs = retailSaleJobs.data;
   state.transactions = tx.data;
-  state.marketOrders = orders.data || [];
-  const permanentTransportOrder = await fetchPermanentTransportContainerMarketOrder();
-  state.marketOrders = withPermanentTransportContainerOrder(state.marketOrders, permanentTransportOrder);
+  state.marketCatalogSummary = marketSummary.data || [];
+  state.marketOwnOrders = ownMarketOrders.data || [];
   state.marketTrades = marketTrades.data || [];
   state.contracts = contracts.data;
   state.companyDirectory = directory.data || [];
@@ -4347,9 +4386,8 @@ function marketItemDescriptor(key=state.marketSelectedItemKey) {
 }
 
 function marketOrdersForItem(item, { includeOwn=true, quality=state.marketQualityFilter } = {}) {
-  if (!item) return [];
-  return state.marketOrders
-    .filter(order => marketItemKeyFromOrder(order) === item.key)
+  if (!item || state.marketItemOrdersKey !== item.key) return [];
+  return state.marketItemOrders
     .filter(order => includeOwn || order.company_id !== state.company?.id)
     .filter(order => {
       const q = Number(order.quality_level || 1);
@@ -4357,6 +4395,18 @@ function marketOrdersForItem(item, { includeOwn=true, quality=state.marketQualit
     })
     .filter(order => ['open','partially_filled'].includes(order.status) && Number(order.remaining_quantity || 0) > 0)
     .sort((a,b) => Number(a.price_per_unit || 0)-Number(b.price_per_unit || 0) || Number(b.quality_level||1)-Number(a.quality_level||1));
+}
+
+function marketSummaryForItem(item) {
+  if (!item) return null;
+  return state.marketCatalogSummary.find(row => {
+    if (item.type === 'material') {
+      return row.item_type === 'material' && row.material_id === item.id;
+    }
+    return row.item_type === 'product'
+      && row.product_name === item.name
+      && row.product_category === item.category;
+  }) || null;
 }
 
 function marketCategorySort(a,b) {
@@ -4388,14 +4438,15 @@ function renderMarketCatalog() {
       <h3>${category}</h3>
       <div class="market-product-grid">
         ${group.sort((a,b)=>a.name.localeCompare(b.name,uiLocale())).map(item=>{
-          const orders=marketOrdersForItem(item,{includeOwn:false,quality:'all'});
-          const total=orders.reduce((sum,o)=>sum+Number(o.remaining_quantity||0),0);
-          const best=orders.length ? Number(orders[0].price_per_unit||0) : 0;
+          const summary=marketSummaryForItem(item);
+          const total=Number(summary?.total_quantity||0);
+          const best=Number(summary?.best_price||0);
+          const offers=Number(summary?.offer_count||0);
           return `<button type="button" class="market-product-tile" data-market-item="${encodeURIComponent(item.key)}">
             <span class="market-product-icon" aria-hidden="true">${marketItemIcon(item)}</span>
             <strong>${item.name}</strong>
-            <span>${orders.length ? `${num(total)} verfügbar` : 'Kein Angebot'}</span>
-            <small>${orders.length ? `ab ${money(best)}` : '–'}</small>
+            <span>${offers ? `${num(total)} verfügbar` : 'Kein Angebot'}</span>
+            <small>${offers ? `ab ${money(best)}` : '–'}</small>
           </button>`;
         }).join('')}
       </div>
@@ -4405,9 +4456,13 @@ function renderMarketCatalog() {
     state.marketSelectedItemKey=decodeURIComponent(button.dataset.marketItem||'');
     state.marketQualityFilter='all';
     state.marketView='product';
+    state.marketItemOrders=[];
+    state.marketItemOrdersKey='';
+    state.marketItemOrdersLoading=true;
     const qty=document.getElementById('marketProductBuyQty');
     if (qty) qty.value='1';
     renderMarket();
+    loadMarketItemOrders(marketItemDescriptor());
   }));
 }
 
@@ -4472,6 +4527,11 @@ function renderMarketProductPage() {
 
   const orders=marketOrdersForItem(item,{includeOwn:true});
   const body=document.getElementById('marketOrderBookBody');
+  if (body && state.marketItemOrdersLoading) {
+    body.innerHTML='<tr><td colspan="5" class="market-empty-cell">Angebote werden geladen …</td></tr>';
+    updateMarketProductBuyPreview();
+    return;
+  }
   if (body) body.innerHTML=orders.length ? orders.map(order=>{
     const own=order.company_id===state.company?.id;
     return `<tr class="${own?'own-market-order':''}">
@@ -4492,7 +4552,7 @@ function renderMyOpenMarketOrders() {
   const countEl=document.getElementById('myOpenMarketOrdersCount');
   if (!root || !state.company?.id) return;
 
-  const orders=state.marketOrders
+  const orders=state.marketOwnOrders
     .filter(order =>
       order.company_id===state.company.id &&
       order.order_type==='sell' &&
@@ -8167,6 +8227,9 @@ document.getElementById('sellOrderForm').addEventListener('submit', async e => {
   else {
     closeMarketSellModal();
     await loadCompany();
+    if (state.marketView==='product') {
+      await loadMarketItemOrders(marketItemDescriptor(), { showLoading:false });
+    }
   }
 });
 
@@ -8351,7 +8414,15 @@ window.collectRetailRevenue = async function(jobId) {
 window.cancelOrder = async function(orderId) {
   if(!await gameConfirm('Verkaufsorder wirklich stornieren?')) return;
   const { error }=await sb.rpc('cancel_market_order',{p_order_id:orderId});
-  if(error) gameAlert(error.message); else await loadCompany();
+  if(error) {
+    gameAlert(error.message);
+    return;
+  }
+
+  await loadCompany();
+  if (state.marketView==='product') {
+    await loadMarketItemOrders(marketItemDescriptor(), { showLoading:false });
+  }
 };
 
 const marketCatalogSearch = document.getElementById('marketCatalogSearch');
@@ -8370,6 +8441,9 @@ marketBackBtn?.addEventListener('click',()=>{
   state.marketView='catalog';
   state.marketSelectedItemKey='';
   state.marketQualityFilter='all';
+  state.marketItemOrders=[];
+  state.marketItemOrdersKey='';
+  state.marketItemOrdersLoading=false;
   renderMarket();
 });
 
@@ -8401,6 +8475,7 @@ marketProductBuyBtn?.addEventListener('click', async ()=>{
       paid += fill.quantity*Number(fill.order.price_per_unit||0);
     }
     await loadCompany();
+    await loadMarketItemOrders(plan.item, { showLoading:false });
     if (bought>0) await gameAlert(`${num(bought)} × ${plan.item.name} für ${money(paid)} gekauft.`, 'Kauf abgeschlossen');
   } finally {
     updateMarketProductBuyPreview();
