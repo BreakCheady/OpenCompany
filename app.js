@@ -4275,6 +4275,7 @@ const MARKET_MATERIAL_CATEGORY_BY_NAME = Object.freeze({
   Kupfer:'Bau',
   Aluminium:'Bau',
   Lithium:'Elektronik',
+  Silizium:'Chemie',
   Phosphat:'Chemie',
   Chemikalien:'Chemie',
   Kautschuk:'Textil',
@@ -4287,6 +4288,8 @@ function marketCatalogCategory(item) {
   if (item.type === 'material') {
     return MARKET_MATERIAL_CATEGORY_BY_NAME[item.name] || 'Rohstoffe';
   }
+
+  if (item.name === 'Transportcontainer') return 'Transport';
 
   const product = item.product;
   const category = researchCategory(product);
@@ -4311,7 +4314,7 @@ function marketItemIcon(item) {
   if (name.includes('lithium')) return '🔋';
   return ({
     Rohstoffe:'⛏️', Elektronik:'💻', Maschinen:'⚙️', Automobil:'🚗', Chemie:'🧪',
-    Bau:'🏗️', Textil:'🧵', Lebensmittel:'🍞', Energie:'⚡', Forschung:'🔬', Sonstige:'📦'
+    Bau:'🏗️', Textil:'🧵', Lebensmittel:'🍞', Energie:'⚡', Forschung:'🔬', Transport:'🚚', Sonstige:'📦'
   })[marketCatalogCategory(item)] || '📦';
 }
 
@@ -4357,7 +4360,7 @@ function marketOrdersForItem(item, { includeOwn=true, quality=state.marketQualit
 }
 
 function marketCategorySort(a,b) {
-  const order=['Rohstoffe','Lebensmittel','Bau','Elektronik','Automobil','Chemie','Textil','Energie','Forschung','Sonstige'];
+  const order=['Rohstoffe','Lebensmittel','Bau','Elektronik','Automobil','Chemie','Textil','Energie','Forschung','Transport','Sonstige'];
   const ai=order.indexOf(a), bi=order.indexOf(b);
   return (ai<0?999:ai)-(bi<0?999:bi) || a.localeCompare(b,uiLocale());
 }
