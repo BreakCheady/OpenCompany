@@ -5508,7 +5508,7 @@ function renderBonds() {
 
   const myRequests = dashboard.my_requests || [];
   const openRequests = dashboard.open_requests || [];
-  const borrowed = dashboard.my_borrowed_positions || [];
+  const borrowed = (dashboard.my_borrowed_positions || []).filter(i => !['repaid','auto_repaid'].includes(i.status));
   const investments = dashboard.my_investments || [];
 
   const myRequestRows = myRequests.map(r => `<tr>
