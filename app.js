@@ -2712,25 +2712,11 @@ function openViewFromHash() {
         return;
       }
     }
-
-    const btn = document.querySelector(`.nav-item[data-view="${view}"]`);
-    if (btn) {
-      btn.click();
-      return;
-    }
   }
 
-  const savedView = loadLastView();
-  const savedBtn = savedView
-    ? document.querySelector(`.nav-item[data-view="${savedView}"]`)
-    : null;
-
-  if (savedBtn) {
-    savedBtn.click();
-    return;
-  }
-
-  document.querySelector('.nav-item[data-view="dashboard"]')?.click();
+  // Nach einem Neuladen ist das Dashboard immer die Standardansicht.
+  history.replaceState(null, '', '#dashboard');
+  activateView('dashboard');
 }
 
 
@@ -3007,6 +2993,7 @@ async function loadCompany() {
     if (!refreshed.error && refreshed.data) state.company = refreshed.data;
 
     startCompanyBalanceWatcher();
+    clearLastView();
     await loadGameData();
     await loadPushSettings();
     renderAccountSettings();
@@ -7505,7 +7492,6 @@ function activateView(view) {
   document.querySelectorAll('.view').forEach(item => item.classList.remove('active-view'));
   target.classList.add('active-view');
   document.getElementById('pageTitle').textContent = navButton.dataset.baseLabel || navButton.textContent;
-  saveLastView(view);
   return true;
 }
 
