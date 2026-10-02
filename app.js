@@ -3376,7 +3376,10 @@ async function loadAccountIdentity() {
   state.accountCode = data?.account_code || null;
 }
 
-async function loadCompany() {
+async function loadCompany({ preserveView='' } = {}) {
+  const requestedView = preserveView && document.getElementById(preserveView)
+    ? preserveView
+    : '';
   const { data, error } = await sb.from('companies').select('*').eq('owner_user_id', state.session.user.id).maybeSingle();
   if (error) {
     console.error(error);
@@ -3413,7 +3416,12 @@ async function loadCompany() {
     await loadGameData();
     await loadPushSettings();
     renderAccountSettings();
-    openViewFromHash();
+    if (requestedView) {
+      history.replaceState(null, '', `#${requestedView}`);
+      activateView(requestedView);
+    } else {
+      openViewFromHash();
+    }
   }
 }
 
@@ -8232,7 +8240,7 @@ document.getElementById('productionForm').addEventListener('submit', async e => 
       productionCost: plan.productionCost
     }
   });
-  if(error) gameAlert(error.message); else await loadCompany();
+  if(error) gameAlert(error.message); else await loadCompany({ preserveView:'production' });
 });
 window.buyMissingProductionInput = async function(kind, itemId) {
   const plan = productionPlan();
@@ -8775,7 +8783,7 @@ document.getElementById('retailSaleForm').addEventListener('submit', async e => 
   if (error) {
     gameAlert(error.message);
   } else {
-    await loadCompany();
+    await loadCompany({ preserveView:'production' });
   }
 });
 window.cancelRetailSale = async function(jobId) {
