@@ -1120,7 +1120,7 @@
       .oc-select-option{min-height:46px;padding:.7rem .8rem}
     }
   
-    /* v0.10.197 – Handelssystem-Korrekturen */
+    /* v0.10.198 – Handelssystem-Korrekturen */
     .app-shell{
       display:block!important;
       min-height:100dvh!important;
@@ -1797,7 +1797,25 @@
     .chat-message-main{min-width:0}
     .chat-message-meta{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:4px}
     .chat-message-meta strong{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .chat-message-meta-right{display:flex;align-items:center;justify-content:flex-end;gap:6px;flex-wrap:wrap}
     .chat-message-meta time{flex:0 0 auto;color:var(--muted,#64748b);font-size:.78rem}
+    .chat-message-edited{color:var(--muted,#64748b);font-size:.72rem;font-style:italic}
+    .chat-message-actions{display:inline-flex;gap:4px;margin-left:2px}
+    .chat-message-action{
+      width:28px!important;height:28px!important;
+      min-width:28px!important;
+      padding:0!important;
+      display:grid!important;
+      place-items:center;
+      border-radius:8px!important;
+      border:1px solid var(--border,#d8dee8)!important;
+      background:transparent!important;
+      color:inherit!important;
+      box-shadow:none!important;
+      font-size:.82rem;
+    }
+    .chat-message-action:hover{background:rgba(23,105,210,.08)!important}
+    .chat-message-delete:hover{background:rgba(214,0,0,.08)!important;color:#d60000!important}
     .chat-message-body{
       display:inline-block;
       max-width:min(760px,100%);
@@ -1875,8 +1893,10 @@
       .chat-messages{padding:8px 10px 14px}
       .chat-message{grid-template-columns:36px minmax(0,1fr);gap:8px}
       .chat-message-avatar{width:36px;height:36px;font-size:.86rem}
-      .chat-message-meta{gap:8px}
+      .chat-message-meta{gap:8px;align-items:flex-start}
       .chat-message-meta strong{font-size:.9rem}
+      .chat-message-meta-right{gap:4px}
+      .chat-message-action{width:30px!important;height:30px!important;min-width:30px!important}
       .chat-message-body{font-size:.94rem}
     }
 
@@ -2436,7 +2456,7 @@
           <h2>Einstellungen</h2>
           <div class="kv">
             <span>Version</span>
-            <strong>0.10.197</strong>
+            <strong>0.10.198</strong>
           </div>
           <div class="kv settings-language-row">
             <span>Sprache</span>
