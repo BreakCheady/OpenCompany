@@ -2260,18 +2260,35 @@ function renderChatMessages() {
     const own = message.sender_company_id === state.company?.id;
     const senderName = sender?.name || 'Unbekanntes Unternehmen';
     const body = escapeChatText(message.body).replace(/\n/g,'<br>');
+    const edited = message.edited_at ? '<span class="chat-message-edited">(bearbeitet)</span>' : '';
+    const actions = own ? `
+      <div class="chat-message-actions">
+        <button type="button" class="chat-message-action" data-chat-edit="${message.id}" title="Nachricht bearbeiten" aria-label="Nachricht bearbeiten">✎</button>
+        <button type="button" class="chat-message-action chat-message-delete" data-chat-delete="${message.id}" title="Nachricht löschen" aria-label="Nachricht löschen">🗑</button>
+      </div>` : '';
     return `
       <article class="chat-message ${own ? 'chat-message-own' : ''}">
         <div class="chat-message-avatar">${escapeChatText(chatCompanyInitial(sender || {name:senderName}))}</div>
         <div class="chat-message-main">
           <div class="chat-message-meta">
             <strong>${escapeChatText(senderName)}${own ? ' · Du' : ''}</strong>
-            <time datetime="${escapeChatText(message.created_at)}">${escapeChatText(formatChatTime(message.created_at))}</time>
+            <div class="chat-message-meta-right">
+              ${edited}
+              <time datetime="${escapeChatText(message.created_at)}">${escapeChatText(formatChatTime(message.created_at))}</time>
+              ${actions}
+            </div>
           </div>
           <div class="chat-message-body">${body}</div>
         </div>
       </article>`;
   }).join('');
+
+  messages.querySelectorAll('[data-chat-edit]').forEach(button => {
+    button.addEventListener('click', () => editChatMessage(button.dataset.chatEdit));
+  });
+  messages.querySelectorAll('[data-chat-delete]').forEach(button => {
+    button.addEventListener('click', () => deleteChatMessage(button.dataset.chatDelete));
+  });
 
   requestAnimationFrame(() => {
     messages.scrollTop = messages.scrollHeight;
@@ -2311,7 +2328,8 @@ async function loadChatConversation({ silent=false } = {}) {
 
   let query = sb
     .from('chat_messages')
-    .select('id,room_id,sender_company_id,recipient_company_id,body,created_at')
+    .select('id,room_id,sender_company_id,recipient_company_id,body,created_at,edited_at,deleted_at')
+    .is('deleted_at', null)
     .order('created_at', { ascending:false })
     .limit(100);
 
@@ -2338,6 +2356,66 @@ async function loadChatConversation({ silent=false } = {}) {
   renderChatMessages();
 }
 
+async function editChatMessage(messageId) {
+  const message = state.chatMessages.find(item => item.id === messageId);
+  if (!message || message.sender_company_id !== state.company?.id) return;
+
+  const editedBody = await gamePrompt(
+    'Nachricht bearbeiten:',
+    message.body,
+    'Chatnachricht bearbeiten'
+  );
+  if (editedBody === null) return;
+
+  const body = String(editedBody).trim();
+  if (!body) {
+    await gameAlert('Die Nachricht darf nicht leer sein.');
+    return;
+  }
+  if (body.length > 1000) {
+    await gameAlert('Eine Chatnachricht darf maximal 1.000 Zeichen enthalten.');
+    return;
+  }
+  if (body === message.body) return;
+
+  const { error } = await sb
+    .from('chat_messages')
+    .update({ body, edited_at:new Date().toISOString() })
+    .eq('id', messageId)
+    .eq('sender_company_id', state.company.id)
+    .is('deleted_at', null);
+
+  if (error) {
+    console.error('Chatnachricht konnte nicht bearbeitet werden:', error);
+    await gameAlert(error.message || 'Nachricht konnte nicht bearbeitet werden.');
+    return;
+  }
+
+  await loadChatConversation({ silent:true });
+}
+
+async function deleteChatMessage(messageId) {
+  const message = state.chatMessages.find(item => item.id === messageId);
+  if (!message || message.sender_company_id !== state.company?.id) return;
+
+  if (!await gameConfirm('Diese Chatnachricht wirklich löschen?')) return;
+
+  const { error } = await sb
+    .from('chat_messages')
+    .update({ deleted_at:new Date().toISOString() })
+    .eq('id', messageId)
+    .eq('sender_company_id', state.company.id)
+    .is('deleted_at', null);
+
+  if (error) {
+    console.error('Chatnachricht konnte nicht gelöscht werden:', error);
+    await gameAlert(error.message || 'Nachricht konnte nicht gelöscht werden.');
+    return;
+  }
+
+  await loadChatConversation({ silent:true });
+}
+
 async function openChatTarget(type, id) {
   state.chatSelectedType = type;
   state.chatSelectedId = id;
@@ -2359,11 +2437,11 @@ function startChatRealtime() {
     .channel(`opencompany-chat-${state.company.id}`)
     .on(
       'postgres_changes',
-      { event:'INSERT', schema:'public', table:'chat_messages' },
+      { event:'*', schema:'public', table:'chat_messages' },
       payload => {
         const target = selectedChatTarget();
         if (!target) return;
-        const row = payload.new || {};
+        const row = payload.new || payload.old || {};
         const matches = target.type === 'room'
           ? row.room_id === target.id
           : (
