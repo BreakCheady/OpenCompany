@@ -1120,7 +1120,7 @@
       .oc-select-option{min-height:46px;padding:.7rem .8rem}
     }
   
-    /* v0.10.202 – Handelssystem-Korrekturen */
+    /* v0.10.203 – Handelssystem-Korrekturen */
     .app-shell{
       display:block!important;
       min-height:100dvh!important;
@@ -1705,6 +1705,18 @@
     .company-profile-editor-form small{display:block;margin-top:6px;color:var(--muted)}
     .company-profile-editor-actions{display:flex;align-items:center;justify-content:space-between;gap:12px}
     .company-profile-editor-actions button{width:auto!important;min-width:150px}
+    .settings-company-logo-form{display:grid;gap:14px}
+    .settings-company-logo-preview{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+    .settings-company-logo-avatar{
+      width:72px;height:72px;flex:0 0 72px;
+      border-radius:50%;overflow:hidden;
+      display:grid;place-items:center;
+      background:#20334f;color:#fff;
+      font-weight:800;font-size:1.6rem;
+      border:1px solid var(--border);
+    }
+    .settings-company-logo-avatar img{width:100%;height:100%;object-fit:cover;display:block}
+    .settings-company-logo-avatar img.hidden{display:none!important}
     .company-profile-overlay{position:fixed;inset:0;z-index:1450;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(4,8,15,.72);backdrop-filter:blur(4px)}
     .company-profile-overlay.hidden{display:none!important}
     body.company-profile-open{overflow:hidden}
@@ -2151,10 +2163,6 @@
             <label>Beschreibung
               <textarea id="companyProfileDescription" maxlength="1000" rows="6" placeholder="Beschreibe dein Unternehmen, seine Ausrichtung und Ziele."></textarea>
             </label>
-            <label>Firmenlogo / Avatar
-              <input id="companyProfileLogo" type="file" accept="image/png,image/jpeg,image/webp">
-              <small>PNG, JPG oder WEBP · maximal 2 MB. Das Logo erscheint nur im Kopfbereich des öffentlichen Profils.</small>
-            </label>
             <div class="company-profile-editor-actions">
               <span id="companyProfileEditStatus" class="muted"></span>
               <button type="submit" id="companyProfileSaveBtn">Profil speichern</button>
@@ -2568,7 +2576,7 @@
           <h2>Einstellungen</h2>
           <div class="kv">
             <span>Version</span>
-            <strong>0.10.202</strong>
+            <strong>0.10.203</strong>
           </div>
           <div class="kv settings-language-row">
             <span>Sprache</span>
@@ -2621,6 +2629,29 @@
               <button type="button" id="accountEditCancelBtn" class="ghost">Abbrechen</button>
             </div>
             <p id="accountStatus" class="status"></p>
+          </form>
+        </article>
+
+        <article class="panel">
+          <h2>Firmenlogo / Avatar</h2>
+          <p class="muted">Das Logo wird im Kopfbereich deines öffentlichen Unternehmensprofils und neben dem Chat-Button angezeigt.</p>
+          <form id="settingsCompanyLogoForm" class="settings-company-logo-form">
+            <div class="settings-company-logo-preview">
+              <div id="settingsCompanyLogoPreview" class="settings-company-logo-avatar">
+                <span id="settingsCompanyLogoFallback" aria-hidden="true">?</span>
+                <img id="settingsCompanyLogoImage" class="hidden" alt="">
+              </div>
+              <div>
+                <label>Neues Firmenlogo
+                  <input id="settingsCompanyLogoInput" type="file" accept="image/png,image/jpeg,image/webp">
+                </label>
+                <small class="muted">PNG, JPG oder WEBP · maximal 2 MB.</small>
+              </div>
+            </div>
+            <div class="actions">
+              <button type="submit" id="settingsCompanyLogoSaveBtn">Logo speichern</button>
+            </div>
+            <p id="settingsCompanyLogoStatus" class="status"></p>
           </form>
         </article>
 
