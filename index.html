@@ -1120,7 +1120,7 @@
       .oc-select-option{min-height:46px;padding:.7rem .8rem}
     }
   
-    /* v0.10.201 – Handelssystem-Korrekturen */
+    /* v0.10.202 – Handelssystem-Korrekturen */
     .app-shell{
       display:block!important;
       min-height:100dvh!important;
@@ -1672,6 +1672,31 @@
     }
 
     /* Unternehmensprofile */
+    .topbar-actions{display:flex;align-items:center;gap:10px}
+    .header-company-avatar{
+      width:42px!important;
+      height:42px!important;
+      min-width:42px!important;
+      padding:0!important;
+      border-radius:50%!important;
+      overflow:hidden;
+      display:grid!important;
+      place-items:center;
+      border:1px solid var(--border)!important;
+      background:#20334f!important;
+      color:#fff!important;
+      font-weight:800;
+      font-size:1rem;
+      box-shadow:none!important;
+    }
+    .header-company-avatar:hover{border-color:var(--accent,#1769d2)!important;transform:translateY(-1px)}
+    .header-company-avatar img{width:100%;height:100%;object-fit:cover;display:block}
+    .header-company-avatar img.hidden{display:none!important}
+    @media(max-width:560px){
+      .topbar-actions{gap:7px}
+      .header-company-avatar{width:38px!important;height:38px!important;min-width:38px!important}
+    }
+
     .company-profile-link{width:auto!important;min-width:0!important;padding:0!important;border:0!important;background:transparent!important;color:inherit!important;box-shadow:none!important;font:inherit;font-weight:inherit;text-align:left;text-decoration:underline;text-decoration-color:transparent;text-underline-offset:3px}
     .company-profile-link:hover{color:var(--accent,#1769d2)!important;text-decoration-color:currentColor}
     .company-profile-editor-panel{margin-top:16px}
@@ -1995,7 +2020,13 @@
         <h1 id="pageTitle">Dashboard</h1>
         <p class="muted">OpenCompany – spielbare Unternehmenssimulation</p>
       </div>
-      <button id="headerChatBtn" class="header-chat-btn hidden" type="button">Chat</button>
+      <div class="topbar-actions">
+        <button id="headerChatBtn" class="header-chat-btn hidden" type="button">Chat</button>
+        <button id="headerCompanyAvatarBtn" class="header-company-avatar hidden" type="button" aria-label="Eigenes Unternehmensprofil öffnen" title="Eigenes Unternehmensprofil">
+          <span id="headerCompanyAvatarFallback" aria-hidden="true">?</span>
+          <img id="headerCompanyAvatarImage" class="hidden" alt="">
+        </button>
+      </div>
     </header>
 
     <section id="setupNotice" class="panel warning hidden"><strong>Supabase noch nicht konfiguriert.</strong> Prüfe <code>config.js</code>.</section>
@@ -2537,7 +2568,7 @@
           <h2>Einstellungen</h2>
           <div class="kv">
             <span>Version</span>
-            <strong>0.10.201</strong>
+            <strong>0.10.202</strong>
           </div>
           <div class="kv settings-language-row">
             <span>Sprache</span>
