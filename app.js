@@ -3377,8 +3377,10 @@ async function loadAccountIdentity() {
 }
 
 async function loadCompany({ preserveView='' } = {}) {
-  const requestedView = preserveView && document.getElementById(preserveView)
-    ? preserveView
+  const activeViewId = document.querySelector('.view.active-view')?.id || '';
+  const preferredView = preserveView || activeViewId;
+  const requestedView = preferredView && document.getElementById(preferredView)
+    ? preferredView
     : '';
   const { data, error } = await sb.from('companies').select('*').eq('owner_user_id', state.session.user.id).maybeSingle();
   if (error) {
@@ -8240,7 +8242,7 @@ document.getElementById('productionForm').addEventListener('submit', async e => 
       productionCost: plan.productionCost
     }
   });
-  if(error) gameAlert(error.message); else await loadCompany({ preserveView:'production' });
+  if(error) gameAlert(error.message); else await loadCompany();
 });
 window.buyMissingProductionInput = async function(kind, itemId) {
   const plan = productionPlan();
@@ -8783,7 +8785,7 @@ document.getElementById('retailSaleForm').addEventListener('submit', async e => 
   if (error) {
     gameAlert(error.message);
   } else {
-    await loadCompany({ preserveView:'production' });
+    await loadCompany();
   }
 });
 window.cancelRetailSale = async function(jobId) {
