@@ -921,6 +921,8 @@ const state = {
   financePeriodOffset: 0,
   financeMovementFilter: 'all',
   contracts: [],
+  globalEconomicEvents: [],
+  companyEvents: [],
   companyDirectory: [],
   companyDebt: 0,
   companyValueChange: 0,
@@ -3579,6 +3581,8 @@ async function loadGameData() {
     sb.from('market_orders').select('*, products(name,category), materials(name)').eq('company_id',cid).eq('order_type','sell').in('status',['open','partially_filled']).gt('remaining_quantity',0).order('created_at',{ascending:false}).limit(500),
     sb.from('market_trades').select('id,order_id,buyer_company_id,seller_company_id,product_id,material_id,quantity,price_per_unit,total_value,quality_level,executed_at,products(name,category),materials(name)').or(`buyer_company_id.eq.${cid},seller_company_id.eq.${cid}`).order('executed_at',{ascending:false}).limit(500),
     sb.from('contracts').select('*').or(`seller_company_id.eq.${cid},buyer_company_id.eq.${cid}`).order('created_at',{ascending:false}),
+    sb.from('global_economic_events').select('*').eq('status','active').gt('ends_at',new Date().toISOString()).order('started_at',{ascending:false}),
+    sb.from('company_events').select('*').eq('company_id',cid).eq('status','pending').gt('expires_at',new Date().toISOString()).order('created_at',{ascending:false}),
     sb.rpc('list_companies'),
     sb.rpc('get_company_debt', { p_company_id: cid }),
     sb.rpc('get_bond_dashboard', { p_company_id: cid }),
@@ -3589,7 +3593,7 @@ async function loadGameData() {
     sb.from('game_economy_state').select('*').eq('id',1).single()
   ]);
 
-  const labels = ['Produkte','Alle Produkte','Produktlager','Materialien','Materiallager','Rezepte','Gebäudetypen','Gebäude','Produktionen','Handelsverkäufe','Finanzen','Marktübersicht','Eigene Marktorders','Marktkäufe','Verträge','Firmenverzeichnis','Kreditschulden','Anleihen','Unternehmenswert-Verlauf','Unternehmensranking','Lagerstatus','OC-Boost','Wirtschaftsphase'];
+  const labels = ['Produkte','Alle Produkte','Produktlager','Materialien','Materiallager','Rezepte','Gebäudetypen','Gebäude','Produktionen','Handelsverkäufe','Finanzen','Marktübersicht','Eigene Marktorders','Marktkäufe','Verträge','Globale Ereignisse','Unternehmensereignisse','Firmenverzeichnis','Kreditschulden','Anleihen','Unternehmenswert-Verlauf','Unternehmensranking','Lagerstatus','OC-Boost','Wirtschaftsphase'];
   const errors = results.map((r,i)=>r.error ? { label: labels[i], error:r.error } : null).filter(Boolean);
   if (errors.length) {
     console.error(errors);
@@ -3598,7 +3602,7 @@ async function loadGameData() {
   }
   clearGameDataError();
 
-  const [products, allProducts, inventory, materials, materialInventory, recipes, buildingTypes, buildings, productionJobs, retailSaleJobs, tx, marketSummary, ownMarketOrders, marketTrades, contracts, directory, companyDebt, bondDashboard, valuationHistory, companyRanking, storageStatus, ocbStatus, economyState] = results;
+  const [products, allProducts, inventory, materials, materialInventory, recipes, buildingTypes, buildings, productionJobs, retailSaleJobs, tx, marketSummary, ownMarketOrders, marketTrades, contracts, globalEvents, companyEvents, directory, companyDebt, bondDashboard, valuationHistory, companyRanking, storageStatus, ocbStatus, economyState] = results;
   state.products = products.data;
   state.allProducts = allProducts.data;
   state.inventory = inventory.data;
@@ -3616,6 +3620,8 @@ async function loadGameData() {
   state.marketOwnOrders = ownMarketOrders.data || [];
   state.marketTrades = marketTrades.data || [];
   state.contracts = contracts.data;
+  state.globalEconomicEvents = globalEvents.data || [];
+  state.companyEvents = companyEvents.data || [];
   state.companyDirectory = directory.data || [];
   state.companyDebt = Number(companyDebt.data || 0);
   state.bondDashboard = bondDashboard.data || null;
