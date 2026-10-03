@@ -4371,6 +4371,42 @@ function marketOrdersForProductionInput(input) {
     .sort((a,b)=>Number(a.price_per_unit||0)-Number(b.price_per_unit||0));
 }
 
+async function fetchMarketOrdersForProductionInput(input) {
+  if (!input || !state.company?.id) return { data:[], error:null };
+
+  const requiredQuality = Number(input.minQuality || 1);
+  let query = sb.from('market_orders')
+    .select('*, products(name,category), materials(name)')
+    .eq('order_type','sell')
+    .in('status',['open','partially_filled'])
+    .gt('remaining_quantity',0)
+    .gte('quality_level',requiredQuality)
+    .neq('company_id',state.company.id)
+    .order('price_per_unit',{ascending:true})
+    .order('created_at',{ascending:true})
+    .limit(1000);
+
+  if (input.material_id) {
+    return query.eq('material_id',input.material_id);
+  }
+
+  if (input.component_product_id) {
+    const component = (state.products || []).find(p => p.id === input.component_product_id)
+      || (state.allProducts || []).find(p => p.id === input.component_product_id);
+
+    if (!component) return { data:[], error:null };
+
+    const productIds = (state.allProducts || [])
+      .filter(product => product.name === component.name && product.category === component.category)
+      .map(product => product.id);
+
+    if (!productIds.length) return { data:[], error:null };
+    return query.in('product_id',productIds);
+  }
+
+  return { data:[], error:null };
+}
+
 function estimateMissingInputPurchase(input) {
   const missing = Math.max(0, Number(input.required || 0) - Number(input.available || 0));
   if (missing <= 0) return { missing: 0, availableOnMarket: 0, estimatedCost: 0, fullyAvailable: true };
@@ -9294,11 +9330,26 @@ window.buyMissingProductionInput = async function(kind, itemId) {
     return;
   }
 
-  const orders = marketOrdersForProductionInput(input);
-  if (!orders.length) {
-    gameAlert(`Aktuell gibt es keine passende Marktorder für ${input.name}.`);
+  const { data: liveOrders, error: marketError } = await fetchMarketOrdersForProductionInput(input);
+  if (marketError) {
+    gameAlert(`Marktangebote für ${input.name} konnten nicht geladen werden. ${marketError.message || ''}`.trim());
     return;
   }
+
+  const orders = liveOrders || [];
+  if (!orders.length) {
+    gameAlert(`Aktuell gibt es keine passende Marktorder für ${input.name} in mindestens Q${Number(input.minQuality || 1)}.`);
+    return;
+  }
+
+  // Die Rezeptansicht arbeitet ansonsten mit einem lokalen Markt-Cache.
+  // Nach dem Live-Abruf werden die gefundenen Orders dort ergänzt, damit
+  // Vorschau und anschließende Berechnung denselben aktuellen Marktstand nutzen.
+  const liveIds = new Set(orders.map(order => order.id));
+  state.marketOrders = [
+    ...(state.marketOrders || []).filter(order => !liveIds.has(order.id)),
+    ...orders
+  ];
 
   let marketQty = 0;
   let estimatedCost = 0;
