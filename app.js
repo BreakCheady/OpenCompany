@@ -5462,7 +5462,7 @@ function renderRetailSale() {
       <div class="kv"><span>Voraussichtliches Ende</span><strong>${finish.toLocaleString(uiLocale(), { weekday:'short', day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' })} Uhr</strong></div>
       <div class="kv"><span>${translateUiString('Energie & Betrieb')}</span><strong class="production-cost-negative">-${money(startOperatingCost)}</strong></div>
       <div class="kv"><span>Operativer Break-even</span><strong>${startOperatingBreakEven > 0 ? money(startOperatingBreakEven) + ' / Einheit' : '–'}</strong></div>
-      <div class="kv"><span>Vollkosten-Break-even</span><strong>${startFullBreakEven > 0 ? money(startFullBreakEven) + ' / Einheit' : '–'}</strong></div>
+      <div class="kv"><span>Vollkosten-Break-even (inkl. Verkaufsunterhalt)</span><strong>${startFullBreakEven > 0 ? money(startFullBreakEven) + ' / Einheit' : '–'}</strong></div>
       <div class="kv"><span>Erwarteter Erlös</span><strong>${money(startTotalValue)}</strong></div>
       <div class="retail-running-box">
         <div class="retail-running-head">
@@ -5504,7 +5504,7 @@ function renderRetailSale() {
     `<div class="kv"><span>Voraussichtliches Ende</span><strong>${ctx.building && saleHours > 0 ? formatProductionFinish(saleHours) : '–'}</strong></div>`,
     `<div class="kv"><span>${translateUiString('Energie & Betrieb')}</span><strong class="${retailOperatingCost > 0 ? 'production-cost-negative' : 'production-cost-zero'}">${retailOperatingCost > 0 ? '-' : ''}${money(retailOperatingCost)}</strong></div>`,
     `<div class="kv"><span>Operativer Break-even</span><strong>${breakEven.operatingBreakEven > 0 ? money(breakEven.operatingBreakEven) + ' / Einheit' : '–'}</strong></div>`,
-    `<div class="kv"><span>Vollkosten-Break-even</span><strong>${breakEven.fullBreakEven > 0 ? money(breakEven.fullBreakEven) + ' / Einheit' : '–'}</strong></div>`,
+    `<div class="kv"><span>Vollkosten-Break-even (inkl. Verkaufsunterhalt)</span><strong>${breakEven.fullBreakEven > 0 ? money(breakEven.fullBreakEven) + ' / Einheit' : '–'}</strong></div>`,
     `<div class="kv"><span>Erwarteter Erlös</span><strong class="retail-revenue-positive">${money(expectedRevenue)}</strong></div>`,
     `<div class="kv"><span>Abbruchgebühr</span><strong class="retail-cancel-fee">${expectedRevenue > 0 ? `-${money(cancellationFee)}` : money(0)}</strong></div>`
   ].join('') : '<p class="muted">Es befinden sich keine Produkte für den Handelsverkauf im Lager.</p>';
@@ -6094,6 +6094,11 @@ function renderContractPreview() {
   const costLabel = ctx.type === 'material' ? 'Einstandskosten' : 'Produktionskosten';
   const profitClass = profit >= 0 ? 'retail-revenue-positive' : 'retail-cancel-fee';
   const freightClass = ctx.freight?.sufficient ? 'retail-cancel-fee' : 'missing-building-warning';
+  const contractKind = document.getElementById('contractKind')?.value || 'one_time';
+  const intervalDays = Number(document.getElementById('contractIntervalDays')?.value || 1);
+  const durationDays = Number(document.getElementById('contractDurationDays')?.value || 7);
+  const deliveryTime = document.getElementById('contractDeliveryTime')?.value || '18:00';
+  const deliveries = Math.max(1, Math.ceil(durationDays / intervalDays));
 
   preview.innerHTML = `
     <div class="kv"><span>Verfügbarer Bestand</span><strong>${num(available)}</strong></div>
@@ -6102,6 +6107,10 @@ function renderContractPreview() {
     <div class="kv"><span>Transportcontainer</span><strong class="${ctx.freight?.sufficient ? '' : 'missing-building-warning'}">${ctx.freight?.exempt ? 'Nicht erforderlich' : `${num(ctx.freight?.available || 0)} / ${num(ctx.quantity)} verfügbar`}</strong></div>
     <div class="kv"><span>${translateUiString('Erlös')}</span><strong class="retail-revenue-positive">${money(revenue)}</strong></div>
     <div class="kv"><span>${translateUiString('Gewinn / Verlust')}</span><strong class="${profitClass}">${profit >= 0 ? '+' : '-'}${money(Math.abs(profit))}</strong></div>
+    ${contractKind === 'delivery' ? `
+      <div class="kv"><span>Lieferplan</span><strong>${deliveries} Lieferungen · alle ${intervalDays} Tag${intervalDays===1?'':'e'} · ${deliveryTime} Uhr</strong></div>
+      <div class="kv"><span>Vertragsstrafe</span><strong>10 % je Fehlversuch · automatische Beendigung nach 3 Fehlschlägen</strong></div>
+    ` : ''}
   `;
 }
 
