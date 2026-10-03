@@ -1396,6 +1396,7 @@ function transactionLabel(type) {
     market_fee: 'Gebühr',
     market_buy: 'Kauf',
     production: 'Produktion',
+    operating_cost: 'Energie & Betrieb',
     production_refund: 'Erstattung Produktion',
     construction: 'Baukosten',
     building_maintenance: 'Gebäudeunterhalt',
@@ -1425,7 +1426,7 @@ function transactionLabel(type) {
 
 function transactionAmountClass(type) {
   return [
-    'market_fee','market_buy','production','construction','building_maintenance','retail_cancel_fee','research',
+    'market_fee','market_buy','production','operating_cost','construction','building_maintenance','retail_cancel_fee','research',
     'bond_investment','bond_repayment','bond_interest_paid','storage_fee','storage_overflow_fee','storage_auction_fee',
     'contract_buy'
   ].includes(type) ? 'transaction-amount fee' : 'transaction-amount';
@@ -4437,15 +4438,23 @@ function productionPlan(unitsOverride = null) {
   const maxUnits = Math.max(0, Math.floor(Math.min(maxUnitsByMaterial, maxUnitsByTime) * 10000) / 10000);
 
   const procurementCost = inputs.reduce((sum, input) => sum + Number(input.openProcurementCost || 0), 0);
+  const inputInventoryValue = inputs.reduce((sum, input) =>
+    sum + Number(input.required || 0) * Number(input.averageUnitCost || 0), 0);
   const baseProductionCost = ctx.product?.category === 'research'
     ? Number(ctx.product.production_cost || 0) * outputQty
     : 0;
   const personnelCost = ctx.buildingType
     ? Number(ctx.buildingType.labor_cost_per_unit || 0) * outputQty
     : 0;
+  const economyCostFactor = operatingEconomyFactor();
+  const operatingRate = operatingCostRate(ctx.buildingType);
+  const operatingEfficiency = operatingEfficiencyFactor(ctx.building?.level || 1);
+  const operatingCostBasis = inputInventoryValue + baseProductionCost + personnelCost;
+  const operatingCost = operatingCostBasis * operatingRate * operatingEfficiency * economyCostFactor;
   const productionCost =
     (procurementCost + baseProductionCost + personnelCost)
-    * Number(state.economyState?.production_cost_factor || 1);
+    * economyCostFactor
+    + operatingCost;
 
   const materialsOk = inputs.every(i => i.enough);
   const within24h = hours > 0 && hours <= 24;
@@ -4460,8 +4469,13 @@ function productionPlan(unitsOverride = null) {
     inputs,
     maxUnits,
     procurementCost,
+    inputInventoryValue,
     baseProductionCost,
     personnelCost,
+    operatingRate,
+    operatingEfficiency,
+    operatingCostBasis,
+    operatingCost,
     productionCost,
     materialsOk,
     within24h,
@@ -4592,6 +4606,7 @@ function renderProductionRecipe() {
   const displayProcurementCost = runningJob ? Number(startSnapshot.procurementCost ?? 0) : plan.procurementCost;
   const displayBaseProductionCost = runningJob ? Number(startSnapshot.baseProductionCost ?? 0) : plan.baseProductionCost;
   const displayPersonnelCost = runningJob ? Number(startSnapshot.personnelCost ?? runningJob.production_cash_cost ?? 0) : plan.personnelCost;
+  const displayOperatingCost = runningJob ? Number(startSnapshot.operatingCost ?? 0) : plan.operatingCost;
   const displayProductionCost = runningJob
     ? Number(startSnapshot.productionCost ?? (displayProcurementCost + displayPersonnelCost))
     : plan.productionCost;
@@ -4615,6 +4630,7 @@ function renderProductionRecipe() {
       ? [`<div class="kv"><span>Grund-Produktionskosten</span><strong class="production-cost-negative">-${money(Math.abs(displayBaseProductionCost))}</strong></div>`]
       : [`<div class="kv"><span>${translateUiString('Beschaffungskosten')}</span><strong class="${displayProcurementCost > 0 ? 'production-cost-negative' : 'production-cost-zero'}">${displayProcurementCost > 0 ? '-' : ''}${money(Math.abs(displayProcurementCost))}</strong></div>`]),
     `<div class="kv"><span>${translateUiString('Personalkosten')}</span><strong class="production-cost-negative">-${money(Math.abs(displayPersonnelCost))}</strong></div>`,
+    `<div class="kv"><span>${translateUiString('Energie & Betrieb')}</span><strong class="${displayOperatingCost > 0 ? 'production-cost-negative' : 'production-cost-zero'}">${displayOperatingCost > 0 ? '-' : ''}${money(Math.abs(displayOperatingCost))}</strong></div>`,
     `<div class="kv"><span>Produktionskosten gesamt</span><strong class="production-cost-negative">-${money(Math.abs(displayProductionCost))}</strong></div>`,
     `<div class="kv"><span>Belegschaft</span><strong>${building ? `${num(staff)} Mitarbeiter` : '–'}</strong></div>`
   ] : ['<div class="kv"><span>Benötigtes Gebäude</span><strong>Keines</strong></div>'];
@@ -4733,6 +4749,31 @@ function buildingMaintenanceCost(category, level = 1) {
   if (lvl <= schedule.length) return Number(schedule[lvl - 1] || 0);
   const last = Number(schedule[schedule.length - 1] || 0);
   return Math.round(last * Math.pow(1.5, lvl - schedule.length) * 100) / 100;
+}
+
+function operatingCostRate(buildingType) {
+  if (!buildingType) return 0;
+  if (buildingType.building_category === 'retail') return 0.03;
+  if (buildingType.building_category === 'research') return 0.08;
+  const rates = {
+    food_factory:0.06,
+    textile_factory:0.06,
+    construction_factory:0.07,
+    machinery_factory:0.07,
+    auto_factory:0.09,
+    electronics_factory:0.09,
+    chemical_factory:0.10,
+    energy_factory:0.12
+  };
+  return rates[buildingType.code] ?? (buildingType.building_category === 'production' ? 0.07 : 0);
+}
+
+function operatingEfficiencyFactor(level = 1) {
+  return Math.max(0.80, 1 - (Math.max(1, Number(level || 1)) - 1) * 0.02);
+}
+
+function operatingEconomyFactor() {
+  return Number(state.economyState?.production_cost_factor || 1);
 }
 
 function renderBuildingCatalog() {
@@ -5355,6 +5396,7 @@ function renderRetailSale() {
     const startTotalValue = Number(startSnapshot.totalValue ?? job.total_value ?? 0);
     const startUnitsPerHour = Number(startSnapshot.unitsPerHour ?? job.units_per_hour ?? 0);
     const startAvailable = Number(startSnapshot.available ?? 0);
+    const startOperatingCost = Number(startSnapshot.operatingCost ?? 0);
 
     details.innerHTML = `
       <div class="kv"><span>Verkaufsgebäude</span><strong>${startSnapshot.buildingTypeName || ctx.buildingType?.name || '–'}</strong></div>
@@ -5364,6 +5406,7 @@ function renderRetailSale() {
       <div class="kv"><span>Verkaufspreis</span><strong>${money(startUnitPrice)} / Einheit</strong></div>
       <div class="kv"><span>Verkaufsdauer</span><strong>${formatProductionDuration(startHours)}</strong></div>
       <div class="kv"><span>Voraussichtliches Ende</span><strong>${finish.toLocaleString(uiLocale(), { weekday:'short', day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' })} Uhr</strong></div>
+      <div class="kv"><span>${translateUiString('Energie & Betrieb')}</span><strong class="production-cost-negative">-${money(startOperatingCost)}</strong></div>
       <div class="kv"><span>Erwarteter Erlös</span><strong>${money(startTotalValue)}</strong></div>
       <div class="retail-running-box">
         <div class="retail-running-head">
@@ -5388,6 +5431,9 @@ function renderRetailSale() {
   }
 
   const expectedRevenue = ctx.effectiveUnitRevenue * Math.max(0, qty);
+  const retailOperatingRate = operatingCostRate(ctx.buildingType);
+  const retailOperatingEfficiency = operatingEfficiencyFactor(ctx.building?.level || 1);
+  const retailOperatingCost = ctx.productionCost * Math.max(0, qty) * retailOperatingRate * retailOperatingEfficiency * operatingEconomyFactor();
   const cancellationFee = expectedRevenue * GAME_RULES.fees.retailCancellationRate;
   details.innerHTML = ctx.product ? [
     `<div class="kv"><span>Verkaufsgebäude</span><strong>${ctx.buildingType?.name || '–'}</strong></div>`,
@@ -5401,6 +5447,7 @@ function renderRetailSale() {
     `<div class="kv"><span>Gewählter Verkaufspreis</span><strong>${money(ctx.price)} / Einheit</strong></div>`,
     `<div class="kv"><span>Verkaufsdauer</span><strong>${ctx.building && saleHours > 0 ? formatProductionDuration(saleHours) : '–'}</strong></div>`,
     `<div class="kv"><span>Voraussichtliches Ende</span><strong>${ctx.building && saleHours > 0 ? formatProductionFinish(saleHours) : '–'}</strong></div>`,
+    `<div class="kv"><span>${translateUiString('Energie & Betrieb')}</span><strong class="${retailOperatingCost > 0 ? 'production-cost-negative' : 'production-cost-zero'}">${retailOperatingCost > 0 ? '-' : ''}${money(retailOperatingCost)}</strong></div>`,
     `<div class="kv"><span>Erwarteter Erlös</span><strong class="retail-revenue-positive">${money(expectedRevenue)}</strong></div>`,
     `<div class="kv"><span>Abbruchgebühr</span><strong class="retail-cancel-fee">${expectedRevenue > 0 ? `-${money(cancellationFee)}` : money(0)}</strong></div>`
   ].join('') : '<p class="muted">Es befinden sich keine Produkte für den Handelsverkauf im Lager.</p>';
@@ -6311,6 +6358,11 @@ function financeMovementCategory(transaction) {
 
   if (['market_sale','retail_sale'].includes(type)) return 'sales';
   if (['production','production_refund'].includes(type)) return 'production';
+  if (type === 'operating_cost') {
+    if (transaction?.reference_type === 'retail_sale_job') return 'trade';
+    if (transaction?.reference_type === 'product') return 'research';
+    return 'production';
+  }
   if (['market_buy','market_fee','freight_cost','retail_cancel_fee','retail_cancel_refund'].includes(type)) return 'trade';
   if (['construction','building_maintenance','building_refund'].includes(type)) return 'building';
   if (['storage_fee','storage_forced_auction'].includes(type)) return 'storage';
@@ -6885,10 +6937,19 @@ function renderResearch() {
   const availableWhole=Math.max(0,Math.floor(ctx.quantity));
   const requested=Math.max(0,Math.floor(Number(qtyInput.value||0)));
   const maxInvestment=availableWhole;
-  const valid=!!selected && requested>=1 && requested<=maxInvestment;
+  let valid=!!selected && requested>=1 && requested<=maxInvestment;
   const investmentValue=researchInvestmentValue(Math.min(requested,availableWhole),ctx.product);
+  const researchBuilding = state.buildings
+    .filter(b => b.status === 'active')
+    .map(b => ({ building:b, type:state.buildingTypes.find(bt => bt.id === b.building_type_id) }))
+    .filter(row => row.type?.building_category === 'research')
+    .sort((a,b) => Number(b.building.level || 1) - Number(a.building.level || 1))[0] || null;
+  const researchOperatingCost = researchBuilding
+    ? investmentValue * 0.08 * operatingEfficiencyFactor(researchBuilding.building.level) * operatingEconomyFactor()
+    : 0;
   const patentMin=investmentValue*0.80;
   const patentMax=investmentValue*1.10;
+  valid = valid && !!researchBuilding && Number(state.company?.cash_balance || 0) >= researchOperatingCost;
 
   document.getElementById('researchUnitsAvailable').textContent=`${num(availableWhole)} Forschungseinheiten`;
   document.getElementById('researchUnitAverageCost').textContent=money(ctx.averageUnitCost);
@@ -6899,6 +6960,8 @@ function renderResearch() {
     <div class="kv"><span>Fortschritt zu Q${quality+1}</span><strong>${num(progress)} / ${num(requirement)}</strong></div>
     <div class="kv"><span>Noch benötigt</span><strong>${num(remaining)} Forschungseinheiten</strong></div>
     <div class="kv"><span>Geplante Investition</span><strong>${num(requested)} Forschungseinheiten</strong></div>
+    <div class="kv"><span>Forschungsgebäude</span><strong>${researchBuilding ? `${researchBuilding.type.name} · Level ${researchBuilding.building.level}` : 'Nicht verfügbar'}</strong></div>
+    <div class="kv"><span>${translateUiString('Labor & Betrieb')}</span><strong class="${researchOperatingCost > 0 ? 'production-cost-negative' : 'production-cost-zero'}">${researchOperatingCost > 0 ? '-' : ''}${money(researchOperatingCost)}</strong></div>
     ${requested > remaining ? `<div class="kv"><span>Übertrag in Q${quality+1}</span><strong>${num(requested-remaining)} Forschungseinheiten</strong></div>` : ''}
     <div class="kv"><span>Patentwertsteigerung</span><strong>${requested > 0 ? `${money(patentMin)} – ${money(patentMax)}` : money(0)}</strong></div>` : '';
   submit.disabled=!valid;
@@ -9074,6 +9137,10 @@ document.getElementById('productionForm').addEventListener('submit', async e => 
       procurementCost: plan.procurementCost,
       baseProductionCost: plan.baseProductionCost,
       personnelCost: plan.personnelCost,
+      operatingCost: plan.operatingCost,
+      operatingCostRate: plan.operatingRate,
+      operatingEfficiencyFactor: plan.operatingEfficiency,
+      operatingCostBasis: plan.operatingCostBasis,
       productionCost: plan.productionCost
     }
   });
@@ -9613,7 +9680,8 @@ document.getElementById('retailSaleForm').addEventListener('submit', async e => 
       totalValue: ctx.price * quantity,
       available: ctx.available,
       unitsPerHour: ctx.unitsPerHour,
-      buildingTypeName: ctx.buildingType?.name || ''
+      buildingTypeName: ctx.buildingType?.name || '',
+      operatingCost: ctx.productionCost * quantity * operatingCostRate(ctx.buildingType) * operatingEfficiencyFactor(ctx.building?.level || 1) * operatingEconomyFactor()
     }
   });
 
