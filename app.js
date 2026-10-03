@@ -929,6 +929,14 @@ const state = {
   bondDashboard: null,
   companyPublicProfile: { slogan:'', description:'', logo_path:null },
   companyPublicProfileExists: false,
+  economyState: {
+    phase:'neutral',
+    effect_rate:0.15,
+    production_cost_factor:1,
+    production_output_factor:1,
+    retail_price_factor:1,
+    next_change_at:null
+  },
   recoveringPassword: false
 };
 
@@ -943,6 +951,7 @@ let companyBalancePollTimer = null;
 let companyBalanceChannel = null;
 let publicLeaderboardTimer = null;
 let chatRealtimeChannel = null;
+let economyCountdownTimer = null;
 let inactivityLogoutTimer = null;
 let lastUserActivityAt = 0;
 let inactivityListenersInstalled = false;
@@ -1052,7 +1061,12 @@ const ruleTime = key => GAME_RULES.schedules[key] || '–';
 const qualityMultiplier = quality =>
   1 + Math.max(0, Number(quality || 1) - 1) * GAME_RULES.quality.valueBonusPerLevel;
 const retailAveragePrice = unitCost =>
-  Math.round(Math.max(0, Number(unitCost || 0)) * GAME_RULES.pricing.retailAverageCostMultiplier * 100) / 100;
+  Math.round(
+    Math.max(0, Number(unitCost || 0))
+    * GAME_RULES.pricing.retailAverageCostMultiplier
+    * Number(state.economyState?.retail_price_factor || 1)
+    * 100
+  ) / 100;
 const retailMinPrice = unitCost =>
   Math.round(retailAveragePrice(unitCost) * GAME_RULES.pricing.retailMinAverageMultiplier * 100) / 100;
 const retailMaxPrice = unitCost =>
@@ -3533,10 +3547,11 @@ async function loadGameData() {
     sb.from('company_valuation_history').select('valuation_date,cash_balance,material_value,product_value,building_value,patent_value,loan_debt,company_value,previous_company_value,change_amount,calculated_at').eq('company_id',cid).order('valuation_date',{ascending:false}).limit(2),
     sb.rpc('get_company_ranking', { p_company_id: cid }),
     sb.rpc('get_storage_status', { p_company_id: cid }),
-    sb.rpc('get_ocb_status', { p_company_id: cid })
+    sb.rpc('get_ocb_status', { p_company_id: cid }),
+    sb.from('game_economy_state').select('*').eq('id',1).single()
   ]);
 
-  const labels = ['Produkte','Alle Produkte','Produktlager','Materialien','Materiallager','Rezepte','Gebäudetypen','Gebäude','Produktionen','Handelsverkäufe','Finanzen','Marktübersicht','Eigene Marktorders','Marktkäufe','Verträge','Firmenverzeichnis','Kreditschulden','Anleihen','Unternehmenswert-Verlauf','Unternehmensranking','Lagerstatus','OC-Boost'];
+  const labels = ['Produkte','Alle Produkte','Produktlager','Materialien','Materiallager','Rezepte','Gebäudetypen','Gebäude','Produktionen','Handelsverkäufe','Finanzen','Marktübersicht','Eigene Marktorders','Marktkäufe','Verträge','Firmenverzeichnis','Kreditschulden','Anleihen','Unternehmenswert-Verlauf','Unternehmensranking','Lagerstatus','OC-Boost','Wirtschaftsphase'];
   const errors = results.map((r,i)=>r.error ? { label: labels[i], error:r.error } : null).filter(Boolean);
   if (errors.length) {
     console.error(errors);
@@ -3545,7 +3560,7 @@ async function loadGameData() {
   }
   clearGameDataError();
 
-  const [products, allProducts, inventory, materials, materialInventory, recipes, buildingTypes, buildings, productionJobs, retailSaleJobs, tx, marketSummary, ownMarketOrders, marketTrades, contracts, directory, companyDebt, bondDashboard, valuationHistory, companyRanking, storageStatus, ocbStatus] = results;
+  const [products, allProducts, inventory, materials, materialInventory, recipes, buildingTypes, buildings, productionJobs, retailSaleJobs, tx, marketSummary, ownMarketOrders, marketTrades, contracts, directory, companyDebt, bondDashboard, valuationHistory, companyRanking, storageStatus, ocbStatus, economyState] = results;
   state.products = products.data;
   state.allProducts = allProducts.data;
   state.inventory = inventory.data;
@@ -3574,6 +3589,7 @@ async function loadGameData() {
     balance: Number(state.company?.ocb_balance || 0),
     today: { login:false, production:false, retail:false, earned:0, maximum:GAME_RULES.ocb.dailyMaximum }
   };
+  state.economyState = economyState.data || state.economyState;
   if (state.company) state.company.ocb_balance = Number(state.ocbStatus.balance || 0);
   renderAll();
 }
@@ -4183,7 +4199,11 @@ function currentProductionContext() {
   const multiplier = building ? buildingLevelMultiplier(building.level) : 1;
   const baseProductRate = Number(product?.base_production_rate || 0);
   const unitsPerHour = buildingType && building && baseProductRate > 0
-    ? Math.max(1, Math.floor(baseProductRate * multiplier))
+    ? Math.max(
+        0.01,
+        Math.max(1, Math.floor(baseProductRate * multiplier))
+        * Number(state.economyState?.production_output_factor || 1)
+      )
     : 0;
 
   return {
@@ -4386,7 +4406,9 @@ function productionPlan(unitsOverride = null) {
   const personnelCost = ctx.buildingType
     ? Number(ctx.buildingType.labor_cost_per_unit || 0) * outputQty
     : 0;
-  const productionCost = procurementCost + baseProductionCost + personnelCost;
+  const productionCost =
+    (procurementCost + baseProductionCost + personnelCost)
+    * Number(state.economyState?.production_cost_factor || 1);
 
   const materialsOk = inputs.every(i => i.enough);
   const within24h = hours > 0 && hours <= 24;
@@ -8621,6 +8643,73 @@ window.goToEncyclopediaTarget = function(view) {
   }
 };
 
+function economyPhaseLabel(phase = state.economyState?.phase) {
+  return ({
+    recession:'REZESSION',
+    neutral:'NEUTRAL',
+    boom:'BOOM'
+  })[phase] || 'NEUTRAL';
+}
+
+function economySignedPercent(factor) {
+  const delta = Math.round((Number(factor || 1) - 1) * 100);
+  return delta > 0 ? `+${delta} %` : delta < 0 ? `${delta} %` : '±0 %';
+}
+
+function updateEconomyCountdown() {
+  const element = document.getElementById('economyCountdown');
+  if (!element) return;
+
+  const target = state.economyState?.next_change_at
+    ? new Date(state.economyState.next_change_at).getTime()
+    : 0;
+  if (!target) {
+    element.textContent = 'Nächste Phasenprüfung: Freitag, 17:00 Uhr';
+    return;
+  }
+
+  const totalSeconds = Math.max(0, Math.floor((target - Date.now()) / 1000));
+  const days = Math.floor(totalSeconds / 86400);
+  const hours = Math.floor((totalSeconds % 86400) / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+  element.textContent = `Phasenänderung möglich in ${days > 0 ? days + 'T ' : ''}${String(hours).padStart(2,'0')}:${String(minutes).padStart(2,'0')}:${String(seconds).padStart(2,'0')}`;
+}
+
+function renderEconomyDashboard() {
+  const card = document.getElementById('economyPhaseCard');
+  if (!card) return;
+
+  const economy = state.economyState || {};
+  const phase = economy.phase || 'neutral';
+  card.dataset.phase = phase;
+
+  const title = document.getElementById('economyPhaseName');
+  const productionCost = document.getElementById('economyProductionCost');
+  const productionOutput = document.getElementById('economyProductionOutput');
+  const retail = document.getElementById('economyRetailPrice');
+
+  if (title) title.textContent = economyPhaseLabel(phase);
+  if (productionCost) productionCost.textContent = economySignedPercent(economy.production_cost_factor);
+  if (productionOutput) productionOutput.textContent = economySignedPercent(economy.production_output_factor);
+  if (retail) retail.textContent = economySignedPercent(economy.retail_price_factor);
+
+  updateEconomyCountdown();
+  if (!economyCountdownTimer) {
+    economyCountdownTimer = setInterval(updateEconomyCountdown,1000);
+  }
+}
+
+window.showEconomyPhaseHelp = function() {
+  gameAlert(
+    'Wirtschaftsphasen beeinflussen Produktion und Einzelhandel.\n\n' +
+    'Rezession: Produktionskosten −15 %, Produktionsmenge +15 %, Einzelhandelspreise −15 %.\n\n' +
+    'Neutral: keine Änderungen.\n\n' +
+    'Boom: Produktionskosten +15 %, Produktionsmenge −15 %, Einzelhandelspreise +15 %.\n\n' +
+    'Die Phase kann jeden Freitag um 17:00 Uhr wechseln. Bereits laufende Produktionen und Verkäufe behalten ihre beim Start festgelegten Werte.'
+  );
+};
+
 function renderAll() {
   const c = state.company;
   updateFeatureLocks();
@@ -8653,6 +8742,7 @@ function renderAll() {
   if (statBuildingValue) statBuildingValue.textContent = money(currentCompanyBuildingValue());
 
   renderDashboardValuationChanges();
+  renderEconomyDashboard();
   renderSettingsCompanyManagement();
   renderResearch();
   renderEncyclopedia();
