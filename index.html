@@ -1120,7 +1120,7 @@
       .oc-select-option{min-height:46px;padding:.7rem .8rem}
     }
   
-    /* v0.10.208 – Handelssystem-Korrekturen */
+    /* v0.10.209 – Handelssystem-Korrekturen */
     .app-shell{
       display:block!important;
       min-height:100dvh!important;
@@ -1671,6 +1671,31 @@
       .my-market-orders-table th:nth-child(2),.my-market-orders-table td:nth-child(2){display:none}
     }
 
+    /* Wirtschaftsphase */
+    .economy-phase-card{margin-top:16px;overflow:hidden}
+    .economy-phase-head{display:flex;align-items:flex-start;justify-content:space-between;gap:14px}
+    .economy-phase-eyebrow{display:block;color:var(--muted);font-size:.82rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em}
+    .economy-phase-head h2{margin:.2rem 0 0;font-size:1.9rem}
+    .economy-phase-help{
+      width:38px!important;height:38px!important;min-width:38px!important;padding:0!important;
+      border-radius:50%!important;display:grid!important;place-items:center;font-weight:900;font-size:1.1rem
+    }
+    .economy-phase-effects{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:16px}
+    .economy-phase-effects>div{padding:14px;border:1px solid var(--border);border-radius:12px;background:rgba(148,163,184,.07);display:flex;flex-direction:column;gap:5px}
+    .economy-effect-icon{font-size:1.35rem}
+    .economy-phase-effects span:not(.economy-effect-icon){color:var(--muted);font-size:.82rem}
+    .economy-phase-effects strong{font-size:1.08rem}
+    .economy-phase-countdown{display:block;margin-top:14px;text-align:center}
+    .economy-phase-card[data-phase="recession"] .economy-phase-head h2{color:#c2410c}
+    .economy-phase-card[data-phase="boom"] .economy-phase-head h2{color:#15803d}
+    .economy-phase-card[data-phase="neutral"] .economy-phase-head h2{color:inherit}
+    @media(max-width:620px){
+      .economy-phase-effects{grid-template-columns:1fr}
+      .economy-phase-head h2{font-size:1.55rem}
+      .economy-phase-effects>div{display:grid;grid-template-columns:auto 1fr auto;align-items:center}
+      .economy-phase-effects>div strong{text-align:right}
+    }
+
     /* Unternehmensprofile */
     .topbar-actions{display:flex;align-items:center;gap:10px}
     .header-company-avatar{
@@ -2151,6 +2176,34 @@
           <article class="stat-card dashboard-history-card" data-dashboard-history="loan_debt" role="button" tabindex="0" aria-label="Schulden Verlauf der letzten 7 Tage"><span>Schulden</span><strong id="statDebt">–</strong></article>
           <article class="stat-card dashboard-history-card" data-dashboard-history="building_value" role="button" tabindex="0" aria-label="Gebäudewert Verlauf der letzten 7 Tage"><span>Gebäudewert</span><strong id="statBuildingValue">–</strong></article>
         </div>
+        <article id="economyPhaseCard" class="panel economy-phase-card" data-phase="neutral">
+          <div class="economy-phase-head">
+            <div>
+              <span class="economy-phase-eyebrow">Aktuelle Wirtschaftsphase</span>
+              <h2 id="economyPhaseName">NEUTRAL</h2>
+            </div>
+            <button type="button" class="economy-phase-help" onclick="showEconomyPhaseHelp()" aria-label="Wirtschaftsphase erklären" title="Wirtschaftsphase erklären">?</button>
+          </div>
+          <div class="economy-phase-effects">
+            <div>
+              <span class="economy-effect-icon">🏭</span>
+              <span>Produktionskosten</span>
+              <strong id="economyProductionCost">±0 %</strong>
+            </div>
+            <div>
+              <span class="economy-effect-icon">📦</span>
+              <span>Produktionsmenge</span>
+              <strong id="economyProductionOutput">±0 %</strong>
+            </div>
+            <div>
+              <span class="economy-effect-icon">🛒</span>
+              <span>Einzelhandel</span>
+              <strong id="economyRetailPrice">±0 %</strong>
+            </div>
+          </div>
+          <strong id="economyCountdown" class="economy-phase-countdown">Nächste Phasenprüfung: Freitag, 17:00 Uhr</strong>
+        </article>
+
         <div class="grid two">
           <article class="panel"><h2>Firmenstatus</h2><div id="companySummary" class="stack"></div></article>
           <article class="panel"><h2>Letzte Finanzbewegungen</h2><div id="recentTransactions" class="table-wrap"></div></article>
@@ -2633,7 +2686,7 @@
           <h2>Einstellungen</h2>
           <div class="kv">
             <span>Version</span>
-            <strong>0.10.208</strong>
+            <strong>0.10.209</strong>
           </div>
           <div class="kv settings-language-row">
             <span>Sprache</span>
