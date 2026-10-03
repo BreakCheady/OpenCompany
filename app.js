@@ -5183,6 +5183,28 @@ function retailSaleContext() {
   };
 }
 
+function retailBreakEvenMetrics(ctx, quantity) {
+  const qty = Math.max(0, Number(quantity || 0));
+  if (!ctx?.building || !(ctx.productionCost > 0) || qty <= 0) {
+    return { operatingCost:0, operatingBreakEven:0, fullBreakEven:0, maintenanceAllocation:0 };
+  }
+  const hours = ctx.unitsPerHour > 0 ? qty / ctx.unitsPerHour : 0;
+  const operatingCost = ctx.productionCost * qty
+    * operatingCostRate(ctx.buildingType)
+    * operatingEfficiencyFactor(ctx.building.level)
+    * operatingEconomyFactor();
+  const maintenanceAllocation = buildingMaintenanceCost(ctx.buildingType?.building_category,ctx.building.level)
+    * Math.max(0,hours) / 24;
+  const operatingExtraPerUnit = operatingCost / qty;
+  const fullExtraPerUnit = (operatingCost + maintenanceAllocation) / qty;
+  return {
+    operatingCost,
+    maintenanceAllocation,
+    operatingBreakEven:retailBreakEvenPrice(ctx.productionCost,operatingExtraPerUnit),
+    fullBreakEven:retailBreakEvenPrice(ctx.productionCost,fullExtraPerUnit)
+  };
+}
+
 function retailQuantityFromInput(rawValue) {
   const raw = String(rawValue ?? '').trim().toLowerCase();
   const ctx = retailSaleContext();
@@ -5422,6 +5444,8 @@ function renderRetailSale() {
     const startUnitsPerHour = Number(startSnapshot.unitsPerHour ?? job.units_per_hour ?? 0);
     const startAvailable = Number(startSnapshot.available ?? 0);
     const startOperatingCost = Number(startSnapshot.operatingCost ?? 0);
+    const startOperatingBreakEven = Number(startSnapshot.operatingBreakEven ?? 0);
+    const startFullBreakEven = Number(startSnapshot.fullBreakEven ?? 0);
 
     details.innerHTML = `
       <div class="kv"><span>Verkaufsgebäude</span><strong>${startSnapshot.buildingTypeName || ctx.buildingType?.name || '–'}</strong></div>
@@ -5432,6 +5456,8 @@ function renderRetailSale() {
       <div class="kv"><span>Verkaufsdauer</span><strong>${formatProductionDuration(startHours)}</strong></div>
       <div class="kv"><span>Voraussichtliches Ende</span><strong>${finish.toLocaleString(uiLocale(), { weekday:'short', day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' })} Uhr</strong></div>
       <div class="kv"><span>${translateUiString('Energie & Betrieb')}</span><strong class="production-cost-negative">-${money(startOperatingCost)}</strong></div>
+      <div class="kv"><span>Operativer Break-even</span><strong>${startOperatingBreakEven > 0 ? money(startOperatingBreakEven) + ' / Einheit' : '–'}</strong></div>
+      <div class="kv"><span>Vollkosten-Break-even</span><strong>${startFullBreakEven > 0 ? money(startFullBreakEven) + ' / Einheit' : '–'}</strong></div>
       <div class="kv"><span>Erwarteter Erlös</span><strong>${money(startTotalValue)}</strong></div>
       <div class="retail-running-box">
         <div class="retail-running-head">
@@ -5456,9 +5482,8 @@ function renderRetailSale() {
   }
 
   const expectedRevenue = ctx.effectiveUnitRevenue * Math.max(0, qty);
-  const retailOperatingRate = operatingCostRate(ctx.buildingType);
-  const retailOperatingEfficiency = operatingEfficiencyFactor(ctx.building?.level || 1);
-  const retailOperatingCost = ctx.productionCost * Math.max(0, qty) * retailOperatingRate * retailOperatingEfficiency * operatingEconomyFactor();
+  const breakEven = retailBreakEvenMetrics(ctx,qty);
+  const retailOperatingCost = breakEven.operatingCost;
   const cancellationFee = expectedRevenue * GAME_RULES.fees.retailCancellationRate;
   details.innerHTML = ctx.product ? [
     `<div class="kv"><span>Verkaufsgebäude</span><strong>${ctx.buildingType?.name || '–'}</strong></div>`,
@@ -5473,6 +5498,8 @@ function renderRetailSale() {
     `<div class="kv"><span>Verkaufsdauer</span><strong>${ctx.building && saleHours > 0 ? formatProductionDuration(saleHours) : '–'}</strong></div>`,
     `<div class="kv"><span>Voraussichtliches Ende</span><strong>${ctx.building && saleHours > 0 ? formatProductionFinish(saleHours) : '–'}</strong></div>`,
     `<div class="kv"><span>${translateUiString('Energie & Betrieb')}</span><strong class="${retailOperatingCost > 0 ? 'production-cost-negative' : 'production-cost-zero'}">${retailOperatingCost > 0 ? '-' : ''}${money(retailOperatingCost)}</strong></div>`,
+    `<div class="kv"><span>Operativer Break-even</span><strong>${breakEven.operatingBreakEven > 0 ? money(breakEven.operatingBreakEven) + ' / Einheit' : '–'}</strong></div>`,
+    `<div class="kv"><span>Vollkosten-Break-even</span><strong>${breakEven.fullBreakEven > 0 ? money(breakEven.fullBreakEven) + ' / Einheit' : '–'}</strong></div>`,
     `<div class="kv"><span>Erwarteter Erlös</span><strong class="retail-revenue-positive">${money(expectedRevenue)}</strong></div>`,
     `<div class="kv"><span>Abbruchgebühr</span><strong class="retail-cancel-fee">${expectedRevenue > 0 ? `-${money(cancellationFee)}` : money(0)}</strong></div>`
   ].join('') : '<p class="muted">Es befinden sich keine Produkte für den Handelsverkauf im Lager.</p>';
@@ -9757,7 +9784,9 @@ document.getElementById('retailSaleForm').addEventListener('submit', async e => 
       available: ctx.available,
       unitsPerHour: ctx.unitsPerHour,
       buildingTypeName: ctx.buildingType?.name || '',
-      operatingCost: ctx.productionCost * quantity * operatingCostRate(ctx.buildingType) * operatingEfficiencyFactor(ctx.building?.level || 1) * operatingEconomyFactor()
+      operatingCost: retailBreakEvenMetrics(ctx,quantity).operatingCost,
+      operatingBreakEven: retailBreakEvenMetrics(ctx,quantity).operatingBreakEven,
+      fullBreakEven: retailBreakEvenMetrics(ctx,quantity).fullBreakEven
     }
   });
 
