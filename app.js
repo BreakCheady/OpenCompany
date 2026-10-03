@@ -2154,9 +2154,21 @@ function escapeChatText(value) {
   })[character]);
 }
 
+const PERSONAL_ASSISTANT_COMPANY_ID = '00000000-0000-4000-8000-000000000001';
+
 function chatCompany(companyId) {
   if (companyId === state.company?.id) return state.company;
-  return state.companyDirectory.find(company => company.id === companyId) || null;
+  const company = state.companyDirectory.find(company => company.id === companyId) || null;
+  if (company) return company;
+  if (companyId === PERSONAL_ASSISTANT_COMPANY_ID) {
+    return {
+      id: PERSONAL_ASSISTANT_COMPANY_ID,
+      name: 'Personal Assistent',
+      company_type: 'npc',
+      status: 'active'
+    };
+  }
+  return null;
 }
 
 function chatCompanyInitial(company) {
@@ -2169,6 +2181,9 @@ function chatCompanyLogoPath(companyId) {
 }
 
 function chatCompanyAvatarHtml(company, className = 'chat-contact-avatar') {
+  if (company?.id === PERSONAL_ASSISTANT_COMPANY_ID) {
+    return '<span class="' + className + '" aria-hidden="true">👩‍💼</span>';
+  }
   const logoUrl = publicCompanyLogoUrl(chatCompanyLogoPath(company?.id));
   const initial = escapeChatText(chatCompanyInitial(company));
   if (logoUrl) {
@@ -2197,12 +2212,16 @@ function chatContacts() {
   const search = String(state.chatContactSearch || '').trim().toLocaleLowerCase(uiLocale());
   return (state.companyDirectory || [])
     .filter(company =>
-      company.company_type === 'player' &&
+      (company.company_type === 'player' || company.id === PERSONAL_ASSISTANT_COMPANY_ID) &&
       company.id !== state.company?.id &&
       company.status !== 'inactive'
     )
     .filter(company => !search || String(company.name || '').toLocaleLowerCase(uiLocale()).includes(search))
-    .sort((a,b) => String(a.name || '').localeCompare(String(b.name || ''), uiLocale()));
+    .sort((a,b) => {
+      if (a.id === PERSONAL_ASSISTANT_COMPANY_ID) return -1;
+      if (b.id === PERSONAL_ASSISTANT_COMPANY_ID) return 1;
+      return String(a.name || '').localeCompare(String(b.name || ''), uiLocale());
+    });
 }
 
 function selectedChatTarget() {
@@ -2216,7 +2235,8 @@ function selectedChatTarget() {
       type:'contact',
       id:company.id,
       name:company.name,
-      icon:chatCompanyInitial(company)
+      icon:company.id === PERSONAL_ASSISTANT_COMPANY_ID ? '👩‍💼' : chatCompanyInitial(company),
+      isAssistant:company.id === PERSONAL_ASSISTANT_COMPANY_ID
     } : null;
   }
   return null;
@@ -2294,8 +2314,8 @@ function renderChatMessages() {
 
   const target = selectedChatTarget();
   layout.classList.toggle('chat-has-selection', !!target);
-  form.classList.toggle('hidden', !target);
-  input.disabled = !target;
+  form.classList.toggle('hidden', !target || !!target?.isAssistant);
+  input.disabled = !target || !!target?.isAssistant;
 
   if (!target) {
     title.textContent = 'Chat';
@@ -2311,11 +2331,15 @@ function renderChatMessages() {
   }
 
   title.textContent = target.name;
-  subtitle.textContent = target.type === 'room' ? 'Öffentlicher Chatraum' : 'Direktnachricht';
+  subtitle.textContent = target.isAssistant
+    ? 'Automatische Systemnachrichten'
+    : (target.type === 'room' ? 'Öffentlicher Chatraum' : 'Direktnachricht');
   icon.textContent = target.icon;
 
   if (!state.chatMessages.length) {
-    messages.innerHTML = '<div class="chat-empty-conversation"><strong>Noch keine Nachrichten.</strong><p>Starte die Unterhaltung mit der ersten Nachricht.</p></div>';
+    messages.innerHTML = target.isAssistant
+      ? '<div class="chat-empty-conversation"><strong>Noch keine Nachrichten.</strong><p>Dein Personal Assistent informiert dich hier über wichtige Änderungen im Spiel.</p></div>'
+      : '<div class="chat-empty-conversation"><strong>Noch keine Nachrichten.</strong><p>Starte die Unterhaltung mit der ersten Nachricht.</p></div>';
     return;
   }
 
@@ -2484,6 +2508,7 @@ async function openChatTarget(type, id) {
   state.chatSelectedType = type;
   state.chatSelectedId = id;
   state.chatMessages = [];
+  history.replaceState(null, '', type === 'contact' ? `#chat/contact/${encodeURIComponent(id)}` : '#chat');
   renderChat();
   await loadChatConversation();
 }
@@ -2518,16 +2543,24 @@ function startChatRealtime() {
     .subscribe();
 }
 
-async function openChatView() {
+async function openChatView(contactId = '') {
   if (!state.company?.id) return;
   activateView('chat');
-  history.replaceState(null, '', '#chat');
+  history.replaceState(null, '', contactId ? `#chat/contact/${encodeURIComponent(contactId)}` : '#chat');
   const results = await Promise.all([
     state.chatRooms.length ? Promise.resolve(true) : loadChatRooms(),
     loadChatCompanyLogos()
   ]);
   if (!results[0]) return;
   startChatRealtime();
+  if (contactId) {
+    state.chatSelectedType = 'contact';
+    state.chatSelectedId = contactId;
+    state.chatMessages = [];
+    renderChat();
+    await loadChatConversation({ silent:true });
+    return;
+  }
   renderChat();
 }
 
@@ -3062,6 +3095,8 @@ async function savePushPreferences(enabled = true) {
     retail_enabled: enabled,
     building_enabled: enabled,
     market_enabled: enabled,
+    contract_enabled: enabled,
+    chat_enabled: enabled,
     updated_at: new Date().toISOString()
   }, { onConflict: 'user_id' });
 
@@ -3196,7 +3231,8 @@ function openViewFromHash() {
     }
 
     if (view === 'chat') {
-      openChatView();
+      const contactId = rest[0] === 'contact' && rest[1] ? decodeURIComponent(rest[1]) : '';
+      openChatView(contactId);
       return;
     }
 
