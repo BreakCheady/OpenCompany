@@ -94,7 +94,7 @@ const I18N_EN = {
   'Keine passenden Produkte verfügbar':'No matching products available','Keine Qualität auf Lager':'No quality in storage',
   'Startkapital':'Starting capital','Marktverkauf':'Market sale','Handelsgewinn':'Retail profit',
   'Abbruchgebühr Handel':'Retail cancellation fee','Kauf':'Purchase','Erstattung Produktion':'Production refund',
-  'Baukosten':'Construction costs','Gebäude-Erstattung':'Building refund','Forschungsinvestition':'Research investment',
+  'Baukosten':'Construction costs','Unterhalt / Tag':'Maintenance / day','Gebäude-Erstattung':'Building refund','Forschungsinvestition':'Research investment',
   'Anleiheninvestment':'Bond investment','Kreditauszahlung':'Loan payout','Kredittilgung':'Loan repayment',
   'Tilgungseingang':'Principal repayment income','Zinsabgabe':'Interest paid','Zinserlös':'Interest income',
   'Zinserlös vom Staat':'Interest income from state','Zinsausfall':'Interest default',
@@ -4720,6 +4720,20 @@ function buildingCategoryLabel(category) {
   return translateUiString('Produktion');
 }
 
+function buildingMaintenanceCost(category, level = 1) {
+  const lvl = Math.max(1, Math.floor(Number(level || 1)));
+  const schedules = {
+    production:[350,525,750,1050,1450],
+    retail:[250,375,540,760,1050],
+    storage:[180,270,390,550,760],
+    research:[500,750,1080,1520,2100]
+  };
+  const schedule = schedules[category] || [0];
+  if (lvl <= schedule.length) return Number(schedule[lvl - 1] || 0);
+  const last = Number(schedule[schedule.length - 1] || 0);
+  return Math.round(last * Math.pow(1.5, lvl - schedule.length) * 100) / 100;
+}
+
 function renderBuildingCatalog() {
   const table = document.getElementById('buildingCatalogTable');
   const filter = document.getElementById('buildingCategoryFilter');
@@ -4734,6 +4748,7 @@ function renderBuildingCatalog() {
     .filter(bt => selectedCategory === 'all' || bt.building_category === selectedCategory)
     .map(bt => {
       const cost = Number(bt.construction_cost || 0);
+      const maintenance = buildingMaintenanceCost(bt.building_category, 1);
       const buildHours = buildingConstructionHours(1);
       const count = state.buildings.filter(b => b.building_type_id === bt.id).length;
       const storageAlreadyBuilt = bt.code === 'storage_warehouse' && count > 0;
@@ -4747,6 +4762,7 @@ function renderBuildingCatalog() {
         <td>${buildingCategoryLabel(bt.building_category)}</td>
         <td>${count}</td>
         <td><span class="building-construction-cost">-${money(Math.abs(cost))}</span></td>
+        <td>${money(maintenance)}</td>
         <td>${formatBuildingConstructionTime(buildHours)}</td>
         <td>
           <button
@@ -4759,7 +4775,7 @@ function renderBuildingCatalog() {
     });
 
   table.innerHTML = renderTable(
-    ['Gebäude', 'Kategorie', 'Anzahl', 'Baukosten', 'Bauzeit', 'Aktion'],
+    ['Gebäude', 'Kategorie', 'Anzahl', 'Baukosten', 'Unterhalt / Tag', 'Bauzeit', 'Aktion'],
     rows
   );
 }
@@ -4964,6 +4980,7 @@ function renderBuildings() {
         <div class="building-card-head"><div>
           <div class="building-card-title">${bt.name} #${number}</div>
           <div class="building-card-meta">Level ${level} · ${buildingCategoryLabel(bt.building_category)}</div>
+          <div class="building-card-meta">${translateUiString('Unterhalt / Tag')}: ${money(buildingMaintenanceCost(bt.building_category, level))}</div>
         </div></div>
         ${statusHtml}
         ${jobHtml}
