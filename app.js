@@ -8690,9 +8690,23 @@ function renderEconomyDashboard() {
   const retail = document.getElementById('economyRetailPrice');
 
   if (title) title.textContent = economyPhaseLabel(phase);
-  if (productionCost) productionCost.textContent = economySignedPercent(economy.production_cost_factor);
-  if (productionOutput) productionOutput.textContent = economySignedPercent(economy.production_output_factor);
-  if (retail) retail.textContent = economySignedPercent(economy.retail_price_factor);
+
+  const setEffect = (element, factor, lowerIsBetter = false) => {
+    if (!element) return;
+    const delta = Number(factor || 1) - 1;
+    element.textContent = economySignedPercent(factor);
+    element.classList.remove('economy-effect-good','economy-effect-bad','economy-effect-neutral');
+    if (Math.abs(delta) < 0.0001) {
+      element.classList.add('economy-effect-neutral');
+    } else {
+      const beneficial = lowerIsBetter ? delta < 0 : delta > 0;
+      element.classList.add(beneficial ? 'economy-effect-good' : 'economy-effect-bad');
+    }
+  };
+
+  setEffect(productionCost, economy.production_cost_factor, true);
+  setEffect(productionOutput, economy.production_output_factor, false);
+  setEffect(retail, economy.retail_price_factor, false);
 
   updateEconomyCountdown();
   if (!economyCountdownTimer) {
