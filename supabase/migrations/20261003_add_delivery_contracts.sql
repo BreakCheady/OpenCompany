@@ -38,11 +38,62 @@ declare
 begin
   perform private.assert_company_owner(p_seller_company_id);
 
-  if p_seller_company_id=p_buyer_company_id then raise exception 'Vertragspartner müssen verschieden sein'; end if;
-  if ((p_product_id is not null)::int + (p_material_id is not null)::int)<>1 then raise exception 'Genau ein Gut auswählen'; end if;
-  if p_quality<1 or p_quantity<=0 or p_unit_price<=0 then raise exception 'Ungültige Vertragsdaten'; end if;
-  if p_interval_days not in (1,2,7) then raise exception 'Ungültiges Lieferintervall'; end if;
-  if p_duration_days not in (3,7,14,30) then raise exception 'Ungültige Vertragslaufzeit'; end if;
+  if p_seller_company_id=p_buyer_company_id then
+    raise exception 'Vertragspartner müssen verschieden sein';
+  end if;
+
+  if not exists(
+    select 1 from public.companies
+    where id=p_seller_company_id
+      and company_type='player'
+      and status='active'
+      and owner_user_id is not null
+  ) then
+    raise exception 'Verkäufer ist kein aktives Spielerunternehmen';
+  end if;
+
+  if not exists(
+    select 1 from public.companies
+    where id=p_buyer_company_id
+      and company_type='player'
+      and status='active'
+      and owner_user_id is not null
+  ) then
+    raise exception 'Käufer ist kein aktives Spielerunternehmen';
+  end if;
+
+  if ((p_product_id is not null)::int + (p_material_id is not null)::int)<>1 then
+    raise exception 'Genau ein Gut auswählen';
+  end if;
+
+  if p_product_id is not null and not exists(
+    select 1 from public.products
+    where id=p_product_id
+      and company_id=p_seller_company_id
+      and status='active'
+  ) then
+    raise exception 'Produkt gehört nicht zum Verkäufer';
+  end if;
+
+  if p_material_id is not null and not exists(
+    select 1 from public.materials
+    where id=p_material_id
+      and status='active'
+  ) then
+    raise exception 'Material ist nicht verfügbar';
+  end if;
+
+  if p_quality<1 or p_quantity<=0 or p_unit_price<=0 then
+    raise exception 'Ungültige Vertragsdaten';
+  end if;
+
+  if p_interval_days not in (1,2,7) then
+    raise exception 'Ungültiges Lieferintervall';
+  end if;
+
+  if p_duration_days not in (3,7,14,30) then
+    raise exception 'Ungültige Vertragslaufzeit';
+  end if;
 
   v_total:=greatest(1,ceil(p_duration_days::numeric/p_interval_days)::integer);
 
