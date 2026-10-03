@@ -10080,6 +10080,13 @@ document.getElementById('contractQuality')?.addEventListener('change', () => {
 });
 document.getElementById('contractQty')?.addEventListener('input', renderContractPreview);
 document.getElementById('contractPrice')?.addEventListener('input', renderContractPreview);
+document.getElementById('contractKind')?.addEventListener('change', e => {
+  document.getElementById('deliveryContractFields')?.classList.toggle('hidden', e.target.value !== 'delivery');
+  renderContractPreview();
+});
+document.getElementById('contractIntervalDays')?.addEventListener('change', renderContractPreview);
+document.getElementById('contractDurationDays')?.addEventListener('change', renderContractPreview);
+document.getElementById('contractDeliveryTime')?.addEventListener('change', renderContractPreview);
 
 document.getElementById('contractForm').addEventListener('submit',async e=>{
   e.preventDefault();
@@ -10098,29 +10105,54 @@ document.getElementById('contractForm').addEventListener('submit',async e=>{
     gameAlert('Für diesen Verkauf ist kein passender Lagerbestand vorhanden.');
     return;
   }
-  if (ctx.quantity <= 0 || ctx.quantity > Number(ctx.lot.quantity || 0)) {
-    gameAlert(`Die Vertragsmenge darf höchstens ${num(ctx.lot.quantity || 0)} betragen.`);
+
+  const kind=document.getElementById('contractKind')?.value || 'one_time';
+
+  if (ctx.quantity <= 0 || (kind === 'one_time' && ctx.quantity > Number(ctx.lot.quantity || 0))) {
+    gameAlert(kind === 'one_time'
+      ? `Die Vertragsmenge darf höchstens ${num(ctx.lot.quantity || 0)} betragen.`
+      : 'Die Liefermenge muss größer als 0 sein.');
     return;
   }
-  if (!ctx.freight?.sufficient) {
+
+  if (kind === 'one_time' && !ctx.freight?.sufficient) {
     gameAlert(`Nicht genügend Transportcontainer. Benötigt: ${num(ctx.quantity)}, verfügbar: ${num(ctx.freight?.available || 0)}`);
     return;
   }
 
-  const { error }=await sb.rpc('create_contract_quality',{
-    p_proposer_company_id:state.company.id,
-    p_seller_company_id:state.company.id,
-    p_buyer_company_id:partner,
-    p_product_id:type==='product' ? item : null,
-    p_material_id:type==='material' ? item : null,
-    p_quality:ctx.quality,
-    p_quantity:ctx.quantity,
-    p_unit_price:ctx.price
-  });
+  let error;
+  if (kind === 'delivery') {
+    ({ error } = await sb.rpc('create_delivery_contract',{
+      p_seller_company_id:state.company.id,
+      p_buyer_company_id:partner,
+      p_product_id:type==='product' ? item : null,
+      p_material_id:type==='material' ? item : null,
+      p_quality:ctx.quality,
+      p_quantity:ctx.quantity,
+      p_unit_price:ctx.price,
+      p_interval_days:Number(document.getElementById('contractIntervalDays')?.value || 1),
+      p_duration_days:Number(document.getElementById('contractDurationDays')?.value || 7),
+      p_delivery_time:document.getElementById('contractDeliveryTime')?.value || '18:00'
+    }));
+  } else {
+    ({ error }=await sb.rpc('create_contract_quality',{
+      p_proposer_company_id:state.company.id,
+      p_seller_company_id:state.company.id,
+      p_buyer_company_id:partner,
+      p_product_id:type==='product' ? item : null,
+      p_material_id:type==='material' ? item : null,
+      p_quality:ctx.quality,
+      p_quantity:ctx.quantity,
+      p_unit_price:ctx.price
+    }));
+  }
+
   if(error) gameAlert(error.message); else await loadCompany();
 });
 window.acceptContract=async id=>{
-  const {error}=await sb.rpc('accept_and_fulfill_contract',{p_contract_id:id});
+  const contract=state.contracts.find(c=>c.id===id);
+  const rpc=contract?.contract_kind==='delivery' ? 'accept_delivery_contract' : 'accept_and_fulfill_contract';
+  const {error}=await sb.rpc(rpc,{p_contract_id:id});
   if(error) gameAlert(error.message); else await loadCompany();
 };
 window.rejectContract=async id=>{
