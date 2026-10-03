@@ -1438,6 +1438,9 @@ function transactionLabel(type) {
     storage_auction_fee: 'Gebühr Zwangsversteigerung',
     contract_buy: 'Vertragskauf',
     contract_sale: 'Vertragsverkauf',
+    contract_penalty: 'Vertragsstrafe',
+    contract_penalty_income: 'Vertragsstrafe erhalten',
+    company_event: 'Unternehmensereignis',
     freight_cost: 'Frachtkosten'
   })[type] || type;
   return translateUiString(label);
@@ -4777,8 +4780,6 @@ function buildingMaintenanceCost(category, level = 1) {
 
 function operatingCostRate(buildingType) {
   if (!buildingType) return 0;
-  if (buildingType.building_category === 'retail') return 0.03;
-  if (buildingType.building_category === 'research') return 0.08;
   const rates = {
     food_factory:0.06,
     textile_factory:0.06,
@@ -4789,7 +4790,11 @@ function operatingCostRate(buildingType) {
     chemical_factory:0.10,
     energy_factory:0.12
   };
-  const base = rates[buildingType.code] ?? (buildingType.building_category === 'production' ? 0.07 : 0);
+  const base = buildingType.building_category === 'retail'
+    ? 0.03
+    : buildingType.building_category === 'research'
+      ? 0.08
+      : rates[buildingType.code] ?? (buildingType.building_category === 'production' ? 0.07 : 0);
   return base * globalEventFactor('operating_cost_factor');
 }
 
@@ -6434,7 +6439,8 @@ function financeMovementCategory(transaction) {
   if (['construction','building_maintenance','building_refund'].includes(type)) return 'building';
   if (['storage_fee','storage_forced_auction'].includes(type)) return 'storage';
   if (['research','research_investment'].includes(type)) return 'research';
-  if (['contract_buy','contract_sale'].includes(type)) return 'contracts';
+  if (['contract_buy','contract_sale','contract_penalty','contract_penalty_income'].includes(type)) return 'contracts';
+  if (type === 'company_event') return 'other';
   if (type.startsWith('bond_')) return 'finance';
   return 'other';
 }
@@ -7012,7 +7018,7 @@ function renderResearch() {
     .filter(row => row.type?.building_category === 'research')
     .sort((a,b) => Number(b.building.level || 1) - Number(a.building.level || 1))[0] || null;
   const researchOperatingCost = researchBuilding
-    ? investmentValue * 0.08 * operatingEfficiencyFactor(researchBuilding.building.level) * operatingEconomyFactor()
+    ? investmentValue * operatingCostRate(researchBuilding.type) * operatingEfficiencyFactor(researchBuilding.building.level) * operatingEconomyFactor()
     : 0;
   const patentMin=investmentValue*0.80;
   const patentMax=investmentValue*1.10;
