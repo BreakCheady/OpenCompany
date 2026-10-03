@@ -1062,6 +1062,10 @@ const rulePercent = rate => Math.round(Number(rate || 0) * 100);
 const ruleTime = key => GAME_RULES.schedules[key] || '–';
 const qualityMultiplier = quality =>
   1 + Math.max(0, Number(quality || 1) - 1) * GAME_RULES.quality.valueBonusPerLevel;
+const globalEventFactor = key => (state.globalEconomicEvents || []).reduce((factor,event) => {
+  const value = Number(event?.effects?.[key] ?? 1);
+  return factor * (Number.isFinite(value) && value > 0 ? value : 1);
+},1);
 const retailAveragePrice = unitCost =>
   Math.round(
     Math.max(0, Number(unitCost || 0))
@@ -1088,8 +1092,21 @@ const retailProfitFactor = (unitCost, unitPrice) => {
 };
 const retailEffectiveUnitRevenue = (unitCost, unitPrice) => {
   const price = Math.max(0, Number(unitPrice || 0));
-  return price * retailProfitFactor(unitCost, price);
+  return price * retailProfitFactor(unitCost, price) * globalEventFactor('retail_revenue_factor');
 };
+
+function retailBreakEvenPrice(unitCost, extraCostPerUnit = 0) {
+  const target = Math.max(0, Number(unitCost || 0) + Number(extraCostPerUnit || 0));
+  const min = retailMinPrice(unitCost);
+  const max = retailMaxPrice(unitCost);
+  if (!(target > 0) || !(max > min)) return 0;
+  const steps = 1200;
+  for (let i=1;i<steps;i+=1) {
+    const price = min + (max-min)*(i/steps);
+    if (retailEffectiveUnitRevenue(unitCost,price) + 1e-9 >= target) return Math.round(price*100)/100;
+  }
+  return 0;
+}
 
 function transportContainerFreight(quantity) {
   const requested = Math.max(0, Number(quantity || 0));
@@ -4247,6 +4264,7 @@ function currentProductionContext() {
         0.01,
         Math.max(1, Math.floor(baseProductRate * multiplier))
         * Number(state.economyState?.production_output_factor || 1)
+        * globalEventFactor('production_output_factor')
       )
     : 0;
 
@@ -4771,7 +4789,8 @@ function operatingCostRate(buildingType) {
     chemical_factory:0.10,
     energy_factory:0.12
   };
-  return rates[buildingType.code] ?? (buildingType.building_category === 'production' ? 0.07 : 0);
+  const base = rates[buildingType.code] ?? (buildingType.building_category === 'production' ? 0.07 : 0);
+  return base * globalEventFactor('operating_cost_factor');
 }
 
 function operatingEfficiencyFactor(level = 1) {
@@ -8847,6 +8866,55 @@ window.showEconomyPhaseHelp = function() {
   );
 };
 
+function renderEconomicEvents() {
+  const container = document.getElementById('globalEconomicEvents');
+  if (!container) return;
+  const events = state.globalEconomicEvents || [];
+  if (!events.length) {
+    container.innerHTML = '<p class="muted">Aktuell kein globales Ereignis aktiv.</p>';
+    return;
+  }
+  container.innerHTML = events.map(event => {
+    const end = new Date(event.ends_at);
+    const effects = event.effects || {};
+    const details = [];
+    if (effects.operating_cost_factor) details.push(`Energie & Betrieb: ${economySignedPercent(effects.operating_cost_factor)}`);
+    if (effects.retail_revenue_factor) details.push(`Einzelhandel: ${economySignedPercent(effects.retail_revenue_factor)}`);
+    if (effects.production_output_factor) details.push(`Produktionsmenge: ${economySignedPercent(effects.production_output_factor)}`);
+    return `<div class="kv"><span><strong>${event.name}</strong><br><small>${event.description}</small></span><strong>${details.join(' · ')}<br><small>bis ${end.toLocaleString(uiLocale(),{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})} Uhr</small></strong></div>`;
+  }).join('');
+}
+
+function renderCompanyEvents() {
+  const container = document.getElementById('companyEvents');
+  if (!container) return;
+  const events = state.companyEvents || [];
+  if (!events.length) {
+    container.innerHTML = '<p class="muted">Aktuell keine Entscheidung offen.</p>';
+    return;
+  }
+  container.innerHTML = events.map(event => `
+    <div class="company-event-card">
+      <strong>${event.title}</strong>
+      <p>${event.description}</p>
+      <small>Entscheidung möglich bis ${new Date(event.expires_at).toLocaleString(uiLocale(),{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})} Uhr</small>
+      <div class="contract-action-buttons">
+        <button type="button" onclick="resolveCompanyEvent('${event.id}','a')">${event.option_a_label}</button>
+        <button type="button" class="ghost" onclick="resolveCompanyEvent('${event.id}','b')">${event.option_b_label}</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+window.resolveCompanyEvent = async function(eventId, option) {
+  const { error } = await sb.rpc('resolve_company_event',{p_event_id:eventId,p_option:option});
+  if (error) {
+    await gameAlert(error.message);
+    return;
+  }
+  await loadCompany();
+}
+
 function renderAll() {
   const c = state.company;
   updateFeatureLocks();
@@ -8880,6 +8948,8 @@ function renderAll() {
 
   renderDashboardValuationChanges();
   renderEconomyDashboard();
+  renderEconomicEvents();
+  renderCompanyEvents();
   renderSettingsCompanyManagement();
   renderResearch();
   renderEncyclopedia();
