@@ -5879,21 +5879,34 @@ function contractStatus(s) {
 }
 function renderContracts() {
   const cid = state.company.id;
-  const proposedContracts = state.contracts.filter(c => c.status === 'proposed');
-  const incoming = proposedContracts.filter(c => c.buyer_company_id === cid);
-  const outgoing = proposedContracts.filter(c => c.seller_company_id === cid);
+  const visibleContracts = state.contracts.filter(c =>
+    c.status === 'proposed' || (c.contract_kind === 'delivery' && c.status === 'accepted')
+  );
+  const incoming = visibleContracts.filter(c => c.buyer_company_id === cid);
+  const outgoing = visibleContracts.filter(c => c.seller_company_id === cid);
 
   const contractRows = (contracts, direction) => contracts.map(c => {
     const totalValue = Number(c.quantity || 0) * Number(c.unit_price || 0);
     const partnerId = direction === 'incoming' ? c.seller_company_id : c.buyer_company_id;
-    const actions = direction === 'incoming'
-      ? `<div class="contract-action-buttons">
-          <button class="contract-accept-btn" onclick="acceptContract('${c.id}')">${translateUiString('Annehmen')}</button>
-          <button class="strong-danger-btn" onclick="rejectContract('${c.id}')">${translateUiString('Ablehnen')}</button>
-        </div>`
-      : `<div class="contract-action-buttons">
-          <button class="strong-danger-btn" onclick="cancelContract('${c.id}')">${translateUiString('Stornieren')}</button>
-        </div>`;
+    const isDelivery = c.contract_kind === 'delivery';
+    const progress = isDelivery
+      ? `${Number(c.completed_deliveries || 0)} / ${Number(c.total_deliveries || 0)} Lieferungen · Fehlversuche ${Number(c.failed_deliveries || 0)} / 3`
+      : 'Einmalig';
+    const nextDelivery = isDelivery && c.next_delivery_at
+      ? new Date(c.next_delivery_at).toLocaleString(uiLocale(),{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}) + ' Uhr'
+      : '–';
+
+    let actions = `<span class="muted">${contractStatusLabel(c.status)}</span>`;
+    if (c.status === 'proposed') {
+      actions = direction === 'incoming'
+        ? `<div class="contract-action-buttons">
+            <button class="contract-accept-btn" onclick="acceptContract('${c.id}')">${translateUiString('Annehmen')}</button>
+            <button class="strong-danger-btn" onclick="rejectContract('${c.id}')">${translateUiString('Ablehnen')}</button>
+          </div>`
+        : `<div class="contract-action-buttons">
+            <button class="strong-danger-btn" onclick="cancelContract('${c.id}')">${translateUiString('Stornieren')}</button>
+          </div>`;
+    }
 
     return `<tr>
       <td>${companyName(partnerId)}</td>
@@ -5902,6 +5915,8 @@ function renderContracts() {
       <td>${num(c.quantity)}</td>
       <td>${money(c.unit_price)}</td>
       <td><strong>${money(totalValue)}</strong></td>
+      <td>${isDelivery ? 'Liefervertrag' : 'Einmalvertrag'}<br><small>${progress}</small></td>
+      <td>${nextDelivery}</td>
       <td>${actions}</td>
     </tr>`;
   });
@@ -5911,14 +5926,14 @@ function renderContracts() {
 
   if (incomingTable) {
     incomingTable.innerHTML = renderTable(
-      ['Absender','Gut','Qualität','Menge','Preis je Einheit','Kaufsumme','Aktion'],
+      ['Absender','Gut','Qualität','Menge','Preis je Einheit','Kaufsumme','Art / Fortschritt','Nächste Lieferung','Aktion'],
       contractRows(incoming, 'incoming')
     );
   }
 
   if (outgoingTable) {
     outgoingTable.innerHTML = renderTable(
-      ['Empfänger','Gut','Qualität','Menge','Preis je Einheit','Verkaufssumme','Aktion'],
+      ['Empfänger','Gut','Qualität','Menge','Preis je Einheit','Verkaufssumme','Art / Fortschritt','Nächste Lieferung','Aktion'],
       contractRows(outgoing, 'outgoing')
     );
   }
