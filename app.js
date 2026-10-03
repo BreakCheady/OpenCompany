@@ -8664,7 +8664,7 @@ function updateEconomyCountdown() {
     ? new Date(state.economyState.next_change_at).getTime()
     : 0;
   if (!target) {
-    element.textContent = 'Nächste Phasenprüfung: Freitag, 17:00 Uhr';
+    element.textContent = 'Nächste Phasenprüfung: Sonntag, 12:00 Uhr';
     return;
   }
 
@@ -8706,7 +8706,7 @@ window.showEconomyPhaseHelp = function() {
     'Rezession: Produktionskosten −15 %, Produktionsmenge +15 %, Einzelhandelspreise −15 %.\n\n' +
     'Neutral: keine Änderungen.\n\n' +
     'Boom: Produktionskosten +15 %, Produktionsmenge −15 %, Einzelhandelspreise +15 %.\n\n' +
-    'Die Phase kann jeden Freitag um 17:00 Uhr wechseln. Bereits laufende Produktionen und Verkäufe behalten ihre beim Start festgelegten Werte.'
+    'Die Phase kann jeden Sonntag um 12:00 Uhr wechseln. Bereits laufende Produktionen und Verkäufe behalten ihre beim Start festgelegten Werte.'
   );
 };
 
