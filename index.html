@@ -2192,6 +2192,17 @@
         </article>
 
         <div class="grid two">
+          <article class="panel">
+            <h2>Globale Wirtschaftsereignisse</h2>
+            <div id="globalEconomicEvents" class="stack"><p class="muted">Aktuell kein Ereignis aktiv.</p></div>
+          </article>
+          <article class="panel">
+            <h2>Unternehmensereignisse</h2>
+            <div id="companyEvents" class="stack"><p class="muted">Aktuell keine Entscheidung offen.</p></div>
+          </article>
+        </div>
+
+        <div class="grid two">
           <article class="panel"><h2>Firmenstatus</h2><div id="companySummary" class="stack"></div></article>
           <article class="panel"><h2>Letzte Finanzbewegungen</h2><div id="recentTransactions" class="table-wrap"></div></article>
         </div>
@@ -2548,6 +2559,31 @@
               <label>Qualität<select id="contractQuality"></select></label>
               <label>Menge<input id="contractQty" type="number" min="0.01" step="0.01" value="10" required></label>
               <label>Preis je Einheit<input id="contractPrice" type="number" min="0.01" step="0.01" value="100" required></label>
+              <label>Vertragsart
+                <select id="contractKind">
+                  <option value="one_time">Einmalvertrag</option>
+                  <option value="delivery">Liefervertrag</option>
+                </select>
+              </label>
+              <div id="deliveryContractFields" class="hidden">
+                <label>Lieferintervall
+                  <select id="contractIntervalDays">
+                    <option value="1">Täglich</option>
+                    <option value="2">Alle 2 Tage</option>
+                    <option value="7">Wöchentlich</option>
+                  </select>
+                </label>
+                <label>Laufzeit
+                  <select id="contractDurationDays">
+                    <option value="3">3 Tage</option>
+                    <option value="7" selected>7 Tage</option>
+                    <option value="14">14 Tage</option>
+                    <option value="30">30 Tage</option>
+                  </select>
+                </label>
+                <label>Lieferzeit<input id="contractDeliveryTime" type="time" value="18:00"></label>
+                <p class="muted">Bei 3 fehlgeschlagenen Lieferungen wird der Vertrag automatisch beendet. Vertragsstrafe je Fehlversuch: 10 % des Lieferwerts.</p>
+              </div>
               <button type="submit">Vertrag vorschlagen</button>
             </form>
             <div id="contractPreview" class="retail-sale-details"></div>
