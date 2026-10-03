@@ -94,7 +94,7 @@ const I18N_EN = {
   'Keine passenden Produkte verfügbar':'No matching products available','Keine Qualität auf Lager':'No quality in storage',
   'Startkapital':'Starting capital','Marktverkauf':'Market sale','Handelsgewinn':'Retail profit',
   'Abbruchgebühr Handel':'Retail cancellation fee','Kauf':'Purchase','Erstattung Produktion':'Production refund',
-  'Baukosten':'Construction costs','Unterhalt / Tag':'Maintenance / day','Gebäude-Erstattung':'Building refund','Forschungsinvestition':'Research investment',
+  'Baukosten':'Construction costs','Gebäudeunterhalt':'Building maintenance','Unterhalt / Tag':'Maintenance / day','Gebäude-Erstattung':'Building refund','Forschungsinvestition':'Research investment',
   'Anleiheninvestment':'Bond investment','Kreditauszahlung':'Loan payout','Kredittilgung':'Loan repayment',
   'Tilgungseingang':'Principal repayment income','Zinsabgabe':'Interest paid','Zinserlös':'Interest income',
   'Zinserlös vom Staat':'Interest income from state','Zinsausfall':'Interest default',
@@ -1398,6 +1398,7 @@ function transactionLabel(type) {
     production: 'Produktion',
     production_refund: 'Erstattung Produktion',
     construction: 'Baukosten',
+    building_maintenance: 'Gebäudeunterhalt',
     building_refund: 'Gebäude-Erstattung',
     research: 'Forschung',
     research_investment: 'Forschungsinvestition',
@@ -1424,7 +1425,7 @@ function transactionLabel(type) {
 
 function transactionAmountClass(type) {
   return [
-    'market_fee','market_buy','production','construction','retail_cancel_fee','research',
+    'market_fee','market_buy','production','construction','building_maintenance','retail_cancel_fee','research',
     'bond_investment','bond_repayment','bond_interest_paid','storage_fee','storage_overflow_fee','storage_auction_fee',
     'contract_buy'
   ].includes(type) ? 'transaction-amount fee' : 'transaction-amount';
@@ -6311,7 +6312,7 @@ function financeMovementCategory(transaction) {
   if (['market_sale','retail_sale'].includes(type)) return 'sales';
   if (['production','production_refund'].includes(type)) return 'production';
   if (['market_buy','market_fee','freight_cost','retail_cancel_fee','retail_cancel_refund'].includes(type)) return 'trade';
-  if (['construction','building_refund'].includes(type)) return 'building';
+  if (['construction','building_maintenance','building_refund'].includes(type)) return 'building';
   if (['storage_fee','storage_forced_auction'].includes(type)) return 'storage';
   if (['research','research_investment'].includes(type)) return 'research';
   if (['contract_buy','contract_sale'].includes(type)) return 'contracts';
