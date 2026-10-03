@@ -2564,7 +2564,7 @@ async function openChatView(contactId = '') {
   renderChat();
 }
 
-document.getElementById('headerChatBtn')?.addEventListener('click', openChatView);
+document.getElementById('headerChatBtn')?.addEventListener('click', () => openChatView());
 
 document.getElementById('chatContactSearch')?.addEventListener('input', event => {
   state.chatContactSearch = event.target.value || '';
