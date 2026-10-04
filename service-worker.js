@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'opencompany-pwa-v11';
+const CACHE_VERSION = 'opencompany-pwa-v12';
 const OFFLINE_URL = '/offline.html';
 const PRECACHE_URLS = [
   '/offline.html?v=0.10.163',
