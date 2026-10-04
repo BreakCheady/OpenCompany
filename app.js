@@ -8931,6 +8931,212 @@ window.goToEncyclopediaTarget = function(view) {
   }
 };
 
+
+function renderDemandDashboard() {
+  const container = document.getElementById("demandDashboard");
+  if (!container) return;
+  const rows = state.marketDemand || [];
+  if (!rows.length) {
+    container.innerHTML = "<p class=\"muted\">Noch keine Nachfragedaten verfügbar.</p>";
+    return;
+  }
+  container.innerHTML = rows.map(row => {
+    const history = (state.marketDemandHistory || []).filter(h => h.category === row.category).slice(-7);
+    const values = history.length ? history.map(h => Number(h.demand_index || 100)) : [Number(row.demand_index || 100)];
+    const min = Math.min.apply(null, values.concat([70]));
+    const max = Math.max.apply(null, values.concat([130]));
+    const trend = row.trend || "stable";
+    const arrow = trend === "rising" ? "↑" : trend === "falling" ? "↓" : "→";
+    const label = trend === "rising" ? "steigend" : trend === "falling" ? "fallend" : "stabil";
+    const bars = values.map(value => {
+      const height = 8 + ((value-min) / Math.max(1,max-min)) * 30;
+      return "<span style=\"height:" + Math.round(height) + "px\" title=\"" + num(value) + "\"></span>";
+    }).join("");
+    return "<div class=\"demand-card\"><div class=\"demand-card-head\"><strong>" +
+      translateUiString(row.label || row.category) + "</strong><span class=\"demand-trend " + trend + "\">" +
+      arrow + " " + label + "</span></div><div class=\"demand-card-value\">" + num(row.demand_index) +
+      "</div><div class=\"demand-sparkline\" aria-label=\"Nachfrageverlauf\">" + bars + "</div></div>";
+  }).join("");
+}
+
+function renderMarketPriceIndices() {
+  const container = document.getElementById("marketPriceIndices");
+  if (!container) return;
+  const days = Number(state.marketIndexDays || 7);
+  const rows = state.marketPriceIndices || [];
+  if (!rows.length) {
+    container.innerHTML = "<p class=\"muted\">Noch keine Indexdaten verfügbar.</p>";
+    return;
+  }
+  container.innerHTML = rows.map(row => {
+    const hist = (state.marketPriceIndexHistory || [])
+      .filter(h => h.index_kind === row.index_kind && h.index_code === row.index_code)
+      .slice(-days);
+    const vals = hist.filter(h => h.index_value != null).map(h => Number(h.index_value));
+    let bars = "";
+    if (vals.length) {
+      const min = Math.min.apply(null, vals);
+      const max = Math.max.apply(null, vals);
+      bars = vals.map(v => "<span style=\"height:" + Math.round(8+((v-min)/Math.max(1,max-min))*38) +
+        "px\" title=\"" + num(v) + "\"></span>").join("");
+    }
+    const sufficient = !!row.sufficient_data && row.index_value != null;
+    const change = Number(row.change_percent || 0);
+    return "<div class=\"market-index-card\"><div class=\"market-index-card-head\"><div><strong>" +
+      (row.index_label || row.index_code) + "</strong><div class=\"muted\">" +
+      (row.index_kind === "raw" ? "Rohstoff-Index" : "Produkt-Index") +
+      "</div></div><strong>" + (sufficient ? num(row.index_value) : "Zu wenig Marktdaten") +
+      "</strong></div><div class=\"kv\"><span>7-Tage-Vergleich</span><strong>" +
+      (sufficient ? ((change>0?"+":"") + num(change) + " %") : "–") +
+      "</strong></div><div class=\"kv\"><span>Handelsaktivität</span><strong>" +
+      num(row.trade_count) + " Trades · " + num(row.weighted_units) +
+      " Einheiten</strong></div>" + (bars ? "<div class=\"market-index-chart\">" + bars + "</div>" :
+      "<p class=\"muted\">Für den gewählten Verlauf liegen noch nicht genügend Tageswerte vor.</p>") + "</div>";
+  }).join("");
+}
+
+const SPECIALIZATION_META = Object.freeze({
+  production:{name:"Produktionsspezialist",description:"−5 % Energie-/Betriebskosten in der Produktion · +5 % Produktionsmenge"},
+  retail:{name:"Einzelhandelsspezialist",description:"+7 % Verkaufsrate · +3 % bessere Preiswirkung"},
+  logistics:{name:"Logistikspezialist",description:"−10 % Transportcontainerverbrauch"},
+  research:{name:"Forschungsspezialist",description:"−8 % Forschungsbetriebskosten · +5 % Patentwert-Gewinn"},
+  trading:{name:"Handelsspezialist",description:"Niedrigere Marktgebühren und bessere Analysewerte sind vorgesehen; die Vorgabe nennt dafür keinen exakten Prozentsatz."},
+  contracts:{name:"Vertragsspezialist",description:"Reduzierte Vertragsstrafe ist vorgesehen; die Vorgabe nennt dafür keinen exakten Prozentsatz."},
+  industry_electronics:{name:"Elektronikunternehmen",description:"Elektronikproduktion +5 % · Elektronikbetriebskosten −5 % · Elektronik-Einzelhandel +5 % · keine Vorteile in anderen Branchen"}
+});
+
+function renderSpecializations() {
+  const container = document.getElementById("specializationsContent");
+  if (!container) return;
+  const companyLevel = Number(state.company?.company_level || 0);
+  const activeBySlot = new Map((state.specializations || []).map(row => [Number(row.slot_no),row]));
+  let html = "<div class=\"specializations-grid\">";
+  [1,2].forEach(slot => {
+    const required = slot === 1 ? 8 : 15;
+    const current = activeBySlot.get(slot);
+    const meta = current ? SPECIALIZATION_META[current.specialization_code] : null;
+    const locked = companyLevel < required;
+    const switchAt = current?.switch_available_at ? new Date(current.switch_available_at) : null;
+    const switchLocked = !!switchAt && switchAt.getTime() > Date.now();
+    html += "<section class=\"specialization-slot\"><div class=\"panel-head\"><div><strong>Spezialisierung " +
+      slot + "</strong><div class=\"muted\">Freischaltung ab Level " + required +
+      "</div></div><strong>" + (meta ? meta.name : locked ? "Gesperrt" : "Frei") + "</strong></div>";
+    if (meta) {
+      html += "<p>" + meta.description + "</p><p class=\"muted\">Wechsel: 100.000 OC$ · danach 14 Tage Sperrzeit." +
+        (switchLocked ? " Wechsel wieder ab " + switchAt.toLocaleString(uiLocale()) + "." : "") + "</p>";
+    }
+    if (locked) {
+      html += "<p class=\"muted\">Noch " + (required-companyLevel) + " Level bis zur Freischaltung.</p>";
+    } else {
+      html += "<div class=\"specialization-options\">";
+      Object.entries(SPECIALIZATION_META).forEach(([code,item]) => {
+        const disabled = current?.specialization_code === code || switchLocked;
+        html += "<div class=\"specialization-option\"><strong>" + item.name + "</strong><p class=\"muted\">" +
+          item.description + "</p><button type=\"button\" " + (disabled ? "disabled" : "") +
+          " onclick=\"setCompanySpecialization(" + slot + ",'" + code + "')\">" +
+          (current?.specialization_code === code ? "Aktiv" : current ? "Wechseln" : "Auswählen") +
+          "</button></div>";
+      });
+      html += "</div>";
+    }
+    html += "</section>";
+  });
+  html += "</div><p class=\"muted\">Spezialisierungen geben keine Bewertungsboni bei Großaufträgen. " +
+    "Die vorgesehenen Stufen II/III werden erst mit konkreten OC$- und Zeitwerten aktiviert; diese Werte sind in der Vorgabe nicht beziffert.</p>";
+  container.innerHTML = html;
+}
+
+window.setCompanySpecialization = async function(slot, code) {
+  const current = (state.specializations || []).find(row => Number(row.slot_no) === Number(slot));
+  if (current && current.specialization_code !== code) {
+    const confirmed = await gameConfirm("Spezialisierung wechseln? Die Umstrukturierung kostet 100.000 OC$ und der neue Wechsel ist anschließend 14 Tage gesperrt.");
+    if (!confirmed) return;
+  }
+  const { error } = await sb.rpc("set_company_specialization",{
+    p_company_id:state.company.id,
+    p_slot_no:Number(slot),
+    p_specialization_code:code
+  });
+  if (error) gameAlert(error.message); else await loadCompany();
+};
+
+function largeOrderTypeLabel(type) {
+  return ({raw_material:"Rohstoffauftrag",production:"Produktionsauftrag",quality:"Qualitätsauftrag",rush:"Eilauftrag"})[type] || type;
+}
+
+function renderLargeOrders() {
+  const container = document.getElementById("largeOrdersContent");
+  if (!container) return;
+  const bidByOrder = new Map((state.largeCustomerBids || []).map(b => [b.order_id,b]));
+  const active = (state.largeOrders || []).filter(o => ["bidding","awarded"].includes(o.status));
+  const recent = (state.largeOrders || []).filter(o => !["bidding","awarded"].includes(o.status)).slice(0,10);
+  const renderOrder = order => {
+    const bid = bidByOrder.get(order.id);
+    const bidding = order.status === "bidding" && new Date(order.bidding_ends_at).getTime() > Date.now();
+    const ownAward = order.status === "awarded" && order.awarded_company_id === state.company?.id;
+    const remaining = Math.max(0,Number(order.quantity||0)-Number(order.delivered_quantity||0));
+    let statusLabel = order.status;
+    if (order.status === "bidding") statusLabel = "Ausschreibung";
+    else if (order.status === "awarded") statusLabel = ownAward ? "Gewonnen" : "Vergeben";
+    else if (order.status === "completed") statusLabel = "Abgeschlossen";
+    else if (order.status === "failed") statusLabel = "Nicht erfüllt";
+    let html = "<section class=\"large-order-card\"><div class=\"large-order-head\"><div><strong>" +
+      largeOrderTypeLabel(order.order_type) + " · " + order.customer_name +
+      "</strong><div class=\"muted\">" + order.item_name + "</div></div><strong>" + statusLabel +
+      "</strong></div><div class=\"large-order-meta\"><div><span class=\"muted\">Menge</span><strong>" +
+      num(order.quantity) + "</strong></div><div><span class=\"muted\">Mindestqualität</span><strong>Q" +
+      Number(order.minimum_quality||1) + "</strong></div><div><span class=\"muted\">Lieferfrist</span><strong>" +
+      order.delivery_hours + " Std.</strong></div><div><span class=\"muted\">Gebotsende</span><strong>" +
+      new Date(order.bidding_ends_at).toLocaleString(uiLocale()) + "</strong></div></div>";
+    if (bid) html += "<div class=\"kv\"><span>Dein Gebot</span><strong>" + money(bid.price_per_unit) +
+      " / Einheit · Q" + bid.offered_quality + " · " + bid.delivery_hours + " Std. · " + bid.status + "</strong></div>";
+    if (bidding) {
+      html += "<form class=\"large-order-bid-form\" onsubmit=\"submitLargeCustomerBid(event,'" + order.id +
+        "')\"><label>Preis / Einheit<input id=\"largeBidPrice-" + order.id +
+        "\" type=\"number\" min=\"0.01\" step=\"0.01\" value=\"" + (bid?.price_per_unit || "") +
+        "\" required></label><label>Qualität<input id=\"largeBidQuality-" + order.id +
+        "\" type=\"number\" min=\"" + order.minimum_quality + "\" max=\"5\" step=\"1\" value=\"" +
+        (bid?.offered_quality || order.minimum_quality) + "\" required></label><label>Lieferzeit (Std.)<input id=\"largeBidHours-" +
+        order.id + "\" type=\"number\" min=\"1\" max=\"" + order.delivery_hours + "\" step=\"1\" value=\"" +
+        (bid?.delivery_hours || order.delivery_hours) + "\" required></label><button type=\"submit\">" +
+        (bid ? "Gebot aktualisieren" : "Gebot abgeben") + "</button></form>";
+    }
+    if (ownAward) {
+      html += "<div class=\"kv\"><span>Geliefert</span><strong>" + num(order.delivered_quantity) + " / " +
+        num(order.quantity) + "</strong></div><div class=\"kv\"><span>Deadline</span><strong>" +
+        new Date(order.delivery_deadline).toLocaleString(uiLocale()) +
+        "</strong></div><form class=\"large-order-delivery-form\" onsubmit=\"deliverLargeCustomerOrder(event,'" +
+        order.id + "'," + remaining + ")\"><label>Teillieferung<input id=\"largeDeliveryQty-" + order.id +
+        "\" type=\"number\" min=\"0.01\" max=\"" + remaining + "\" step=\"0.01\" value=\"" + remaining +
+        "\" required></label><button type=\"submit\">Liefern</button></form>";
+    }
+    return html + "</section>";
+  };
+  container.innerHTML = "<div class=\"large-orders-list\">" +
+    (active.length ? active.map(renderOrder).join("") : "<p class=\"muted\">Aktuell keine offene Großausschreibung.</p>") +
+    "</div>" + (recent.length ? "<h3>Zuletzt beendet</h3><div class=\"large-orders-list\">" +
+    recent.map(renderOrder).join("") + "</div>" : "");
+}
+
+window.submitLargeCustomerBid = async function(event, orderId) {
+  event.preventDefault();
+  const price=Number(document.getElementById("largeBidPrice-"+orderId)?.value||0);
+  const quality=Number(document.getElementById("largeBidQuality-"+orderId)?.value||0);
+  const hours=Number(document.getElementById("largeBidHours-"+orderId)?.value||0);
+  const { error }=await sb.rpc("submit_large_customer_bid",{
+    p_company_id:state.company.id,p_order_id:orderId,p_price_per_unit:price,p_quality:quality,p_delivery_hours:hours
+  });
+  if(error) gameAlert(error.message); else await loadCompany();
+};
+
+window.deliverLargeCustomerOrder = async function(event, orderId, maxQty) {
+  event.preventDefault();
+  const qty=Math.min(Number(maxQty||0),Number(document.getElementById("largeDeliveryQty-"+orderId)?.value||0));
+  if(!(qty>0)) return;
+  const { error }=await sb.rpc("deliver_large_customer_order",{p_company_id:state.company.id,p_order_id:orderId,p_quantity:qty});
+  if(error) gameAlert(error.message); else await loadCompany();
+};
+
 function economyPhaseLabel(phase = state.economyState?.phase) {
   return ({
     recession:'REZESSION',
