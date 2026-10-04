@@ -6200,7 +6200,7 @@ function renderContractPreview() {
     <div class="kv"><span>Verfügbarer Bestand</span><strong>${num(available)}</strong></div>
     <div class="kv"><span>${translateUiString(costLabel)}</span><strong class="retail-cancel-fee">${totalCost > 0 ? `-${money(totalCost)}` : money(0)}</strong></div>
     <div class="kv"><span>Frachtkosten</span><strong class="${freightClass}">${ctx.freight?.exempt ? 'Nicht erforderlich' : (freightCost > 0 ? `-${money(freightCost)}` : money(0))}</strong></div>
-    <div class="kv"><span>Transportcontainer</span><strong class="${ctx.freight?.sufficient ? '' : 'missing-building-warning'}">${ctx.freight?.exempt ? 'Nicht erforderlich' : `${num(ctx.freight?.available || 0)} / ${num(ctx.quantity)} verfügbar`}</strong></div>
+    <div class="kv"><span>Transportcontainer</span><strong class="${ctx.freight?.sufficient ? '' : 'missing-building-warning'}">${ctx.freight?.exempt ? 'Nicht erforderlich' : `${num(ctx.freight?.available || 0)} verfügbar · ${num(ctx.freight?.required || 0)} benötigt`}</strong></div>
     <div class="kv"><span>${translateUiString('Erlös')}</span><strong class="retail-revenue-positive">${money(revenue)}</strong></div>
     <div class="kv"><span>${translateUiString('Gewinn / Verlust')}</span><strong class="${profitClass}">${profit >= 0 ? '+' : '-'}${money(Math.abs(profit))}</strong></div>
     ${contractKind === 'delivery' ? `
@@ -9009,8 +9009,8 @@ const SPECIALIZATION_META = Object.freeze({
   retail:{name:"Einzelhandelsspezialist",description:"+7 % Verkaufsrate · +3 % bessere Preiswirkung"},
   logistics:{name:"Logistikspezialist",description:"−10 % Transportcontainerverbrauch"},
   research:{name:"Forschungsspezialist",description:"−8 % Forschungsbetriebskosten · +5 % Patentwert-Gewinn"},
-  trading:{name:"Handelsspezialist",description:"Niedrigere Marktgebühren und bessere Analysewerte sind vorgesehen; die Vorgabe nennt dafür keinen exakten Prozentsatz."},
-  contracts:{name:"Vertragsspezialist",description:"Reduzierte Vertragsstrafe ist vorgesehen; die Vorgabe nennt dafür keinen exakten Prozentsatz."},
+  trading:{name:"Handelsspezialist",enabled:false,description:"Niedrigere Marktgebühren und bessere Analysewerte sind vorgesehen; die Vorgabe nennt dafür keinen exakten Prozentsatz. Daher noch nicht auswählbar."},
+  contracts:{name:"Vertragsspezialist",enabled:false,description:"Reduzierte Vertragsstrafe ist vorgesehen; die Vorgabe nennt dafür keinen exakten Prozentsatz. Daher noch nicht auswählbar."},
   industry_electronics:{name:"Elektronikunternehmen",description:"Elektronikproduktion +5 % · Elektronikbetriebskosten −5 % · Elektronik-Einzelhandel +5 % · keine Vorteile in anderen Branchen"}
 });
 
@@ -9039,11 +9039,12 @@ function renderSpecializations() {
     } else {
       html += "<div class=\"specialization-options\">";
       Object.entries(SPECIALIZATION_META).forEach(([code,item]) => {
-        const disabled = current?.specialization_code === code || switchLocked;
+        const activeElsewhere = (state.specializations || []).some(row => Number(row.slot_no) !== slot && row.specialization_code === code);
+        const disabled = item.enabled === false || current?.specialization_code === code || activeElsewhere || switchLocked;
         html += "<div class=\"specialization-option\"><strong>" + item.name + "</strong><p class=\"muted\">" +
           item.description + "</p><button type=\"button\" " + (disabled ? "disabled" : "") +
           " onclick=\"setCompanySpecialization(" + slot + ",'" + code + "')\">" +
-          (current?.specialization_code === code ? "Aktiv" : current ? "Wechseln" : "Auswählen") +
+          (current?.specialization_code === code ? "Aktiv" : activeElsewhere ? "Bereits aktiv" : item.enabled === false ? "Wert noch offen" : current ? "Wechseln" : "Auswählen") +
           "</button></div>";
       });
       html += "</div>";
@@ -9906,7 +9907,7 @@ function renderSellOrderPreview() {
     <div class="kv"><span>Bruttoerlös</span><strong>${money(gross)}</strong></div>
     <div class="kv"><span>${translateUiString(costLabel)}</span><strong class="retail-cancel-fee">${totalCost > 0 ? `-${money(totalCost)}` : money(0)}</strong></div>
     <div class="kv"><span>Frachtkosten</span><strong class="${freightClass}">${freightCost > 0 ? `-${money(freightCost)}` : money(0)}</strong></div>
-    <div class="kv"><span>Transportcontainer</span><strong class="${ctx.freight?.sufficient ? '' : 'missing-building-warning'}">${num(ctx.freight?.available || 0)} / ${num(ctx.quantity)} verfügbar</strong></div>
+    <div class="kv"><span>Transportcontainer</span><strong class="${ctx.freight?.sufficient ? '' : 'missing-building-warning'}">${num(ctx.freight?.available || 0)} verfügbar · ${num(ctx.freight?.required || 0)} benötigt</strong></div>
     <div class="kv"><span>Marktgebühr (${rulePercent(GAME_RULES.fees.marketRate)}%)</span><strong class="retail-cancel-fee">${fee > 0 ? `-${money(fee)}` : money(0)}</strong></div>
     <div class="kv"><span>Nettoerlös</span><strong class="retail-revenue-positive">${money(net)}</strong></div>
     <div class="kv"><span>${translateUiString('Gewinn / Verlust')}</span><strong class="${profitClass}">${profit >= 0 ? '+' : '-'}${money(Math.abs(profit))}</strong></div>
@@ -9980,7 +9981,7 @@ document.getElementById('sellOrderForm').addEventListener('submit', async e => {
   ) {
     renderSellOrderPreview();
     if (ctx.quantity > 0 && !ctx.freight?.sufficient) {
-      gameAlert(`Nicht genügend Transportcontainer. Benötigt: ${num(ctx.quantity)}, verfügbar: ${num(ctx.freight?.available || 0)}`);
+      gameAlert(`Nicht genügend Transportcontainer. Benötigt: ${num(ctx.freight?.required || 0)}, verfügbar: ${num(ctx.freight?.available || 0)}`);
     }
     return;
   }
