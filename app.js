@@ -9243,6 +9243,13 @@ function renderEconomicEvents() {
     if (effects.operating_cost_factor) details.push(`Energie & Betrieb: ${economySignedPercent(effects.operating_cost_factor)}`);
     if (effects.retail_revenue_factor) details.push(`Einzelhandel: ${economySignedPercent(effects.retail_revenue_factor)}`);
     if (effects.production_output_factor) details.push(`Produktionsmenge: ${economySignedPercent(effects.production_output_factor)}`);
+    if (effects.demand_points && typeof effects.demand_points === 'object') {
+      Object.entries(effects.demand_points).forEach(([category,points]) => {
+        const demandLabel = (state.marketDemand || []).find(row => row.category === category)?.label || category;
+        const value = Number(points || 0);
+        details.push(`${demandLabel}: ${value > 0 ? '+' : ''}${num(value)} Nachfragepunkte`);
+      });
+    }
     return `<div class="kv"><span><strong>${event.name}</strong><br><small>${event.description}</small></span><strong>${details.join(' · ')}<br><small>bis ${end.toLocaleString(uiLocale(),{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})} Uhr</small></strong></div>`;
   }).join('');
 }
