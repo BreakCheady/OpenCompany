@@ -1,5 +1,11 @@
 # OpenCompany
 
+## Version 0.10.224 – Wirtschaftsphase und Nachfrage neu angeordnet
+
+- Die aktuelle Wirtschaftsphase steht im Finanzen-Tab ganz oben, vor Anleihen und Krediten.
+- Die Nachfrage nach Produktkategorie steht ganz oben in der Warenbörse und lässt sich über ihre Überschrift auf- und zuklappen. Sie ist zunächst zugeklappt; Aktualisierungen der Nachfragedaten behalten den geöffneten Zustand bei.
+- Anzeige, Countdown, Hilfe und Nachfragedaten verwenden ihre bisherigen Elemente und Berechnungen.
+
 ## Version 0.10.223 – Chat-Zähler und vereinfachte Unternehmensführung
 
 - Produktionsplaner entfernt, einschließlich Navigation, gespeicherter Planoberfläche und Verknüpfungen in Produktion, Enzyklopädie, Verträgen und Großaufträgen.
@@ -11,7 +17,7 @@
 
 Validierung: `node --check app.js`, `node --check guidance.js`, `node tests/chat-unread.cjs`, `node tests/progression.cjs` und `node tests/progression-ui.cjs`. Die Controllerprüfungen prüfen tatsächliche UI-Funktionen mit simulierten Daten, einschließlich paralleler Antworten, ausgeblendeter Tabs und Firmenwechsel. `tests/chat-unread.sql` prüft Lesestände, RLS, mehr als 100 Nachrichten, deaktivierte Boni und einen tatsächlichen Marktabschluss mit 5 % Gebühr; `tests/large-orders.sql` prüft die bestehenden Zuschlags-, Liefer- und Zeitregeln. Beide SQL-Suiten enden mit ROLLBACK. Eine visuelle Prüfung im angemeldeten Browser ist zusätzlich sinnvoll.
 
-**Aktuelle Version: 0.10.223**
+**Aktuelle Version: 0.10.224**
 
 OpenCompany ist eine browserbasierte Multiplayer-Unternehmenssimulation mit **GitHub Pages** als Frontend und **Supabase/PostgreSQL** als Backend.
 
