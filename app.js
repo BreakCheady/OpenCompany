@@ -9029,7 +9029,7 @@ function renderSpecializations() {
     const switchLocked = !!switchAt && switchAt.getTime() > Date.now();
     html += "<section class=\"specialization-slot\"><div class=\"panel-head\"><div><strong>Spezialisierung " +
       slot + "</strong><div class=\"muted\">Freischaltung ab Level " + required +
-      "</div></div><strong>" + (meta ? meta.name : locked ? "Gesperrt" : "Frei") + "</strong></div>";
+      "</div></div><strong>" + (meta ? meta.name + " · Stufe " + Number(current.specialization_level || 1) : locked ? "Gesperrt" : "Frei") + "</strong></div>";
     if (meta) {
       html += "<p>" + meta.description + "</p><p class=\"muted\">Wechsel: 100.000 OC$ · danach 14 Tage Sperrzeit." +
         (switchLocked ? " Wechsel wieder ab " + switchAt.toLocaleString(uiLocale()) + "." : "") + "</p>";
@@ -9098,6 +9098,11 @@ function renderLargeOrders() {
       Number(order.minimum_quality||1) + "</strong></div><div><span class=\"muted\">Lieferfrist</span><strong>" +
       order.delivery_hours + " Std.</strong></div><div><span class=\"muted\">Gebotsende</span><strong>" +
       new Date(order.bidding_ends_at).toLocaleString(uiLocale()) + "</strong></div></div>";
+    if (Number(order.early_bonus_rate || 0) > 0 && Number(order.early_bonus_hours || 0) > 0) {
+      html += "<div class=\"kv\"><span>Frühbonus</span><strong>+" +
+        num(Number(order.early_bonus_rate || 0) * 100) + " % bei vollständiger Lieferung innerhalb " +
+        num(order.early_bonus_hours) + " Std. nach Zuschlag</strong></div>";
+    }
     if (bid) html += "<div class=\"kv\"><span>Dein Gebot</span><strong>" + money(bid.price_per_unit) +
       " / Einheit · Q" + bid.offered_quality + " · " + bid.delivery_hours + " Std. · " + bid.status + "</strong></div>";
     if (bidding) {
