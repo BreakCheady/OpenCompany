@@ -923,6 +923,14 @@ const state = {
   contracts: [],
   globalEconomicEvents: [],
   companyEvents: [],
+  marketDemand: [],
+  marketDemandHistory: [],
+  marketPriceIndices: [],
+  marketPriceIndexHistory: [],
+  marketIndexDays: 7,
+  specializations: [],
+  largeOrders: [],
+  largeCustomerBids: [],
   companyDirectory: [],
   companyDebt: 0,
   companyValueChange: 0,
@@ -1066,21 +1074,44 @@ const globalEventFactor = key => (state.globalEconomicEvents || []).reduce((fact
   const value = Number(event?.effects?.[key] ?? 1);
   return factor * (Number.isFinite(value) && value > 0 ? value : 1);
 },1);
-const retailAveragePrice = unitCost =>
+const demandIndexForCategory = category =>
+  Number((state.marketDemand || []).find(row => row.category === category)?.demand_index || 100);
+const demandRetailFactor = category =>
+  Math.max(0.82, Math.min(1.18, 1 + (demandIndexForCategory(category) - 100) * 0.006));
+const specializationFactor = (key, category = null) => {
+  let factor = 1;
+  for (const row of state.specializations || []) {
+    const code = row.specialization_code;
+    if (code === 'production' && key === 'production_output') factor *= 1.05;
+    else if (code === 'production' && key === 'production_operating_cost') factor *= 0.95;
+    else if (code === 'retail' && key === 'retail_rate') factor *= 1.07;
+    else if (code === 'retail' && key === 'retail_price_effect') factor *= 1.03;
+    else if (code === 'logistics' && key === 'transport_container_use') factor *= 0.90;
+    else if (code === 'research' && key === 'research_operating_cost') factor *= 0.92;
+    else if (code === 'research' && key === 'patent_gain') factor *= 1.05;
+    else if (code === 'industry_electronics' && category === 'electronics' && key === 'production_output') factor *= 1.05;
+    else if (code === 'industry_electronics' && category === 'electronics' && key === 'production_operating_cost') factor *= 0.95;
+    else if (code === 'industry_electronics' && category === 'electronics' && key === 'retail_rate') factor *= 1.05;
+  }
+  return factor;
+};
+const retailAveragePrice = (unitCost, category = null) =>
   Math.round(
     Math.max(0, Number(unitCost || 0))
     * GAME_RULES.pricing.retailAverageCostMultiplier
     * Number(state.economyState?.retail_price_factor || 1)
+    * demandRetailFactor(category)
+    * specializationFactor('retail_price_effect', category)
     * 100
   ) / 100;
-const retailMinPrice = unitCost =>
-  Math.round(retailAveragePrice(unitCost) * GAME_RULES.pricing.retailMinAverageMultiplier * 100) / 100;
-const retailMaxPrice = unitCost =>
-  Math.round(retailAveragePrice(unitCost) * GAME_RULES.pricing.retailMaxAverageMultiplier * 100) / 100;
-const retailProfitFactor = (unitCost, unitPrice) => {
-  const average = retailAveragePrice(unitCost);
-  const minimum = retailMinPrice(unitCost);
-  const maximum = retailMaxPrice(unitCost);
+const retailMinPrice = (unitCost, category = null) =>
+  Math.round(retailAveragePrice(unitCost, category) * GAME_RULES.pricing.retailMinAverageMultiplier * 100) / 100;
+const retailMaxPrice = (unitCost, category = null) =>
+  Math.round(retailAveragePrice(unitCost, category) * GAME_RULES.pricing.retailMaxAverageMultiplier * 100) / 100;
+const retailProfitFactor = (unitCost, unitPrice, category = null) => {
+  const average = retailAveragePrice(unitCost, category);
+  const minimum = retailMinPrice(unitCost, category);
+  const maximum = retailMaxPrice(unitCost, category);
   const peakLow = average * (1 - GAME_RULES.pricing.retailPeakBand);
   const peakHigh = average * (1 + GAME_RULES.pricing.retailPeakBand);
   const price = Number(unitPrice || 0);
@@ -1090,26 +1121,26 @@ const retailProfitFactor = (unitCost, unitPrice) => {
   if (price <= peakHigh) return 1;
   return Math.max(0, Math.min(1, (maximum - price) / Math.max(0.000001, maximum - peakHigh)));
 };
-const retailEffectiveUnitRevenue = (unitCost, unitPrice) => {
+const retailEffectiveUnitRevenue = (unitCost, unitPrice, category = null) => {
   const price = Math.max(0, Number(unitPrice || 0));
-  return price * retailProfitFactor(unitCost, price) * globalEventFactor('retail_revenue_factor');
+  return price * retailProfitFactor(unitCost, price, category) * globalEventFactor('retail_revenue_factor');
 };
 
-function retailBreakEvenPrice(unitCost, extraCostPerUnit = 0) {
+function retailBreakEvenPrice(unitCost, extraCostPerUnit = 0, category = null) {
   const target = Math.max(0, Number(unitCost || 0) + Number(extraCostPerUnit || 0));
-  const min = retailMinPrice(unitCost);
-  const max = retailMaxPrice(unitCost);
+  const min = retailMinPrice(unitCost, category);
+  const max = retailMaxPrice(unitCost, category);
   if (!(target > 0) || !(max > min)) return 0;
   const steps = 1200;
   for (let i=1;i<steps;i+=1) {
     const price = min + (max-min)*(i/steps);
-    if (retailEffectiveUnitRevenue(unitCost,price) + 1e-9 >= target) return Math.round(price*100)/100;
+    if (retailEffectiveUnitRevenue(unitCost,price,category) + 1e-9 >= target) return Math.round(price*100)/100;
   }
   return 0;
 }
 
 function transportContainerFreight(quantity) {
-  const requested = Math.max(0, Number(quantity || 0));
+  const requested = Math.max(0, Number(quantity || 0)) * specializationFactor('transport_container_use');
   const container = state.products.find(product => product.name === 'Transportcontainer');
   if (!container || requested <= 0) {
     return { required: requested, available: 0, cost: 0, sufficient: requested <= 0 };
@@ -3603,6 +3634,13 @@ async function loadGameData() {
     sb.from('contracts').select('*').or(`seller_company_id.eq.${cid},buyer_company_id.eq.${cid}`).order('created_at',{ascending:false}),
     sb.from('global_economic_events').select('*').eq('status','active').gt('ends_at',new Date().toISOString()).order('started_at',{ascending:false}),
     sb.from('company_events').select('*').eq('company_id',cid).eq('status','pending').gt('expires_at',new Date().toISOString()).order('created_at',{ascending:false}),
+    sb.from('market_demand').select('*').order('label'),
+    sb.from('market_demand_history').select('*').gte('demand_date',new Date(Date.now()-7*86400000).toISOString().slice(0,10)).order('demand_date',{ascending:true}),
+    sb.rpc('get_market_price_indices'),
+    sb.from('market_price_index_history').select('*').gte('index_date',new Date(Date.now()-30*86400000).toISOString().slice(0,10)).order('index_date',{ascending:true}),
+    sb.rpc('get_company_specializations',{p_company_id:cid}),
+    sb.from('large_customer_orders').select('*').order('published_at',{ascending:false}).limit(100),
+    sb.from('large_customer_bids').select('*').eq('company_id',cid).order('created_at',{ascending:false}).limit(100),
     sb.rpc('list_companies'),
     sb.rpc('get_company_debt', { p_company_id: cid }),
     sb.rpc('get_bond_dashboard', { p_company_id: cid }),
@@ -3613,7 +3651,7 @@ async function loadGameData() {
     sb.from('game_economy_state').select('*').eq('id',1).single()
   ]);
 
-  const labels = ['Produkte','Alle Produkte','Produktlager','Materialien','Materiallager','Rezepte','Gebäudetypen','Gebäude','Produktionen','Handelsverkäufe','Finanzen','Marktübersicht','Eigene Marktorders','Marktkäufe','Verträge','Globale Ereignisse','Unternehmensereignisse','Firmenverzeichnis','Kreditschulden','Anleihen','Unternehmenswert-Verlauf','Unternehmensranking','Lagerstatus','OC-Boost','Wirtschaftsphase'];
+  const labels = ['Produkte','Alle Produkte','Produktlager','Materialien','Materiallager','Rezepte','Gebäudetypen','Gebäude','Produktionen','Handelsverkäufe','Finanzen','Marktübersicht','Eigene Marktorders','Marktkäufe','Verträge','Globale Ereignisse','Unternehmensereignisse','Nachfrage','Nachfrage-Verlauf','Marktpreis-Indizes','Index-Verlauf','Spezialisierungen','Großaufträge','Großauftragsgebote','Firmenverzeichnis','Kreditschulden','Anleihen','Unternehmenswert-Verlauf','Unternehmensranking','Lagerstatus','OC-Boost','Wirtschaftsphase'];
   const errors = results.map((r,i)=>r.error ? { label: labels[i], error:r.error } : null).filter(Boolean);
   if (errors.length) {
     console.error(errors);
@@ -3622,7 +3660,7 @@ async function loadGameData() {
   }
   clearGameDataError();
 
-  const [products, allProducts, inventory, materials, materialInventory, recipes, buildingTypes, buildings, productionJobs, retailSaleJobs, tx, marketSummary, ownMarketOrders, marketTrades, contracts, globalEvents, companyEvents, directory, companyDebt, bondDashboard, valuationHistory, companyRanking, storageStatus, ocbStatus, economyState] = results;
+  const [products, allProducts, inventory, materials, materialInventory, recipes, buildingTypes, buildings, productionJobs, retailSaleJobs, tx, marketSummary, ownMarketOrders, marketTrades, contracts, globalEvents, companyEvents, marketDemand, marketDemandHistory, marketPriceIndices, marketPriceIndexHistory, specializations, largeOrders, largeCustomerBids, directory, companyDebt, bondDashboard, valuationHistory, companyRanking, storageStatus, ocbStatus, economyState] = results;
   state.products = products.data;
   state.allProducts = allProducts.data;
   state.inventory = inventory.data;
@@ -3642,6 +3680,13 @@ async function loadGameData() {
   state.contracts = contracts.data;
   state.globalEconomicEvents = globalEvents.data || [];
   state.companyEvents = companyEvents.data || [];
+  state.marketDemand = marketDemand.data || [];
+  state.marketDemandHistory = marketDemandHistory.data || [];
+  state.marketPriceIndices = marketPriceIndices.data || [];
+  state.marketPriceIndexHistory = marketPriceIndexHistory.data || [];
+  state.specializations = specializations.data || [];
+  state.largeOrders = largeOrders.data || [];
+  state.largeCustomerBids = largeCustomerBids.data || [];
   state.companyDirectory = directory.data || [];
   state.companyDebt = Number(companyDebt.data || 0);
   state.bondDashboard = bondDashboard.data || null;
@@ -4268,6 +4313,7 @@ function currentProductionContext() {
         Math.max(1, Math.floor(baseProductRate * multiplier))
         * Number(state.economyState?.production_output_factor || 1)
         * globalEventFactor('production_output_factor')
+        * specializationFactor('production_output', product?.category)
       )
     : 0;
 
@@ -4513,7 +4559,8 @@ function productionPlan(unitsOverride = null) {
   const operatingRate = operatingCostRate(ctx.buildingType);
   const operatingEfficiency = operatingEfficiencyFactor(ctx.building?.level || 1);
   const operatingCostBasis = inputInventoryValue + baseProductionCost + personnelCost;
-  const operatingCost = operatingCostBasis * operatingRate * operatingEfficiency * economyCostFactor;
+  const operatingCost = operatingCostBasis * operatingRate * operatingEfficiency * economyCostFactor
+    * specializationFactor('production_operating_cost', ctx.product?.category);
   const productionCost =
     (procurementCost + baseProductionCost + personnelCost)
     * economyCostFactor
@@ -5199,21 +5246,25 @@ function retailSaleContext() {
 
   const multiplier = building ? buildingLevelMultiplier(building.level) : 1;
   const baseProductRetailRate = Number(product?.base_retail_rate || 0);
-  const baseUnitsPerHour = buildingType && building && baseProductRetailRate > 0
+  const rawBaseUnitsPerHour = buildingType && building && baseProductRetailRate > 0
     ? Math.max(1, Math.floor(baseProductRetailRate * multiplier))
+    : 0;
+  const demandFactor = demandRetailFactor(product?.category);
+  const retailSpecFactor = specializationFactor('retail_rate', product?.category);
+  const baseUnitsPerHour = rawBaseUnitsPerHour;
+  const unitsPerHour = rawBaseUnitsPerHour > 0
+    ? Math.max(1, Math.floor(rawBaseUnitsPerHour * demandFactor * retailSpecFactor))
     : 0;
 
   const productionCost = Number(inventory?.average_unit_cost || 0);
-  const referencePrice = retailAveragePrice(productionCost);
-  const minimumPrice = retailMinPrice(productionCost);
-  const maximumPrice = retailMaxPrice(productionCost);
+  const referencePrice = retailAveragePrice(productionCost, product?.category);
+  const minimumPrice = retailMinPrice(productionCost, product?.category);
+  const maximumPrice = retailMaxPrice(productionCost, product?.category);
   const priceInput = document.getElementById('retailPrice');
   const enteredPrice = Number(priceInput?.value || 0);
   const price = enteredPrice > 0 ? enteredPrice : referencePrice;
-  const profitFactor = retailProfitFactor(productionCost, price);
-  const effectiveUnitRevenue = retailEffectiveUnitRevenue(productionCost, price);
-  const demandFactor = 1;
-  const unitsPerHour = baseUnitsPerHour;
+  const profitFactor = retailProfitFactor(productionCost, price, product?.category);
+  const effectiveUnitRevenue = retailEffectiveUnitRevenue(productionCost, price, product?.category);
 
   return {
     product, inventory, buildingType, building, runningJob,
@@ -5241,8 +5292,8 @@ function retailBreakEvenMetrics(ctx, quantity) {
   return {
     operatingCost,
     maintenanceAllocation,
-    operatingBreakEven:retailBreakEvenPrice(ctx.productionCost,operatingExtraPerUnit),
-    fullBreakEven:retailBreakEvenPrice(ctx.productionCost,fullExtraPerUnit)
+    operatingBreakEven:retailBreakEvenPrice(ctx.productionCost,operatingExtraPerUnit,ctx.product?.category),
+    fullBreakEven:retailBreakEvenPrice(ctx.productionCost,fullExtraPerUnit,ctx.product?.category)
   };
 }
 
@@ -7064,9 +7115,11 @@ function renderResearch() {
     .sort((a,b) => Number(b.building.level || 1) - Number(a.building.level || 1))[0] || null;
   const researchOperatingCost = researchBuilding
     ? investmentValue * operatingCostRate(researchBuilding.type) * operatingEfficiencyFactor(researchBuilding.building.level) * operatingEconomyFactor()
+      * specializationFactor('research_operating_cost', selected?.category)
     : 0;
-  const patentMin=investmentValue*0.80;
-  const patentMax=investmentValue*1.10;
+  const patentSpecFactor = specializationFactor('patent_gain', selected?.category);
+  const patentMin=investmentValue*0.80*patentSpecFactor;
+  const patentMax=investmentValue*1.10*patentSpecFactor;
   valid = valid && !!researchBuilding && Number(state.company?.cash_balance || 0) >= researchOperatingCost;
 
   document.getElementById('researchUnitsAvailable').textContent=`${num(availableWhole)} Forschungseinheiten`;
