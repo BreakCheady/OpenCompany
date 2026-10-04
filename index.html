@@ -5,14 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta name="theme-color" content="#0d2d55">
   <title>OpenCompany</title>
-  <link rel="icon" type="image/png" href="favicon.png?v=0.10.179">
-  <link rel="shortcut icon" href="favicon.ico?v=0.10.179">
-  <link rel="icon" type="image/x-icon" href="favicon.ico?v=0.10.179">
-  <link rel="manifest" href="/manifest.webmanifest?v=0.10.179">
-  <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=0.10.179">
+  <link rel="icon" type="image/png" href="favicon.png?v=0.10.220">
+  <link rel="shortcut icon" href="favicon.ico?v=0.10.220">
+  <link rel="icon" type="image/x-icon" href="favicon.ico?v=0.10.220">
+  <link rel="manifest" href="/manifest.webmanifest?v=0.10.220">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=0.10.220">
   <meta name="application-name" content="OpenCompany">
   <meta name="mobile-web-app-capable" content="yes">
-  <link rel="stylesheet" href="style.css?v=0.10.179">
+  <link rel="stylesheet" href="style.css?v=0.10.220">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     .password-field{display:flex;align-items:center;gap:.5rem}
@@ -2078,6 +2078,29 @@
       .chat-message-body{font-size:.94rem}
     }
 
+
+    .demand-dashboard{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:.75rem}
+    .demand-card{border:1px solid #dfe6ef;border-radius:12px;padding:.85rem;background:#fff}
+    .demand-card-head{display:flex;align-items:center;justify-content:space-between;gap:.75rem}
+    .demand-card-value{font-size:1.35rem;font-weight:800}
+    .demand-trend{font-weight:800}
+    .demand-trend.rising{color:#15803d}.demand-trend.falling{color:#b91c1c}.demand-trend.stable{color:#64748b}
+    .demand-sparkline{display:flex;align-items:flex-end;gap:3px;height:38px;margin-top:.65rem}
+    .demand-sparkline span{flex:1;min-width:3px;border-radius:3px;background:#94a3b8}
+    .market-price-indices,.specializations-grid,.large-orders-list{display:grid;gap:.75rem}
+    .market-index-card,.specialization-slot,.large-order-card{border:1px solid #dfe6ef;border-radius:12px;padding:1rem;background:#fff}
+    .market-index-card-head,.large-order-head{display:flex;align-items:flex-start;justify-content:space-between;gap:.75rem}
+    .market-index-range{display:flex;gap:.4rem}
+    .market-index-range-btn.active{background:#1769d2;color:#fff;border-color:#1769d2}
+    .market-index-chart{display:flex;align-items:flex-end;gap:3px;height:46px;margin-top:.7rem}
+    .market-index-chart span{flex:1;min-width:3px;border-radius:3px;background:#94a3b8}
+    .specialization-options{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:.6rem;margin-top:.75rem}
+    .specialization-option{border:1px solid #dfe6ef;border-radius:10px;padding:.75rem;background:#f8fafc}
+    .specialization-option button{margin-top:.55rem;width:100%}
+    .large-order-meta{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:.5rem;margin:.8rem 0}
+    .large-order-meta div{padding:.55rem;border-radius:8px;background:#f8fafc}
+    .large-order-bid-form,.large-order-delivery-form{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:.6rem;align-items:end;margin-top:.75rem}
+
 </style>
   <script>
     if ('serviceWorker' in navigator) {
@@ -2098,8 +2121,10 @@
       <button class="nav-item" data-view="storage">Lager</button>
       <button class="nav-item" data-view="market">Warenbörse</button>
       <button class="nav-item" data-view="contracts">Verträge</button>
+      <button class="nav-item" data-view="largeOrders">Großaufträge</button>
       <button class="nav-item" data-view="finance">Finanzen</button>
       <button class="nav-item" data-view="research">Forschung</button>
+      <button class="nav-item" data-view="specializations">Spezialisierungen</button>
       <button class="nav-item" data-view="encyclopedia">Enzyklopädie</button>
       <button class="nav-item" data-view="settings">Einstellungen</button>
       <button id="logoutBtn" class="nav-item nav-logout" type="button" aria-label="Abmelden" title="Abmelden">Abmelden</button>
@@ -2189,6 +2214,16 @@
             <button type="button" class="economy-phase-help" onclick="showEconomyPhaseHelp()" aria-label="Wirtschaftsphase erklären" title="Wirtschaftsphase erklären">?</button>
           </div>
           <strong id="economyCountdown" class="economy-phase-countdown">Nächste Phasenprüfung: Sonntag, 12:00 Uhr</strong>
+        </article>
+
+        <article class="panel">
+          <div class="panel-head">
+            <div>
+              <h2>Nachfrage nach Produktkategorie</h2>
+              <p class="muted">Aktueller Nachfrageindex mit Trend und Verlauf der letzten 7 Tage.</p>
+            </div>
+          </div>
+          <div id="demandDashboard" class="demand-dashboard"></div>
         </article>
 
         <div class="grid two">
@@ -2507,6 +2542,20 @@
           </section>
         </article>
 
+        <article class="panel">
+          <div class="panel-head">
+            <div>
+              <h2>Marktpreis-Indizes</h2>
+              <p class="muted">Volumengewichtete tatsächlich ausgeführte Verkäufe · Spielergewicht 1,0 · NPC-Gewicht 0,25.</p>
+            </div>
+            <div class="market-index-range">
+              <button type="button" class="ghost market-index-range-btn active" data-days="7">7 Tage</button>
+              <button type="button" class="ghost market-index-range-btn" data-days="30">30 Tage</button>
+            </div>
+          </div>
+          <div id="marketPriceIndices" class="market-price-indices"></div>
+        </article>
+
         <article class="panel my-market-orders-panel">
           <div class="panel-head my-market-orders-head">
             <div>
@@ -2602,6 +2651,31 @@
         </div>
       </div>
 
+
+
+      <div id="largeOrders" class="view">
+        <article class="panel">
+          <div class="panel-head">
+            <div>
+              <h2>Großaufträge</h2>
+              <p class="muted">Systemgenerierte Ausschreibungen. Angebote sind 24 Stunden möglich; bewertet werden Preis 50 %, Qualität 25 % und Liefergeschwindigkeit 25 %.</p>
+            </div>
+          </div>
+          <div id="largeOrdersContent"></div>
+        </article>
+      </div>
+
+      <div id="specializations" class="view">
+        <article class="panel">
+          <div class="panel-head">
+            <div>
+              <h2>Unternehmens-Spezialisierungen</h2>
+              <p class="muted">Der erste Platz wird ab Level 8, der zweite ab Level 15 freigeschaltet. Maximal zwei Spezialisierungen sind gleichzeitig aktiv.</p>
+            </div>
+          </div>
+          <div id="specializationsContent"></div>
+        </article>
+      </div>
 
       <div id="research" class="view">
         <article class="panel">
@@ -2709,7 +2783,7 @@
           <h2>Einstellungen</h2>
           <div class="kv">
             <span>Version</span>
-            <strong>0.10.219</strong>
+            <strong>0.10.220</strong>
           </div>
           <div class="kv settings-language-row">
             <span>Sprache</span>
