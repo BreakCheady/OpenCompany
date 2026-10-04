@@ -8,9 +8,7 @@
   const STEPS=['overview','choose','materials','produce','claim','sell','review'];
   const LESSONS=[
     {id:'research_contracts',level:5,title:'Forschung und Verträge',text:'Forschung entwickelt die Qualität deiner Produkte. Verträge vereinbaren Preis, Menge und gegebenenfalls wiederkehrende Lieferungen.',article:'research'},
-    {id:'specialization_1',level:8,title:'Deine erste Spezialisierung',text:'Vergleiche allgemeine Vorteile mit Branchenboni. Die erste Auswahl ist kostenlos; spätere Wechsel kosten Geld und unterliegen einer Wartefrist.',article:'specializations'},
-    {id:'bonds',level:10,title:'Anleihen und Verpflichtungen',text:'Prüfe Laufzeit, Zinsen und die später fällige Rückzahlung, bevor du eine Anleihe eingehst.',article:'bonds'},
-    {id:'specialization_2',level:15,title:'Zwei Vorteile kombinieren',text:'Der zweite Spezialisierungsplatz ist frei. Vorteile wirken nur auf passende Produkte; dieselbe Spezialisierung kann nicht doppelt gewählt werden.',article:'specializations'}
+    {id:'bonds',level:10,title:'Anleihen und Verpflichtungen',text:'Prüfe Laufzeit, Zinsen und die später fällige Rückzahlung, bevor du eine Anleihe eingehst.',article:'bonds'}
   ];
   const num=v=>Math.max(0,Number(v)||0);
   function suggest(data){

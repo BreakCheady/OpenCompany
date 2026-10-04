@@ -1,30 +1,17 @@
 # OpenCompany
 
-## Version 0.10.222 – Produktionsplanung, Einstieg und Branchen
+## Version 0.10.223 – Chat-Zähler und vereinfachte Unternehmensführung
 
-- Neuer Produktionsketten-Planer mit rekursiven Rezepten, gemeinsamem Bestandsabgleich, Qualitätsprüfung, laufenden Zugängen, Gebäudebelegung, Chargen bis 24 Stunden und einem optionalen Zieltermin.
-- Eigenfertigung und Zukauf lassen sich pro Produkt wählen. Der Variantenvergleich berechnet Kosten und Termine des gesamten Zielplans. Marktpreise werden bewusst aktualisiert; Fehlmengen und unvollständige Schätzungen bleiben sichtbar.
-- Pläne können pro Firma gespeichert, erneut geöffnet, aktualisiert und gelöscht werden. Sie reservieren keine Ware und starten keine Aktionen automatisch. Zugang aus Navigation, Rezeptrechner, Produktionsmaske und Produkt-Lieferaufgaben.
-- Freiwilliger Einstieg mit sieben Schritten, gespeicherten Fortschritten, Pause/Fortsetzen und Lernkarten auf Level 5/8/10/15. Tatsächliche Produktion, Abholung und Verkäufe werden erkannt. Der Rundgang vergibt keine zusätzlichen Geld-, XP- oder OCB-Prämien.
-- Vier zusätzliche Branchen: Lebensmittel (Verkaufsrate und Verkaufsbetriebskosten), Automobil (Produktionsmenge und Produktionsbetriebskosten), Chemie (Produktionsbetriebskosten und Patentgewinn für Chemie-Produktforschung) und Textil (Verkaufsrate und Preiswirkung). Branchenboni gelten ausschließlich für die jeweilige Produktkategorie. Die bestehenden Plätze, Auswahl-, Wechsel- und Ausbaukosten bleiben erhalten.
-- Produktions- und Einzelhandelsvorschauen verwenden die tatsächlich auf dem Server angewandte Gebäudeleistung. Wettbewerbe sind nicht Bestandteil dieser Version.
+- Produktionsplaner entfernt, einschließlich Navigation, gespeicherter Planoberfläche und Verknüpfungen in Produktion, Enzyklopädie, Verträgen und Großaufträgen.
+- Spezialisierungen und Branchenboni entfernt. Neue Produktionen, Handel, Forschung und Verträge verwenden die normalen Regeln. Frühere Daten und Finanzbewegungen bleiben erhalten; Auswahl und Ausbau sind serverseitig gesperrt.
+- Der Chat-Button zeigt die Summe ungelesener empfangener Direktnachrichten (einschließlich Personal Assistent). Öffentliche Gruppen zählen ausschließlich neben dem jeweiligen Chatraum.
+- Kontakte und Räume zeigen ihre eigene Anzahl ungelesener Nachrichten. Eigene und gelöschte Nachrichten zählen nicht. Beim Anzeigen einer Unterhaltung wird deren Lesestand dauerhaft gespeichert; das bloße Öffnen der Übersicht liest keine anderen Chats.
+- Hintergrundaktualisierung über Realtime und eine Sicherheitsabfrage alle 15 Sekunden. Verdeckte Browser-Tabs und nicht geöffnete Unterhaltungen werden nicht als gelesen markiert. Neu eintreffende Nachrichten nach dem angezeigten Stand bleiben ungelesen.
+- Der freiwillige Einstieg bleibt erhalten; seine Spezialisierungslektionen und Planerverweise wurden entfernt. Gebäudeleistung, Großaufträge und Wirtschaftsereignisse bleiben verfügbar.
 
-Validierung: `node --check app.js`, `node tests/progression.cjs`, `node tests/progression-ui.cjs` und `node tests/specializations.cjs`. Die Controllerprüfungen testen den geführten Ablauf, Speichern und Kontextverknüpfungen ohne echte Spielaktionen. `tests/progression.sql` prüft tatsächliche Produktion, Verkaufsbetriebskosten, Forschung, Zugriffsschutz und Unternehmensreset mit abschließendem ROLLBACK; `tests/specializations.sql` prüft die bestehenden Vertrags- und Spezialisierungsregeln. Diese Tests ersetzen keine visuelle Prüfung in einer angemeldeten Spielsession.
+Validierung: `node --check app.js`, `node --check guidance.js`, `node tests/chat-unread.cjs`, `node tests/progression.cjs` und `node tests/progression-ui.cjs`. Die Controllerprüfungen prüfen tatsächliche UI-Funktionen mit simulierten Daten, einschließlich paralleler Antworten, ausgeblendeter Tabs und Firmenwechsel. `tests/chat-unread.sql` prüft Lesestände, RLS, mehr als 100 Nachrichten, deaktivierte Boni und einen tatsächlichen Marktabschluss mit 5 % Gebühr; `tests/large-orders.sql` prüft die bestehenden Zuschlags-, Liefer- und Zeitregeln. Beide SQL-Suiten enden mit ROLLBACK. Eine visuelle Prüfung im angemeldeten Browser ist zusätzlich sinnvoll.
 
-## Version 0.10.221 – Spezialisierungen und Großaufträge
-
-- Alle sieben Spezialisierungen sind auswählbar; zwei Plätze ab Unternehmenslevel 8/15.
-- Ausbau auf II kostet 50.000 OC$ und dauert 24 Stunden; III kostet 100.000 OC$ und dauert 48 Stunden. Boni gelten erst nach Abschluss, ohne XP-Kosten. Ein laufender Ausbau sperrt den Wechsel.
-- Elektronikboni: 2/4/6 %. Andere bestehende Produktions-, Einzelhandels-, Logistik- und Forschungsboni wachsen auf II/III um 25/50 % ihres Ausgangswerts.
-- Handelsspezialisten senken die Basisgebühr von 5 % auf 4,5/4/3,5 % und erhalten eine eigene 30-Tage-Handelsanalyse in der Warenbörse.
-- Vertragsspezialisten senken Liefervertragsstrafen um 10/20/30 %. Logistik reduziert bei fehlenden Transportcontainern die Strafe zusätzlich um 10/15/20 %; der Mengencheck berücksichtigt denselben Containerbonus wie die tatsächliche Lieferung.
-- Großaufträge bleiben ohne Spezialisierungsbonus. Bewertung: Preis 50 %, Qualität 25 %, Liefergeschwindigkeit 25 %; Geschwindigkeit wird relativ zum schnellsten gültigen Angebot bewertet.
-- Neue Großaufträge erscheinen ausschließlich um 06:00 Uhr Europe/Berlin und füllen freie Plätze bis höchstens drei laufende Aufträge. Angebotsfrist: 24 Stunden. Zuschläge und Fristabläufe werden minütlich geprüft.
-- Eilaufträge zahlen bei vollständiger fristgerechter Lieferung zusätzlich 20 %. Teillieferungen werden erst bei vollständigem Abschluss vergütet. Die Großauftragsstrafe bleibt 30 % des Vertragswertes.
-
-Validierung: `node --check app.js` und, vom Repository-Verzeichnis aus, `node tests/specializations.cjs`. `tests/specializations.sql` enthält Datenbankprüfungen mit abschließendem ROLLBACK; die Zeitprüfung wird nur innerhalb der Testtransaktion ersetzt. Die Tests prüfen Freischaltungen, Berechtigungen, Kosten, Fertigstellung, Gebühren, tatsächliche Zuschläge und Lieferungen, Logistik sowie Sommer-/Winterzeit und Auftragskapazität.
-
-**Aktuelle Version: 0.10.222**
+**Aktuelle Version: 0.10.223**
 
 OpenCompany ist eine browserbasierte Multiplayer-Unternehmenssimulation mit **GitHub Pages** als Frontend und **Supabase/PostgreSQL** als Backend.
 
@@ -45,6 +32,8 @@ OpenCompany ist eine browserbasierte Multiplayer-Unternehmenssimulation mit **Gi
 - Mehrfachauswahl und zentraler Kauf von Marktangeboten
 - Stornierbare Marktorders
 - Einzelhandel mit frei wählbaren Verkaufspreisen und zeitbasierten Verkäufen
+- Chat mit Direktnachrichten, öffentlichen Räumen und persistenten Zählern für ungelesene Nachrichten
+- Freiwilliger geführter Einstieg mit speicherbarem Fortschritt
 - Direkte Verträge zwischen Spielerunternehmen
 - Finanzbewegungen mit Tages-, Wochen- und Monatsauswertung
 - Anleihen- und Kreditsystem zwischen Unternehmen
@@ -66,6 +55,8 @@ Die wichtigsten Dateien sind:
 - `app.js` – Spiellogik im Browser, Datenladen, Rendering und RPC-Aufrufe
 - `config.js` – Supabase-Projektkonfiguration
 - `opencompany-logo.png` – OpenCompany-Logo
+
+- `guidance.js` – freiwilliger Einstieg anhand tatsächlicher Spielaktionen
 
 Das Frontend verwendet `@supabase/supabase-js` direkt im Browser.
 

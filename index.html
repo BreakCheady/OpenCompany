@@ -5,14 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta name="theme-color" content="#0d2d55">
   <title>OpenCompany</title>
-  <link rel="icon" type="image/png" href="favicon.png?v=0.10.222">
-  <link rel="shortcut icon" href="favicon.ico?v=0.10.222">
-  <link rel="icon" type="image/x-icon" href="favicon.ico?v=0.10.222">
-  <link rel="manifest" href="/manifest.webmanifest?v=0.10.222">
-  <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=0.10.222">
+  <link rel="icon" type="image/png" href="favicon.png?v=0.10.223">
+  <link rel="shortcut icon" href="favicon.ico?v=0.10.223">
+  <link rel="icon" type="image/x-icon" href="favicon.ico?v=0.10.223">
+  <link rel="manifest" href="/manifest.webmanifest?v=0.10.223">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=0.10.223">
   <meta name="application-name" content="OpenCompany">
   <meta name="mobile-web-app-capable" content="yes">
-  <link rel="stylesheet" href="style.css?v=0.10.222">
+  <link rel="stylesheet" href="style.css?v=0.10.223">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     .password-field{display:flex;align-items:center;gap:.5rem}
@@ -1120,7 +1120,7 @@
       .oc-select-option{min-height:46px;padding:.7rem .8rem}
     }
   
-    /* v0.10.222 – Nachfrage, Indizes, Spezialisierungen und Großaufträge */
+    /* v0.10.223 – Nachfrage, Indizes und Großaufträge */
     .app-shell{
       display:block!important;
       min-height:100dvh!important;
@@ -2087,41 +2087,32 @@
     .demand-trend.rising{color:#15803d}.demand-trend.falling{color:#b91c1c}.demand-trend.stable{color:#64748b}
     .demand-sparkline{display:flex;align-items:flex-end;gap:3px;height:38px;margin-top:.65rem}
     .demand-sparkline span{flex:1;min-width:3px;border-radius:3px;background:#94a3b8}
-    .specialization-upgrade{padding:.75rem;margin:.75rem 0;border:1px solid var(--border,#d7dee8);border-radius:.5rem}.trade-analysis .table-scroll{overflow-x:auto}
-    .market-price-indices,.specializations-grid,.large-orders-list{display:grid;gap:.75rem}
-    .market-index-card,.specialization-slot,.large-order-card{border:1px solid #dfe6ef;border-radius:12px;padding:1rem;background:#fff}
+    .market-price-indices,.large-orders-list{display:grid;gap:.75rem}
     .market-index-card-head,.large-order-head{display:flex;align-items:flex-start;justify-content:space-between;gap:.75rem}
     .market-index-range{display:flex;gap:.4rem}
     .market-index-range-btn.active{background:#1769d2;color:#fff;border-color:#1769d2}
     .market-index-chart{display:flex;align-items:flex-end;gap:3px;height:46px;margin-top:.7rem}
     .market-index-chart span{flex:1;min-width:3px;border-radius:3px;background:#94a3b8}
-    .specialization-options{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:.6rem;margin-top:.75rem}
-    .specialization-option{border:1px solid #dfe6ef;border-radius:10px;padding:.75rem;background:#f8fafc}
-    .specialization-option button{margin-top:.55rem;width:100%}
     .large-order-meta{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:.5rem;margin:.8rem 0}
     .large-order-meta div{padding:.55rem;border-radius:8px;background:#f8fafc}
     .large-order-bid-form,.large-order-delivery-form{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:.6rem;align-items:end;margin-top:.75rem}
 
-    /* Production planning and voluntary onboarding */
-    .chain-inputs{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:.8rem}
-    .chain-summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(185px,1fr));gap:.75rem;margin:1rem 0}
-    .chain-summary>div{display:grid;gap:.3rem;padding:.9rem;background:#edf4fc;border:1px solid #d6e4f4;border-radius:10px}
-    .chain-summary span{font-size:.85rem;color:#52647a}.chain-summary strong{font-size:1.05rem}
-    .chain-table{overflow-x:auto}.chain-table table{min-width:820px;width:100%}.chain-table td{vertical-align:top}
-    .chain-table small{display:block;max-width:270px;margin:.3rem 0;font-size:.8rem;line-height:1.4}
-    .chain-table button{margin-top:.5rem}.chain-mode{font-size:.8rem;display:grid;gap:.3rem;min-width:155px}
-    .chain-steps{list-style:none;padding:0}.chain-step,.saved-chain{display:flex;justify-content:space-between;gap:1rem;align-items:center;border:1px solid #dfe6ef;border-radius:10px;padding:.8rem;margin:.6rem 0}
-    .chain-step p{margin:.3rem 0}.chain-step small{color:#52647a}.chain-issues{padding-left:1.2rem;color:#a12828}
-    .saved-chain>div,.guidance-actions{display:flex;flex-wrap:wrap;align-items:center;gap:.5rem}.guidance-actions{margin:.7rem 0}
+    /* Voluntary onboarding */
+    .guidance-actions{display:flex;flex-wrap:wrap;align-items:center;gap:.5rem}.guidance-actions{margin:.7rem 0}
     .guidance-layout{display:grid;grid-template-columns:minmax(210px,1fr) minmax(0,2fr);gap:1.2rem}
     .guidance-steps{list-style:none;padding:0;margin:0}.guidance-steps li{padding:.45rem .6rem;color:#657286;border-left:3px solid #d9e2ed;font-size:.87rem}
     .guidance-steps .done{color:#167d48}.guidance-steps .current{border-color:#1769d2;color:#1255a4;background:#edf4fc;font-weight:700}
     .guidance-current h3{margin-top:0}.guidance-lessons{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:.75rem;margin-top:1rem}
     .guidance-lesson,.guidance-result{border:1px solid #dfe6ef;background:#f8fafc;border-radius:10px;padding:.85rem}
-    .specialization-impact{font-size:.85rem;margin:.5rem 0}.specialization-impact summary{cursor:pointer;color:#1255a4}
-    .specialization-impact ul{padding-left:1rem}.specialization-impact li{margin:.3rem 0}
-    @media(max-width:650px){.guidance-layout{grid-template-columns:1fr}.chain-step,.saved-chain{align-items:flex-start;flex-direction:column}.chain-inputs{grid-template-columns:1fr}.guidance-actions>button{max-width:100%;white-space:normal}}
 
+    @media(max-width:650px){.guidance-layout{grid-template-columns:1fr}.guidance-actions>button{max-width:100%;white-space:normal}}
+
+    .header-chat-btn{display:inline-flex;align-items:center;gap:7px}
+    .chat-unread-badge{display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;min-width:22px;min-height:22px;padding:2px 6px;border-radius:999px;background:#dc2626;color:#fff;font-size:.75rem;font-weight:800;line-height:1.2;font-variant-numeric:tabular-nums}
+    .chat-unread-badge.hidden{display:none}
+    .chat-nav-button{position:relative}
+    .chat-nav-button .chat-unread-badge{margin-left:auto}
+    @media(max-width:760px){.chat-layout.chat-has-selection .chat-nav-button .chat-unread-badge{position:absolute;top:0;right:0;margin:0;min-width:17px;min-height:17px;padding:2px 4px;font-size:.65rem}}
 </style>
   <script>
     if ('serviceWorker' in navigator) {
@@ -2139,14 +2130,12 @@
     <nav>
       <button class="nav-item active" data-view="dashboard">Dashboard</button>
       <button class="nav-item" data-view="production">Gebäude</button>
-      <button class="nav-item" data-view="planner">Produktionsplaner</button>
       <button class="nav-item" data-view="storage">Lager</button>
       <button class="nav-item" data-view="market">Warenbörse</button>
       <button class="nav-item" data-view="contracts">Verträge</button>
       <button class="nav-item" data-view="largeOrders">Großaufträge</button>
       <button class="nav-item" data-view="finance">Finanzen</button>
       <button class="nav-item" data-view="research">Forschung</button>
-      <button class="nav-item" data-view="specializations">Spezialisierungen</button>
       <button class="nav-item" data-view="encyclopedia">Enzyklopädie</button>
       <button class="nav-item" data-view="settings">Einstellungen</button>
       <button id="logoutBtn" class="nav-item nav-logout" type="button" aria-label="Abmelden" title="Abmelden">Abmelden</button>
@@ -2167,7 +2156,7 @@
       </div>
       <div class="topbar-actions">
         <button id="headerGuidanceBtn" class="ghost hidden" type="button" onclick="showCompanyGuidance()">Einstieg</button>
-        <button id="headerChatBtn" class="header-chat-btn hidden" type="button">Chat</button>
+        <button id="headerChatBtn" class="header-chat-btn hidden" type="button"><span>Chat</span><span id="headerChatUnread" class="chat-unread-badge hidden" aria-live="polite"></span></button>
         <button id="headerCompanyAvatarBtn" class="header-company-avatar hidden" type="button" aria-label="Eigenes Unternehmensprofil öffnen" title="Eigenes Unternehmensprofil">
           <span id="headerCompanyAvatarFallback" aria-hidden="true">?</span>
           <img id="headerCompanyAvatarImage" class="hidden" alt="">
@@ -2411,7 +2400,6 @@
           <div id="productionRequirement" class="stack"></div>
           <h3>Produktionsrezept</h3>
           <div id="productionRecipe" class="table-wrap"></div>
-          <button type="button" class="ghost" onclick="openCurrentProductionChain()">Gesamte Produktionskette planen</button>
         </article>
 
         <article class="panel hidden" id="retailControlPanel">
@@ -2690,34 +2678,6 @@
         </article>
       </div>
 
-      <div id="planner" class="view">
-        <article class="panel">
-          <div class="panel-head"><div><h2>Produktionsketten-Planer</h2><p class="muted">Ziel wählen, Materialbedarf verstehen und Schritte bewusst ausführen.</p></div></div>
-          <div class="chain-inputs">
-            <label>Dein Zielprodukt<select id="chainProduct" onchange="state.plannerChoices={};state.plannerSelectedPlanId=null;document.getElementById('chainQuality').value=productQuality(state.products.find(p=>p.id===this.value));updateProductionChain()"></select></label>
-            <label>Zielmenge<input id="chainQuantity" type="number" min="1" max="1000000000" step="1" value="1" oninput="updateProductionChain()"></label>
-            <label>Mindestqualität<input id="chainQuality" type="number" min="1" max="32767" step="1" value="1" oninput="updateProductionChain()"></label>
-            <label>Optionaler Zieltermin (deine Ortszeit)<input id="chainDeadline" type="datetime-local" oninput="updateProductionChain()"></label>
-          </div>
-          <div class="guidance-actions"><button type="button" id="chainRefresh" onclick="refreshProductionPlannerMarket()">Marktpreise aktualisieren</button><button type="button" id="chainSave" class="ghost" onclick="saveProductionChain()">Plan speichern</button><button type="button" class="ghost" onclick="state.plannerSelectedPlanId=null;document.getElementById('chainSaveStatus').textContent='Beim Speichern wird ein neuer Plan angelegt.'">Als neuen Plan speichern</button></div>
-          <p id="chainSaveStatus" class="muted" role="status"></p>
-          <div id="chainResult" aria-live="polite"></div>
-        </article>
-        <article class="panel"><h2>Gespeicherte Pläne</h2><div id="chainSaved"></div></article>
-      </div>
-
-      <div id="specializations" class="view">
-        <article class="panel">
-          <div class="panel-head">
-            <div>
-              <h2>Unternehmens-Spezialisierungen</h2>
-              <p class="muted">Der erste Platz wird ab Level 8, der zweite ab Level 15 freigeschaltet. Maximal zwei Spezialisierungen sind gleichzeitig aktiv.</p>
-            </div>
-          </div>
-          <div id="specializationsContent"></div>
-        </article>
-      </div>
-
       <div id="research" class="view">
         <article class="panel">
           <h2>Produktforschung <button type="button" class="encyclopedia-help-btn" onclick="openEncyclopediaArticle('research')" aria-label="Hilfe zur Forschung" title="Enzyklopädie öffnen">?</button></h2>
@@ -2824,7 +2784,7 @@
           <h2>Einstellungen</h2>
           <div class="kv">
             <span>Version</span>
-            <strong>0.10.222</strong>
+            <strong>0.10.223</strong>
           </div>
           <div class="kv settings-language-row">
             <span>Sprache</span>
@@ -3023,8 +2983,7 @@
     </div>
   </div>
 </div>
-<script src="planner.js?v=0.10.222"></script>
-<script src="guidance.js?v=0.10.222"></script>
+<script src="guidance.js?v=0.10.223"></script>
 <script src="config.js"></script>
 <script>
   const appScript = document.createElement('script');

@@ -23,7 +23,7 @@ class Element {
 function get(id){if(!elements.has(id))elements.set(id,new Element(id));return elements.get(id);}
 for(const id of [...html.matchAll(/\bid="([^"]+)"/g)].map(m=>m[1]))get(id);
 get('chainQuantity').value=1;get('chainQuality').value=1;get('productionUnits').value=1;get('productionProduct').value='goal';
-const ctx={state,CompanyPlanner:require('../planner.js'),CompanyGuidance:require('../guidance.js'),
+const ctx={state,CompanyGuidance:require('../guidance.js'),
   document:{getElementById:get},history:{replaceState(){}},
   encyclopediaEscapeHtml:s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])),
   encyclopediaRecipeQuantity:v=>String(v),productQuality:p=>Number(p?.quality_level || 1),minimumInputQuality:p=>Math.max(1,Number(p?.quality_level || 1)-1),
@@ -41,9 +41,9 @@ const ctx={state,CompanyPlanner:require('../planner.js'),CompanyGuidance:require
   }};return q;}},
 };
 ctx.window=ctx;vm.createContext(ctx);
-vm.runInContext(app.slice(app.indexOf('const specializationFactor ='),app.indexOf('const effectiveMarketFeeRate')),ctx);
+vm.runInContext(app.slice(app.indexOf('const productionLevelMultiplier ='),app.indexOf('const effectiveMarketFeeRate')),ctx);
 vm.runInContext(app.slice(app.indexOf('function currentProductionContext()'),app.indexOf('function formatProductionUnitsInput')),ctx);
-vm.runInContext(app.slice(app.indexOf('// Production chains and voluntary company guidance.'),app.indexOf('function renderAll()')),ctx);
+vm.runInContext(app.slice(app.indexOf('// Voluntary company guidance.'),app.indexOf('function renderAll()')),ctx);
 const run=code=>vm.runInContext(code,ctx);
 (async()=>{
   run('renderCompanyGuidance()');assert.ok(get('guidanceContent').innerHTML.includes('Überblick verstanden'));
@@ -66,24 +66,8 @@ const run=code=>vm.runInContext(code,ctx);
   ctx.completeGuidanceStep('review');await run('guidanceSaveQueue');assert.ok(get('guidanceContent').innerHTML.includes('Geschäftsrunde abgeschlossen'));
   assert.equal(db.company_guidance[0].completed_steps.length,7);
 
-  run('renderProductionPlanner()');get('chainQuantity').value=4;run('updateProductionChain()');
-  assert.ok(get('chainResult').innerHTML.includes('Lamp &lt;test&gt;'));assert.ok(state.plannerLastResult.canFinish);
-  assert.ok(get('chainResult').innerHTML.includes('Produktion öffnen'));
-  ctx.openPlannerProduction('goal','machine',4);assert.equal(get('productionUnits').value,4);
-  await ctx.saveProductionChain();assert.equal(db.company_production_plans[0].quantity,4);assert.equal(state.productionPlans.length,1);
-  get('chainQuantity').value=5;await ctx.saveProductionChain();assert.equal(state.productionPlans.length,1,'saving an open plan updates it');
-  await ctx.deleteProductionChain('saved');assert.equal(state.productionPlans.length,0);
-  const comparison=new Element('comparison');ctx.compareProductionChain('goal',comparison);
-  assert.ok(comparison.innerHTML.includes('Eigenfertigung'));assert.ok(comparison.innerHTML.includes('Zukauf'));assert.ok(comparison.innerHTML.includes('unvollständig'));
-  state.contracts=[{id:'contract',seller_company_id:'own',product_id:'goal',quantity:4,quality_level:2,next_delivery_at:new Date(Date.now()+86400000).toISOString()}];
-  // The contextual helper forwards the agreed target fields without running a job.
-  let opened;ctx.openProductionPlanner=(...args)=>{opened=args;return Promise.resolve()};
-  ctx.openContractProductionChain('contract');assert.equal(opened[0],'goal');assert.equal(opened[1],4);assert.equal(opened[2],2);
-  state.largeOrders=[{id:'order',item_kind:'product',item_name:'Lamp <test>',product_category:'electronics',quantity:50,delivered_quantity:10,minimum_quality:2,delivery_deadline:new Date(Date.now()+3600000).toISOString()}];
-  ctx.openLargeOrderProductionChain('order');assert.equal(opened[0],'goal');assert.equal(opened[1],40);assert.equal(opened[2],2);
-
-  assert.ok(html.indexOf('planner.js')<html.indexOf('appScript.src'));
+  assert.ok(!html.includes('id="planner"'));assert.ok(!html.includes('data-view="specializations"'));
+  assert.ok(!app.includes('CompanyPlanner'));assert.ok(!get('guidanceContent').innerHTML.includes('openProductionPlanner'));
   assert.ok(html.indexOf('guidance.js')<html.indexOf('appScript.src'));
-  assert.ok(html.includes('id="planner"'));assert.ok(!html.includes('data-view="competition"'));
-  console.log('Controller checks passed: real guidance transitions, pause/resume, saved progress, safe review, escaped names, production rate, plan save/update/delete, variant comparison, context links and script ordering.');
+  console.log('Guidance controller checks passed: progress, pause/resume, real sales, safe review, escaping, production link and unchanged level multiplier.');
 })().catch(error=>{console.error(error);process.exitCode=1});
