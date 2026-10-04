@@ -3970,6 +3970,7 @@ function renderPublicCompanyProfile(profile) {
   const rank = profile.ranking?.company_value_rank;
   const totalCompanies = profile.ranking?.total_companies;
   const offers = Array.isArray(profile.current_offers) ? profile.current_offers : [];
+  const profileSpecializations = Array.isArray(profile.specializations) ? profile.specializations : [];
 
   const logo = logoUrl
     ? `<img src="${escapeChatText(logoUrl)}" alt="Firmenlogo von ${escapeChatText(profile.name)}">`
@@ -4076,6 +4077,11 @@ function renderPublicCompanyProfile(profile) {
         </div>
       </section>` : ''}
 
+    ${profileSpecializations.length ? `<section class="company-profile-description">
+      <h3>Spezialisierungen</h3>
+      <p>${profileSpecializations.map(row => SPECIALIZATION_META[row.specialization_code]?.name || row.specialization_code).join(' · ')}</p>
+    </section>` : ''}
+
     <section class="company-profile-stats">
       <div><span>Unternehmenswert</span><strong>${money(profile.company_value)}</strong></div>
       <div><span>Ranking</span><strong>${rank ? `#${num(rank)}${totalCompanies ? ` / ${num(totalCompanies)}` : ''}` : '–'}</strong></div>
@@ -4101,7 +4107,7 @@ window.openCompanyProfile = async function(companyId) {
   document.body.classList.add('company-profile-open');
   content.innerHTML = '<div class="company-profile-loading">Unternehmensprofil wird geladen …</div>';
 
-  const [profileResult, noteResult] = await Promise.all([
+  const [profileResult, noteResult, specializationResult] = await Promise.all([
     sb.rpc('get_public_company_profile', { p_company_id:companyId }),
     state.session
       ? sb
@@ -4109,7 +4115,8 @@ window.openCompanyProfile = async function(companyId) {
           .select('note,updated_at')
           .eq('target_company_id', companyId)
           .maybeSingle()
-      : Promise.resolve({ data:null, error:null })
+      : Promise.resolve({ data:null, error:null }),
+    sb.rpc('get_company_specializations',{p_company_id:companyId})
   ]);
 
   if (profileResult.error) {
@@ -4118,7 +4125,9 @@ window.openCompanyProfile = async function(companyId) {
     return;
   }
 
-  renderPublicCompanyProfile(profileResult.data || {});
+  const profileData = profileResult.data || {};
+  profileData.specializations = specializationResult.error ? [] : (specializationResult.data || []);
+  renderPublicCompanyProfile(profileData);
 
   if (noteResult.error) {
     console.error('Private Unternehmensnotiz konnte nicht geladen werden:', noteResult.error);
@@ -9300,8 +9309,12 @@ function renderAll() {
 
   renderDashboardValuationChanges();
   renderEconomyDashboard();
+  renderDemandDashboard();
   renderEconomicEvents();
   renderCompanyEvents();
+  renderMarketPriceIndices();
+  renderSpecializations();
+  renderLargeOrders();
   renderSettingsCompanyManagement();
   renderResearch();
   renderEncyclopedia();
@@ -9825,6 +9838,14 @@ document.querySelectorAll('.building-overview-filter').forEach(button => {
   });
   enhanceAllCustomSelects(document);
   document.querySelectorAll('select.oc-select-native').forEach(syncCustomSelect);
+});
+
+document.querySelectorAll('.market-index-range-btn').forEach(button => {
+  button.addEventListener('click', () => {
+    state.marketIndexDays = Number(button.dataset.days || 7);
+    document.querySelectorAll('.market-index-range-btn').forEach(item => item.classList.toggle('active', item === button));
+    renderMarketPriceIndices();
+  });
 });
 
 // Market
