@@ -42,6 +42,24 @@ let currentLanguage = (() => {
 })();
 
 const I18N_EN = {
+  'Produktionsplaner':'Production planner','Produktionsketten-Planer':'Production chain planner',
+  'Einstieg':'Getting started','Dein erster erfolgreicher Verkauf':'Your first successful sale',
+  'Gesamte Kette planen':'Plan the full chain','Gesamte Produktionskette planen':'Plan the full production chain',
+  'Dein Zielprodukt':'Your target product','Zielmenge':'Target quantity','Mindestqualität':'Minimum quality',
+  'Optionaler Zieltermin (deine Ortszeit)':'Optional deadline (your local time)',
+  'Marktpreise aktualisieren':'Refresh market prices','Plan speichern':'Save plan','Als neuen Plan speichern':'Save as a new plan',
+  'Gespeicherte Pläne':'Saved plans','Noch keine gespeicherten Pläne.':'No saved plans yet.',
+  'Fertigstellung des Plans':'Planned completion','Zusätzliches Geld':'Additional cash required',
+  'Warenkosten des Ziels':'Target goods cost','Rechnerisch ausführbar':'Feasible with the current estimates',
+  'Artikel':'Item','Bedarf':'Required','Zugänge':'Incoming','Herstellen':'Produce','Einkaufen':'Buy',
+  'Entscheidung':'Decision','Fehlmenge':'Shortfall','Selbst herstellen':'Produce yourself','Zukaufen':'Buy externally',
+  'Rohstoff zukaufen':'Buy raw material','Kosten und Termin vergleichen':'Compare cost and completion',
+  'Zur Börse':'Open marketplace','Ablauf und Checkliste':'Schedule and checklist','Produktion öffnen':'Open production',
+  'Öffnen':'Open','Löschen':'Delete','Pausieren':'Pause','Überspringen':'Skip','Einstieg fortsetzen':'Resume guidance',
+  'Überblick verstanden':'Overview understood','Mit diesem Produkt starten':'Start with this product',
+  'Produktion vorbereiten':'Prepare production','Verkauf vorbereiten':'Prepare sale','Ergebnis verstanden':'Result understood',
+  'Mehr erfahren':'Learn more','Verstanden':'Understood','Auswirkung auf deine Firma':'Impact on your company',
+  'Lebensmittelunternehmen':'Food company','Automobilunternehmen':'Automotive company','Chemieunternehmen':'Chemical company','Textilunternehmen':'Textile company',
   'Dashboard':'Dashboard','Gebäude':'Buildings','Lager':'Storage','Warenbörse':'Marketplace',
   'Verträge':'Contracts','Kosten':'Costs','Erlöse':'Revenue','Finanzen':'Finances','Zeit':'Time','Partner':'Partner','Handelswert':'Trade value','Gebühr':'Fee','Beschreibung':'Description','Betrag':'Amount','Level':'Level','Unternehmen':'Company','Ware':'Item','Marktgebühr':'Market fee','Marktkauf':'Market purchase','Marktverkauf':'Market sale','Forschung':'Research','Einstellungen':'Settings',
   'Abmelden':'Log out','Nicht angemeldet':'Not signed in','OpenCompany – spielbare Unternehmenssimulation':'OpenCompany – playable business simulation',
@@ -947,6 +965,14 @@ const state = {
     retail_price_factor:1,
     next_change_at:null
   },
+  guidance: {},
+  guidanceError: '',
+  productionPlans: [],
+  plannerChoices: {},
+  plannerOrders: [],
+  plannerMarketAt: null,
+  plannerSelectedPlanId: null,
+  progressionCompanyId: null,
   recoveringPassword: false
 };
 
@@ -1079,9 +1105,9 @@ const demandIndexForCategory = category =>
   Number((state.marketDemand || []).find(row => row.category === category)?.demand_index || 100);
 const demandRetailFactor = category =>
   Math.max(0.82, Math.min(1.18, 1 + (demandIndexForCategory(category) - 100) * 0.006));
-const specializationFactor = (key, category = null) => {
+const specializationFactor = (key, category = null, rows = state.specializations || []) => {
   let factor = 1;
-  for (const row of state.specializations || []) {
+  for (const row of rows) {
     const code = row.specialization_code;
     const level = Number(row.specialization_level || 1);
     const scale = 1 + 0.25 * (level - 1);
@@ -1097,6 +1123,14 @@ const specializationFactor = (key, category = null) => {
     else if (code === 'contracts' && key === 'contract_penalty') factor *= 1 - 0.10 * level;
     else if (code === 'industry_electronics' && category === 'electronics' && ['production_output','retail_rate'].includes(key)) factor *= 1 + 0.02 * level;
     else if (code === 'industry_electronics' && category === 'electronics' && key === 'production_operating_cost') factor *= 1 - 0.02 * level;
+    else if (code === 'industry_food' && category === 'food' && key === 'retail_rate') factor *= 1 + 0.02 * level;
+    else if (code === 'industry_food' && category === 'food' && key === 'retail_operating_cost') factor *= 1 - 0.02 * level;
+    else if (code === 'industry_automotive' && category === 'automotive' && key === 'production_output') factor *= 1 + 0.02 * level;
+    else if (code === 'industry_automotive' && category === 'automotive' && key === 'production_operating_cost') factor *= 1 - 0.02 * level;
+    else if (code === 'industry_chemical' && category === 'chemical' && key === 'production_operating_cost') factor *= 1 - 0.02 * level;
+    else if (code === 'industry_chemical' && category === 'chemical' && key === 'patent_gain') factor *= 1 + 0.02 * level;
+    else if (code === 'industry_textile' && category === 'textile' && key === 'retail_rate') factor *= 1 + 0.02 * level;
+    else if (code === 'industry_textile' && category === 'textile' && key === 'retail_price_effect') factor *= 1 + 0.01 * level;
   }
   return factor;
 };
@@ -2195,6 +2229,10 @@ function bindNavigation() {
     activateView(view);
     if (view === 'market') {
       await refreshMarketData();
+    }
+    if (view === 'planner') {
+      renderProductionPlanner();
+      await refreshProductionPlannerMarket();
     }
     if (view === 'encyclopedia') {
       renderEncyclopedia();
@@ -3642,7 +3680,7 @@ async function loadGameData() {
     sb.from('financial_transactions').select('*').eq('company_id', cid).order('created_at', {ascending:false}).limit(500),
     sb.rpc('get_market_catalog_summary'),
     sb.from('market_orders').select('*, products(name,category), materials(name)').eq('company_id',cid).eq('order_type','sell').in('status',['open','partially_filled']).gt('remaining_quantity',0).order('created_at',{ascending:false}).limit(500),
-    sb.from('market_trades').select('id,order_id,buyer_company_id,seller_company_id,product_id,material_id,quantity,price_per_unit,total_value,quality_level,executed_at,products(name,category),materials(name)').or(`buyer_company_id.eq.${cid},seller_company_id.eq.${cid}`).order('executed_at',{ascending:false}).limit(500),
+    sb.from('market_trades').select('id,order_id,buyer_company_id,seller_company_id,product_id,material_id,quantity,price_per_unit,total_value,market_fee,quality_level,executed_at,products(name,category),materials(name)').or(`buyer_company_id.eq.${cid},seller_company_id.eq.${cid}`).order('executed_at',{ascending:false}).limit(500),
     sb.from('contracts').select('*').or(`seller_company_id.eq.${cid},buyer_company_id.eq.${cid}`).order('created_at',{ascending:false}),
     sb.from('global_economic_events').select('*').eq('status','active').gt('ends_at',new Date().toISOString()).order('started_at',{ascending:false}),
     sb.from('company_events').select('*').eq('company_id',cid).eq('status','pending').gt('expires_at',new Date().toISOString()).order('created_at',{ascending:false}),
@@ -3661,10 +3699,12 @@ async function loadGameData() {
     sb.rpc('get_storage_status', { p_company_id: cid }),
     sb.rpc('get_ocb_status', { p_company_id: cid }),
     sb.from('game_economy_state').select('*').eq('id',1).single(),
-    sb.rpc('get_company_trade_analysis',{p_company_id:cid})
+    sb.rpc('get_company_trade_analysis',{p_company_id:cid}),
+    sb.from('company_guidance').select('*').eq('company_id',cid).maybeSingle(),
+    sb.from('company_production_plans').select('*').eq('company_id',cid).order('updated_at',{ascending:false}).limit(100)
   ]);
 
-  const labels = ['Produkte','Alle Produkte','Produktlager','Materialien','Materiallager','Rezepte','Gebäudetypen','Gebäude','Produktionen','Handelsverkäufe','Finanzen','Marktübersicht','Eigene Marktorders','Marktkäufe','Verträge','Globale Ereignisse','Unternehmensereignisse','Nachfrage','Nachfrage-Verlauf','Marktpreis-Indizes','Index-Verlauf','Spezialisierungen','Großaufträge','Großauftragsgebote','Firmenverzeichnis','Kreditschulden','Anleihen','Unternehmenswert-Verlauf','Unternehmensranking','Lagerstatus','OC-Boost','Wirtschaftsphase','Handelsanalyse'];
+  const labels = ['Produkte','Alle Produkte','Produktlager','Materialien','Materiallager','Rezepte','Gebäudetypen','Gebäude','Produktionen','Handelsverkäufe','Finanzen','Marktübersicht','Eigene Marktorders','Marktkäufe','Verträge','Globale Ereignisse','Unternehmensereignisse','Nachfrage','Nachfrage-Verlauf','Marktpreis-Indizes','Index-Verlauf','Spezialisierungen','Großaufträge','Großauftragsgebote','Firmenverzeichnis','Kreditschulden','Anleihen','Unternehmenswert-Verlauf','Unternehmensranking','Lagerstatus','OC-Boost','Wirtschaftsphase','Handelsanalyse','Einstieg','Produktionspläne'];
   const errors = results.map((r,i)=>r.error ? { label: labels[i], error:r.error } : null).filter(Boolean);
   if (errors.length) {
     console.error(errors);
@@ -3673,7 +3713,7 @@ async function loadGameData() {
   }
   clearGameDataError();
 
-  const [products, allProducts, inventory, materials, materialInventory, recipes, buildingTypes, buildings, productionJobs, retailSaleJobs, tx, marketSummary, ownMarketOrders, marketTrades, contracts, globalEvents, companyEvents, marketDemand, marketDemandHistory, marketPriceIndices, marketPriceIndexHistory, specializations, largeOrders, largeCustomerBids, directory, companyDebt, bondDashboard, valuationHistory, companyRanking, storageStatus, ocbStatus, economyState, companyTradeAnalysis] = results;
+  const [products, allProducts, inventory, materials, materialInventory, recipes, buildingTypes, buildings, productionJobs, retailSaleJobs, tx, marketSummary, ownMarketOrders, marketTrades, contracts, globalEvents, companyEvents, marketDemand, marketDemandHistory, marketPriceIndices, marketPriceIndexHistory, specializations, largeOrders, largeCustomerBids, directory, companyDebt, bondDashboard, valuationHistory, companyRanking, storageStatus, ocbStatus, economyState, companyTradeAnalysis, companyGuidance, productionPlans] = results;
   state.products = products.data;
   state.allProducts = allProducts.data;
   state.inventory = inventory.data;
@@ -3699,6 +3739,14 @@ async function loadGameData() {
   state.marketPriceIndexHistory = marketPriceIndexHistory.data || [];
   state.specializations = specializations.data || [];
   state.companyTradeAnalysis = companyTradeAnalysis.data || null;
+  if (state.progressionCompanyId !== cid) {
+    state.plannerOrders=[];state.plannerMarketAt=null;state.plannerChoices={};state.plannerSelectedPlanId=null;
+    state.progressionCompanyId=cid;
+  }
+  if (!guidancePendingWrites || (state.guidance?.selected_product_id && !state.products.some(p=>p.id===state.guidance.selected_product_id))) {
+    state.guidance=companyGuidance.data || {};state.guidanceError='';
+  }
+  state.productionPlans=productionPlans.data || [];
   state.largeOrders = largeOrders.data || [];
   state.largeCustomerBids = largeCustomerBids.data || [];
   state.companyDirectory = directory.data || [];
@@ -4328,7 +4376,7 @@ function currentProductionContext() {
     && ['production','research'].includes(buildingType?.building_category);
 
   const building = buildingCanProduce ? selectedBuilding : null;
-  const multiplier = building ? buildingLevelMultiplier(building.level) : 1;
+  const multiplier = building ? CompanyPlanner.levelMultiplier(building.level) : 1;
   const baseProductRate = Number(product?.base_production_rate || 0);
   const unitsPerHour = buildingType && building && baseProductRate > 0
     ? Math.max(
@@ -5267,7 +5315,7 @@ function retailSaleContext() {
     ? state.retailSaleJobs.find(job => job.building_id === building.id && job.status === 'running') || null
     : null;
 
-  const multiplier = building ? buildingLevelMultiplier(building.level) : 1;
+  const multiplier = building ? CompanyPlanner.levelMultiplier(building.level) : 1;
   const baseProductRetailRate = Number(product?.base_retail_rate || 0);
   const rawBaseUnitsPerHour = buildingType && building && baseProductRetailRate > 0
     ? Math.max(1, Math.floor(baseProductRetailRate * multiplier))
@@ -5276,7 +5324,7 @@ function retailSaleContext() {
   const retailSpecFactor = specializationFactor('retail_rate', product?.category);
   const baseUnitsPerHour = rawBaseUnitsPerHour;
   const unitsPerHour = rawBaseUnitsPerHour > 0
-    ? Math.max(1, Math.floor(rawBaseUnitsPerHour * demandFactor * retailSpecFactor))
+    ? Math.max(1, Math.floor(baseProductRetailRate * multiplier * demandFactor * retailSpecFactor))
     : 0;
 
   const productionCost = Number(inventory?.average_unit_cost || 0);
@@ -5307,7 +5355,8 @@ function retailBreakEvenMetrics(ctx, quantity) {
   const operatingCost = ctx.productionCost * qty
     * operatingCostRate(ctx.buildingType)
     * operatingEfficiencyFactor(ctx.building.level)
-    * operatingEconomyFactor();
+    * operatingEconomyFactor()
+    * specializationFactor('retail_operating_cost', ctx.product?.category);
   const maintenanceAllocation = buildingMaintenanceCost(ctx.buildingType?.building_category,ctx.building.level)
     * Math.max(0,hours) / 24;
   const operatingExtraPerUnit = operatingCost / qty;
@@ -6022,6 +6071,8 @@ function renderContracts() {
             <button class="strong-danger-btn" onclick="cancelContract('${c.id}')">${translateUiString('Stornieren')}</button>
           </div>`;
     }
+
+    if (direction === 'outgoing' && c.product_id) actions += `<button type="button" class="ghost" onclick="openContractProductionChain('${c.id}')">Produktion planen</button>`;
 
     return `<tr>
       <td>${companyName(partnerId)}</td>
@@ -7514,6 +7565,8 @@ function encyclopediaArticleBody({ short, how, example, important }) {
 }
 
 const ENCYCLOPEDIA_ARTICLES = [
+  {id:'production-planner',category:'Produktion',title:'Produktionsketten planen',keywords:['plan','kette','vorprodukte','engpass'],summary:'Gesamte Rezepte, Lagerbestände, Qualität und Gebäudelaufzeiten gemeinsam planen.',body:`<p>Wähle Zielprodukt, Menge und Mindestqualität. Der Planer berücksichtigt passende Lagerbestände, laufende Produktionen und alle Rezeptstufen. Gemeinsame Zutaten werden nur einmal verwendet.</p><p>Wähle für fehlende Produkte zwischen Eigenfertigung und Zukauf. Marktangebote dienen als aktuelle Schätzung. Der Plan reserviert keine Ware und startet nichts automatisch; alle Schritte bestätigst du in den bestehenden Masken.</p><p>Speichere einen Plan und öffne ihn später erneut. Kosten und Zeiten werden mit den dann aktuellen Daten neu berechnet.</p>`,related:['production','product-quality'],targetView:'planner'},
+  {id:'specializations',category:'Grundlagen',title:'Spezialisierungen und Branchen',keywords:['spezialisierung','branche','ausbau'],summary:'Zwei Plätze für allgemeine und branchenspezifische Vorteile.',body:`<p>Plätze werden auf Unternehmenslevel 8 und 15 freigeschaltet. Die erste Auswahl ist kostenlos; ein Wechsel kostet 100.000 OC$ und unterliegt einer Wartefrist von 14 Tagen. Ein laufender Ausbau verhindert den Wechsel.</p><p>Stufe II kostet 50.000 OC$ und dauert 24 Stunden; Stufe III kostet 100.000 OC$ und dauert 48 Stunden. Dafür werden keine XP benötigt. Neue Boni gelten erst nach Fertigstellung.</p><p>Elektronik, Lebensmittel, Automobil, Chemie und Textil wirken ausschließlich auf die jeweilige Produktkategorie. Die Auswahl zeigt betroffene eigene Gebäude und Produkte. Allgemeine Vorteile können mit einer Branche kombiniert werden.</p>`,related:['company-level','research'],targetView:'specializations'},
   {
     id:'getting-started', category:'Grundlagen', title:'Erste Schritte',
     keywords:['start','anfang','unternehmen','dashboard'],
@@ -7923,7 +7976,7 @@ function encyclopediaCalculatorBuildingContext(product) {
   const level = Math.max(1, Number(building?.level || 1));
   const baseRate = Math.max(0, Number(product?.base_production_rate || 0));
   const unitsPerHour = baseRate > 0
-    ? Math.max(1, Math.floor(baseRate * buildingLevelMultiplier(level)))
+    ? Math.max(0.01, Math.floor(baseRate * CompanyPlanner.levelMultiplier(level)) * Number(state.economyState?.production_output_factor || 1) * globalEventFactor('production_output_factor') * specializationFactor('production_output', product?.category))
     : 0;
 
   return {
@@ -8103,6 +8156,7 @@ function encyclopediaRecipeCalculatorHtml(product) {
           placeholder="z. B. 500, 6hrs oder 18:00"
           oninput="updateEncyclopediaRecipeCalculator('${productId}', this.value, '${resultId}')">
       </label>
+      <button type="button" class="ghost" onclick="openProductionPlanner('${productId}')">Gesamte Kette planen</button>
       <div id="${resultId}" class="encyclopedia-recipe-calculator-result muted">
         Eingabe machen, um Materialbedarf und Beschaffungskosten zu berechnen.
       </div>
@@ -9022,7 +9076,11 @@ const SPECIALIZATION_META = Object.freeze({
   production:{name:'Produktionsspezialist'}, retail:{name:'Einzelhandelsspezialist'},
   logistics:{name:'Logistikspezialist'}, research:{name:'Forschungsspezialist'},
   trading:{name:'Handelsspezialist'}, contracts:{name:'Vertragsspezialist'},
-  industry_electronics:{name:'Elektronikunternehmen'}
+  industry_electronics:{name:'Elektronikunternehmen',category:'electronics'},
+  industry_food:{name:'Lebensmittelunternehmen',category:'food'},
+  industry_automotive:{name:'Automobilunternehmen',category:'automotive'},
+  industry_chemical:{name:'Chemieunternehmen',category:'chemical'},
+  industry_textile:{name:'Textilunternehmen',category:'textile'}
 });
 const SPECIALIZATION_UPGRADES = Object.freeze({
   2:{cost:50000,hours:24}, 3:{cost:100000,hours:48}
@@ -9039,8 +9097,30 @@ function specializationDescription(code, level = 1) {
     research:`−${pct(8*scale)} % Forschungsbetriebskosten · +${pct(5*scale)} % Patentwert-Gewinn`,
     trading:`−${pct(10*level)} % Marktgebühren (${pct(5*(1-0.1*level))} % vom Verkaufserlös) · eigene Handelsanalyse für 30 Tage in der Warenbörse`,
     contracts:`−${pct(10*level)} % Liefervertragsstrafen`,
-    industry_electronics:`Elektronikproduktion +${pct(2*level)} % · Elektronikbetriebskosten −${pct(2*level)} % · Elektronik-Einzelhandel +${pct(2*level)} %`
+    industry_electronics:`Elektronikproduktion +${pct(2*level)} % · Elektronikbetriebskosten −${pct(2*level)} % · Elektronik-Einzelhandel +${pct(2*level)} %`,
+    industry_food:`Lebensmittel-Einzelhandel +${pct(2*level)} % · Verkaufsbetriebskosten −${pct(2*level)} % · nur Kategorie Lebensmittel`,
+    industry_automotive:`Automobilproduktion +${pct(2*level)} % · Produktionsbetriebskosten −${pct(2*level)} % · nur Kategorie Automobil`,
+    industry_chemical:`Chemie-Produktionsbetriebskosten −${pct(2*level)} % · Patentwert-Gewinn bei Chemie-Produktforschung +${pct(2*level)} %`,
+    industry_textile:`Textil-Einzelhandel +${pct(2*level)} % · Preiswirkung +${pct(level)} % · nur Kategorie Textil`
   })[code] || '';
+}
+
+
+function specializationImpactHtml(code,level,slot) {
+  const meta=SPECIALIZATION_META[code];
+  const products=(state.products || []).filter(p=>p.status==='active' && (!meta.category || p.category===meta.category));
+  const productionTypes=new Set(products.map(p=>p.required_building_type_id).filter(Boolean));
+  const retailTypes=new Set(products.map(p=>p.required_retail_building_type_id).filter(Boolean));
+  const factories=(state.buildings || []).filter(b=>b.status==='active' && productionTypes.has(b.building_type_id));
+  const stores=(state.buildings || []).filter(b=>b.status==='active' && retailTypes.has(b.building_type_id));
+  if (!meta.category) return '';
+  const replacement=[...(state.specializations || []).filter(r=>Number(r.slot_no)!==slot),{specialization_code:code,specialization_level:level}];
+  const compared=products.slice(0,5).map(p=>{
+    const before=specializationFactor('production_output',p.category),after=specializationFactor('production_output',p.category,replacement);
+    const rateBefore=specializationFactor('retail_rate',p.category),rateAfter=specializationFactor('retail_rate',p.category,replacement);
+    return `<li>${escapeChatText(p.name)}: Produktionsrate ${num((after/before-1)*100)} % · Verkaufsratenfaktor ${num((rateAfter/rateBefore-1)*100)} % gegenüber jetzt</li>`;
+  }).join('');
+  return `<details class="specialization-impact"><summary>Auswirkung auf deine Firma</summary><p>${factories.length} passende Produktionsgebäude · ${stores.length} passende Verkaufsgebäude · ${products.length} eigene Branchenprodukte.</p>${compared ? '<ul>'+compared+'</ul>':'<p class="muted">Aktuell keine eigenen Produkte dieser Kategorie.</p>'}<p class="muted">Vergleich bei Auswahl auf diesem Platz; der andere Platz wird mitgerechnet. Preise, Auslastung und Kosten sind separat zu prüfen. Vorprodukte anderer Kategorien erhalten keinen Branchenbonus.</p></details>`;
 }
 
 function renderSpecializations() {
@@ -9080,13 +9160,13 @@ function renderSpecializations() {
         const activeElsewhere = (state.specializations || []).some(row => Number(row.slot_no) !== slot && row.specialization_code === code);
         const selected = current?.specialization_code === code;
         const disabled = selected || activeElsewhere || switchLocked || upgrading;
-        html += `<div class="specialization-option"><strong>${item.name}</strong><p class="muted">${specializationDescription(code,selected ? level : 1)}</p><button type="button" ${disabled ? 'disabled' : ''} onclick="setCompanySpecialization(${slot},'${code}')">${selected ? 'Aktiv' : activeElsewhere ? 'Bereits aktiv' : current ? 'Wechseln' : 'Auswählen'}</button></div>`;
+        html += `<div class="specialization-option"><strong>${item.name}</strong><p class="muted">${specializationDescription(code,selected ? level : 1)}</p>${specializationImpactHtml(code,selected ? level : 1,slot)}<button type="button" ${disabled ? 'disabled' : ''} onclick="setCompanySpecialization(${slot},'${code}')">${selected ? 'Aktiv' : activeElsewhere ? 'Bereits aktiv' : current ? 'Wechseln' : 'Auswählen'}</button></div>`;
       });
       html += '</div>';
     }
     html += '</section>';
   });
-  html += '</div><p class="muted">Die erste Auswahl ist kostenlos. Ausbau auf Stufe II: 50.000 OC$ und 24 Stunden; Stufe III: 100.000 OC$ und 48 Stunden. Es werden keine XP für den Ausbau benötigt. Elektronikboni steigen auf 2/4/6 %; Produktions-, Einzelhandels-, Logistik- und Forschungsboni steigen beim Ausbau um 25 % und 50 % ihres Ausgangswertes. Vorteile des Elektronikunternehmens gelten ausschließlich für Elektronik. Spezialisierungen verändern weder die Bewertung noch die Vertragsstrafe von Großaufträgen.</p>';
+  html += '</div><p class="muted">Die erste Auswahl ist kostenlos. Ausbau auf Stufe II: 50.000 OC$ und 24 Stunden; Stufe III: 100.000 OC$ und 48 Stunden. Es werden keine XP für den Ausbau benötigt. Elektronikboni steigen auf 2/4/6 %; Produktions-, Einzelhandels-, Logistik- und Forschungsboni steigen beim Ausbau um 25 % und 50 % ihres Ausgangswertes. Alle Branchenboni gelten ausschließlich für ihre jeweilige Produktkategorie; Lebensmittelvorprodukte der Kategorie food_component gehören nicht dazu. Lebensmittel-, Automobil- und Chemieboni steigen auf 2/4/6 %; Textil-Verkaufsrate auf 2/4/6 % und Textil-Preiswirkung auf 1/2/3 %. Spezialisierungen verändern weder die Bewertung noch die Vertragsstrafe von Großaufträgen.</p>';
   container.innerHTML = html;
 }
 
@@ -9192,6 +9272,7 @@ function renderLargeOrders() {
         "\" type=\"number\" min=\"0.01\" max=\"" + remaining + "\" step=\"0.01\" value=\"" + remaining +
         "\" required></label><button type=\"submit\">Liefern</button></form>";
     }
+    if (order.item_kind === 'product' && ['bidding','awarded'].includes(order.status)) html += `<button type="button" class="ghost" onclick="openLargeOrderProductionChain('${order.id}')">Produktion planen</button>`;
     return html + "</section>";
   };
   container.innerHTML = "<div class=\"large-orders-list\">" +
@@ -9356,6 +9437,311 @@ window.resolveCompanyEvent = async function(eventId, option) {
   await loadCompany();
 }
 
+// Production chains and voluntary company guidance.
+let guidanceSaveQueue = Promise.resolve();
+let guidancePendingWrites = 0;
+let plannerMarketRequest = 0;
+
+function progressionData() {
+  return {...state,companyId:state.company?.id,companyLevel:Number(state.company?.company_level || 1),
+    factor:specializationFactor,economyCostFactor:operatingEconomyFactor(),
+    outputFactor:Number(state.economyState?.production_output_factor || 1)*globalEventFactor('production_output_factor'),
+    operatingRate:operatingCostRate,orders:state.plannerOrders || []};
+}
+
+function plannerOptions() {
+  return {productId:document.getElementById('chainProduct')?.value || '',
+    quantity:Number(document.getElementById('chainQuantity')?.value || 0),
+    quality:Number(document.getElementById('chainQuality')?.value || 1),
+    deadline:document.getElementById('chainDeadline')?.value || null,choices:{...(state.plannerChoices || {})}};
+}
+
+function renderProductionPlanner() {
+  const select=document.getElementById('chainProduct');
+  if(!select)return;
+  const selected=select.value;
+  select.innerHTML=(state.products || []).filter(p=>p.status==='active').map(p=>
+    `<option value="${encyclopediaEscapeHtml(p.id)}">${encyclopediaEscapeHtml(p.name)} · Q${productQuality(p)}</option>`).join('');
+  if((state.products || []).some(p=>p.id===selected))select.value=selected;
+  else if(select.value)document.getElementById('chainQuality').value=productQuality(state.products.find(p=>p.id===select.value));
+  renderSavedProductionPlans();
+  updateProductionChain();
+}
+
+window.openProductionPlanner = async function(productId,quantity=1,qualityLevel=null,deadline=null) {
+  if(!state.company)return;
+  activateView('planner');history.replaceState(null,'','#planner');
+  renderProductionPlanner();
+  const product=state.products.find(p=>p.id===productId);
+  if(product){
+    document.getElementById('chainProduct').value=product.id;
+    document.getElementById('chainQuantity').value=Math.max(1,Math.floor(Number(quantity)||1));
+    document.getElementById('chainQuality').value=qualityLevel || productQuality(product);
+    if(deadline){
+      const date=new Date(deadline);
+      document.getElementById('chainDeadline').value=Number.isNaN(date.getTime()) ? '' : new Date(date.getTime()-date.getTimezoneOffset()*60000).toISOString().slice(0,16);
+    }else document.getElementById('chainDeadline').value='';
+    state.plannerChoices={};state.plannerSelectedPlanId=null;
+  }
+  updateProductionChain();
+  await refreshProductionPlannerMarket();
+};
+
+window.openCurrentProductionChain = function() {
+  const ctx=currentProductionContext();
+  openProductionPlanner(ctx.productId,productionUnitsFromInput(document.getElementById('productionUnits')?.value || 1).units,ctx.qualityLevel);
+};
+
+window.openLargeOrderProductionChain = function(orderId) {
+  const order=(state.largeOrders || []).find(o=>o.id===orderId);
+  const product=order ? state.products.find(p=>p.name===order.item_name && p.category===order.product_category):null;
+  if(!product){gameAlert('Für diese Aufgabe wurde kein passendes eigenes Produkt gefunden.');return;}
+  const bid=(state.largeCustomerBids || []).find(b=>b.order_id===orderId);
+  const deadline=order.delivery_deadline || (order.bidding_ends_at ? new Date(Date.parse(order.bidding_ends_at)+Number(bid?.delivery_hours || order.delivery_hours)*3600000).toISOString():null);
+  openProductionPlanner(product.id,Math.ceil(Number(order.quantity || 1)-Number(order.delivered_quantity || 0)),bid?.offered_quality || order.minimum_quality || 1,deadline);
+};
+
+window.openContractProductionChain = function(contractId) {
+  const contract=(state.contracts || []).find(c=>c.id===contractId && c.seller_company_id===state.company?.id);
+  const product=contract ? state.products.find(p=>p.id===contract.product_id):null;
+  if(!product){gameAlert('Für diesen Vertrag wurde kein passendes eigenes Produkt gefunden.');return;}
+  openProductionPlanner(product.id,Math.ceil(Number(contract.quantity || 1)),contract.quality_level || 1,contract.next_delivery_at || null);
+};
+
+window.updateProductionChain = function() {
+  const root=document.getElementById('chainResult');
+  if(!root || !state.company || typeof CompanyPlanner==='undefined')return;
+  const options=plannerOptions();
+  state.plannerLastOptions=options;
+  const result=CompanyPlanner.plan(progressionData(),options);
+  state.plannerLastResult=result;
+  const escape=encyclopediaEscapeHtml;
+  const qty=encyclopediaRecipeQuantity;
+  const time=t=>t==null || !Number.isFinite(t) ? 'Nicht berechenbar':new Date(t).toLocaleString(uiLocale(),{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
+  const status=!result.canFinish ? 'Material, Qualität oder Gebäude fehlen':result.deadlineMet===false ? 'Termin mit diesem Plan nicht erreichbar':'Rechnerisch ausführbar';
+  const summary=`<div class="chain-summary"><div><span>Fertigstellung des Plans</span><strong>${time(result.finishAt)}</strong></div><div><span>${result.canFinish?'Zusätzliches Geld':'Zusätzliches Geld (gedeckter Anteil)'}</span><strong>${money(result.cashCost)}</strong></div><div><span>${result.canFinish?'Warenkosten des Ziels':'Warenkosten (unvollständig)'}</span><strong>${money(result.economicCost)}</strong></div></div>
+    <p class="${result.canFinish && result.deadlineMet!==false ? 'status':'status error'}">${status}</p>
+    <p class="muted">Neue Einkäufe ${money(result.purchaseCost)} · Produktionszahlungen ${money(result.productionCashCost)} · genutzter Lagerwert ${money(result.stockValue)} · bereits bezahlte laufende Ware ${money(result.incomingValue)}.</p>
+    ${Number(state.company.cash_balance || 0)+1e-8<result.cashCost ? '<p class="status error">Das aktuelle Guthaben reicht für die geschätzten zusätzlichen Ausgaben nicht aus.</p>':''}
+    ${result.issues.length ? `<ul class="chain-issues">${result.issues.map(i=>`<li>${escape(i)}</li>`).join('')}</ul>`:''}`;
+  const rows=result.rows.map(row=>{
+    const choice=row.kind==='product' ? `<label class="chain-mode">Fehlmenge<select onchange="setProductionChainMode('${row.itemId}',this.value)"><option value="produce" ${row.mode==='produce'?'selected':''}>Selbst herstellen</option><option value="buy" ${row.mode==='buy'?'selected':''}>Zukaufen</option></select></label>`:'Rohstoff zukaufen';
+    const compare=row.kind==='product' && (row.produce || row.buy || row.unavailable) ? `<button type="button" class="ghost" onclick="compareProductionChain('${row.itemId}',this.nextElementSibling)">Kosten und Termin vergleichen</button><div class="chain-comparison"></div>`:'';
+    return `<tr><td><strong>${escape(row.name)}</strong><small>Q${row.minQuality}+ · ${escape(row.unit)}</small></td><td>${qty(row.required)}</td><td>${qty(row.stock)}</td><td>${qty(row.incoming)}${row.planned ? `<small>+ ${qty(row.planned)} aus dieser Planung</small>`:''}</td><td>${qty(row.produce)}</td><td>${qty(row.buy)}${row.unavailable ? `<small class="status error">${qty(row.unavailable)} ungedeckt</small>`:''}</td><td>${choice}${compare}<button type="button" class="ghost" onclick="openPlannerMarketItem('${row.kind}','${row.itemId}',${row.minQuality})">Zur Börse</button></td></tr>`;
+  });
+  const steps=result.steps.slice(0,state.plannerExpandSteps ? 5000:100).map((step,i)=>`<li class="chain-step"><div><strong>${i+1}. ${escape(step.name)} · ${qty(step.quantity)} Stück · Q${step.quality}</strong><p>${escape(step.buildingName)} · Level ${step.level}</p><small>${time(step.startAt)} bis ${time(step.finishAt)} · ${num(step.hours)} Std. · Zahlung ${money(step.cashCost)}</small></div><button type="button" onclick="openPlannerProduction('${step.productId}','${step.buildingId}',${step.quantity})">Produktion öffnen</button></li>`).join('');
+  root.innerHTML=summary+`<div class="table-wrap chain-table"><table><thead><tr><th>Artikel</th><th>Bedarf</th><th>Lager</th><th>Zugänge</th><th>Herstellen</th><th>Einkaufen</th><th>Entscheidung</th></tr></thead><tbody>${rows.join('')}</tbody></table></div>
+    <h3>Ablauf und Checkliste</h3><ol class="chain-steps">${steps || (result.canFinish ? '<li>Keine neue Produktion nötig. Passende Ware aus dem Lager oder aus laufenden Jobs verwenden.</li>':'<li>Kein ausführbarer Ablauf verfügbar. Bitte die Hinweise oben prüfen.</li>')}</ol>${result.steps.length>100 && !state.plannerExpandSteps ? `<p class="muted">100 von ${result.steps.length} Chargen angezeigt; Kosten und Zeiten berücksichtigen den vollständigen Plan.</p><button type="button" class="ghost" onclick="state.plannerExpandSteps=true;updateProductionChain()">Alle Chargen anzeigen</button>`:''}
+    <p class="muted">${state.plannerMarketAt ? 'Marktangebote geladen am '+time(state.plannerMarketAt):'Marktangebote noch nicht geladen. Bitte „Marktpreise aktualisieren“ wählen.'} ${state.plannerMarketTruncated ? 'Einige Artikel haben mehr Angebote als geladen werden konnten; Fehlmengen sind daher unsicher.':''}</p>
+    <p class="muted">Der Plan reserviert keine Ware. Laufende Ware muss abgeholt werden. Zeiten setzen rechtzeitige Käufe, Abholung und manuelle Starts voraus; Marktangebote und Wirtschaftsereignisse können sich ändern. Warenkosten folgen der aktuellen serverseitigen Herstellungsbewertung, einschließlich vorhandener Inputs. Unterhaltung und Lagergebühren sind nicht eingerechnet.</p>`;
+  applyLanguageToDom(root);
+};
+
+window.compareProductionChain=function(productId,root){
+  if(!root || !state.company)return;
+  const options=plannerOptions(),data=progressionData();
+  root.innerHTML=['produce','buy'].map(mode=>{
+    const result=CompanyPlanner.plan(data,{...options,choices:{...options.choices,[productId]:mode}});
+    const finish=result.finishAt ? new Date(result.finishAt).toLocaleString(uiLocale(),{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}):'nicht berechenbar';
+    return `<div><strong>${mode==='produce'?'Eigenfertigung':'Zukauf'} dieser Fehlmenge</strong><small>Gesamter Zielplan: ${money(result.cashCost)} zusätzliche Ausgaben · ${finish}${!result.canFinish ? ' · unvollständig':result.deadlineMet===false ? ' · Termin verfehlt':''}</small></div>`;
+  }).join('');
+};
+
+window.setProductionChainMode=function(productId,mode){
+  if(!['buy','produce'].includes(mode))return;
+  state.plannerChoices={...(state.plannerChoices || {}),[productId]:mode};
+  updateProductionChain();
+};
+
+window.refreshProductionPlannerMarket=async function(){
+  const companyId=state.company?.id;
+  if(!companyId || !sb)return;
+  const token=++plannerMarketRequest;
+  const button=document.getElementById('chainRefresh');
+  if(button){button.disabled=true;button.textContent='Marktpreise werden geladen …';}
+  const productIds=(state.allProducts || []).map(p=>p.id);
+  const materialIds=(state.materials || []).map(m=>m.id);
+  const requests=[];
+  for(const [column,ids] of [['product_id',productIds],['material_id',materialIds]]){
+    for(let i=0;i<ids.length;i+=40)requests.push(sb.from('market_orders')
+      .select('*, products(name,category)').eq('order_type','sell').in('status',['open','partially_filled'])
+      .gt('remaining_quantity',0).neq('company_id',companyId).in(column,ids.slice(i,i+40))
+      .order('price_per_unit',{ascending:true}).limit(1000));
+  }
+  try{
+    const responses=await Promise.all(requests);
+    if(token!==plannerMarketRequest || state.company?.id!==companyId)return;
+    const error=responses.find(r=>r.error)?.error;
+    if(error){await gameAlert('Marktpreise konnten nicht geladen werden: '+error.message);return;}
+    state.plannerOrders=responses.flatMap(r=>r.data || []);
+    state.plannerMarketTruncated=responses.some(r=>(r.data || []).length>=1000);
+    state.plannerMarketAt=Date.now();updateProductionChain();
+  }catch(error){if(state.company?.id===companyId)await gameAlert('Marktpreise konnten nicht geladen werden. Bitte erneut versuchen.');}
+  finally{if(token===plannerMarketRequest && button){button.disabled=false;button.textContent='Marktpreise aktualisieren';}}
+};
+
+window.openPlannerMarketItem=function(kind,id,minQuality=1){
+  const product=state.products.find(p=>p.id===id);
+  const material=state.materials.find(m=>m.id===id);
+  if(kind==='material' && !material || kind==='product' && !product)return;
+  const row=state.plannerLastResult?.rows.find(r=>r.kind===kind && r.itemId===id && r.minQuality===minQuality);
+  openProfileOfferInMarket(kind,kind==='material' ? id:'',encodeURIComponent((material || product).name),encodeURIComponent(product?.category || ''));
+  const input=document.getElementById('marketProductBuyQty');
+  if(input)input.value=Math.max(1,Math.ceil(Number(row?.unavailable || row?.buy || 1)));
+};
+
+window.openPlannerProduction=function(productId,buildingId,quantity){
+  activateView('production');history.replaceState(null,'','#production');
+  selectBuildingCard(buildingId);
+  const select=document.getElementById('productionProduct');
+  if(select && [...select.options].some(o=>o.value===productId))select.value=productId;
+  setProductionUnits(quantity);renderProductionRecipe();
+  document.getElementById('productionControlPanel')?.scrollIntoView({behavior:'smooth',block:'start'});
+};
+
+window.saveProductionChain=async function(){
+  const companyId=state.company?.id,options=plannerOptions();
+  if(!companyId)return;
+  if(!state.products.some(p=>p.id===options.productId) || !Number.isSafeInteger(options.quantity) || options.quantity<1 || options.quantity>1e9 || !Number.isInteger(options.quality) || options.quality<1 || options.quality>32767){await gameAlert('Bitte gültiges Produkt, Menge und Qualität wählen.');return;}
+  const button=document.getElementById('chainSave');if(button?.disabled)return;if(button)button.disabled=true;
+  const payload={company_id:companyId,product_id:options.productId,quantity:options.quantity,quality_level:options.quality,deadline:options.deadline ? new Date(options.deadline).toISOString():null,choices:options.choices,updated_at:new Date().toISOString()};
+  if(state.plannerSelectedPlanId)payload.id=state.plannerSelectedPlanId;
+  try{
+    const {data,error}=await sb.from('company_production_plans').upsert(payload).select().single();
+    if(error){await gameAlert(error.message);return;}
+    if(state.company?.id!==companyId)return;
+    state.productionPlans=[data,...(state.productionPlans || []).filter(p=>p.id!==data.id)];
+    state.plannerSelectedPlanId=data.id;renderSavedProductionPlans();
+    document.getElementById('chainSaveStatus').textContent='Plan gespeichert. Bestände und Zeiten werden beim Öffnen neu berechnet.';
+  }catch(error){await gameAlert('Der Plan konnte nicht gespeichert werden. Bitte erneut versuchen.');}
+  finally{if(button)button.disabled=false;}
+};
+
+function renderSavedProductionPlans(){
+  const root=document.getElementById('chainSaved');if(!root)return;
+  root.innerHTML=(state.productionPlans || []).length ? (state.productionPlans || []).map(plan=>{
+    const product=state.products.find(p=>p.id===plan.product_id);
+    return `<div class="saved-chain"><span><strong>${encyclopediaEscapeHtml(product?.name || 'Produkt')}</strong> · ${num(plan.quantity)} Stück · Q${plan.quality_level}</span><div><button type="button" class="ghost" onclick="loadProductionChain('${plan.id}')">Öffnen</button><button type="button" class="ghost" onclick="deleteProductionChain('${plan.id}')">Löschen</button></div></div>`;
+  }).join(''):'<p class="muted">Noch keine gespeicherten Pläne.</p>';
+}
+
+window.loadProductionChain=async function(id){
+  const companyId=state.company?.id;
+  const plan=(state.productionPlans || []).find(p=>p.id===id);if(!plan)return;
+  await openProductionPlanner(plan.product_id,plan.quantity,plan.quality_level,plan.deadline);
+  if(state.company?.id!==companyId)return;
+  state.plannerChoices={...plan.choices};state.plannerSelectedPlanId=plan.id;updateProductionChain();
+};
+
+window.deleteProductionChain=async function(id){
+  const companyId=state.company?.id;
+  if(!(state.productionPlans || []).some(p=>p.id===id) || !await gameConfirm('Gespeicherten Plan löschen?'))return;
+  const {error}=await sb.from('company_production_plans').delete().eq('id',id).eq('company_id',companyId);
+  if(error){await gameAlert(error.message);return;}
+  if(state.company?.id!==companyId)return;
+  state.productionPlans=state.productionPlans.filter(p=>p.id!==id);
+  if(state.plannerSelectedPlanId===id)state.plannerSelectedPlanId=null;
+  renderSavedProductionPlans();
+};
+
+function guidanceState(){return CompanyGuidance.progress(progressionData(),state.guidance || {});}
+
+function saveGuidance(patch){
+  const companyId=state.company?.id;if(!companyId)return Promise.resolve();
+  state.guidance={...(state.guidance || {}),...patch,company_id:companyId};
+  const next={...state.guidance};delete next.error;
+  const allowed={company_id:companyId,selected_product_id:next.selected_product_id || null,completed_steps:next.completed_steps || [],dismissed_lessons:next.dismissed_lessons || [],paused:!!next.paused,skipped:!!next.skipped,updated_at:new Date().toISOString()};
+  guidancePendingWrites++;
+  guidanceSaveQueue=guidanceSaveQueue.then(async()=>{
+    const {error}=await sb.from('company_guidance').upsert(allowed);
+    if(state.company?.id===companyId){state.guidanceError=error ? 'Fortschritt konnte nicht gespeichert werden. Bitte erneut versuchen.':'';}
+  }).catch(()=>{if(state.company?.id===companyId)state.guidanceError='Fortschritt konnte nicht gespeichert werden. Bitte erneut versuchen.';})
+    .finally(()=>{guidancePendingWrites--;if(state.company?.id===companyId)renderCompanyGuidance();});
+  return guidanceSaveQueue;
+}
+
+window.showCompanyGuidance=function(){
+  activateView('dashboard');history.replaceState(null,'','#dashboard');
+  document.getElementById('companyGuidance')?.scrollIntoView({behavior:'smooth',block:'start'});
+};
+
+window.setGuidancePaused=function(paused){saveGuidance({paused:!!paused,skipped:false});renderCompanyGuidance();};
+window.skipCompanyGuidance=async function(){
+  if(!await gameConfirm('Den geführten Einstieg überspringen? Du kannst ihn jederzeit über „Einstieg“ wieder öffnen.'))return;
+  saveGuidance({skipped:true});renderCompanyGuidance();
+};
+window.retryGuidanceSave=function(){saveGuidance({});};
+window.dismissGuidanceLesson=function(id){
+  if(!CompanyGuidance.LESSONS.some(l=>l.id===id))return;
+  saveGuidance({dismissed_lessons:[...new Set([...(state.guidance?.dismissed_lessons || []),id])]});renderCompanyGuidance();
+};
+
+window.completeGuidanceStep=function(step){
+  const progress=guidanceState();
+  if(!['overview','review'].includes(step) || progress.current!==step || step==='review' && !progress.result)return;
+  saveGuidance({completed_steps:[...new Set([...progress.done,step])],selected_product_id:progress.product?.id || null});renderCompanyGuidance();
+};
+window.chooseGuidanceProduct=function(){
+  const id=document.getElementById('guidanceProduct')?.value;
+  if(!state.products.some(p=>p.id===id))return;
+  saveGuidance({selected_product_id:id,completed_steps:['overview','choose']});renderCompanyGuidance();
+};
+
+window.guidanceOpenProduction=function(){
+  const {product}=guidanceState();if(!product){goToEncyclopediaTarget('production');return;}
+  const buildings=state.buildings.filter(b=>b.status==='active' && b.building_type_id===product.required_building_type_id);
+  const building=buildings.find(b=>!state.productionJobs.some(j=>j.building_id===b.id && j.status==='running')) || buildings[0];
+  if(building)openPlannerProduction(product.id,building.id,1);else goToEncyclopediaTarget('production');
+};
+window.guidanceOpenSale=function(){
+  const {product}=guidanceState();if(!product)return;
+  const store=state.buildings.find(b=>b.status==='active' && b.building_type_id===product.required_retail_building_type_id && !state.retailSaleJobs.some(j=>j.status==='running' && j.building_id===b.id));
+  if(store){
+    openRetailBuilding(store.id);
+    const select=document.getElementById('retailProduct');
+    if(select && [...select.options].some(o=>o.value===product.id))select.value=product.id;
+    document.getElementById('retailQty').value=1;renderRetailSale();
+    document.getElementById('retailControlPanel')?.scrollIntoView({behavior:'smooth',block:'start'});
+  }else{
+    goToEncyclopediaTarget('market');openMarketSellModal({type:'product',key:`product:${marketProductIdentity(product)}`,product,name:product.name,category:product.category});
+  }
+};
+
+function renderCompanyGuidance(){
+  const root=document.getElementById('guidanceContent');if(!root || !state.company || typeof CompanyGuidance==='undefined')return;
+  document.getElementById('headerGuidanceBtn')?.classList.remove('hidden');
+  const progress=guidanceState(),saved=state.guidance || {};
+  if(JSON.stringify([...progress.done].sort())!==JSON.stringify([...(saved.completed_steps || [])].sort())){
+    saveGuidance({completed_steps:progress.done,selected_product_id:progress.product?.id || saved.selected_product_id || null});
+  }
+  const title={overview:'Dein Unternehmen kennenlernen',choose:'Dein erstes Produkt auswählen',materials:'Material für eine kleine Charge beschaffen',produce:'Eine kleine Produktion starten',claim:'Fertige Ware abholen',sell:'Deine Ware verkaufen',review:'Dein Ergebnis verstehen'};
+  const intro={overview:'Prüfe Kontostand, Lager und Gebäude. Dein Kapital bezahlt Materialien und laufende Betriebskosten.',choose:'Wähle ein Produkt, das eines deiner aktiven Gebäude herstellen kann. Für den Start reicht eine Einheit.',materials:'Die Rezeptvorschau zeigt passende Lagerbestände und Fehlmengen für eine Einheit. Kaufe fehlende Inputs bewusst; dafür fallen Ausgaben an.',produce:'Prüfe Dauer und Betriebskosten, bevor du die Charge startest. Ein Zeitboost ist dafür nicht erforderlich.',claim:'Während die Produktion läuft, kannst du andere Bereiche erkunden. Fertige Einheiten holst du im Gebäude ab.',sell:'Vergleiche Verkaufspreis, Absatztempo und Kostendeckung. Ein passender Laden ermöglicht Einzelhandel; die Warenbörse ist eine Alternative.',review:'Die erste Geschäftsrunde ist abgeschlossen. Erlös und Warenkosten zeigen, wie viel der Verkauf zur Kostendeckung beigetragen hat.'};
+  const steps=CompanyGuidance.STEPS.map((id,i)=>`<li class="${progress.done.includes(id)?'done':id===progress.current?'current':''}">${progress.done.includes(id)?'✓':i+1} ${title[id]}</li>`).join('');
+  let content='';
+  if(saved.paused || saved.skipped)content=`<p>Der Einstieg ist ${saved.skipped?'übersprungen':'pausiert'}. Du kannst frei weiterspielen.</p><button type="button" onclick="setGuidancePaused(false)">Einstieg fortsetzen</button>`;
+  else if(progress.complete)content='<p><strong>Geschäftsrunde abgeschlossen.</strong> Plane jetzt eine größere Produktionskette oder entwickle deine Firma weiter.</p><button type="button" onclick="openProductionPlanner()">Produktionsketten planen</button>';
+  else{
+    let action='';
+    if(progress.current==='overview')action='<button type="button" onclick="completeGuidanceStep(\'overview\')">Überblick verstanden</button><button type="button" class="ghost" onclick="openEncyclopediaArticle(\'getting-started\')">Erste Schritte erklären</button>';
+    if(progress.current==='choose'){
+      const ids=new Set(state.buildings.filter(b=>b.status==='active').map(b=>b.building_type_id));
+      const products=state.products.filter(p=>p.status==='active' && ids.has(p.required_building_type_id) && Number(p.base_production_rate)>0);
+      action=products.length ? `<label>Produkt<select id="guidanceProduct">${products.map(p=>`<option value="${p.id}" ${p.id===progress.product?.id?'selected':''}>${encyclopediaEscapeHtml(p.name)} · Q${productQuality(p)}</option>`).join('')}</select></label><button type="button" onclick="chooseGuidanceProduct()">Mit diesem Produkt starten</button>`:'<p class="muted">Aktuell fehlt ein passendes aktives Produktionsgebäude.</p><button type="button" onclick="goToEncyclopediaTarget(\'production\')">Gebäude öffnen</button>';
+    }
+    if(['materials','produce','claim'].includes(progress.current))action=`<button type="button" onclick="guidanceOpenProduction()">${progress.current==='materials'?'Rezept und Fehlmengen prüfen':progress.current==='claim'?'Produktion und Abholung öffnen':'Produktion vorbereiten'}</button><button type="button" class="ghost" onclick="openProductionPlanner('${progress.product?.id || ''}',1)">Gesamte Kette planen</button>`;
+    if(progress.current==='sell')action='<button type="button" onclick="guidanceOpenSale()">Verkauf vorbereiten</button>';
+    if(progress.current==='review'){
+      const result=progress.result;
+      action=result ? `<div class="guidance-result"><div class="kv"><span>${result.kind==='market'?'Nettoerlös nach Marktgebühr':'Verkaufserlös'}</span><strong>${money(result.revenue)}</strong></div>${result.goodsCost!=null ? `<div class="kv"><span>Warenkosten</span><strong>${money(result.goodsCost)}</strong></div><div class="kv"><span>Verkaufsbetriebskosten</span><strong>${money(result.operatingCost)}</strong></div><div class="kv"><span>Deckungsbeitrag</span><strong>${balanceMoney(result.margin)}</strong></div><p class="muted">${result.margin<0?'Diese Runde deckt die zugeordneten Kosten nicht. Prüfe Einstandskosten und Preis beim nächsten Verkauf.':'Dieser Betrag trägt zur Deckung weiterer Unternehmenskosten bei.'} Lagerhaltung, Gebäudeunterhaltung und Finanzierung sind hier nicht enthalten.</p>`:'<p class="muted">Für diesen Verkauf sind nicht alle historischen Warenkosten verfügbar. Vergleiche die Finanzbewegungen; der Erlös allein ist noch kein Gewinn.</p>'}</div><button type="button" onclick="completeGuidanceStep(\'review\')">Ergebnis verstanden</button><button type="button" class="ghost" onclick="goToEncyclopediaTarget(\'finance\')">Finanzen öffnen</button>`:'<p class="muted">Dein Verkauf läuft noch oder wartet auf Käufer. Der nächste Schritt wird nach einem tatsächlichen Verkauf freigeschaltet.</p><button type="button" onclick="guidanceOpenSale()">Verkauf ansehen</button>';
+    }
+    content=`<div class="guidance-layout"><ol class="guidance-steps">${steps}</ol><div class="guidance-current"><h3>${title[progress.current]}</h3>${progress.product ? `<p class="muted">Dein Produkt: ${encyclopediaEscapeHtml(progress.product.name)}</p>`:''}<p>${intro[progress.current]}</p><div class="guidance-actions">${action}</div></div></div><div class="guidance-actions"><button type="button" class="ghost" onclick="setGuidancePaused(true)">Pausieren</button><button type="button" class="ghost" onclick="skipCompanyGuidance()">Überspringen</button></div>`;
+  }
+  const lessons=progress.lessons.map(lesson=>`<article class="guidance-lesson"><strong>${lesson.title} · ab Level ${lesson.level}</strong><p>${lesson.text}</p><div class="guidance-actions"><button type="button" class="ghost" onclick="${lesson.article==='specializations' ? 'goToEncyclopediaTarget':'openEncyclopediaArticle'}('${lesson.article}')">Mehr erfahren</button><button type="button" class="ghost" onclick="dismissGuidanceLesson('${lesson.id}')">Verstanden</button></div></article>`).join('');
+  root.innerHTML=content+(state.guidanceError ? `<p class="status error">${state.guidanceError}</p><button type="button" class="ghost" onclick="retryGuidanceSave()">Speichern erneut versuchen</button>`:'')+(lessons ? '<div class="guidance-lessons">'+lessons+'</div>':'');
+  applyLanguageToDom(root);
+}
+
+
 function renderAll() {
   const c = state.company;
   updateFeatureLocks();
@@ -9454,6 +9840,8 @@ function renderAll() {
   renderRetailSale();
   renderMarket();
   renderContracts();
+  renderProductionPlanner();
+  renderCompanyGuidance();
   if (currentLanguage === 'en') applyLanguageToDom(document.getElementById('gameView'));
 
 }
@@ -10916,5 +11304,3 @@ document.addEventListener('keydown', event => {
     closeDashboardHistory();
   }
 });
-
-

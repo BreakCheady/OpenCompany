@@ -1,5 +1,16 @@
 # OpenCompany
 
+## Version 0.10.222 – Produktionsplanung, Einstieg und Branchen
+
+- Neuer Produktionsketten-Planer mit rekursiven Rezepten, gemeinsamem Bestandsabgleich, Qualitätsprüfung, laufenden Zugängen, Gebäudebelegung, Chargen bis 24 Stunden und einem optionalen Zieltermin.
+- Eigenfertigung und Zukauf lassen sich pro Produkt wählen. Der Variantenvergleich berechnet Kosten und Termine des gesamten Zielplans. Marktpreise werden bewusst aktualisiert; Fehlmengen und unvollständige Schätzungen bleiben sichtbar.
+- Pläne können pro Firma gespeichert, erneut geöffnet, aktualisiert und gelöscht werden. Sie reservieren keine Ware und starten keine Aktionen automatisch. Zugang aus Navigation, Rezeptrechner, Produktionsmaske und Produkt-Lieferaufgaben.
+- Freiwilliger Einstieg mit sieben Schritten, gespeicherten Fortschritten, Pause/Fortsetzen und Lernkarten auf Level 5/8/10/15. Tatsächliche Produktion, Abholung und Verkäufe werden erkannt. Der Rundgang vergibt keine zusätzlichen Geld-, XP- oder OCB-Prämien.
+- Vier zusätzliche Branchen: Lebensmittel (Verkaufsrate und Verkaufsbetriebskosten), Automobil (Produktionsmenge und Produktionsbetriebskosten), Chemie (Produktionsbetriebskosten und Patentgewinn für Chemie-Produktforschung) und Textil (Verkaufsrate und Preiswirkung). Branchenboni gelten ausschließlich für die jeweilige Produktkategorie. Die bestehenden Plätze, Auswahl-, Wechsel- und Ausbaukosten bleiben erhalten.
+- Produktions- und Einzelhandelsvorschauen verwenden die tatsächlich auf dem Server angewandte Gebäudeleistung. Wettbewerbe sind nicht Bestandteil dieser Version.
+
+Validierung: `node --check app.js`, `node tests/progression.cjs`, `node tests/progression-ui.cjs` und `node tests/specializations.cjs`. Die Controllerprüfungen testen den geführten Ablauf, Speichern und Kontextverknüpfungen ohne echte Spielaktionen. `tests/progression.sql` prüft tatsächliche Produktion, Verkaufsbetriebskosten, Forschung, Zugriffsschutz und Unternehmensreset mit abschließendem ROLLBACK; `tests/specializations.sql` prüft die bestehenden Vertrags- und Spezialisierungsregeln. Diese Tests ersetzen keine visuelle Prüfung in einer angemeldeten Spielsession.
+
 ## Version 0.10.221 – Spezialisierungen und Großaufträge
 
 - Alle sieben Spezialisierungen sind auswählbar; zwei Plätze ab Unternehmenslevel 8/15.
@@ -13,7 +24,7 @@
 
 Validierung: `node --check app.js` und, vom Repository-Verzeichnis aus, `node tests/specializations.cjs`. `tests/specializations.sql` enthält Datenbankprüfungen mit abschließendem ROLLBACK; die Zeitprüfung wird nur innerhalb der Testtransaktion ersetzt. Die Tests prüfen Freischaltungen, Berechtigungen, Kosten, Fertigstellung, Gebühren, tatsächliche Zuschläge und Lieferungen, Logistik sowie Sommer-/Winterzeit und Auftragskapazität.
 
-**Aktuelle Version: 0.10.221**
+**Aktuelle Version: 0.10.222**
 
 OpenCompany ist eine browserbasierte Multiplayer-Unternehmenssimulation mit **GitHub Pages** als Frontend und **Supabase/PostgreSQL** als Backend.
 
