@@ -958,6 +958,7 @@ let marketAutoRefreshTimer = null;
 let companyValueRefreshTimer = null;
 let buildingConstructionTimer = null;
 let companyBalancePollTimer = null;
+let specializationRefreshTimer = null;
 let companyBalanceChannel = null;
 let publicLeaderboardTimer = null;
 let chatRealtimeChannel = null;
@@ -1082,19 +1083,24 @@ const specializationFactor = (key, category = null) => {
   let factor = 1;
   for (const row of state.specializations || []) {
     const code = row.specialization_code;
-    if (code === 'production' && key === 'production_output') factor *= 1.05;
-    else if (code === 'production' && key === 'production_operating_cost') factor *= 0.95;
-    else if (code === 'retail' && key === 'retail_rate') factor *= 1.07;
-    else if (code === 'retail' && key === 'retail_price_effect') factor *= 1.03;
-    else if (code === 'logistics' && key === 'transport_container_use') factor *= 0.90;
-    else if (code === 'research' && key === 'research_operating_cost') factor *= 0.92;
-    else if (code === 'research' && key === 'patent_gain') factor *= 1.05;
-    else if (code === 'industry_electronics' && category === 'electronics' && key === 'production_output') factor *= 1.05;
-    else if (code === 'industry_electronics' && category === 'electronics' && key === 'production_operating_cost') factor *= 0.95;
-    else if (code === 'industry_electronics' && category === 'electronics' && key === 'retail_rate') factor *= 1.05;
+    const level = Number(row.specialization_level || 1);
+    const scale = 1 + 0.25 * (level - 1);
+    if (code === 'production' && key === 'production_output') factor *= 1 + 0.05 * scale;
+    else if (code === 'production' && key === 'production_operating_cost') factor *= 1 - 0.05 * scale;
+    else if (code === 'retail' && key === 'retail_rate') factor *= 1 + 0.07 * scale;
+    else if (code === 'retail' && key === 'retail_price_effect') factor *= 1 + 0.03 * scale;
+    else if (code === 'logistics' && key === 'transport_container_use') factor *= 1 - 0.10 * scale;
+    else if (code === 'logistics' && key === 'logistics_penalty') factor *= 1 - (0.10 + 0.05 * (level-1));
+    else if (code === 'research' && key === 'research_operating_cost') factor *= 1 - 0.08 * scale;
+    else if (code === 'research' && key === 'patent_gain') factor *= 1 + 0.05 * scale;
+    else if (code === 'trading' && key === 'market_fee') factor *= 1 - 0.10 * level;
+    else if (code === 'contracts' && key === 'contract_penalty') factor *= 1 - 0.10 * level;
+    else if (code === 'industry_electronics' && category === 'electronics' && ['production_output','retail_rate'].includes(key)) factor *= 1 + 0.02 * level;
+    else if (code === 'industry_electronics' && category === 'electronics' && key === 'production_operating_cost') factor *= 1 - 0.02 * level;
   }
   return factor;
 };
+const effectiveMarketFeeRate = () => GAME_RULES.fees.marketRate * specializationFactor('market_fee');
 const retailAveragePrice = (unitCost, category = null) =>
   Math.round(
     Math.max(0, Number(unitCost || 0))
@@ -1469,6 +1475,8 @@ function transactionLabel(type) {
     storage_auction_fee: 'Gebühr Zwangsversteigerung',
     contract_buy: 'Vertragskauf',
     contract_sale: 'Vertragsverkauf',
+    specialization_change: 'Spezialisierungswechsel',
+    specialization_upgrade: 'Spezialisierungsausbau',
     contract_penalty: 'Vertragsstrafe',
     contract_penalty_income: 'Vertragsstrafe erhalten',
     company_event: 'Unternehmensereignis',
@@ -1955,6 +1963,8 @@ function startCompanyBalanceWatcher() {
 }
 
 function startPresenceHeartbeat() {
+  if (specializationRefreshTimer) clearInterval(specializationRefreshTimer);
+  specializationRefreshTimer = setInterval(refreshSpecializationProgress,60000);
   if (presenceTimer) clearInterval(presenceTimer);
   touchPresence();
   presenceTimer = setInterval(touchPresence, 60000);
@@ -1967,6 +1977,8 @@ function startPresenceHeartbeat() {
 }
 
 function stopPresenceHeartbeat() {
+  if (specializationRefreshTimer) clearInterval(specializationRefreshTimer);
+  specializationRefreshTimer = null;
   if (presenceTimer) clearInterval(presenceTimer);
   presenceTimer = null;
   if (companyValueRefreshTimer) clearInterval(companyValueRefreshTimer);
@@ -3638,7 +3650,7 @@ async function loadGameData() {
     sb.from('market_demand_history').select('*').gte('demand_date',new Date(Date.now()-7*86400000).toISOString().slice(0,10)).order('demand_date',{ascending:true}),
     sb.rpc('get_market_price_indices'),
     sb.from('market_price_index_history').select('*').gte('index_date',new Date(Date.now()-30*86400000).toISOString().slice(0,10)).order('index_date',{ascending:true}),
-    sb.rpc('get_company_specializations',{p_company_id:cid}),
+    sb.rpc('get_company_specialization_progress',{p_company_id:cid}),
     sb.from('large_customer_orders').select('*').order('published_at',{ascending:false}).limit(100),
     sb.from('large_customer_bids').select('*').eq('company_id',cid).order('created_at',{ascending:false}).limit(100),
     sb.rpc('list_companies'),
@@ -3648,10 +3660,11 @@ async function loadGameData() {
     sb.rpc('get_company_ranking', { p_company_id: cid }),
     sb.rpc('get_storage_status', { p_company_id: cid }),
     sb.rpc('get_ocb_status', { p_company_id: cid }),
-    sb.from('game_economy_state').select('*').eq('id',1).single()
+    sb.from('game_economy_state').select('*').eq('id',1).single(),
+    sb.rpc('get_company_trade_analysis',{p_company_id:cid})
   ]);
 
-  const labels = ['Produkte','Alle Produkte','Produktlager','Materialien','Materiallager','Rezepte','Gebäudetypen','Gebäude','Produktionen','Handelsverkäufe','Finanzen','Marktübersicht','Eigene Marktorders','Marktkäufe','Verträge','Globale Ereignisse','Unternehmensereignisse','Nachfrage','Nachfrage-Verlauf','Marktpreis-Indizes','Index-Verlauf','Spezialisierungen','Großaufträge','Großauftragsgebote','Firmenverzeichnis','Kreditschulden','Anleihen','Unternehmenswert-Verlauf','Unternehmensranking','Lagerstatus','OC-Boost','Wirtschaftsphase'];
+  const labels = ['Produkte','Alle Produkte','Produktlager','Materialien','Materiallager','Rezepte','Gebäudetypen','Gebäude','Produktionen','Handelsverkäufe','Finanzen','Marktübersicht','Eigene Marktorders','Marktkäufe','Verträge','Globale Ereignisse','Unternehmensereignisse','Nachfrage','Nachfrage-Verlauf','Marktpreis-Indizes','Index-Verlauf','Spezialisierungen','Großaufträge','Großauftragsgebote','Firmenverzeichnis','Kreditschulden','Anleihen','Unternehmenswert-Verlauf','Unternehmensranking','Lagerstatus','OC-Boost','Wirtschaftsphase','Handelsanalyse'];
   const errors = results.map((r,i)=>r.error ? { label: labels[i], error:r.error } : null).filter(Boolean);
   if (errors.length) {
     console.error(errors);
@@ -3660,7 +3673,7 @@ async function loadGameData() {
   }
   clearGameDataError();
 
-  const [products, allProducts, inventory, materials, materialInventory, recipes, buildingTypes, buildings, productionJobs, retailSaleJobs, tx, marketSummary, ownMarketOrders, marketTrades, contracts, globalEvents, companyEvents, marketDemand, marketDemandHistory, marketPriceIndices, marketPriceIndexHistory, specializations, largeOrders, largeCustomerBids, directory, companyDebt, bondDashboard, valuationHistory, companyRanking, storageStatus, ocbStatus, economyState] = results;
+  const [products, allProducts, inventory, materials, materialInventory, recipes, buildingTypes, buildings, productionJobs, retailSaleJobs, tx, marketSummary, ownMarketOrders, marketTrades, contracts, globalEvents, companyEvents, marketDemand, marketDemandHistory, marketPriceIndices, marketPriceIndexHistory, specializations, largeOrders, largeCustomerBids, directory, companyDebt, bondDashboard, valuationHistory, companyRanking, storageStatus, ocbStatus, economyState, companyTradeAnalysis] = results;
   state.products = products.data;
   state.allProducts = allProducts.data;
   state.inventory = inventory.data;
@@ -3685,6 +3698,7 @@ async function loadGameData() {
   state.marketPriceIndices = marketPriceIndices.data || [];
   state.marketPriceIndexHistory = marketPriceIndexHistory.data || [];
   state.specializations = specializations.data || [];
+  state.companyTradeAnalysis = companyTradeAnalysis.data || null;
   state.largeOrders = largeOrders.data || [];
   state.largeCustomerBids = largeCustomerBids.data || [];
   state.companyDirectory = directory.data || [];
@@ -4079,7 +4093,7 @@ function renderPublicCompanyProfile(profile) {
 
     ${profileSpecializations.length ? `<section class="company-profile-description">
       <h3>Spezialisierungen</h3>
-      <p>${profileSpecializations.map(row => SPECIALIZATION_META[row.specialization_code]?.name || row.specialization_code).join(' · ')}</p>
+      <p>${profileSpecializations.map(row => (SPECIALIZATION_META[row.specialization_code]?.name || row.specialization_code)+' · Stufe '+specializationLevelLabel(row.specialization_level)).join(' · ')}</p>
     </section>` : ''}
 
     <section class="company-profile-stats">
@@ -6205,7 +6219,7 @@ function renderContractPreview() {
     <div class="kv"><span>${translateUiString('Gewinn / Verlust')}</span><strong class="${profitClass}">${profit >= 0 ? '+' : '-'}${money(Math.abs(profit))}</strong></div>
     ${contractKind === 'delivery' ? `
       <div class="kv"><span>Lieferplan</span><strong>${deliveries} Lieferungen · alle ${intervalDays} Tag${intervalDays===1?'':'e'} · ${deliveryTime} Uhr</strong></div>
-      <div class="kv"><span>Vertragsstrafe</span><strong>10 % je Fehlversuch · automatische Beendigung nach 3 Fehlschlägen</strong></div>
+      <div class="kv"><span>Vertragsstrafe</span><strong>${num(10*specializationFactor('contract_penalty'))} % für dein Unternehmen je Fehlversuch · bei fehlenden Transportcontainern ggf. weiterer Logistikbonus · automatische Beendigung nach 3 Fehlschlägen</strong></div>
     ` : ''}
   `;
 }
@@ -9001,74 +9015,124 @@ function renderMarketPriceIndices() {
       num(row.trade_count) + " Trades · " + num(row.weighted_units) +
       " Einheiten</strong></div>" + (bars ? "<div class=\"market-index-chart\">" + bars + "</div>" :
       "<p class=\"muted\">Für den gewählten Verlauf liegen noch nicht genügend Tageswerte vor.</p>") + "</div>";
-  }).join("");
+  }).join("") + renderTradeAnalysis();
 }
 
 const SPECIALIZATION_META = Object.freeze({
-  production:{name:"Produktionsspezialist",description:"−5 % Energie-/Betriebskosten in der Produktion · +5 % Produktionsmenge"},
-  retail:{name:"Einzelhandelsspezialist",description:"+7 % Verkaufsrate · +3 % bessere Preiswirkung"},
-  logistics:{name:"Logistikspezialist",description:"−10 % Transportcontainerverbrauch"},
-  research:{name:"Forschungsspezialist",description:"−8 % Forschungsbetriebskosten · +5 % Patentwert-Gewinn"},
-  trading:{name:"Handelsspezialist",enabled:false,description:"Niedrigere Marktgebühren und bessere Analysewerte sind vorgesehen; die Vorgabe nennt dafür keinen exakten Prozentsatz. Daher noch nicht auswählbar."},
-  contracts:{name:"Vertragsspezialist",enabled:false,description:"Reduzierte Vertragsstrafe ist vorgesehen; die Vorgabe nennt dafür keinen exakten Prozentsatz. Daher noch nicht auswählbar."},
-  industry_electronics:{name:"Elektronikunternehmen",description:"Elektronikproduktion +5 % · Elektronikbetriebskosten −5 % · Elektronik-Einzelhandel +5 % · keine Vorteile in anderen Branchen"}
+  production:{name:'Produktionsspezialist'}, retail:{name:'Einzelhandelsspezialist'},
+  logistics:{name:'Logistikspezialist'}, research:{name:'Forschungsspezialist'},
+  trading:{name:'Handelsspezialist'}, contracts:{name:'Vertragsspezialist'},
+  industry_electronics:{name:'Elektronikunternehmen'}
 });
+const SPECIALIZATION_UPGRADES = Object.freeze({
+  2:{cost:50000,hours:24}, 3:{cost:100000,hours:48}
+});
+const specializationLevelLabel = level => ['','I','II','III'][Number(level)] || String(level);
+
+function specializationDescription(code, level = 1) {
+  const scale = 1 + 0.25 * (level - 1);
+  const pct = value => num(value);
+  return ({
+    production:`−${pct(5*scale)} % Produktionsbetriebskosten · +${pct(5*scale)} % Produktionsmenge`,
+    retail:`+${pct(7*scale)} % Verkaufsrate · +${pct(3*scale)} % Preiswirkung`,
+    logistics:`−${pct(10*scale)} % Transportcontainerverbrauch · −${pct(10+5*(level-1))} % Liefervertragsstrafe bei fehlenden Transportcontainern`,
+    research:`−${pct(8*scale)} % Forschungsbetriebskosten · +${pct(5*scale)} % Patentwert-Gewinn`,
+    trading:`−${pct(10*level)} % Marktgebühren (${pct(5*(1-0.1*level))} % vom Verkaufserlös) · eigene Handelsanalyse für 30 Tage in der Warenbörse`,
+    contracts:`−${pct(10*level)} % Liefervertragsstrafen`,
+    industry_electronics:`Elektronikproduktion +${pct(2*level)} % · Elektronikbetriebskosten −${pct(2*level)} % · Elektronik-Einzelhandel +${pct(2*level)} %`
+  })[code] || '';
+}
 
 function renderSpecializations() {
-  const container = document.getElementById("specializationsContent");
+  const container = document.getElementById('specializationsContent');
   if (!container) return;
   const companyLevel = Number(state.company?.company_level || 0);
   const activeBySlot = new Map((state.specializations || []).map(row => [Number(row.slot_no),row]));
-  let html = "<div class=\"specializations-grid\">";
+  let html = '<div class="specializations-grid">';
   [1,2].forEach(slot => {
     const required = slot === 1 ? 8 : 15;
     const current = activeBySlot.get(slot);
     const meta = current ? SPECIALIZATION_META[current.specialization_code] : null;
+    const level = Number(current?.specialization_level || 1);
     const locked = companyLevel < required;
     const switchAt = current?.switch_available_at ? new Date(current.switch_available_at) : null;
     const switchLocked = !!switchAt && switchAt.getTime() > Date.now();
-    html += "<section class=\"specialization-slot\"><div class=\"panel-head\"><div><strong>Spezialisierung " +
-      slot + "</strong><div class=\"muted\">Freischaltung ab Level " + required +
-      "</div></div><strong>" + (meta ? meta.name + " · Stufe " + Number(current.specialization_level || 1) : locked ? "Gesperrt" : "Frei") + "</strong></div>";
+    const upgrading = !!current?.upgrade_target_level;
+    html += `<section class="specialization-slot"><div class="panel-head"><div><strong>Spezialisierung ${slot}</strong><div class="muted">Freischaltung ab Level ${required}</div></div><strong>${meta ? meta.name+' · Stufe '+specializationLevelLabel(level) : locked ? 'Gesperrt' : 'Frei'}</strong></div>`;
     if (meta) {
-      html += "<p>" + meta.description + "</p><p class=\"muted\">Wechsel: 100.000 OC$ · danach 14 Tage Sperrzeit." +
-        (switchLocked ? " Wechsel wieder ab " + switchAt.toLocaleString(uiLocale()) + "." : "") + "</p>";
+      html += `<p>${specializationDescription(current.specialization_code,level)}</p>`;
+      if (upgrading) {
+        html += `<div class="specialization-upgrade"><strong>Ausbau auf Stufe ${specializationLevelLabel(current.upgrade_target_level)} läuft</strong><p>Fertig am ${new Date(current.upgrade_finishes_at).toLocaleString(uiLocale())}. Bis dahin gelten die bisherigen Boni.</p><p class="muted">Danach: ${specializationDescription(current.specialization_code,Number(current.upgrade_target_level))}</p></div>`;
+      } else if (level < 3) {
+        const upgrade = SPECIALIZATION_UPGRADES[level+1];
+        const canPay = Number(state.company?.cash_balance || 0) >= upgrade.cost;
+        html += `<div class="specialization-upgrade"><strong>Stufe ${specializationLevelLabel(level+1)}</strong><p>${specializationDescription(current.specialization_code,level+1)}</p><p>${money(upgrade.cost)} · ${upgrade.hours} Stunden</p><button type="button" ${canPay ? '' : 'disabled'} onclick="upgradeCompanySpecialization(${slot})">${canPay ? 'Ausbauen' : 'Nicht genügend OC$'}</button></div>`;
+      } else {
+        html += '<p class="muted">Maximale Ausbaustufe erreicht.</p>';
+      }
+      html += `<p class="muted">Wechsel: 100.000 OC$ · 14 Tage Sperrzeit.${switchLocked ? ' Wechsel wieder ab '+switchAt.toLocaleString(uiLocale())+'.' : ''} Beim Wechsel beginnt die neue Spezialisierung auf Stufe I.</p>`;
     }
     if (locked) {
-      html += "<p class=\"muted\">Noch " + (required-companyLevel) + " Level bis zur Freischaltung.</p>";
+      html += `<p class="muted">Noch ${required-companyLevel} Level bis zur Freischaltung.</p>`;
     } else {
-      html += "<div class=\"specialization-options\">";
+      html += '<div class="specialization-options">';
       Object.entries(SPECIALIZATION_META).forEach(([code,item]) => {
         const activeElsewhere = (state.specializations || []).some(row => Number(row.slot_no) !== slot && row.specialization_code === code);
-        const disabled = item.enabled === false || current?.specialization_code === code || activeElsewhere || switchLocked;
-        html += "<div class=\"specialization-option\"><strong>" + item.name + "</strong><p class=\"muted\">" +
-          item.description + "</p><button type=\"button\" " + (disabled ? "disabled" : "") +
-          " onclick=\"setCompanySpecialization(" + slot + ",'" + code + "')\">" +
-          (current?.specialization_code === code ? "Aktiv" : activeElsewhere ? "Bereits aktiv" : item.enabled === false ? "Wert noch offen" : current ? "Wechseln" : "Auswählen") +
-          "</button></div>";
+        const selected = current?.specialization_code === code;
+        const disabled = selected || activeElsewhere || switchLocked || upgrading;
+        html += `<div class="specialization-option"><strong>${item.name}</strong><p class="muted">${specializationDescription(code,selected ? level : 1)}</p><button type="button" ${disabled ? 'disabled' : ''} onclick="setCompanySpecialization(${slot},'${code}')">${selected ? 'Aktiv' : activeElsewhere ? 'Bereits aktiv' : current ? 'Wechseln' : 'Auswählen'}</button></div>`;
       });
-      html += "</div>";
+      html += '</div>';
     }
-    html += "</section>";
+    html += '</section>';
   });
-  html += "</div><p class=\"muted\">Spezialisierungen geben keine Bewertungsboni bei Großaufträgen. " +
-    "Die vorgesehenen Stufen II/III werden erst mit konkreten OC$- und Zeitwerten aktiviert; diese Werte sind in der Vorgabe nicht beziffert.</p>";
+  html += '</div><p class="muted">Die erste Auswahl ist kostenlos. Ausbau auf Stufe II: 50.000 OC$ und 24 Stunden; Stufe III: 100.000 OC$ und 48 Stunden. Es werden keine XP für den Ausbau benötigt. Elektronikboni steigen auf 2/4/6 %; Produktions-, Einzelhandels-, Logistik- und Forschungsboni steigen beim Ausbau um 25 % und 50 % ihres Ausgangswertes. Vorteile des Elektronikunternehmens gelten ausschließlich für Elektronik. Spezialisierungen verändern weder die Bewertung noch die Vertragsstrafe von Großaufträgen.</p>';
   container.innerHTML = html;
 }
 
 window.setCompanySpecialization = async function(slot, code) {
   const current = (state.specializations || []).find(row => Number(row.slot_no) === Number(slot));
   if (current && current.specialization_code !== code) {
-    const confirmed = await gameConfirm("Spezialisierung wechseln? Die Umstrukturierung kostet 100.000 OC$ und der neue Wechsel ist anschließend 14 Tage gesperrt.");
+    const confirmed = await gameConfirm('Spezialisierung wechseln? Die Umstrukturierung kostet 100.000 OC$. Die neue Spezialisierung startet auf Stufe I und ist anschließend 14 Tage für einen weiteren Wechsel gesperrt.');
     if (!confirmed) return;
   }
-  const { error } = await sb.rpc("set_company_specialization",{
-    p_company_id:state.company.id,
-    p_slot_no:Number(slot),
-    p_specialization_code:code
+  const { error } = await sb.rpc('set_company_specialization',{
+    p_company_id:state.company.id,p_slot_no:Number(slot),p_specialization_code:code
   });
   if (error) gameAlert(error.message); else await loadCompany();
 };
+
+window.upgradeCompanySpecialization = async function(slot) {
+  const current = (state.specializations || []).find(row => Number(row.slot_no) === Number(slot));
+  const target = Number(current?.specialization_level || 0)+1;
+  const upgrade = SPECIALIZATION_UPGRADES[target];
+  if (!current || !upgrade || current.upgrade_target_level) return;
+  if (!await gameConfirm(`Spezialisierung auf Stufe ${specializationLevelLabel(target)} ausbauen? Kosten: ${money(upgrade.cost)}. Dauer: ${upgrade.hours} Stunden. Der neue Bonus gilt nach Abschluss.`)) return;
+  const { error } = await sb.rpc('upgrade_company_specialization',{p_company_id:state.company.id,p_slot_no:Number(slot)});
+  if (error) gameAlert(error.message); else await loadCompany();
+};
+
+async function refreshSpecializationProgress() {
+  const companyId = state.company?.id;
+  if (!companyId || !(state.specializations || []).some(row => row.upgrade_target_level)) return;
+  const {data,error} = await sb.rpc('get_company_specialization_progress',{p_company_id:companyId});
+  if (error || state.company?.id !== companyId) return;
+  if (JSON.stringify(data || []) === JSON.stringify(state.specializations || [])) return;
+  state.specializations = data || [];
+  renderSpecializations();
+  renderSellOrderPreview();
+  renderProductionRecipe();
+  renderRetailSale();
+  renderResearch();
+  renderContractPreview();
+}
+
+function renderTradeAnalysis() {
+  const analysis = state.companyTradeAnalysis;
+  if (!analysis?.enabled) return '';
+  const rows = analysis.items || [];
+  return `<section class="panel trade-analysis"><h3>Eigene Handelsanalyse · letzte 30 Tage</h3><div class="kv"><span>Handelsabschlüsse</span><strong>${num(analysis.trade_count)}</strong></div><div class="kv"><span>Einkäufe / Bruttoverkäufe</span><strong>${money(analysis.purchase_value)} / ${money(analysis.sales_value)}</strong></div><div class="kv"><span>Gesparte Marktgebühren</span><strong>${money(analysis.fee_saved)}</strong></div>${rows.length ? `<div class="table-scroll"><table><thead><tr><th>Ware</th><th>Gekauft</th><th>Ø Kaufpreis</th><th>Verkauft</th><th>Ø Verkaufspreis</th></tr></thead><tbody>${rows.map(row=>`<tr><td>${escapeChatText(row.item_name)} Q${Number(row.quality_level)}</td><td>${num(row.bought_units)}</td><td>${row.average_buy == null ? '–' : money(row.average_buy)}</td><td>${num(row.sold_units)}</td><td>${row.average_sell == null ? '–' : money(row.average_sell)}</td></tr>`).join('')}</tbody></table></div>` : '<p class="muted">Noch keine Handelsabschlüsse im Zeitraum.</p>'}</section>`;
+}
 
 function largeOrderTypeLabel(type) {
   return ({raw_material:"Rohstoffauftrag",production:"Produktionsauftrag",quality:"Qualitätsauftrag",rush:"Eilauftrag"})[type] || type;
@@ -9103,6 +9167,9 @@ function renderLargeOrders() {
         num(Number(order.early_bonus_rate || 0) * 100) + " % bei vollständiger Lieferung innerhalb " +
         num(order.early_bonus_hours) + " Std. nach Zuschlag</strong></div>";
     }
+    if (Number(order.rush_bonus_rate || 0)>0) {
+      html += '<div class="kv"><span>Eilvergütung</span><strong>+' + num(Number(order.rush_bonus_rate)*100) + ' % bei vollständiger Lieferung innerhalb der zugesagten Frist</strong></div>';
+    }
     if (bid) html += "<div class=\"kv\"><span>Dein Gebot</span><strong>" + money(bid.price_per_unit) +
       " / Einheit · Q" + bid.offered_quality + " · " + bid.delivery_hours + " Std. · " + bid.status + "</strong></div>";
     if (bidding) {
@@ -9128,7 +9195,7 @@ function renderLargeOrders() {
     return html + "</section>";
   };
   container.innerHTML = "<div class=\"large-orders-list\">" +
-    (active.length ? active.map(renderOrder).join("") : "<p class=\"muted\">Aktuell keine offene Großausschreibung.</p>") +
+    (active.length ? active.map(renderOrder).join("") : "<p class=\"muted\">Aktuell keine offene Großausschreibung. Neue Aufträge werden um 06:00 Uhr (Europe/Berlin) erzeugt, sofern Plätze frei sind.</p>") +
     "</div>" + (recent.length ? "<h3>Zuletzt beendet</h3><div class=\"large-orders-list\">" +
     recent.map(renderOrder).join("") + "</div>" : "");
 }
@@ -9902,7 +9969,7 @@ function renderSellOrderPreview() {
   }
 
   const gross = ctx.quantity * ctx.price;
-  const fee = gross * GAME_RULES.fees.marketRate;
+  const fee = Math.round(gross * effectiveMarketFeeRate() * 100) / 100;
   const net = gross - fee;
   const unitCost = Number(ctx.unitCost || ctx.lot?.average_unit_cost || 0);
   const totalCost = ctx.quantity * unitCost;
@@ -9920,7 +9987,7 @@ function renderSellOrderPreview() {
     <div class="kv"><span>${translateUiString(costLabel)}</span><strong class="retail-cancel-fee">${totalCost > 0 ? `-${money(totalCost)}` : money(0)}</strong></div>
     <div class="kv"><span>Frachtkosten</span><strong class="${freightClass}">${freightCost > 0 ? `-${money(freightCost)}` : money(0)}</strong></div>
     <div class="kv"><span>Transportcontainer</span><strong class="${ctx.freight?.sufficient ? '' : 'missing-building-warning'}">${num(ctx.freight?.available || 0)} verfügbar · ${num(ctx.freight?.required || 0)} benötigt</strong></div>
-    <div class="kv"><span>Marktgebühr (${rulePercent(GAME_RULES.fees.marketRate)}%)</span><strong class="retail-cancel-fee">${fee > 0 ? `-${money(fee)}` : money(0)}</strong></div>
+    <div class="kv"><span>Marktgebühr (${num(effectiveMarketFeeRate()*100)}%)</span><strong class="retail-cancel-fee">${fee > 0 ? `-${money(fee)}` : money(0)}</strong></div>
     <div class="kv"><span>Nettoerlös</span><strong class="retail-revenue-positive">${money(net)}</strong></div>
     <div class="kv"><span>${translateUiString('Gewinn / Verlust')}</span><strong class="${profitClass}">${profit >= 0 ? '+' : '-'}${money(Math.abs(profit))}</strong></div>
   `;
@@ -10849,4 +10916,5 @@ document.addEventListener('keydown', event => {
     closeDashboardHistory();
   }
 });
+
 

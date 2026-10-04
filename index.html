@@ -5,14 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta name="theme-color" content="#0d2d55">
   <title>OpenCompany</title>
-  <link rel="icon" type="image/png" href="favicon.png?v=0.10.220">
-  <link rel="shortcut icon" href="favicon.ico?v=0.10.220">
-  <link rel="icon" type="image/x-icon" href="favicon.ico?v=0.10.220">
-  <link rel="manifest" href="/manifest.webmanifest?v=0.10.220">
-  <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=0.10.220">
+  <link rel="icon" type="image/png" href="favicon.png?v=0.10.221">
+  <link rel="shortcut icon" href="favicon.ico?v=0.10.221">
+  <link rel="icon" type="image/x-icon" href="favicon.ico?v=0.10.221">
+  <link rel="manifest" href="/manifest.webmanifest?v=0.10.221">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=0.10.221">
   <meta name="application-name" content="OpenCompany">
   <meta name="mobile-web-app-capable" content="yes">
-  <link rel="stylesheet" href="style.css?v=0.10.220">
+  <link rel="stylesheet" href="style.css?v=0.10.221">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     .password-field{display:flex;align-items:center;gap:.5rem}
@@ -1120,7 +1120,7 @@
       .oc-select-option{min-height:46px;padding:.7rem .8rem}
     }
   
-    /* v0.10.220 – Nachfrage, Indizes, Spezialisierungen und Großaufträge */
+    /* v0.10.221 – Nachfrage, Indizes, Spezialisierungen und Großaufträge */
     .app-shell{
       display:block!important;
       min-height:100dvh!important;
@@ -2087,6 +2087,7 @@
     .demand-trend.rising{color:#15803d}.demand-trend.falling{color:#b91c1c}.demand-trend.stable{color:#64748b}
     .demand-sparkline{display:flex;align-items:flex-end;gap:3px;height:38px;margin-top:.65rem}
     .demand-sparkline span{flex:1;min-width:3px;border-radius:3px;background:#94a3b8}
+    .specialization-upgrade{padding:.75rem;margin:.75rem 0;border:1px solid var(--border,#d7dee8);border-radius:.5rem}.trade-analysis .table-scroll{overflow-x:auto}
     .market-price-indices,.specializations-grid,.large-orders-list{display:grid;gap:.75rem}
     .market-index-card,.specialization-slot,.large-order-card{border:1px solid #dfe6ef;border-radius:12px;padding:1rem;background:#fff}
     .market-index-card-head,.large-order-head{display:flex;align-items:flex-start;justify-content:space-between;gap:.75rem}
@@ -2584,7 +2585,7 @@
               <button type="submit" class="sell-order-submit">Order erstellen</button>
             </form>
             <div id="sellOrderPreview" class="retail-sale-details"></div>
-            <p class="muted market-fee-note">Bei erfolgreichen Marktverkäufen werden 5% Marktgebühr vom Verkaufserlös abgezogen.</p>
+            <p class="muted market-fee-note">Die Basisgebühr beträgt 5 % des Verkaufserlöses. Handelsspezialisten zahlen je nach Ausbaustufe 4,5 / 4 / 3,5 %.</p>
           </article>
         </div>
       </div>
@@ -2658,7 +2659,7 @@
           <div class="panel-head">
             <div>
               <h2>Großaufträge</h2>
-              <p class="muted">Systemgenerierte Ausschreibungen. Angebote sind 24 Stunden möglich; bewertet werden Preis 50 %, Qualität 25 % und Liefergeschwindigkeit 25 %. Maximal 3 Großaufträge laufen gleichzeitig. Neue Ausschreibungen werden nach Möglichkeit täglich um 06:00 Uhr erzeugt. Teillieferungen sind erlaubt; bei nicht fristgerechter vollständiger Lieferung beträgt die Vertragsstrafe 30 % des Vertragswertes.</p>
+              <p class="muted">Systemgenerierte Ausschreibungen. Angebote sind 24 Stunden möglich; bewertet werden Preis 50 %, Qualität 25 % und Liefergeschwindigkeit 25 %. Maximal 3 Großaufträge laufen gleichzeitig. Neue Ausschreibungen werden ausschließlich um 06:00 Uhr (Europe/Berlin) erzeugt, bis maximal 3 laufende Aufträge erreicht sind. Schnellere Angebote erhalten mehr Punkte; das schnellste gültige Angebot erhält die vollen 25 Geschwindigkeitspunkte. Teillieferungen sind erlaubt; bei nicht fristgerechter vollständiger Lieferung beträgt die Vertragsstrafe 30 % des Vertragswertes.</p>
             </div>
           </div>
           <div id="largeOrdersContent"></div>
@@ -2783,7 +2784,7 @@
           <h2>Einstellungen</h2>
           <div class="kv">
             <span>Version</span>
-            <strong>0.10.220</strong>
+            <strong>0.10.221</strong>
           </div>
           <div class="kv settings-language-row">
             <span>Sprache</span>
@@ -2990,3 +2991,4 @@
 </script>
 </body>
 </html>
+

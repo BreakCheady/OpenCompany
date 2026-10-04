@@ -1,6 +1,19 @@
 # OpenCompany
 
-**Aktuelle Version: 0.10.34**
+## Version 0.10.221 – Spezialisierungen und Großaufträge
+
+- Alle sieben Spezialisierungen sind auswählbar; zwei Plätze ab Unternehmenslevel 8/15.
+- Ausbau auf II kostet 50.000 OC$ und dauert 24 Stunden; III kostet 100.000 OC$ und dauert 48 Stunden. Boni gelten erst nach Abschluss, ohne XP-Kosten. Ein laufender Ausbau sperrt den Wechsel.
+- Elektronikboni: 2/4/6 %. Andere bestehende Produktions-, Einzelhandels-, Logistik- und Forschungsboni wachsen auf II/III um 25/50 % ihres Ausgangswerts.
+- Handelsspezialisten senken die Basisgebühr von 5 % auf 4,5/4/3,5 % und erhalten eine eigene 30-Tage-Handelsanalyse in der Warenbörse.
+- Vertragsspezialisten senken Liefervertragsstrafen um 10/20/30 %. Logistik reduziert bei fehlenden Transportcontainern die Strafe zusätzlich um 10/15/20 %; der Mengencheck berücksichtigt denselben Containerbonus wie die tatsächliche Lieferung.
+- Großaufträge bleiben ohne Spezialisierungsbonus. Bewertung: Preis 50 %, Qualität 25 %, Liefergeschwindigkeit 25 %; Geschwindigkeit wird relativ zum schnellsten gültigen Angebot bewertet.
+- Neue Großaufträge erscheinen ausschließlich um 06:00 Uhr Europe/Berlin und füllen freie Plätze bis höchstens drei laufende Aufträge. Angebotsfrist: 24 Stunden. Zuschläge und Fristabläufe werden minütlich geprüft.
+- Eilaufträge zahlen bei vollständiger fristgerechter Lieferung zusätzlich 20 %. Teillieferungen werden erst bei vollständigem Abschluss vergütet. Die Großauftragsstrafe bleibt 30 % des Vertragswertes.
+
+Validierung: `node --check app.js` und, vom Repository-Verzeichnis aus, `node tests/specializations.cjs`. `tests/specializations.sql` enthält Datenbankprüfungen mit abschließendem ROLLBACK; die Zeitprüfung wird nur innerhalb der Testtransaktion ersetzt. Die Tests prüfen Freischaltungen, Berechtigungen, Kosten, Fertigstellung, Gebühren, tatsächliche Zuschläge und Lieferungen, Logistik sowie Sommer-/Winterzeit und Auftragskapazität.
+
+**Aktuelle Version: 0.10.221**
 
 OpenCompany ist eine browserbasierte Multiplayer-Unternehmenssimulation mit **GitHub Pages** als Frontend und **Supabase/PostgreSQL** als Backend.
 
