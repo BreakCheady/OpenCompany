@@ -2207,6 +2207,9 @@ function bindNavigation() {
     if (view === 'market') {
       await refreshMarketData();
     }
+    if (view === 'moderation') {
+      await loadModerationData();
+    }
     if (view === 'encyclopedia') {
       renderEncyclopedia();
       if (!location.hash.startsWith('#encyclopedia/')) {
@@ -2307,7 +2310,7 @@ function chatContacts() {
 function selectedChatTarget() {
   if (state.chatSelectedType === 'room') {
     const room = state.chatRooms.find(item => item.id === state.chatSelectedId);
-    return room ? { type:'room', id:room.id, name:room.name, icon:room.icon || '💬' } : null;
+    return room ? { type:'room', id:room.id, name:room.name, icon:room.icon || '💬', accessLevel:room.access_level || 'public' } : null;
   }
   if (state.chatSelectedType === 'contact') {
     const company = chatCompany(state.chatSelectedId);
@@ -2471,7 +2474,7 @@ function renderChatMessages() {
   title.textContent = target.name;
   subtitle.textContent = target.isAssistant
     ? 'Automatische Systemnachrichten'
-    : (target.type === 'room' ? 'Öffentlicher Chatraum' : 'Direktnachricht');
+    : (target.type === 'room' ? (target.accessLevel === 'staff' ? 'Interner Team-Chat' : 'Öffentlicher Chatraum') : 'Direktnachricht');
   icon.textContent = target.icon;
 
   if (!state.chatMessages.length) {
@@ -2531,7 +2534,7 @@ async function loadChatRooms() {
   if (!sb || !companyId) return false;
   const { data, error } = await sb
     .from('chat_rooms')
-    .select('id,slug,name,icon,sort_order')
+    .select('id,slug,name,icon,sort_order,access_level')
     .eq('is_active', true)
     .order('sort_order', { ascending:true });
 
