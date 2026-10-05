@@ -920,6 +920,7 @@ const state = {
   chatContactSearch: '',
   chatCompanyLogos: {},
   marketSearchFilter: '',
+  dashboardMarketCategory: '',
   marketTypeFilter: 'all',
   marketQualityFilter: 'all',
   marketView: 'catalog',
@@ -9371,6 +9372,152 @@ window.goToEncyclopediaTarget = function(view) {
 };
 
 
+
+function dashboardMarketCategoryLabel(category) {
+  const demand = (state.marketDemand || []).find(row => row.category === category);
+  return translateUiString(demand?.label || category || 'Gesamtmarkt');
+}
+
+function dashboardDemandBadge(value) {
+  const index = Number(value || 100);
+  if (index >= 112) return { cls:'high', label:'Hoch' };
+  if (index <= 88) return { cls:'low', label:'Niedrig' };
+  return { cls:'medium', label:'Mittel' };
+}
+
+function dashboardOwnSellPrice(productName, category) {
+  const matches = (state.marketOwnOrders || []).filter(order =>
+    order.products?.name === productName &&
+    order.products?.category === category &&
+    ['open','partially_filled'].includes(order.status) &&
+    Number(order.remaining_quantity || 0) > 0
+  );
+  if (!matches.length) return null;
+  return Math.min(...matches.map(order => Number(order.price_per_unit || 0)).filter(price => price > 0));
+}
+
+function renderDashboardMarketOverview() {
+  const select = document.getElementById('dashboardMarketCategorySelect');
+  const chart = document.getElementById('dashboardDemandChart');
+  const ordersRoot = document.getElementById('dashboardMarketOrders');
+  if (!select || !chart || !ordersRoot) return;
+
+  const productSummaries = (state.marketCatalogSummary || []).filter(row =>
+    row.item_type === 'product' && row.product_category && row.product_name
+  );
+  const categories = [...new Set(productSummaries.map(row => row.product_category))]
+    .sort((a,b) => dashboardMarketCategoryLabel(a).localeCompare(dashboardMarketCategoryLabel(b), uiLocale()));
+
+  if (!categories.length) {
+    select.innerHTML = '<option>Keine Marktdaten</option>';
+    select.disabled = true;
+    chart.innerHTML = '<div class="dashboard-market-empty">Noch keine Nachfragedaten verfügbar.</div>';
+    ordersRoot.innerHTML = '<div class="dashboard-market-empty">Noch keine Angebote verfügbar.</div>';
+    return;
+  }
+
+  select.disabled = false;
+  if (!state.dashboardMarketCategory || !categories.includes(state.dashboardMarketCategory)) {
+    state.dashboardMarketCategory = categories.includes('component')
+      ? 'component'
+      : categories.includes('electronics')
+        ? 'electronics'
+        : categories[0];
+  }
+
+  select.innerHTML = categories.map(category =>
+    '<option value="' + escapeChatText(category) + '"' +
+    (category === state.dashboardMarketCategory ? ' selected' : '') + '>' +
+    escapeChatText(dashboardMarketCategoryLabel(category)) + '</option>'
+  ).join('');
+
+  const category = state.dashboardMarketCategory;
+  const demandRow = (state.marketDemand || []).find(row => row.category === category);
+  let history = (state.marketDemandHistory || [])
+    .filter(row => row.category === category)
+    .slice(-7);
+
+  if (!history.length && demandRow) {
+    history = [{ demand_date:new Date().toISOString().slice(0,10), demand_index:Number(demandRow.demand_index || 100) }];
+  }
+
+  if (!history.length) {
+    chart.innerHTML = '<div class="dashboard-market-empty">Noch kein Nachfrageverlauf für diese Kategorie verfügbar.</div>';
+  } else {
+    const values = history.map(row => Number(row.demand_index || 100));
+    const minRaw = Math.min(...values);
+    const maxRaw = Math.max(...values);
+    const yMin = Math.max(0, Math.floor((minRaw - 10) / 20) * 20);
+    const yMax = Math.ceil((maxRaw + 10) / 20) * 20 || 140;
+    const range = Math.max(20, yMax - yMin);
+    const left = 42, right = 12, top = 18, bottom = 34, width = 520, height = 220;
+    const plotW = width - left - right;
+    const plotH = height - top - bottom;
+    const x = index => left + (history.length === 1 ? plotW / 2 : (index / (history.length - 1)) * plotW);
+    const y = value => top + (1 - (value - yMin) / range) * plotH;
+    const points = values.map((value,index) => x(index).toFixed(1) + ',' + y(value).toFixed(1));
+    const polyline = points.join(' ');
+    const area = left + ',' + (top + plotH) + ' ' + polyline + ' ' + (left + plotW) + ',' + (top + plotH);
+    const ticks = [0,.25,.5,.75,1].map(frac => Math.round(yMin + range * frac));
+    const lastValue = values[values.length - 1];
+    const lastX = x(values.length - 1);
+    const lastY = y(lastValue);
+    const boxX = Math.max(left, Math.min(width - 51, lastX - 20));
+    const boxY = Math.max(1, lastY - 34);
+
+    const grid = ticks.map(value => {
+      const yy = y(value);
+      return '<line class="dashboard-chart-grid" x1="' + left + '" y1="' + yy + '" x2="' + (left+plotW) + '" y2="' + yy + '"></line>' +
+        '<text class="dashboard-chart-label" x="' + (left-8) + '" y="' + (yy+3) + '" text-anchor="end">' + num(value) + '</text>';
+    }).join('');
+
+    const labels = history.map((row,index) => {
+      const date = new Date((row.demand_date || '') + 'T12:00:00');
+      const label = Number.isNaN(date.getTime()) ? '' : date.toLocaleDateString(uiLocale(),{day:'2-digit',month:'2-digit'});
+      return '<text class="dashboard-chart-label" x="' + x(index) + '" y="' + (height-9) + '" text-anchor="middle">' + escapeChatText(label) + '</text>';
+    }).join('');
+
+    const circles = values.map((value,index) =>
+      '<circle class="dashboard-chart-point" cx="' + x(index) + '" cy="' + y(value) + '" r="5"></circle>'
+    ).join('');
+
+    chart.innerHTML =
+      '<svg viewBox="0 0 ' + width + ' ' + height + '" role="img" aria-label="Nachfrageentwicklung ' + escapeChatText(dashboardMarketCategoryLabel(category)) + '">' +
+        grid +
+        '<line class="dashboard-chart-axis" x1="' + left + '" y1="' + (top+plotH) + '" x2="' + (left+plotW) + '" y2="' + (top+plotH) + '"></line>' +
+        '<polygon class="dashboard-chart-area" points="' + area + '"></polygon>' +
+        '<polyline class="dashboard-chart-line" points="' + polyline + '"></polyline>' +
+        circles +
+        labels +
+        '<rect class="dashboard-chart-current-box" x="' + boxX + '" y="' + boxY + '" rx="5" width="42" height="24"></rect>' +
+        '<text class="dashboard-chart-current-text" x="' + (boxX+21) + '" y="' + (boxY+16) + '" text-anchor="middle">' + num(lastValue) + '</text>' +
+      '</svg>';
+  }
+
+  const demandValue = Number(demandRow?.demand_index || 100);
+  const badge = dashboardDemandBadge(demandValue);
+  const rows = productSummaries
+    .filter(row => row.product_category === category)
+    .sort((a,b) => Number(b.total_quantity || 0) - Number(a.total_quantity || 0) || Number(a.best_price || 0) - Number(b.best_price || 0))
+    .slice(0,5);
+
+  if (!rows.length) {
+    ordersRoot.innerHTML = '<div class="dashboard-market-empty">Keine offenen Warenbörsenangebote in dieser Kategorie.</div>';
+  } else {
+    ordersRoot.innerHTML = '<table><thead><tr><th>Produkt</th><th>Kaufpreis</th><th>Verkaufspreis</th><th>Nachfrage</th></tr></thead><tbody>' +
+      rows.map(row => {
+        const buyPrice = Number(row.best_price || 0);
+        const sellPrice = dashboardOwnSellPrice(row.product_name,row.product_category);
+        return '<tr><td><strong>' + escapeChatText(row.product_name) + '</strong></td>' +
+          '<td>' + (buyPrice > 0 ? money(buyPrice) : '–') + '</td>' +
+          '<td>' + (sellPrice != null ? money(sellPrice) : '–') + '</td>' +
+          '<td><span class="dashboard-market-demand-badge ' + badge.cls + '">' + badge.label + '</span></td></tr>';
+      }).join('') +
+      '</tbody></table>';
+  }
+}
+
+
 function renderDemandDashboard() {
   const container = document.getElementById("demandDashboard");
   if (!container) return;
@@ -9844,6 +9991,7 @@ function renderAll() {
   renderDashboardValuationChanges();
   renderEconomyDashboard();
   renderDemandDashboard();
+  renderDashboardMarketOverview();
   renderEconomicEvents();
   renderCompanyEvents();
   renderMarketPriceIndices();
@@ -9914,6 +10062,11 @@ function renderAll() {
 
 }
 
+
+document.getElementById('dashboardMarketCategorySelect')?.addEventListener('change', event => {
+  state.dashboardMarketCategory = event.target.value || '';
+  renderDashboardMarketOverview();
+});
 
 const storageSearchFilter = document.getElementById('storageSearchFilter');
 const storageTypeFilter = document.getElementById('storageTypeFilter');
