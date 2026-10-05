@@ -9116,60 +9116,100 @@ function renderLargeOrders() {
   const bidByOrder = new Map((state.largeCustomerBids || []).map(b => [b.order_id,b]));
   const active = (state.largeOrders || []).filter(o => ["bidding","awarded"].includes(o.status));
   const recent = (state.largeOrders || []).filter(o => !["bidding","awarded"].includes(o.status)).slice(0,10);
+
+  const statusMeta = (order, ownAward) => {
+    if (order.status === "bidding") return { label:"Ausschreibung", cls:"" };
+    if (order.status === "awarded") return ownAward
+      ? { label:"Gewonnen", cls:"won" }
+      : { label:"Vergeben", cls:"closed" };
+    if (order.status === "completed") return { label:"Abgeschlossen", cls:"closed" };
+    if (order.status === "failed") return { label:"Nicht erfüllt", cls:"failed" };
+    return { label:order.status, cls:"closed" };
+  };
+
   const renderOrder = order => {
     const bid = bidByOrder.get(order.id);
     const bidding = order.status === "bidding" && new Date(order.bidding_ends_at).getTime() > Date.now();
     const ownAward = order.status === "awarded" && order.awarded_company_id === state.company?.id;
     const remaining = Math.max(0,Number(order.quantity||0)-Number(order.delivered_quantity||0));
-    let statusLabel = order.status;
-    if (order.status === "bidding") statusLabel = "Ausschreibung";
-    else if (order.status === "awarded") statusLabel = ownAward ? "Gewonnen" : "Vergeben";
-    else if (order.status === "completed") statusLabel = "Abgeschlossen";
-    else if (order.status === "failed") statusLabel = "Nicht erfüllt";
-    let html = "<section class=\"large-order-card\"><div class=\"large-order-head\"><div><strong>" +
-      largeOrderTypeLabel(order.order_type) + " · " + order.customer_name +
-      "</strong><div class=\"muted\">" + order.item_name + "</div></div><strong>" + statusLabel +
-      "</strong></div><div class=\"large-order-meta\"><div><span class=\"muted\">Menge</span><strong>" +
-      num(order.quantity) + "</strong></div><div><span class=\"muted\">Mindestqualität</span><strong>Q" +
-      Number(order.minimum_quality||1) + "</strong></div><div><span class=\"muted\">Lieferfrist</span><strong>" +
-      order.delivery_hours + " Std.</strong></div><div><span class=\"muted\">Gebotsende</span><strong>" +
-      new Date(order.bidding_ends_at).toLocaleString(uiLocale()) + "</strong></div></div>";
+    const status = statusMeta(order, ownAward);
+
+    let html = '<section class="large-order-card">' +
+      '<div class="large-order-card-head">' +
+        '<div class="large-order-heading">' +
+          '<h3>' + largeOrderTypeLabel(order.order_type) + ' · ' + order.customer_name + '</h3>' +
+          '<p class="large-order-product">' + order.item_name + '</p>' +
+        '</div>' +
+        '<span class="large-order-status ' + status.cls + '">' + status.label + '</span>' +
+      '</div>' +
+      '<div class="large-order-card-body">' +
+        '<div class="large-order-meta">' +
+          '<div class="large-order-meta-item"><span class="large-order-meta-label">Menge</span><strong class="large-order-meta-value">' + num(order.quantity) + '</strong></div>' +
+          '<div class="large-order-meta-item"><span class="large-order-meta-label">Mindestqualität</span><strong class="large-order-meta-value">Q' + Number(order.minimum_quality||1) + '</strong></div>' +
+          '<div class="large-order-meta-item"><span class="large-order-meta-label">Lieferfrist</span><strong class="large-order-meta-value">' + order.delivery_hours + ' Std.</strong></div>' +
+          '<div class="large-order-meta-item"><span class="large-order-meta-label">Gebotsende</span><strong class="large-order-meta-value">' + new Date(order.bidding_ends_at).toLocaleString(uiLocale()) + '</strong></div>' +
+        '</div>';
+
     if (Number(order.early_bonus_rate || 0) > 0 && Number(order.early_bonus_hours || 0) > 0) {
-      html += "<div class=\"kv\"><span>Frühbonus</span><strong>+" +
-        num(Number(order.early_bonus_rate || 0) * 100) + " % bei vollständiger Lieferung innerhalb " +
-        num(order.early_bonus_hours) + " Std. nach Zuschlag</strong></div>";
+      html += '<div class="large-order-notice"><span>Frühbonus</span><strong>+' +
+        num(Number(order.early_bonus_rate || 0) * 100) + ' % bei vollständiger Lieferung innerhalb ' +
+        num(order.early_bonus_hours) + ' Std. nach Zuschlag</strong></div>';
     }
     if (Number(order.rush_bonus_rate || 0)>0) {
-      html += '<div class="kv"><span>Eilvergütung</span><strong>+' + num(Number(order.rush_bonus_rate)*100) + ' % bei vollständiger Lieferung innerhalb der zugesagten Frist</strong></div>';
+      html += '<div class="large-order-notice"><span>Eilvergütung</span><strong>+' +
+        num(Number(order.rush_bonus_rate)*100) +
+        ' % bei vollständiger Lieferung innerhalb der zugesagten Frist</strong></div>';
     }
-    if (bid) html += "<div class=\"kv\"><span>Dein Gebot</span><strong>" + money(bid.price_per_unit) +
-      " / Einheit · Q" + bid.offered_quality + " · " + bid.delivery_hours + " Std. · " + bid.status + "</strong></div>";
+
+    if (bid) {
+      html += '<div class="large-order-own-bid"><span>Dein aktuelles Gebot</span><strong>' +
+        money(bid.price_per_unit) + ' / Einheit · Q' + bid.offered_quality + ' · ' +
+        bid.delivery_hours + ' Std. · ' + bid.status + '</strong></div>';
+    }
+
     if (bidding) {
-      html += "<form class=\"large-order-bid-form\" onsubmit=\"submitLargeCustomerBid(event,'" + order.id +
-        "')\"><label>Preis / Einheit<input id=\"largeBidPrice-" + order.id +
-        "\" type=\"number\" min=\"0.01\" step=\"0.01\" value=\"" + (bid?.price_per_unit || "") +
-        "\" required></label><label>Qualität<input id=\"largeBidQuality-" + order.id +
-        "\" type=\"number\" min=\"" + order.minimum_quality + "\" max=\"5\" step=\"1\" value=\"" +
-        (bid?.offered_quality || order.minimum_quality) + "\" required></label><label>Lieferzeit (Std.)<input id=\"largeBidHours-" +
-        order.id + "\" type=\"number\" min=\"1\" max=\"" + order.delivery_hours + "\" step=\"1\" value=\"" +
-        (bid?.delivery_hours || order.delivery_hours) + "\" required></label><button type=\"submit\">" +
-        (bid ? "Gebot aktualisieren" : "Gebot abgeben") + "</button></form>";
+      html += '<div class="large-order-section">' +
+        '<h4 class="large-order-section-title">' + (bid ? 'Gebot aktualisieren' : 'Gebot abgeben') + '</h4>' +
+        '<form class="large-order-bid-form" onsubmit="submitLargeCustomerBid(event,\'' + order.id + '\')">' +
+          '<label><span>Preis / Einheit</span><input id="largeBidPrice-' + order.id +
+          '" type="number" min="0.01" step="0.01" value="' + (bid?.price_per_unit || '') + '" required></label>' +
+          '<label><span>Qualität</span><input id="largeBidQuality-' + order.id +
+          '" type="number" min="' + order.minimum_quality + '" max="5" step="1" value="' +
+          (bid?.offered_quality || order.minimum_quality) + '" required></label>' +
+          '<label><span>Lieferzeit (Std.)</span><input id="largeBidHours-' + order.id +
+          '" type="number" min="1" max="' + order.delivery_hours + '" step="1" value="' +
+          (bid?.delivery_hours || order.delivery_hours) + '" required></label>' +
+          '<div class="large-order-form-action"><button type="submit">' +
+          (bid ? 'Gebot aktualisieren' : 'Gebot abgeben') + '</button></div>' +
+        '</form>' +
+      '</div>';
     }
+
     if (ownAward) {
-      html += "<div class=\"kv\"><span>Geliefert</span><strong>" + num(order.delivered_quantity) + " / " +
-        num(order.quantity) + "</strong></div><div class=\"kv\"><span>Deadline</span><strong>" +
-        new Date(order.delivery_deadline).toLocaleString(uiLocale()) +
-        "</strong></div><form class=\"large-order-delivery-form\" onsubmit=\"deliverLargeCustomerOrder(event,'" +
-        order.id + "'," + remaining + ")\"><label>Teillieferung<input id=\"largeDeliveryQty-" + order.id +
-        "\" type=\"number\" min=\"0.01\" max=\"" + remaining + "\" step=\"0.01\" value=\"" + remaining +
-        "\" required></label><button type=\"submit\">Liefern</button></form>";
+      html += '<div class="large-order-section">' +
+        '<h4 class="large-order-section-title">Auftrag ausliefern</h4>' +
+        '<div class="large-order-delivery-progress">' +
+          '<div><span>Geliefert</span><strong>' + num(order.delivered_quantity) + ' / ' + num(order.quantity) + '</strong></div>' +
+          '<div><span>Deadline</span><strong>' + new Date(order.delivery_deadline).toLocaleString(uiLocale()) + '</strong></div>' +
+        '</div>' +
+        '<form class="large-order-delivery-form" onsubmit="deliverLargeCustomerOrder(event,\'' + order.id + '\',' + remaining + ')">' +
+          '<label><span>Teillieferung</span><input id="largeDeliveryQty-' + order.id +
+          '" type="number" min="0.01" max="' + remaining + '" step="0.01" value="' + remaining + '" required></label>' +
+          '<div class="large-order-form-action"><button type="submit">Liefern</button></div>' +
+        '</form>' +
+      '</div>';
     }
-    return html + "</section>";
+
+    return html + '</div></section>';
   };
-  container.innerHTML = "<div class=\"large-orders-list\">" +
-    (active.length ? active.map(renderOrder).join("") : "<p class=\"muted\">Aktuell keine offene Großausschreibung. Neue Aufträge werden um 06:00 Uhr (Europe/Berlin) erzeugt, sofern Plätze frei sind.</p>") +
-    "</div>" + (recent.length ? "<h3>Zuletzt beendet</h3><div class=\"large-orders-list\">" +
-    recent.map(renderOrder).join("") + "</div>" : "");
+
+  container.innerHTML = '<div class="large-orders-shell"><div class="large-orders-list">' +
+    (active.length ? active.map(renderOrder).join("") :
+      '<p class="muted">Aktuell keine offene Großausschreibung. Neue Aufträge werden um 06:00 Uhr (Europe/Berlin) erzeugt, sofern Plätze frei sind.</p>') +
+    '</div>' +
+    (recent.length ? '<h3 class="large-orders-recent-title">Zuletzt beendet</h3><div class="large-orders-list">' +
+      recent.map(renderOrder).join("") + '</div>' : '') +
+    '</div>';
 }
 
 window.submitLargeCustomerBid = async function(event, orderId) {
