@@ -967,7 +967,13 @@ const state = {
   guidance: {},
   guidanceError: '',
   progressionCompanyId: null,
-  recoveringPassword: false
+  recoveringPassword: false,
+  moderationState: { staff_role:null, banned_at:null, timeout_until:null, reason:null },
+  moderationRole: null,
+  moderationOverview: [],
+  moderationMessages: [],
+  moderationAccountSearch: '',
+  moderationMessageSearch: ''
 };
 
 let presenceTimer = null;
