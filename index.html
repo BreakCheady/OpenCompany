@@ -2088,14 +2088,74 @@
     .demand-sparkline{display:flex;align-items:flex-end;gap:3px;height:38px;margin-top:.65rem}
     .demand-sparkline span{flex:1;min-width:3px;border-radius:3px;background:#94a3b8}
     .market-price-indices,.large-orders-list{display:grid;gap:.75rem}
-    .market-index-card-head,.large-order-head{display:flex;align-items:flex-start;justify-content:space-between;gap:.75rem}
+    .market-index-card-head{display:flex;align-items:flex-start;justify-content:space-between;gap:.75rem}
     .market-index-range{display:flex;gap:.4rem}
     .market-index-range-btn.active{background:#1769d2;color:#fff;border-color:#1769d2}
     .market-index-chart{display:flex;align-items:flex-end;gap:3px;height:46px;margin-top:.7rem}
     .market-index-chart span{flex:1;min-width:3px;border-radius:3px;background:#94a3b8}
-    .large-order-meta{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:.5rem;margin:.8rem 0}
-    .large-order-meta div{padding:.55rem;border-radius:8px;background:#f8fafc}
-    .large-order-bid-form,.large-order-delivery-form{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:.6rem;align-items:end;margin-top:.75rem}
+
+    /* Großaufträge – klare OC-Karten mit sauberer mobiler Trennung */
+    .large-orders-shell{display:grid;gap:1rem}
+    .large-orders-intro{display:grid;gap:.8rem;margin:.25rem 0 1rem}
+    .large-orders-intro-text{margin:0;color:#64748b;line-height:1.5}
+    .large-orders-rule-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.55rem}
+    .large-orders-rule{padding:.65rem .75rem;border:1px solid #dce6f2;border-radius:10px;background:#f7faff}
+    .large-orders-rule span{display:block;color:#6b7b91;font-size:.72rem;margin-bottom:.2rem}
+    .large-orders-rule strong{display:block;color:#17345d;font-size:.88rem;line-height:1.25}
+    .large-orders-list{gap:1rem}
+    .large-order-card{background:#fff;border:1px solid #dbe5f1;border-radius:14px;box-shadow:0 5px 18px rgba(25,63,110,.07);overflow:hidden}
+    .large-order-card-head{display:flex;align-items:flex-start;justify-content:space-between;gap:.75rem;padding:1rem 1rem .85rem;border-bottom:1px solid #e8eef5;background:linear-gradient(180deg,#fbfdff 0%,#f7faff 100%)}
+    .large-order-heading{min-width:0}
+    .large-order-heading h3{margin:0;color:#17345d;font-size:1rem;line-height:1.35}
+    .large-order-product{margin:.28rem 0 0;color:#6a7a90;font-size:.88rem}
+    .large-order-status{flex:0 0 auto;border:1px solid #cfe0f6;border-radius:999px;background:#edf5ff;color:#1769d2;padding:.34rem .62rem;font-size:.74rem;font-weight:800}
+    .large-order-status.won{border-color:#bfe4cf;background:#edf9f2;color:#167546}
+    .large-order-status.closed{border-color:#dce3eb;background:#f4f6f8;color:#64748b}
+    .large-order-status.failed{border-color:#f1c9c9;background:#fff3f3;color:#b42318}
+    .large-order-card-body{padding:1rem}
+    .large-order-meta{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.6rem;margin:0}
+    .large-order-meta-item{min-width:0;padding:.72rem .78rem;border:1px solid #e2eaf3;border-radius:10px;background:#f8fafc}
+    .large-order-meta-label{display:block;margin-bottom:.25rem;color:#718096;font-size:.72rem;line-height:1.2}
+    .large-order-meta-value{display:block;color:#18395f;font-size:.93rem;line-height:1.28;overflow-wrap:anywhere}
+    .large-order-notice{display:grid;grid-template-columns:minmax(90px,.7fr) minmax(0,2fr);gap:.8rem;align-items:start;margin-top:.8rem;padding:.72rem .8rem;border:1px solid #d7e7fb;border-left:4px solid #1769d2;border-radius:10px;background:#f3f8ff}
+    .large-order-notice span{color:#6b7b91;font-size:.76rem}
+    .large-order-notice strong{color:#17345d;font-size:.85rem;line-height:1.35}
+    .large-order-own-bid{margin-top:.8rem;padding:.7rem .8rem;border:1px solid #dce6f2;border-radius:10px;background:#f8fafc}
+    .large-order-own-bid span{display:block;color:#6b7b91;font-size:.74rem;margin-bottom:.2rem}
+    .large-order-own-bid strong{display:block;color:#17345d;font-size:.86rem;line-height:1.35}
+    .large-order-section{margin-top:1rem;padding-top:1rem;border-top:1px solid #e6edf5}
+    .large-order-section-title{margin:0 0 .75rem;color:#17345d;font-size:.9rem;font-weight:800}
+    .large-order-bid-form,.large-order-delivery-form{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.7rem;align-items:end;margin:0}
+    .large-order-bid-form label,.large-order-delivery-form label{display:grid;gap:.35rem;min-width:0;color:#506176;font-size:.78rem;font-weight:700}
+    .large-order-bid-form input,.large-order-delivery-form input{width:100%;box-sizing:border-box;min-height:44px;padding:.7rem .75rem;border:1px solid #cfdae7;border-radius:9px;background:#fff;color:#16385e;font:inherit}
+    .large-order-bid-form input:focus,.large-order-delivery-form input:focus{outline:none;border-color:#1769d2;box-shadow:0 0 0 3px rgba(23,105,210,.12)}
+    .large-order-form-action{grid-column:1/-1;display:flex;justify-content:flex-end}
+    .large-order-form-action button{min-width:180px}
+    .large-order-delivery-progress{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.6rem;margin-bottom:.75rem}
+    .large-order-delivery-progress>div{padding:.65rem .75rem;border:1px solid #e2eaf3;border-radius:10px;background:#f8fafc}
+    .large-order-delivery-progress span{display:block;color:#718096;font-size:.72rem;margin-bottom:.2rem}
+    .large-order-delivery-progress strong{display:block;color:#18395f;font-size:.9rem}
+    .large-orders-recent-title{margin:1.2rem 0 .7rem;color:#17345d}
+    @media(max-width:760px){
+      .large-orders-rule-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+      .large-order-meta{grid-template-columns:repeat(2,minmax(0,1fr))}
+      .large-order-bid-form,.large-order-delivery-form{grid-template-columns:repeat(2,minmax(0,1fr))}
+      .large-order-form-action{grid-column:1/-1}
+    }
+    @media(max-width:520px){
+      .large-orders-rule-grid{grid-template-columns:1fr 1fr}
+      .large-order-card-head{padding:.9rem}
+      .large-order-card-body{padding:.9rem}
+      .large-order-heading h3{font-size:.94rem}
+      .large-order-status{font-size:.7rem}
+      .large-order-meta{grid-template-columns:1fr 1fr;gap:.5rem}
+      .large-order-meta-item{padding:.66rem .7rem}
+      .large-order-notice{grid-template-columns:1fr;gap:.25rem}
+      .large-order-bid-form,.large-order-delivery-form{grid-template-columns:1fr}
+      .large-order-form-action{grid-column:1}
+      .large-order-form-action button{width:100%;min-width:0}
+      .large-order-delivery-progress{grid-template-columns:1fr}
+    }
 
     /* Voluntary onboarding */
     .guidance-actions{display:flex;flex-wrap:wrap;align-items:center;gap:.5rem}.guidance-actions{margin:.7rem 0}
@@ -2658,7 +2718,15 @@
           <div class="panel-head">
             <div>
               <h2>Großaufträge</h2>
-              <p class="muted">Systemgenerierte Ausschreibungen. Angebote sind 24 Stunden möglich; bewertet werden Preis 50 %, Qualität 25 % und Liefergeschwindigkeit 25 %. Maximal 3 Großaufträge laufen gleichzeitig. Neue Ausschreibungen werden ausschließlich um 06:00 Uhr (Europe/Berlin) erzeugt, bis maximal 3 laufende Aufträge erreicht sind. Schnellere Angebote erhalten mehr Punkte; das schnellste gültige Angebot erhält die vollen 25 Geschwindigkeitspunkte. Teillieferungen sind erlaubt; bei nicht fristgerechter vollständiger Lieferung beträgt die Vertragsstrafe 30 % des Vertragswertes.</p>
+            </div>
+          </div>
+          <div class="large-orders-intro">
+            <p class="large-orders-intro-text">Systemgenerierte Ausschreibungen für größere Liefermengen. Wähle Preis, Qualität und realistische Lieferzeit sorgfältig – jedes Gebot wird nach festen Kriterien bewertet.</p>
+            <div class="large-orders-rule-grid" aria-label="Regeln für Großaufträge">
+              <div class="large-orders-rule"><span>Gebotsphase</span><strong>24 Stunden</strong></div>
+              <div class="large-orders-rule"><span>Bewertung</span><strong>50 % Preis · 25 % Qualität · 25 % Lieferzeit</strong></div>
+              <div class="large-orders-rule"><span>Aktive Aufträge</span><strong>Maximal 3 gleichzeitig</strong></div>
+              <div class="large-orders-rule"><span>Vertragsstrafe</span><strong>30 % bei Nichterfüllung</strong></div>
             </div>
           </div>
           <div id="largeOrdersContent"></div>
