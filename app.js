@@ -2490,10 +2490,11 @@ function renderChatMessages() {
     const senderName = sender?.name || 'Unbekanntes Unternehmen';
     const body = escapeChatText(message.body).replace(/\n/g,'<br>');
     const edited = message.edited_at ? '<span class="chat-message-edited">(bearbeitet)</span>' : '';
-    const actions = own ? `
+    const canModerate = state.moderationRole === 'admin' || state.moderationRole === 'moderator';
+    const actions = (own || canModerate) ? `
       <div class="chat-message-actions">
-        <button type="button" class="chat-message-action" data-chat-edit="${message.id}" title="Nachricht bearbeiten" aria-label="Nachricht bearbeiten">✎</button>
-        <button type="button" class="chat-message-action chat-message-delete" data-chat-delete="${message.id}" title="Nachricht löschen" aria-label="Nachricht löschen">🗑</button>
+        ${own ? `<button type="button" class="chat-message-action" data-chat-edit="${message.id}" title="Nachricht bearbeiten" aria-label="Nachricht bearbeiten">✎</button>` : ''}
+        <button type="button" class="chat-message-action chat-message-delete" data-chat-delete="${message.id}" title="${own ? 'Nachricht löschen' : 'Nachricht moderativ löschen'}" aria-label="Nachricht löschen">🗑</button>
       </div>` : '';
     return `
       <article class="chat-message ${own ? 'chat-message-own' : ''}">
@@ -2630,16 +2631,24 @@ async function editChatMessage(messageId) {
 
 async function deleteChatMessage(messageId) {
   const message = state.chatMessages.find(item => item.id === messageId);
-  if (!message || message.sender_company_id !== state.company?.id) return;
+  if (!message) return;
+  const own = message.sender_company_id === state.company?.id;
+  const canModerate = state.moderationRole === 'admin' || state.moderationRole === 'moderator';
+  if (!own && !canModerate) return;
 
-  if (!await gameConfirm('Diese Chatnachricht wirklich löschen?')) return;
+  if (!await gameConfirm(own ? 'Diese Chatnachricht wirklich löschen?' : 'Diese Nachricht moderativ für alle löschen?')) return;
 
-  const { error } = await sb
-    .from('chat_messages')
-    .update({ deleted_at:new Date().toISOString() })
-    .eq('id', messageId)
-    .eq('sender_company_id', state.company.id)
-    .is('deleted_at', null);
+  let error = null;
+  if (own) {
+    ({ error } = await sb
+      .from('chat_messages')
+      .update({ deleted_at:new Date().toISOString() })
+      .eq('id', messageId)
+      .eq('sender_company_id', state.company.id)
+      .is('deleted_at', null));
+  } else {
+    ({ error } = await sb.rpc('moderate_delete_message', { p_message_id:messageId }));
+  }
 
   if (error) {
     console.error('Chatnachricht konnte nicht gelöscht werden:', error);
@@ -2648,6 +2657,9 @@ async function deleteChatMessage(messageId) {
   }
 
   await loadChatConversation({ silent:true });
+  if (canModerate && document.getElementById('moderation')?.classList.contains('active-view')) {
+    await loadModerationData({ silent:true });
+  }
 }
 
 async function openChatTarget(type, id) {
