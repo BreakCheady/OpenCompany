@@ -984,6 +984,7 @@ let marketAutoRefreshTimer = null;
 let companyValueRefreshTimer = null;
 let buildingConstructionTimer = null;
 let companyBalancePollTimer = null;
+let moderationStateTimer = null;
 let companyBalanceChannel = null;
 let publicLeaderboardTimer = null;
 let chatRealtimeChannel = null;
@@ -3880,6 +3881,33 @@ function showModerationBlock() {
   }
 }
 
+function stopModerationStateWatcher() {
+  if (moderationStateTimer) clearInterval(moderationStateTimer);
+  moderationStateTimer = null;
+}
+
+function startModerationStateWatcher() {
+  stopModerationStateWatcher();
+  if (!state.session) return;
+  moderationStateTimer = setInterval(async () => {
+    if (!state.session) return;
+    await loadMyModerationState();
+    syncModerationNavigation();
+    if (!moderationIsBlocked()) return;
+    stopModerationStateWatcher();
+    stopPresenceHeartbeat();
+    stopNpcMarketHeartbeat();
+    stopCompanyBalanceWatcher();
+    stopChatRealtime();
+    document.getElementById('mainNavigation')?.classList.add('hidden');
+    document.getElementById('headerChatBtn')?.classList.add('hidden');
+    document.getElementById('headerCompanyAvatarBtn')?.classList.add('hidden');
+    document.getElementById('gameView')?.classList.add('hidden');
+    document.getElementById('bootstrapView')?.classList.add('hidden');
+    showModerationBlock();
+  }, 30000);
+}
+
 async function handleSession(session) {
   if (state.recoveringPassword) return;
   state.session = session;
@@ -3900,6 +3928,7 @@ async function handleSession(session) {
     stopCompanyBalanceWatcher();
     stopChatRealtime();
     stopInactivityWatcher();
+    stopModerationStateWatcher();
     state.accountCode = null;
     state.moderationRole = null;
     state.moderationOverview = [];
@@ -3930,6 +3959,7 @@ async function handleSession(session) {
   document.getElementById('logoutBtn')?.classList.remove('hidden');
   document.getElementById('headerCompanyAvatarBtn')?.classList.toggle('hidden', !state.company?.id);
 
+  startModerationStateWatcher();
   startInactivityWatcher();
   await loadAccountIdentity();
   await loadCompany();
