@@ -2484,6 +2484,17 @@
           <p class="muted">Aktueller Nachfrageindex mit Trend und Verlauf der letzten 7 Tage.</p>
           <div id="demandDashboard" class="demand-dashboard"></div>
         </details>
+        <details id="marketIndexPanel" class="panel market-demand-panel">
+          <summary class="market-demand-summary"><h2>Marktpreis-Indizes</h2></summary>
+          <div class="panel-head">
+            <p class="muted">Volumengewichtete tatsächlich ausgeführte Verkäufe · Spielergewicht 1,0 · NPC-Gewicht 0,25.</p>
+            <div class="market-index-range">
+              <button type="button" class="ghost market-index-range-btn active" data-days="7">7 Tage</button>
+              <button type="button" class="ghost market-index-range-btn" data-days="30">30 Tage</button>
+            </div>
+          </div>
+          <div id="marketPriceIndices" class="market-price-indices"></div>
+        </details>
         <article class="panel market-main-panel">
           <div class="panel-head market-redesign-head">
             <div>
@@ -2543,20 +2554,6 @@
               </div>
             </div>
           </section>
-        </article>
-
-        <article class="panel">
-          <div class="panel-head">
-            <div>
-              <h2>Marktpreis-Indizes</h2>
-              <p class="muted">Volumengewichtete tatsächlich ausgeführte Verkäufe · Spielergewicht 1,0 · NPC-Gewicht 0,25.</p>
-            </div>
-            <div class="market-index-range">
-              <button type="button" class="ghost market-index-range-btn active" data-days="7">7 Tage</button>
-              <button type="button" class="ghost market-index-range-btn" data-days="30">30 Tage</button>
-            </div>
-          </div>
-          <div id="marketPriceIndices" class="market-price-indices"></div>
         </article>
 
         <article class="panel my-market-orders-panel">
