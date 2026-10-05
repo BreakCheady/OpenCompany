@@ -2509,7 +2509,7 @@ function chatContacts() {
 function selectedChatTarget() {
   if (state.chatSelectedType === 'room') {
     const room = state.chatRooms.find(item => item.id === state.chatSelectedId);
-    return room ? { type:'room', id:room.id, name:room.name, icon:room.icon || '💬', accessLevel:room.access_level || 'public' } : null;
+    return room ? { type:'room', id:room.id, name:room.name, icon:room.icon || '💬', accessLevel:room.access_level || 'public', slug:room.slug || '', isLog:room.slug === 'moderation-log' } : null;
   }
   if (state.chatSelectedType === 'contact') {
     const company = chatCompany(state.chatSelectedId);
@@ -2654,8 +2654,8 @@ function renderChatMessages() {
 
   const target = selectedChatTarget();
   layout.classList.toggle('chat-has-selection', !!target);
-  form.classList.toggle('hidden', !target || !!target?.isAssistant);
-  input.disabled = !target || !!target?.isAssistant;
+  form.classList.toggle('hidden', !target || !!target?.isAssistant || !!target?.isLog);
+  input.disabled = !target || !!target?.isAssistant || !!target?.isLog;
 
   if (!target) {
     title.textContent = 'Chat';
@@ -2673,13 +2673,17 @@ function renderChatMessages() {
   title.textContent = target.name;
   subtitle.textContent = target.isAssistant
     ? 'Automatische Systemnachrichten'
-    : (target.type === 'room' ? (target.accessLevel === 'staff' ? 'Interner Team-Chat' : 'Öffentlicher Chatraum') : 'Direktnachricht');
+    : target.isLog
+      ? 'Automatisches Moderationsprotokoll · nur lesbar'
+      : (target.type === 'room' ? (target.accessLevel === 'staff' ? 'Interner Team-Chat' : 'Öffentlicher Chatraum') : 'Direktnachricht');
   icon.textContent = target.icon;
 
   if (!state.chatMessages.length) {
     messages.innerHTML = target.isAssistant
       ? '<div class="chat-empty-conversation"><strong>Noch keine Nachrichten.</strong><p>Dein Personal Assistent informiert dich hier über wichtige Änderungen im Spiel.</p></div>'
-      : '<div class="chat-empty-conversation"><strong>Noch keine Nachrichten.</strong><p>Starte die Unterhaltung mit der ersten Nachricht.</p></div>';
+      : target.isLog
+        ? '<div class="chat-empty-conversation"><strong>Noch keine Protokolleinträge.</strong><p>Admin- und Moderatoraktionen werden hier automatisch eingetragen.</p></div>'
+        : '<div class="chat-empty-conversation"><strong>Noch keine Nachrichten.</strong><p>Starte die Unterhaltung mit der ersten Nachricht.</p></div>';
     return;
   }
 
