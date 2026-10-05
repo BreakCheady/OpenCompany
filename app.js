@@ -9971,6 +9971,12 @@ document.getElementById('logoutBtn').addEventListener('click', async () => {
   await sb?.auth.signOut({ scope: 'local' });
 });
 
+document.getElementById('moderationBlockLogoutBtn')?.addEventListener('click', async () => {
+  history.replaceState(null, '', location.pathname + location.search);
+  try { await sb?.auth.signOut({ scope:'local' }); } catch (_) {}
+  window.location.reload();
+});
+
 // Company
 document.getElementById('companyForm').addEventListener('submit', async e => {
   e.preventDefault();
