@@ -2235,6 +2235,204 @@ function escapeChatText(value) {
   })[character]);
 }
 
+function moderationStatusMeta(row) {
+  if (row.banned_at) return { label:'Gebannt', cls:'banned' };
+  if (row.timeout_until && new Date(row.timeout_until).getTime() > Date.now()) {
+    return { label:'Timeout', cls:'timeout' };
+  }
+  if (row.staff_role === 'admin') return { label:'Admin', cls:'admin' };
+  if (row.staff_role === 'moderator') return { label:'Moderator', cls:'moderator' };
+  return { label:'Aktiv', cls:'' };
+}
+
+async function loadModerationData({ silent=false } = {}) {
+  if (!['admin','moderator'].includes(state.moderationRole)) return;
+  const [overview,messages] = await Promise.all([
+    sb.rpc('get_moderation_overview'),
+    sb.rpc('get_moderation_messages',{ p_limit:150 })
+  ]);
+  if (overview.error || messages.error) {
+    console.error('Moderationsdaten:', overview.error || messages.error);
+    if (!silent) await gameAlert((overview.error || messages.error)?.message || 'Moderationsdaten konnten nicht geladen werden.');
+    return;
+  }
+  state.moderationOverview = overview.data || [];
+  state.moderationMessages = messages.data || [];
+  renderModeration();
+}
+
+function renderModeration() {
+  const root = document.getElementById('moderation');
+  if (!root) return;
+  const role = state.moderationRole;
+  const isAdmin = role === 'admin';
+  const badge = document.getElementById('moderationRoleBadge');
+  if (badge) {
+    badge.textContent = isAdmin ? 'Admin' : role === 'moderator' ? 'Moderator' : 'Kein Zugriff';
+    badge.className = 'moderation-role-badge' + (isAdmin ? ' admin' : '');
+  }
+  const note = document.getElementById('moderationPermissionNote');
+  if (note) {
+    note.textContent = isAdmin
+      ? 'Admins dürfen Nachrichten moderieren, Timeouts setzen/aufheben, Accounts bannen/entbannen, Unternehmen und Accounts löschen sowie Moderatoren ernennen oder entfernen.'
+      : 'Moderatoren dürfen Nachrichten löschen sowie normale Accounts time-outen oder Timeouts aufheben. Bann-, Lösch- und Rollenrechte bleiben Admins vorbehalten.';
+  }
+
+  const accountSearch = String(state.moderationAccountSearch || '').trim().toLocaleLowerCase(uiLocale());
+  const accounts = (state.moderationOverview || []).filter(row => {
+    const haystack = [row.account_code,row.email,row.company_name,row.company_code].filter(Boolean).join(' ').toLocaleLowerCase(uiLocale());
+    return !accountSearch || haystack.includes(accountSearch);
+  });
+  const accountRoot = document.getElementById('moderationAccounts');
+  if (accountRoot) {
+    accountRoot.innerHTML = accounts.length ? accounts.map(row => {
+      const status = moderationStatusMeta(row);
+      const isSelf = row.user_id === state.session?.user?.id;
+      const targetIsAdmin = row.staff_role === 'admin';
+      const targetIsStaff = !!row.staff_role;
+      const timeoutActive = row.timeout_until && new Date(row.timeout_until).getTime() > Date.now();
+      const canTimeout = !isSelf && !targetIsAdmin && (isAdmin || !targetIsStaff);
+      let actions = '';
+      if (canTimeout) {
+        actions += '<button type="button" data-mod-timeout="' + row.user_id + '">Timeout setzen</button>';
+        if (timeoutActive) actions += '<button type="button" class="ghost" data-mod-clear-timeout="' + row.user_id + '">Timeout aufheben</button>';
+      }
+      if (isAdmin && !isSelf && !targetIsAdmin) {
+        if (row.banned_at) actions += '<button type="button" class="ghost" data-mod-unban="' + row.user_id + '">Entbannen</button>';
+        else actions += '<button type="button" class="moderation-warning" data-mod-ban="' + row.user_id + '">Bannen</button>';
+        actions += '<button type="button" class="ghost" data-mod-role="' + row.user_id + '" data-enabled="' + (row.staff_role === 'moderator' ? 'false' : 'true') + '">' +
+          (row.staff_role === 'moderator' ? 'Moderator entfernen' : 'Als Moderator hinzufügen') + '</button>';
+        if (row.company_id) actions += '<button type="button" class="moderation-danger" data-mod-delete-company="' + row.company_id + '" data-user="' + row.user_id + '">Unternehmen löschen</button>';
+        actions += '<button type="button" class="moderation-danger" data-mod-delete-account="' + row.user_id + '">Account löschen</button>';
+      }
+      return '<section class="moderation-account-card">' +
+        '<div class="moderation-account-head"><div class="moderation-account-title"><strong>' +
+        escapeChatText(row.company_name || 'Kein Unternehmen') + '</strong><span>' +
+        escapeChatText(row.email || '') + '</span></div><span class="moderation-status ' + status.cls + '">' + status.label + '</span></div>' +
+        '<div class="moderation-account-meta">' +
+        '<div><span>Account-ID</span><strong>' + escapeChatText(row.account_code || '–') + '</strong></div>' +
+        '<div><span>Unternehmens-ID</span><strong>' + escapeChatText(row.company_code || '–') + '</strong></div>' +
+        '<div><span>Status</span><strong>' +
+        (row.banned_at ? 'Gebannt' : timeoutActive ? 'Timeout bis ' + escapeChatText(new Date(row.timeout_until).toLocaleString(uiLocale())) : 'Aktiv') +
+        '</strong></div></div>' +
+        (row.moderation_reason ? '<p class="muted">Grund: ' + escapeChatText(row.moderation_reason) + '</p>' : '') +
+        (actions ? '<div class="moderation-actions">' + actions + '</div>' : '') +
+      '</section>';
+    }).join('') : '<p class="muted">Keine passenden Accounts gefunden.</p>';
+  }
+
+  const messageSearch = String(state.moderationMessageSearch || '').trim().toLocaleLowerCase(uiLocale());
+  const messages = (state.moderationMessages || []).filter(row => {
+    const haystack = [row.sender_company_name,row.body,row.room_name,row.recipient_company_name].filter(Boolean).join(' ').toLocaleLowerCase(uiLocale());
+    return !messageSearch || haystack.includes(messageSearch);
+  });
+  const messageRoot = document.getElementById('moderationMessages');
+  if (messageRoot) {
+    messageRoot.innerHTML = messages.length ? messages.map(row => {
+      const context = row.room_name ? row.room_name : ('Direktnachricht an ' + (row.recipient_company_name || 'Unbekannt'));
+      return '<section class="moderation-message-card">' +
+        '<div class="moderation-message-head"><div class="moderation-message-title"><strong>' +
+        escapeChatText(row.sender_company_name || 'Unbekannt') + '</strong><span>' + escapeChatText(context) + '</span></div>' +
+        '<span class="moderation-message-meta">' + escapeChatText(formatChatTime(row.created_at)) + '</span></div>' +
+        '<div class="moderation-message-body">' + escapeChatText(row.body || '') + '</div>' +
+        '<div class="moderation-actions"><button type="button" class="moderation-danger" data-mod-delete-message="' + row.id + '">Nachricht löschen</button></div>' +
+      '</section>';
+    }).join('') : '<p class="muted">Keine passenden Nachrichten gefunden.</p>';
+  }
+
+  root.querySelectorAll('[data-mod-timeout]').forEach(btn => btn.addEventListener('click',()=>moderationTimeoutAccount(btn.dataset.modTimeout)));
+  root.querySelectorAll('[data-mod-clear-timeout]').forEach(btn => btn.addEventListener('click',()=>moderationClearTimeout(btn.dataset.modClearTimeout)));
+  root.querySelectorAll('[data-mod-ban]').forEach(btn => btn.addEventListener('click',()=>moderationBanAccount(btn.dataset.modBan)));
+  root.querySelectorAll('[data-mod-unban]').forEach(btn => btn.addEventListener('click',()=>moderationUnbanAccount(btn.dataset.modUnban)));
+  root.querySelectorAll('[data-mod-role]').forEach(btn => btn.addEventListener('click',()=>moderationSetModerator(btn.dataset.modRole,btn.dataset.enabled==='true')));
+  root.querySelectorAll('[data-mod-delete-company]').forEach(btn => btn.addEventListener('click',()=>moderationDeleteCompany(btn.dataset.modDeleteCompany)));
+  root.querySelectorAll('[data-mod-delete-account]').forEach(btn => btn.addEventListener('click',()=>moderationDeleteAccount(btn.dataset.modDeleteAccount)));
+  root.querySelectorAll('[data-mod-delete-message]').forEach(btn => btn.addEventListener('click',()=>moderationDeleteMessage(btn.dataset.modDeleteMessage)));
+}
+
+async function moderationTimeoutAccount(userId) {
+  const minutesRaw = await gamePrompt('Timeout-Dauer in Minuten (1 bis 43.200):','60','Account time-outen');
+  if (minutesRaw === null) return;
+  const minutes = Math.floor(Number(minutesRaw));
+  if (!Number.isFinite(minutes) || minutes < 1 || minutes > 43200) {
+    await gameAlert('Bitte eine Dauer zwischen 1 Minute und 43.200 Minuten eingeben.');
+    return;
+  }
+  const reason = await gamePrompt('Grund für den Timeout (optional):','','Timeout-Grund');
+  if (reason === null) return;
+  const { error } = await sb.rpc('moderate_timeout_account',{ p_target_user_id:userId,p_minutes:minutes,p_reason:String(reason||'').trim() || null });
+  if (error) return gameAlert(error.message);
+  await loadModerationData();
+}
+
+async function moderationClearTimeout(userId) {
+  if (!await gameConfirm('Timeout für diesen Account wirklich aufheben?')) return;
+  const { error } = await sb.rpc('moderate_clear_timeout',{ p_target_user_id:userId });
+  if (error) return gameAlert(error.message);
+  await loadModerationData();
+}
+
+async function moderationBanAccount(userId) {
+  if (!await gameConfirm('Diesen Account wirklich bannen? Der Zugriff auf das Spiel wird gesperrt.')) return;
+  const reason = await gamePrompt('Grund für den Bann (optional):','','Bann-Grund');
+  if (reason === null) return;
+  const { error } = await sb.rpc('admin_ban_account',{ p_target_user_id:userId,p_reason:String(reason||'').trim() || null });
+  if (error) return gameAlert(error.message);
+  await loadModerationData();
+}
+
+async function moderationUnbanAccount(userId) {
+  if (!await gameConfirm('Diesen Account wirklich entbannen?')) return;
+  const { error } = await sb.rpc('admin_unban_account',{ p_target_user_id:userId });
+  if (error) return gameAlert(error.message);
+  await loadModerationData();
+}
+
+async function moderationSetModerator(userId,enabled) {
+  const text = enabled ? 'Diesen Account als Moderator hinzufügen?' : 'Moderatorrechte für diesen Account entfernen?';
+  if (!await gameConfirm(text)) return;
+  const { error } = await sb.rpc('admin_set_moderator',{ p_target_user_id:userId,p_enabled:enabled });
+  if (error) return gameAlert(error.message);
+  await loadModerationData();
+}
+
+async function moderationDeleteCompany(companyId) {
+  if (!await gameConfirm('Dieses Unternehmen dauerhaft löschen? Der Account selbst bleibt bestehen.')) return;
+  const typed = await gamePrompt('Zur Bestätigung bitte UNTERNEHMEN LÖSCHEN eingeben:','','Unternehmen löschen');
+  if (typed !== 'UNTERNEHMEN LÖSCHEN') return gameAlert('Löschen abgebrochen.');
+  const { error } = await sb.rpc('admin_delete_company',{ p_company_id:companyId });
+  if (error) return gameAlert(error.message);
+  await loadModerationData();
+}
+
+async function moderationDeleteAccount(userId) {
+  if (!await gameConfirm('Diesen Account inklusive Unternehmen und Spielfortschritt dauerhaft löschen?')) return;
+  const typed = await gamePrompt('Zur Bestätigung bitte ACCOUNT LÖSCHEN eingeben:','','Account löschen');
+  if (typed !== 'ACCOUNT LÖSCHEN') return gameAlert('Löschen abgebrochen.');
+  const { error } = await sb.rpc('admin_delete_account',{ p_target_user_id:userId });
+  if (error) return gameAlert(error.message);
+  await loadModerationData();
+}
+
+async function moderationDeleteMessage(messageId) {
+  if (!await gameConfirm('Diese Nachricht moderativ für alle löschen?')) return;
+  const { error } = await sb.rpc('moderate_delete_message',{ p_message_id:messageId });
+  if (error) return gameAlert(error.message);
+  await loadModerationData({ silent:true });
+  const selected = selectedChatTarget();
+  if (selected) await loadChatConversation({ silent:true });
+}
+
+document.getElementById('moderationRefreshBtn')?.addEventListener('click',()=>loadModerationData());
+document.getElementById('moderationAccountSearch')?.addEventListener('input',event=>{
+  state.moderationAccountSearch=event.target.value || '';
+  renderModeration();
+});
+document.getElementById('moderationMessageSearch')?.addEventListener('input',event=>{
+  state.moderationMessageSearch=event.target.value || '';
+  renderModeration();
+});
+
 const PERSONAL_ASSISTANT_COMPANY_ID = '00000000-0000-4000-8000-000000000001';
 
 function chatCompany(companyId) {
