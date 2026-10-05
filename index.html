@@ -5,14 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta name="theme-color" content="#0d2d55">
   <title>OpenCompany</title>
-  <link rel="icon" type="image/png" href="favicon.png?v=0.10.226">
-  <link rel="shortcut icon" href="favicon.ico?v=0.10.226">
-  <link rel="icon" type="image/x-icon" href="favicon.ico?v=0.10.226">
-  <link rel="manifest" href="/manifest.webmanifest?v=0.10.226">
-  <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=0.10.226">
+  <link rel="icon" type="image/png" href="favicon.png?v=0.10.227">
+  <link rel="shortcut icon" href="favicon.ico?v=0.10.227">
+  <link rel="icon" type="image/x-icon" href="favicon.ico?v=0.10.227">
+  <link rel="manifest" href="/manifest.webmanifest?v=0.10.227">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=0.10.227">
   <meta name="application-name" content="OpenCompany">
   <meta name="mobile-web-app-capable" content="yes">
-  <link rel="stylesheet" href="style.css?v=0.10.226">
+  <link rel="stylesheet" href="style.css?v=0.10.227">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     .password-field{display:flex;align-items:center;gap:.5rem}
@@ -1120,7 +1120,7 @@
       .oc-select-option{min-height:46px;padding:.7rem .8rem}
     }
   
-    /* v0.10.226 – Nachfrage, Indizes und Großaufträge */
+    /* v0.10.227 – Administration, Moderation und interner Team-Chat */
     .app-shell{
       display:block!important;
       min-height:100dvh!important;
@@ -2179,6 +2179,40 @@
     .market-demand-summary::after{content:'▸';flex:0 0 auto;font-size:1.25rem;color:var(--muted,#64748b);transition:transform .15s}
     .market-demand-panel[open]>.market-demand-summary::after{transform:rotate(90deg)}
     .market-demand-summary:focus-visible{outline:2px solid var(--accent,#1769d2);outline-offset:5px;border-radius:4px}
+
+    /* Administration & Moderation */
+    .moderation-role-badge{display:inline-flex;align-items:center;justify-content:center;padding:.38rem .7rem;border-radius:999px;background:#edf5ff;color:#1769d2;border:1px solid #cfe0f6;font-size:.78rem;font-weight:800}
+    .moderation-role-badge.admin{background:#fff4e8;color:#a44b00;border-color:#f3cfaa}
+    .moderation-permission-note{padding:.75rem .9rem;border-radius:10px;background:#f7faff;border:1px solid #dce6f2;color:#4f6076;font-size:.88rem}
+    .moderation-search{display:grid;gap:.35rem;margin:.75rem 0 1rem;font-size:.82rem;font-weight:700;color:#58697e}
+    .moderation-search input{width:100%;box-sizing:border-box}
+    .moderation-account-list,.moderation-message-list{display:grid;gap:.75rem}
+    .moderation-account-card,.moderation-message-card{border:1px solid #dce5ef;border-radius:12px;background:#fff;padding:.9rem}
+    .moderation-account-head,.moderation-message-head{display:flex;align-items:flex-start;justify-content:space-between;gap:.75rem}
+    .moderation-account-title,.moderation-message-title{min-width:0}
+    .moderation-account-title strong,.moderation-message-title strong{display:block;color:#17345d}
+    .moderation-account-title span,.moderation-message-title span{display:block;color:#718096;font-size:.78rem;margin-top:.15rem;overflow-wrap:anywhere}
+    .moderation-status{display:inline-flex;align-items:center;padding:.28rem .55rem;border-radius:999px;background:#f2f4f7;color:#64748b;font-size:.72rem;font-weight:800;white-space:nowrap}
+    .moderation-status.admin{background:#fff4e8;color:#a44b00}
+    .moderation-status.moderator{background:#edf5ff;color:#1769d2}
+    .moderation-status.banned{background:#fff1f1;color:#b42318}
+    .moderation-status.timeout{background:#fff8e6;color:#9a6700}
+    .moderation-account-meta{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.55rem;margin:.75rem 0}
+    .moderation-account-meta>div{padding:.6rem .68rem;border-radius:9px;background:#f8fafc;border:1px solid #e5ebf2}
+    .moderation-account-meta span{display:block;color:#718096;font-size:.72rem;margin-bottom:.2rem}
+    .moderation-account-meta strong{display:block;color:#17345d;font-size:.84rem;overflow-wrap:anywhere}
+    .moderation-actions{display:flex;flex-wrap:wrap;gap:.5rem;padding-top:.7rem;border-top:1px solid #e7edf5}
+    .moderation-actions button{width:auto!important;min-height:38px;padding:.55rem .72rem!important}
+    .moderation-danger{background:#b42318!important;border-color:#b42318!important;color:#fff!important}
+    .moderation-warning{background:#a15c00!important;border-color:#a15c00!important;color:#fff!important}
+    .moderation-message-body{margin:.65rem 0;padding:.7rem .8rem;border-radius:9px;background:#f8fafc;border:1px solid #e5ebf2;white-space:pre-wrap;overflow-wrap:anywhere}
+    .moderation-message-meta{font-size:.75rem;color:#718096}
+    @media(max-width:650px){
+      .moderation-account-meta{grid-template-columns:1fr}
+      .moderation-account-head,.moderation-message-head{align-items:flex-start}
+      .moderation-actions button{flex:1 1 calc(50% - .5rem)}
+    }
+
 </style>
   <script>
     if ('serviceWorker' in navigator) {
@@ -2203,6 +2237,7 @@
       <button class="nav-item" data-view="finance">Finanzen</button>
       <button class="nav-item" data-view="research">Forschung</button>
       <button class="nav-item" data-view="encyclopedia">Enzyklopädie</button>
+      <button id="moderationNavBtn" class="nav-item hidden" data-view="moderation">Moderation</button>
       <button class="nav-item" data-view="settings">Einstellungen</button>
       <button id="logoutBtn" class="nav-item nav-logout" type="button" aria-label="Abmelden" title="Abmelden">Abmelden</button>
     </nav>
@@ -2845,12 +2880,52 @@
         </div>
       </div>
 
+      <div id="moderation" class="view">
+        <article class="panel moderation-hero">
+          <div class="panel-head">
+            <div>
+              <h2>Administration & Moderation</h2>
+              <p class="muted">Interne Werkzeuge für Account-, Unternehmens- und Chatmoderation.</p>
+            </div>
+            <span id="moderationRoleBadge" class="moderation-role-badge">–</span>
+          </div>
+          <div class="moderation-permission-note" id="moderationPermissionNote"></div>
+        </article>
+
+        <article class="panel">
+          <div class="panel-head">
+            <div>
+              <h2>Accounts & Unternehmen</h2>
+              <p class="muted">Suche nach Account-ID, Unternehmensname oder Unternehmens-ID.</p>
+            </div>
+            <button type="button" id="moderationRefreshBtn" class="ghost">Aktualisieren</button>
+          </div>
+          <label class="moderation-search">Suche
+            <input id="moderationAccountSearch" type="search" placeholder="z. B. A69773, Unternehmen oder C…">
+          </label>
+          <div id="moderationAccounts" class="moderation-account-list"></div>
+        </article>
+
+        <article class="panel">
+          <div class="panel-head">
+            <div>
+              <h2>Letzte Chatnachrichten</h2>
+              <p class="muted">Admins und Moderatoren können hier Nachrichten aus allen Chaträumen und Direktnachrichten entfernen.</p>
+            </div>
+          </div>
+          <label class="moderation-search">Nachrichten durchsuchen
+            <input id="moderationMessageSearch" type="search" placeholder="Absender, Inhalt oder Chat">
+          </label>
+          <div id="moderationMessages" class="moderation-message-list"></div>
+        </article>
+      </div>
+
       <div id="settings" class="view">
         <article class="panel">
           <h2>Einstellungen</h2>
           <div class="kv">
             <span>Version</span>
-            <strong>0.10.226</strong>
+            <strong>0.10.227</strong>
           </div>
           <div class="kv settings-language-row">
             <span>Sprache</span>
@@ -2967,6 +3042,12 @@
       </div>
     </section>
 
+    <section id="moderationBlockView" class="panel auth-panel hidden">
+      <h2 id="moderationBlockTitle">Account eingeschränkt</h2>
+      <p id="moderationBlockMessage" class="muted"></p>
+      <button type="button" id="moderationBlockLogoutBtn">Abmelden</button>
+    </section>
+
     <section id="bootstrapView" class="panel hidden">
       <h2>Unternehmen gründen</h2>
       <p class="muted">Startkapital: 100.000 OC$ inklusive Elektronikfabrik und Elektronikgeschäft.</p>
@@ -3049,7 +3130,7 @@
     </div>
   </div>
 </div>
-<script src="guidance.js?v=0.10.226"></script>
+<script src="guidance.js?v=0.10.227"></script>
 <script src="config.js"></script>
 <script>
   const appScript = document.createElement('script');
