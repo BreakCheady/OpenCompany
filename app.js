@@ -3616,6 +3616,57 @@ async function init() {
   await handleSession(session);
 }
 
+async function loadMyModerationState() {
+  if (!sb || !state.session?.user?.id) {
+    state.moderationState = { staff_role:null, banned_at:null, timeout_until:null, reason:null };
+    state.moderationRole = null;
+    return state.moderationState;
+  }
+  const { data, error } = await sb.rpc('get_my_moderation_state');
+  if (error) {
+    console.error('Moderationsstatus konnte nicht geladen werden:', error);
+    state.moderationState = { staff_role:null, banned_at:null, timeout_until:null, reason:null };
+    state.moderationRole = null;
+    return state.moderationState;
+  }
+  const row = Array.isArray(data) ? (data[0] || {}) : (data || {});
+  state.moderationState = {
+    staff_role: row.staff_role || null,
+    banned_at: row.banned_at || null,
+    timeout_until: row.timeout_until || null,
+    reason: row.reason || null
+  };
+  state.moderationRole = state.moderationState.staff_role;
+  return state.moderationState;
+}
+
+function moderationIsBlocked() {
+  const moderation = state.moderationState || {};
+  if (moderation.banned_at) return true;
+  return !!moderation.timeout_until && new Date(moderation.timeout_until).getTime() > Date.now();
+}
+
+function syncModerationNavigation() {
+  const allowed = state.moderationRole === 'admin' || state.moderationRole === 'moderator';
+  document.getElementById('moderationNavBtn')?.classList.toggle('hidden', !allowed);
+}
+
+function showModerationBlock() {
+  const moderation = state.moderationState || {};
+  const banned = !!moderation.banned_at;
+  const until = moderation.timeout_until ? new Date(moderation.timeout_until) : null;
+  document.getElementById('moderationBlockView')?.classList.remove('hidden');
+  const title = document.getElementById('moderationBlockTitle');
+  const message = document.getElementById('moderationBlockMessage');
+  if (title) title.textContent = banned ? 'Account gebannt' : 'Account im Timeout';
+  if (message) {
+    const reason = moderation.reason ? ` Grund: ${moderation.reason}` : '';
+    message.textContent = banned
+      ? `Dieser Account wurde durch das Moderationsteam gesperrt.${reason}`
+      : `Dieser Account ist bis ${until?.toLocaleString(uiLocale()) || 'auf Weiteres'} im Timeout.${reason}`;
+  }
+}
+
 async function handleSession(session) {
   if (state.recoveringPassword) return;
   state.session = session;
