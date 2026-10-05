@@ -5,14 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta name="theme-color" content="#0d2d55">
   <title>OpenCompany</title>
-  <link rel="icon" type="image/png" href="favicon.png?v=0.10.231">
-  <link rel="shortcut icon" href="favicon.ico?v=0.10.231">
-  <link rel="icon" type="image/x-icon" href="favicon.ico?v=0.10.231">
-  <link rel="manifest" href="/manifest.webmanifest?v=0.10.231">
-  <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=0.10.231">
+  <link rel="icon" type="image/png" href="favicon.png?v=0.10.232">
+  <link rel="shortcut icon" href="favicon.ico?v=0.10.232">
+  <link rel="icon" type="image/x-icon" href="favicon.ico?v=0.10.232">
+  <link rel="manifest" href="/manifest.webmanifest?v=0.10.232">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=0.10.232">
   <meta name="application-name" content="OpenCompany">
   <meta name="mobile-web-app-capable" content="yes">
-  <link rel="stylesheet" href="style.css?v=0.10.231">
+  <link rel="stylesheet" href="style.css?v=0.10.232">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     .password-field{display:flex;align-items:center;gap:.5rem}
@@ -1120,7 +1120,7 @@
       .oc-select-option{min-height:46px;padding:.7rem .8rem}
     }
   
-    /* v0.10.231 – Kompakte feste Navigationsbuttons */
+    /* v0.10.232 – Dashboard Marktüberblick */
     .app-shell{
       display:block!important;
       min-height:100dvh!important;
@@ -2213,6 +2213,138 @@
       .moderation-actions button{flex:1 1 calc(50% - .5rem)}
     }
 
+
+    /* Dashboard Marktüberblick · v0.10.232 */
+    .dashboard-market-overview-panel{
+      padding:0;
+      overflow:hidden;
+      border-radius:12px;
+    }
+    .dashboard-market-overview-head{
+      min-height:52px;
+      padding:8px 14px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:14px;
+      background:linear-gradient(90deg,#123e69 0%,#1b5788 52%,#6d8daa 100%);
+    }
+    .dashboard-market-overview-title{
+      display:flex;
+      align-items:center;
+      gap:9px;
+      min-width:0;
+    }
+    .dashboard-market-overview-title h2{
+      margin:0;
+      color:#fff;
+      font-size:17px;
+    }
+    .dashboard-market-overview-icon{
+      display:grid;
+      place-items:center;
+      width:28px;
+      height:28px;
+      color:#fff;
+      font-size:19px;
+      font-weight:900;
+    }
+    .dashboard-market-category-select{
+      width:min(330px,42vw);
+      min-height:36px;
+      margin:0;
+      padding:7px 38px 7px 12px;
+      border:1px solid rgba(255,255,255,.62);
+      border-radius:9px;
+      background:#fff;
+      color:#183754;
+      font-weight:700;
+      font-size:13px;
+    }
+    .dashboard-market-overview-body{
+      display:grid;
+      grid-template-columns:minmax(0,.92fr) minmax(0,1.38fr);
+      gap:0;
+      background:#fff;
+    }
+    .dashboard-demand-chart-section,
+    .dashboard-market-orders-section{
+      min-width:0;
+      padding:12px 14px 14px;
+    }
+    .dashboard-demand-chart-section{
+      border-right:1px solid #dfe7ef;
+    }
+    .dashboard-demand-chart-section h3,
+    .dashboard-market-orders-section h3{
+      margin:0 0 8px;
+      color:#163554;
+      font-size:15px;
+    }
+    .dashboard-demand-chart{
+      min-height:230px;
+    }
+    .dashboard-demand-chart svg{
+      display:block;
+      width:100%;
+      height:230px;
+      overflow:visible;
+    }
+    .dashboard-chart-grid{stroke:#e2e9f1;stroke-width:1}
+    .dashboard-chart-axis{stroke:#b7c5d4;stroke-width:1}
+    .dashboard-chart-area{fill:#dceeff;opacity:.68}
+    .dashboard-chart-line{fill:none;stroke:#1976d2;stroke-width:3;stroke-linecap:round;stroke-linejoin:round}
+    .dashboard-chart-point{fill:#1976d2;stroke:#fff;stroke-width:2}
+    .dashboard-chart-label{fill:#667a91;font-size:10px;font-weight:650}
+    .dashboard-chart-current-box{fill:#1976d2}
+    .dashboard-chart-current-text{fill:#fff;font-size:10px;font-weight:800}
+    .dashboard-market-orders{
+      overflow-x:auto;
+      border:1px solid #d8e1eb;
+      border-radius:8px;
+    }
+    .dashboard-market-orders table{
+      min-width:560px;
+      margin:0;
+    }
+    .dashboard-market-orders th,
+    .dashboard-market-orders td{
+      padding:9px 10px;
+      font-size:12px;
+    }
+    .dashboard-market-orders th{
+      background:#e9eef4;
+      color:#52677f;
+      font-size:11px;
+    }
+    .dashboard-market-demand-badge{
+      display:inline-flex;
+      justify-content:center;
+      min-width:58px;
+      padding:4px 8px;
+      border-radius:6px;
+      font-size:11px;
+      font-weight:800;
+    }
+    .dashboard-market-demand-badge.high{background:#dff6e6;color:#187e43}
+    .dashboard-market-demand-badge.medium{background:#fff0c9;color:#a56800}
+    .dashboard-market-demand-badge.low{background:#fde4e2;color:#b53a33}
+    .dashboard-market-empty{
+      padding:22px;
+      text-align:center;
+      color:#718198;
+    }
+    @media(max-width:900px){
+      .dashboard-market-overview-body{grid-template-columns:1fr}
+      .dashboard-demand-chart-section{border-right:0;border-bottom:1px solid #dfe7ef}
+    }
+    @media(max-width:560px){
+      .dashboard-market-overview-head{align-items:stretch;flex-direction:column}
+      .dashboard-market-category-select{width:100%}
+      .dashboard-demand-chart-section,.dashboard-market-orders-section{padding:10px}
+      .dashboard-demand-chart,.dashboard-demand-chart svg{min-height:200px;height:200px}
+    }
+
 </style>
   <script>
     if ('serviceWorker' in navigator) {
@@ -2334,6 +2466,26 @@
           <article class="panel"><h2>Firmenstatus</h2><div id="companySummary" class="stack"></div></article>
           <article class="panel"><h2>Letzte Finanzbewegungen</h2><div id="recentTransactions" class="table-wrap"></div></article>
         </div>
+
+        <article class="panel dashboard-market-overview-panel">
+          <div class="dashboard-market-overview-head">
+            <div class="dashboard-market-overview-title">
+              <span class="dashboard-market-overview-icon" aria-hidden="true">▥</span>
+              <h2>Marktüberblick</h2>
+            </div>
+            <select id="dashboardMarketCategorySelect" class="dashboard-market-category-select" aria-label="Produktkategorie auswählen"></select>
+          </div>
+          <div class="dashboard-market-overview-body">
+            <section class="dashboard-demand-chart-section">
+              <h3>Nachfrageentwicklung (Index)</h3>
+              <div id="dashboardDemandChart" class="dashboard-demand-chart"></div>
+            </section>
+            <section class="dashboard-market-orders-section">
+              <h3>Aktuelle Aufträge (Warenbörse)</h3>
+              <div id="dashboardMarketOrders" class="dashboard-market-orders"></div>
+            </section>
+          </div>
+        </article>
       </div>
 
       <div id="chat" class="view">
@@ -2925,7 +3077,7 @@
           <h2>Einstellungen</h2>
           <div class="kv">
             <span>Version</span>
-            <strong>0.10.231</strong>
+            <strong>0.10.232</strong>
           </div>
           <div class="kv settings-language-row">
             <span>Sprache</span>
@@ -3130,7 +3282,7 @@
     </div>
   </div>
 </div>
-<script src="guidance.js?v=0.10.231"></script>
+<script src="guidance.js?v=0.10.232"></script>
 <script src="config.js"></script>
 <script>
   const appScript = document.createElement('script');
