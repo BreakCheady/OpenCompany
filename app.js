@@ -3671,28 +3671,52 @@ async function handleSession(session) {
   if (state.recoveringPassword) return;
   state.session = session;
   const loggedIn = !!session;
-  document.getElementById('mainNavigation')?.classList.toggle('hidden', !loggedIn);
-  document.getElementById('headerChatBtn')?.classList.toggle('hidden', !loggedIn);
-  document.getElementById('headerCompanyAvatarBtn')?.classList.toggle('hidden', !loggedIn || !state.company?.id);
   document.getElementById('authView').classList.toggle('hidden', loggedIn);
   document.getElementById('publicLeaderboardView')?.classList.toggle('hidden', loggedIn);
   document.getElementById('recoveryView').classList.add('hidden');
-  document.getElementById('logoutBtn').classList.toggle('hidden', !loggedIn);
+  document.getElementById('moderationBlockView')?.classList.add('hidden');
   document.getElementById('sessionLabel').textContent = loggedIn ? session.user.email : 'Nicht angemeldet';
 
   if (!loggedIn) {
+    document.getElementById('mainNavigation')?.classList.add('hidden');
+    document.getElementById('headerChatBtn')?.classList.add('hidden');
+    document.getElementById('headerCompanyAvatarBtn')?.classList.add('hidden');
+    document.getElementById('logoutBtn')?.classList.add('hidden');
     stopPresenceHeartbeat();
     stopNpcMarketHeartbeat();
     stopCompanyBalanceWatcher();
     stopChatRealtime();
     stopInactivityWatcher();
     state.accountCode = null;
+    state.moderationRole = null;
+    state.moderationOverview = [];
+    state.moderationMessages = [];
+    syncModerationNavigation();
     document.getElementById('gameView').classList.add('hidden');
     document.getElementById('bootstrapView').classList.add('hidden');
     clearCompanyLoadError();
     loadPublicLeaderboard();
     return;
   }
+
+  await loadMyModerationState();
+  syncModerationNavigation();
+
+  if (moderationIsBlocked()) {
+    document.getElementById('mainNavigation')?.classList.add('hidden');
+    document.getElementById('headerChatBtn')?.classList.add('hidden');
+    document.getElementById('headerCompanyAvatarBtn')?.classList.add('hidden');
+    document.getElementById('gameView')?.classList.add('hidden');
+    document.getElementById('bootstrapView')?.classList.add('hidden');
+    showModerationBlock();
+    return;
+  }
+
+  document.getElementById('mainNavigation')?.classList.remove('hidden');
+  document.getElementById('headerChatBtn')?.classList.remove('hidden');
+  document.getElementById('logoutBtn')?.classList.remove('hidden');
+  document.getElementById('headerCompanyAvatarBtn')?.classList.toggle('hidden', !state.company?.id);
+
   startInactivityWatcher();
   await loadAccountIdentity();
   await loadCompany();
