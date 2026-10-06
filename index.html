@@ -5,14 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta name="theme-color" content="#0d2d55">
   <title>OpenCompany</title>
-  <link rel="icon" type="image/png" href="favicon.png?v=0.10.260">
-  <link rel="shortcut icon" href="favicon.ico?v=0.10.260">
-  <link rel="icon" type="image/x-icon" href="favicon.ico?v=0.10.260">
-  <link rel="manifest" href="/manifest.webmanifest?v=0.10.260">
-  <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=0.10.260">
+  <link rel="icon" type="image/png" href="favicon.png?v=0.10.261">
+  <link rel="shortcut icon" href="favicon.ico?v=0.10.261">
+  <link rel="icon" type="image/x-icon" href="favicon.ico?v=0.10.261">
+  <link rel="manifest" href="/manifest.webmanifest?v=0.10.261">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=0.10.261">
   <meta name="application-name" content="OpenCompany">
   <meta name="mobile-web-app-capable" content="yes">
-  <link rel="stylesheet" href="style.css?v=0.10.260">
+  <link rel="stylesheet" href="style.css?v=0.10.261">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     .password-field{display:flex;align-items:center;gap:.5rem}
@@ -1120,7 +1120,7 @@
       .oc-select-option{min-height:46px;padding:.7rem .8rem}
     }
   
-    /* v0.10.260 – Navigation 20 % breiter auf Basis von v0.10.230 */
+    /* v0.10.261 – Navigation 20 % breiter auf Basis von v0.10.230 */
     .app-shell{
       display:block!important;
       min-height:100dvh!important;
@@ -2426,57 +2426,28 @@
       .dashboard-demand-chart,.dashboard-demand-chart svg{min-height:200px;height:200px}
     }
 
-
-    /* OpenCompany 0.10.260 – stärkere schwarze Trennlinien */
-    :root{
-      --separator-color:#111;
-      --separator-width:2px;
-    }
-
-    /* Tabellen- und Listenzeilen */
-    table th,
-    table td,
-    .kv,
-    .chat-message,
-    .company-profile-offers th,
-    .company-profile-offers td,
-    .market-orderbook th,
-    .market-orderbook td,
-    .dashboard-market-orders th,
-    .dashboard-market-orders td{
-      border-bottom-color:var(--separator-color)!important;
-      border-bottom-width:var(--separator-width)!important;
-    }
-
-    /* Abschnittstrenner */
-    .building-card-job,
-    .large-order-section,
-    .moderation-actions,
-    .chat-compose,
-    .dashboard-demand-chart-section{
-      border-top-color:var(--separator-color)!important;
-      border-top-width:var(--separator-width)!important;
-    }
-
-    /* Spaltentrenner */
-    .chat-sidebar,
-    .dashboard-demand-chart-section{
-      border-right-color:var(--separator-color)!important;
-      border-right-width:var(--separator-width)!important;
-    }
-
-    /* Kopf-/Bereichstrenner */
-    .company-profile-hero,
-    .large-order-card-head{
-      border-bottom-color:var(--separator-color)!important;
-      border-bottom-width:var(--separator-width)!important;
-    }
-
-    @media(max-width:900px){
-      .dashboard-demand-chart-section{
-        border-right:0!important;
-        border-bottom:var(--separator-width) solid var(--separator-color)!important;
-      }
+    /* OpenCompany 0.10.261 – stärkere schwarze Rahmen nur an Kartenfeldern */
+    :where(
+      .panel,
+      .stat-card,
+      .building-card:not(.selected),
+      .storage-capacity-card,
+      .demand-card,
+      .market-index-card,
+      .market-product-tile,
+      .economy-phase-effects > div,
+      .company-profile-stats > div,
+      .large-order-card,
+      .large-order-notice,
+      .moderation-account-card,
+      .moderation-message-card,
+      .finance-summary-card,
+      .finance-profit-card,
+      .finance-period-card
+    ){
+      border-width:2px!important;
+      border-style:solid!important;
+      border-color:#111!important;
     }
 
 </style>
@@ -3209,7 +3180,7 @@
           <h2>Einstellungen</h2>
           <div class="kv">
             <span>Version</span>
-            <strong>0.10.260</strong>
+            <strong>0.10.261</strong>
           </div>
           <div class="kv settings-language-row">
             <span>Sprache</span>
@@ -3414,7 +3385,7 @@
     </div>
   </div>
 </div>
-<script src="guidance.js?v=0.10.260"></script>
+<script src="guidance.js?v=0.10.261"></script>
 <script src="config.js"></script>
 <script>
   const appScript = document.createElement('script');
