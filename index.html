@@ -5,14 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta name="theme-color" content="#0d2d55">
   <title>OpenCompany</title>
-  <link rel="icon" type="image/png" href="favicon.png?v=0.10.240">
-  <link rel="shortcut icon" href="favicon.ico?v=0.10.240">
-  <link rel="icon" type="image/x-icon" href="favicon.ico?v=0.10.240">
-  <link rel="manifest" href="/manifest.webmanifest?v=0.10.240">
-  <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=0.10.240">
+  <link rel="icon" type="image/png" href="favicon.png?v=0.10.241">
+  <link rel="shortcut icon" href="favicon.ico?v=0.10.241">
+  <link rel="icon" type="image/x-icon" href="favicon.ico?v=0.10.241">
+  <link rel="manifest" href="/manifest.webmanifest?v=0.10.241">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=0.10.241">
   <meta name="application-name" content="OpenCompany">
   <meta name="mobile-web-app-capable" content="yes">
-  <link rel="stylesheet" href="style.css?v=0.10.240">
+  <link rel="stylesheet" href="style.css?v=0.10.241">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     .password-field{display:flex;align-items:center;gap:.5rem}
@@ -1120,7 +1120,7 @@
       .oc-select-option{min-height:46px;padding:.7rem .8rem}
     }
   
-    /* v0.10.240 – Persönliche Großauftrags-Slots */
+    /* v0.10.241 – Marktüberblick-Kategoriefilter */
     .app-shell{
       display:block!important;
       min-height:100dvh!important;
@@ -2214,7 +2214,7 @@
     }
 
 
-    /* Dashboard Marktüberblick · v0.10.240 */
+    /* Dashboard Marktüberblick · v0.10.241 */
     .dashboard-market-overview-panel{
       padding:0;
       overflow:hidden;
@@ -2251,11 +2251,13 @@
       font-weight:900;
     }
     .dashboard-market-category-select{
-      width:min(330px,42vw);
+      width:240px !important;
+      max-width:240px;
+      flex:0 0 240px;
       min-height:36px;
-      margin:0;
+      margin:0 0 0 auto;
       padding:7px 38px 7px 12px;
-      border:1px solid rgba(255,255,255,.62);
+      border:1px solid #c9d5e2;
       border-radius:9px;
       background:#fff;
       color:#183754;
@@ -2341,7 +2343,7 @@
     }
     @media(max-width:560px){
       .dashboard-market-overview-head{align-items:stretch;flex-direction:column}
-      .dashboard-market-category-select{width:100%}
+      .dashboard-market-category-select{width:100% !important;max-width:none;flex:1 1 auto}
       .dashboard-demand-chart-section,.dashboard-market-orders-section{padding:10px}
       .dashboard-demand-chart,.dashboard-demand-chart svg{min-height:200px;height:200px}
     }
@@ -3077,7 +3079,7 @@
           <h2>Einstellungen</h2>
           <div class="kv">
             <span>Version</span>
-            <strong>0.10.240</strong>
+            <strong>0.10.241</strong>
           </div>
           <div class="kv settings-language-row">
             <span>Sprache</span>
@@ -3282,7 +3284,7 @@
     </div>
   </div>
 </div>
-<script src="guidance.js?v=0.10.240"></script>
+<script src="guidance.js?v=0.10.241"></script>
 <script src="config.js"></script>
 <script>
   const appScript = document.createElement('script');
