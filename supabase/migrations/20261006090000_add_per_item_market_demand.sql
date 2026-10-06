@@ -47,6 +47,7 @@ set search_path to ''
 as $$
 declare
   v_count integer := 0;
+  v_rows integer := 0;
 begin
   insert into public.market_item_demand(
     item_key,item_type,product_name,product_category,demand_index,previous_index,trend
@@ -89,7 +90,8 @@ begin
   set material_name=excluded.material_name,
       updated_at=public.market_item_demand.updated_at;
 
-  get diagnostics v_count = v_count + row_count;
+  get diagnostics v_rows = row_count;
+  v_count := v_count + v_rows;
   return v_count;
 end
 $$;
