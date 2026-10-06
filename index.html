@@ -5,14 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta name="theme-color" content="#0d2d55">
   <title>OpenCompany</title>
-  <link rel="icon" type="image/png" href="favicon.png?v=0.10.247">
-  <link rel="shortcut icon" href="favicon.ico?v=0.10.247">
-  <link rel="icon" type="image/x-icon" href="favicon.ico?v=0.10.247">
-  <link rel="manifest" href="/manifest.webmanifest?v=0.10.247">
-  <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=0.10.247">
+  <link rel="icon" type="image/png" href="favicon.png?v=0.10.248">
+  <link rel="shortcut icon" href="favicon.ico?v=0.10.248">
+  <link rel="icon" type="image/x-icon" href="favicon.ico?v=0.10.248">
+  <link rel="manifest" href="/manifest.webmanifest?v=0.10.248">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=0.10.248">
   <meta name="application-name" content="OpenCompany">
   <meta name="mobile-web-app-capable" content="yes">
-  <link rel="stylesheet" href="style.css?v=0.10.247">
+  <link rel="stylesheet" href="style.css?v=0.10.248">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     .password-field{display:flex;align-items:center;gap:.5rem}
@@ -1120,7 +1120,7 @@
       .oc-select-option{min-height:46px;padding:.7rem .8rem}
     }
   
-    /* v0.10.247 – Navigation 20 % breiter auf Basis von v0.10.230 */
+    /* v0.10.248 – Navigation 20 % breiter auf Basis von v0.10.230 */
     .app-shell{
       display:block!important;
       min-height:100dvh!important;
@@ -2807,15 +2807,6 @@
                 </div>
               </div>
 
-              <div class="market-quality-tabs" aria-label="Qualität filtern">
-                <button type="button" class="market-quality-btn active" data-quality="all">Alle</button>
-                <button type="button" class="market-quality-btn" data-quality="1">Q1</button>
-                <button type="button" class="market-quality-btn" data-quality="2">Q2</button>
-                <button type="button" class="market-quality-btn" data-quality="3">Q3</button>
-                <button type="button" class="market-quality-btn" data-quality="4">Q4</button>
-                <button type="button" class="market-quality-btn" data-quality="5">Q5+</button>
-              </div>
-
               <div class="table-wrap market-orderbook-wrap">
                 <table class="market-orderbook">
                   <thead><tr><th>Anbieter</th><th>Qualität</th><th>Menge</th><th>Preis / Einheit</th><th>Aktion</th></tr></thead>
@@ -2830,6 +2821,15 @@
                 <div class="market-purchase-info"><span>Marktbestand</span><strong id="marketProductBuyAvailability">0 verfügbar</strong></div>
                 <div class="market-purchase-info"><span>Voraussichtliche Kosten</span><strong id="marketProductBuyTotal">–</strong></div>
                 <button type="button" id="marketProductBuyBtn" class="market-buy-cheapest-btn" disabled>Kaufen</button>
+              </div>
+
+              <div class="market-quality-tabs" aria-label="Qualität filtern">
+                <button type="button" class="market-quality-btn active" data-quality="all">Alle</button>
+                <button type="button" class="market-quality-btn" data-quality="1">Q1</button>
+                <button type="button" class="market-quality-btn" data-quality="2">Q2</button>
+                <button type="button" class="market-quality-btn" data-quality="3">Q3</button>
+                <button type="button" class="market-quality-btn" data-quality="4">Q4</button>
+                <button type="button" class="market-quality-btn" data-quality="5">Q5+</button>
               </div>
             </div>
           </section>
@@ -3109,7 +3109,7 @@
           <h2>Einstellungen</h2>
           <div class="kv">
             <span>Version</span>
-            <strong>0.10.247</strong>
+            <strong>0.10.248</strong>
           </div>
           <div class="kv settings-language-row">
             <span>Sprache</span>
@@ -3314,7 +3314,7 @@
     </div>
   </div>
 </div>
-<script src="guidance.js?v=0.10.247"></script>
+<script src="guidance.js?v=0.10.248"></script>
 <script src="config.js"></script>
 <script>
   const appScript = document.createElement('script');
