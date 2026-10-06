@@ -1,4 +1,4 @@
--- OpenCompany 0.10.257: significantly larger large-customer orders and longer delivery windows
+-- OpenCompany 0.10.258: significantly larger large-customer orders and longer delivery windows
 
 create or replace function private.generate_large_customer_order_if_due()
 returns integer
@@ -96,20 +96,20 @@ begin
       v_item_kind:='product';
 
       if v_type='rush' then
-        -- 2,500 to 25,000 units in 500-unit steps.
-        v_qty := 2500 + 500 * floor(random()*46);
+        -- 10,000 to 50,000 units in 1,000-unit steps.
+        v_qty := 10000 + 1000 * floor(random()*41);
         -- One to three days.
         v_delivery_hours := (array[24,36,48,72])[1+floor(random()*4)::int];
         v_early_bonus_hours := null;
       elsif v_type='quality' then
-        -- 5,000 to 75,000 units in 2,500-unit steps.
-        v_qty := 5000 + 2500 * floor(random()*29);
+        -- 25,000 to 150,000 units in 5,000-unit steps.
+        v_qty := 25000 + 5000 * floor(random()*26);
         -- Five to seven days.
         v_delivery_hours := (array[120,144,168])[1+floor(random()*3)::int];
         v_early_bonus_hours := greatest(24,floor(v_delivery_hours/2.0)::int);
       else
-        -- 10,000 to 150,000 units in 5,000-unit steps.
-        v_qty := 10000 + 5000 * floor(random()*29);
+        -- 50,000 to 300,000 units in 10,000-unit steps.
+        v_qty := 50000 + 10000 * floor(random()*26);
         -- Four to seven days.
         v_delivery_hours := (array[96,120,144,168])[1+floor(random()*4)::int];
         v_early_bonus_hours := greatest(24,floor(v_delivery_hours/2.0)::int);
