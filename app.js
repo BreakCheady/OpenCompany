@@ -9787,12 +9787,12 @@ function berlinLocalToUtc(year,month,day,hour,minute=0,second=0) {
 
 function nextLargeOrderGenerationDate(now=new Date()) {
   const berlin=berlinDateParts(now);
-  let target=berlinLocalToUtc(berlin.year,berlin.month,berlin.day,6,0,0);
+  let target=berlinLocalToUtc(berlin.year,berlin.month,berlin.day,18,0,0);
   if(target.getTime()<=now.getTime()){
     const noonUtc=new Date(Date.UTC(berlin.year,berlin.month-1,berlin.day,12,0,0));
     noonUtc.setUTCDate(noonUtc.getUTCDate()+1);
     const next=berlinDateParts(noonUtc);
-    target=berlinLocalToUtc(next.year,next.month,next.day,6,0,0);
+    target=berlinLocalToUtc(next.year,next.month,next.day,18,0,0);
   }
   return target;
 }
