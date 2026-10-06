@@ -96,7 +96,7 @@ const I18N_EN = {
   'Aktiviert':'Enabled','Unternehmensverwaltung':'Company management','Unternehmensname':'Company name','Umbenennen':'Rename',
   'Diese Aktionen können nicht rückgängig gemacht werden.':'These actions cannot be undone.',
   'Unternehmen zurücksetzen':'Reset company','Unternehmen löschen':'Delete company','Unternehmen gründen':'Found company',
-  'Startkapital: 100.000 OC$ inklusive Elektronikfabrik und Elektronikgeschäft.':'Starting capital: 100,000 OC$ including an electronics factory and electronics store.',
+  'Startkapital: 100.000 $ inklusive Elektronikfabrik und Elektronikgeschäft.':'Starting capital: 100,000 $ including an electronics factory and electronics store.',
   'Firmenname':'Company name','Hinweis':'Notice','Bestätigung':'Confirmation','Eingabe':'Input','Bestätigen':'Confirm',
   'Sprache':'Language','Deutsch':'Deutsch','Englisch':'Englisch','Platz':'Rank','Gegründet':'Founded',
   'Status':'Status','Level':'Level','Erfahrung':'Experience','Name':'Name','Mitarbeiter':'Employees','Firma':'Company',
@@ -170,8 +170,8 @@ Object.assign(I18N_EN, {
   'eingeben. Der Verkauf läuft im oben ausgewählten Verkaufsgebäude.':'The sale runs in the retail building selected above.',
   'Du kannst Produkte und Rohstoffe aus deinem Lager anbieten. Bei erfolgreichen Marktverkäufen werden 5% Marktgebühr vom Verkaufserlös abgezogen.':
     'You can offer products and raw materials from your storage. A 5% market fee is deducted from successful market sales.',
-  'Zurücksetzen behält Account und Firmenname, löscht aber den Spielfortschritt und setzt das Startkapital auf 100.000 OC$ und stellt eine Elektronikfabrik sowie ein Elektronikgeschäft bereit. Löschen entfernt zusätzlich den Account.':
-    'Reset keeps your account and company name, but deletes game progress, restores starting capital to 100,000 OC$, and provides an electronics factory and electronics store. Deleting also removes the account.',
+  'Zurücksetzen behält Account und Firmenname, löscht aber den Spielfortschritt und setzt das Startkapital auf 100.000 $ und stellt eine Elektronikfabrik sowie ein Elektronikgeschäft bereit. Löschen entfernt zusätzlich den Account.':
+    'Reset keeps your account and company name, but deletes game progress, restores starting capital to 100,000 $, and provides an electronics factory and electronics store. Deleting also removes the account.',
 
   // Loading/errors/status
   'Unbekannter Fehler':'Unknown error',
@@ -264,8 +264,8 @@ Object.assign(I18N_EN, {
   'Finanziert':'Funded','Zins':'Interest','Noch offen':'Outstanding','Kreditgeber':'Lender',
   'Ursprünglich':'Original','Kreditnehmer':'Borrower','Zinserlöse':'Interest income',
   'Bitte mindestens 1 Anleihe und mindestens 0,50% Tageszins angeben.':'Please enter at least 1 bond and at least 0.50% daily interest.',
-  'Bitte einen Betrag größer als 0 OC$ eingeben.':'Please enter an amount greater than 0 OC$.',
-  'Bitte einen Tilgungsbetrag größer als 0 OC$ eingeben.':'Please enter a repayment amount greater than 0 OC$.',
+  'Bitte einen Betrag größer als 0 $ eingeben.':'Please enter an amount greater than 0 $.',
+  'Bitte einen Tilgungsbetrag größer als 0 $ eingeben.':'Please enter a repayment amount greater than 0 $.',
   'Nächste Stufe':'Next level',
   'Anleihen werden auf Unternehmenslevel 10 freigeschaltet.':'Bonds unlock at company level 10.',
   'Zinsausfall':'Interest default',
@@ -304,7 +304,7 @@ Object.assign(I18N_EN, {
   'Bitte zuerst E-Mail eingeben.':'Please enter your email first.',
   'Passwort-Link wurde versendet.':'Password reset link has been sent.',
   'Letzte Bestätigung: Unternehmensfortschritt jetzt vollständig zurücksetzen?':'Final confirmation: completely reset company progress now?',
-  'Unternehmen wurde zurückgesetzt. Du startest wieder mit 100.000 OC$.':'Company has been reset. You start again with 100,000 OC$.',
+  'Unternehmen wurde zurückgesetzt. Du startest wieder mit 100.000 $.':'Company has been reset. You start again with 100,000 $.',
   'Zur Bestätigung bitte LÖSCHEN eingeben:':'Type DELETE to confirm:',
   'LÖSCHEN':'DELETE',
   'Löschen abgebrochen. Bestätigung war nicht korrekt.':'Deletion cancelled. Confirmation was incorrect.',
@@ -444,8 +444,8 @@ Object.assign(I18N_EN, {
   'Verkaufspreis':'Sale price',
   'Einsammelbarer Erlös':'Collectable revenue',
   'Erwarteter Erlös (offen)':'Expected revenue (outstanding)',
-  'Keine Rohstoffe benötigt. Forschungseinheiten benötigen ausschließlich Geld: 12 OC$ Grundkosten + 14 OC$ Personalkosten pro Einheit.':
-    'No raw materials required. Research units require cash only: 12 OC$ base cost + 14 OC$ personnel cost per unit.',
+  'Keine Rohstoffe benötigt. Forschungseinheiten benötigen ausschließlich Geld: 12 $ Grundkosten + 14 $ Personalkosten pro Einheit.':
+    'No raw materials required. Research units require cash only: 12 $ base cost + 14 $ personnel cost per unit.',
   'Es befinden sich keine Produkte für den Handelsverkauf im Lager.':'There are no products in storage for retail sale.',
 
   // Finance
@@ -455,8 +455,8 @@ Object.assign(I18N_EN, {
   'Kreditlimit (99%)':'Credit limit (99%)',
   'Offene Kreditsumme':'Outstanding loan amount',
   'Noch verfügbar':'Still available',
-  '1 Anleihe = 5.000 OC$. Mindestzins 0,50% täglich. Das Kreditlimit entspricht 99% des Gebäudewerts, abgerundet auf 5.000 OC$.':
-    '1 bond = 5,000 OC$. Minimum interest rate 0.50% daily. The credit limit equals 99% of the building value, rounded down to 5,000 OC$.',
+  '1 Anleihe = 5.000 $. Mindestzins 0,50% täglich. Das Kreditlimit entspricht 99% des Gebäudewerts, abgerundet auf 5.000 $.':
+    '1 bond = 5,000 $. Minimum interest rate 0.50% daily. The credit limit equals 99% of the building value, rounded down to 5,000 $.',
   'Täglicher Zinssatz':'Daily interest rate',
   'Kredit anfragen':'Request loan',
   'Meine Kreditanfragen':'My loan requests',
@@ -1041,14 +1041,14 @@ function clearLastView(userId = state.session?.user?.id) {
 const money = n => `${new Intl.NumberFormat(uiLocale(), {
   minimumFractionDigits: 2,
   maximumFractionDigits: 2
-}).format(Number(n || 0))} OC$`;
+}).format(Number(n || 0))} $`;
 
 const dashboardCashMoney = n => `${new Intl.NumberFormat(uiLocale(), {
   minimumFractionDigits: 2,
   maximumFractionDigits: 2
-}).format(Number(n || 0))} OC$`;
+}).format(Number(n || 0))} $`;
 const num = n => new Intl.NumberFormat(uiLocale(), { maximumFractionDigits: 2 }).format(Number(n || 0));
-const balanceMoney = n => `${new Intl.NumberFormat(uiLocale(), { maximumFractionDigits: 0 }).format(Number(n || 0))} OC$`;
+const balanceMoney = n => `${new Intl.NumberFormat(uiLocale(), { maximumFractionDigits: 0 }).format(Number(n || 0))} $`;
 
 
 // Zentrale Spielregeln für alle Frontend-Anzeigen und Berechnungen.
@@ -5244,7 +5244,7 @@ function renderProductionRecipe() {
   document.getElementById('productionRecipe').innerHTML = rows.length
     ? renderTable(['Typ','Input','Qualität','Bedarf je Einheit','Benötigt','Bestand','Aktion'], rows)
     : (plan.product?.category === 'research'
-      ? '<div class="research-production-note">Keine Rohstoffe benötigt. Forschungseinheiten benötigen ausschließlich Geld: 12 OC$ Grundkosten + 14 OC$ Personalkosten pro Einheit.</div>'
+      ? '<div class="research-production-note">Keine Rohstoffe benötigt. Forschungseinheiten benötigen ausschließlich Geld: 12 $ Grundkosten + 14 $ Personalkosten pro Einheit.</div>'
       : renderTable(['Typ','Input','Qualität','Bedarf je Einheit','Benötigt','Bestand','Aktion'], rows));
 
   const button = document.getElementById('productionStartBtn');
@@ -7357,7 +7357,7 @@ function renderBonds() {
     <td>${num(r.daily_interest_rate)}% / Tag</td>
     <td>
       <div class="bond-inline-action">
-        <input type="number" id="bondInvest-${r.id}" min="0.01" step="0.01" max="${Number(r.remaining_amount || 0)}" placeholder="OC$">
+        <input type="number" id="bondInvest-${r.id}" min="0.01" step="0.01" max="${Number(r.remaining_amount || 0)}" placeholder="$">
         <button type="button" onclick="investBondRequest('${r.id}')">Bereitstellen</button>
       </div>
     </td>
@@ -7377,7 +7377,7 @@ function renderBonds() {
       <td>${bondStatusLabel(i.status)}</td>
       <td>
         ${active ? `<div class="bond-inline-action">
-          <input type="number" id="bondRepay-${i.id}" min="0.01" step="0.01" max="${Number(i.remaining_debt || 0)}" placeholder="OC$" ${matured ? '' : 'disabled'}>
+          <input type="number" id="bondRepay-${i.id}" min="0.01" step="0.01" max="${Number(i.remaining_debt || 0)}" placeholder="$" ${matured ? '' : 'disabled'}>
           <button type="button" onclick="repayBondInvestment('${i.id}')" ${matured ? '' : 'disabled'}>${matured ? 'Tilgen' : '14 Tage'}</button>
         </div>` : '–'}
       </td>
@@ -7400,7 +7400,7 @@ function renderBonds() {
     <div class="bond-grid">
       <section class="bond-section">
         <h3>Anleihen anfragen</h3>
-        <p class="muted">1 Anleihe = 5.000 OC$. Mindestzins 0,50% täglich. Das Kreditlimit entspricht 99% des Gebäudewerts, abgerundet auf 5.000 OC$.</p>
+        <p class="muted">1 Anleihe = 5.000 $. Mindestzins 0,50% täglich. Das Kreditlimit entspricht 99% des Gebäudewerts, abgerundet auf 5.000 $.</p>
         <form id="bondRequestForm" class="bond-request-form">
           <label>Anzahl Anleihen
             <input type="number" id="bondRequestCount" min="1" step="1" value="1">
@@ -7472,7 +7472,7 @@ window.investBondRequest = async function(requestId) {
   const input = document.getElementById(`bondInvest-${requestId}`);
   const amount = Number(input?.value || 0);
   if (amount <= 0) {
-    gameAlert('Bitte einen Betrag größer als 0 OC$ eingeben.');
+    gameAlert('Bitte einen Betrag größer als 0 $ eingeben.');
     return;
   }
   if (!await gameConfirm(`${money(amount)} für diese Anleihe bereitstellen? Der Betrag wird sofort von deinem Kontostand abgebucht.`)) return;
@@ -7489,7 +7489,7 @@ window.repayBondInvestment = async function(investmentId) {
   const input = document.getElementById(`bondRepay-${investmentId}`);
   const amount = Number(input?.value || 0);
   if (amount <= 0) {
-    gameAlert('Bitte einen Tilgungsbetrag größer als 0 OC$ eingeben.');
+    gameAlert('Bitte einen Tilgungsbetrag größer als 0 $ eingeben.');
     return;
   }
   if (!await gameConfirm(`${money(amount)} auf diesen Kreditanteil tilgen?`)) return;
@@ -8970,7 +8970,7 @@ window.updateEncyclopediaRetailCalculator = function(buildingTypeId, slug) {
   }
 
   if (!(price > 0)) {
-    result.innerHTML = '<p class="muted">Bitte einen Verkaufspreis größer als 0 OC$ eingeben.</p>';
+    result.innerHTML = '<p class="muted">Bitte einen Verkaufspreis größer als 0 $ eingeben.</p>';
     return;
   }
 
@@ -10290,7 +10290,7 @@ document.getElementById('resetCompanyBtn').addEventListener('click', async () =>
   if (!state.company?.id) return;
 
   const confirmed = await gameConfirm(
-    'Unternehmen wirklich zurücksetzen? Alle Gebäude, Lagerbestände, laufenden Produktionen, Marktaktivitäten und Finanzdaten werden gelöscht. Firmenname und Account bleiben erhalten. Startkapital danach: 100.000 OC$. Zusätzlich erhältst du eine Elektronikfabrik und ein Elektronikgeschäft.'
+    'Unternehmen wirklich zurücksetzen? Alle Gebäude, Lagerbestände, laufenden Produktionen, Marktaktivitäten und Finanzdaten werden gelöscht. Firmenname und Account bleiben erhalten. Startkapital danach: 100.000 $. Zusätzlich erhältst du eine Elektronikfabrik und ein Elektronikgeschäft.'
   );
   if (!confirmed) return;
 
@@ -10304,7 +10304,7 @@ document.getElementById('resetCompanyBtn').addEventListener('click', async () =>
   }
 
   await loadCompany();
-  gameAlert('Unternehmen wurde zurückgesetzt. Du startest wieder mit 100.000 OC$.');
+  gameAlert('Unternehmen wurde zurückgesetzt. Du startest wieder mit 100.000 $.');
 });
 
 document.getElementById('deleteCompanyBtn').addEventListener('click', async () => {
