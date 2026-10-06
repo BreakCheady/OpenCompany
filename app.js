@@ -9414,8 +9414,9 @@ function renderDashboardMarketOverview() {
   const productSummaries = (state.marketCatalogSummary || []).filter(row =>
     row.item_type === 'product' && row.product_category && row.product_name
   );
-  const categories = [...new Set(productSummaries.map(row => row.product_category))]
-    .sort((a,b) => dashboardMarketCategoryLabel(a).localeCompare(dashboardMarketCategoryLabel(b), uiLocale()));
+  const categories = [...new Set(productSummaries.map(row => dashboardMarketCategoryLabel(row)))]
+    .filter(Boolean)
+    .sort(marketCategorySort);
 
   if (!categories.length) {
     select.innerHTML = '<option>Keine Marktdaten</option>';
