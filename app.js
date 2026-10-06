@@ -9629,16 +9629,54 @@ function renderDemandDashboard() {
   }).join("");
 }
 
+function marketPriceIndexKnownCategory(row) {
+  const key = `${row?.index_kind || ''}:${row?.index_code || ''}`;
+  return ({
+    'product:construction':'Bau',
+    'product:chemical':'Chemie',
+    'product:electronics':'Elektronik',
+    'product:energy':'Energie',
+    'product:automotive':'Automobil',
+    'product:component':'Elektronik',
+    'product:food_component':'Lebensmittel',
+    'product:food':'Lebensmittel',
+    'product:logistics':'Transport',
+    'product:machinery':'Automobil',
+    'product:textile':'Textil',
+    'raw:agri':'Lebensmittel',
+    'raw:chemical':'Chemie',
+    'raw:energy':'Energie',
+    'raw:metal':'Bau'
+  })[key] || null;
+}
+
 function renderMarketPriceIndices() {
   const container = document.getElementById("marketPriceIndices");
   if (!container) return;
   const days = Number(state.marketIndexDays || 7);
-  const rows = state.marketPriceIndices || [];
+  const knownCategories = new Set(marketCatalogItems().map(item => marketCatalogCategory(item)));
+  const grouped = new Map();
+
+  (state.marketPriceIndices || []).forEach(row => {
+    const category = marketPriceIndexKnownCategory(row);
+    if (!category || !knownCategories.has(category)) return;
+    const current = grouped.get(category);
+    const rowScore = (row.sufficient_data && row.index_value != null ? 1000000 : 0) + Number(row.trade_count || 0);
+    const currentScore = current
+      ? ((current.sufficient_data && current.index_value != null ? 1000000 : 0) + Number(current.trade_count || 0))
+      : -1;
+    if (!current || rowScore > currentScore) grouped.set(category, row);
+  });
+
+  const rows = [...grouped.entries()]
+    .sort(([a],[b]) => marketCategorySort(a,b));
+
   if (!rows.length) {
-    container.innerHTML = "<p class=\"muted\">Noch keine Indexdaten verfügbar.</p>";
+    container.innerHTML = "<p class=\"muted\">Noch keine Indexdaten für die bekannten Kategorien verfügbar.</p>";
     return;
   }
-  container.innerHTML = rows.map(row => {
+
+  container.innerHTML = rows.map(([category,row]) => {
     const hist = (state.marketPriceIndexHistory || [])
       .filter(h => h.index_kind === row.index_kind && h.index_code === row.index_code)
       .slice(-days);
@@ -9653,9 +9691,8 @@ function renderMarketPriceIndices() {
     const sufficient = !!row.sufficient_data && row.index_value != null;
     const change = Number(row.change_percent || 0);
     return "<div class=\"market-index-card\"><div class=\"market-index-card-head\"><div><strong>" +
-      (row.index_label || row.index_code) + "</strong><div class=\"muted\">" +
-      (row.index_kind === "raw" ? "Rohstoff-Index" : "Produkt-Index") +
-      "</div></div><strong>" + (sufficient ? num(row.index_value) : "Zu wenig Marktdaten") +
+      translateUiString(category) + "</strong><div class=\"muted\">Marktpreis-Index</div></div><strong>" +
+      (sufficient ? num(row.index_value) : "Zu wenig Marktdaten") +
       "</strong></div><div class=\"kv\"><span>7-Tage-Vergleich</span><strong>" +
       (sufficient ? ((change>0?"+":"") + num(change) + " %") : "–") +
       "</strong></div><div class=\"kv\"><span>Handelsaktivität</span><strong>" +
