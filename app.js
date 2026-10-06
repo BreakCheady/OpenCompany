@@ -9702,9 +9702,81 @@ function largeOrderBidSlotUsage(excludeOrderId='') {
   return { awarded, submitted, used:awarded+submitted, free:Math.max(0,3-awarded-submitted) };
 }
 
+let largeOrdersCountdownTimer = null;
+
+function timeZoneOffsetMs(date,timeZone) {
+  const parts=new Intl.DateTimeFormat('en-CA',{
+    timeZone,
+    year:'numeric',month:'2-digit',day:'2-digit',
+    hour:'2-digit',minute:'2-digit',second:'2-digit',
+    hourCycle:'h23'
+  }).formatToParts(date).reduce((acc,part)=>{
+    if(part.type!=='literal') acc[part.type]=part.value;
+    return acc;
+  },{});
+  const asUtc=Date.UTC(
+    Number(parts.year),Number(parts.month)-1,Number(parts.day),
+    Number(parts.hour),Number(parts.minute),Number(parts.second)
+  );
+  return asUtc-date.getTime();
+}
+
+function berlinDateParts(date=new Date()) {
+  const parts=new Intl.DateTimeFormat('en-CA',{
+    timeZone:'Europe/Berlin',
+    year:'numeric',month:'2-digit',day:'2-digit',
+    hour:'2-digit',minute:'2-digit',second:'2-digit',
+    hourCycle:'h23'
+  }).formatToParts(date).reduce((acc,part)=>{
+    if(part.type!=='literal') acc[part.type]=part.value;
+    return acc;
+  },{});
+  return {
+    year:Number(parts.year),month:Number(parts.month),day:Number(parts.day),
+    hour:Number(parts.hour),minute:Number(parts.minute),second:Number(parts.second)
+  };
+}
+
+function berlinLocalToUtc(year,month,day,hour,minute=0,second=0) {
+  const guess=new Date(Date.UTC(year,month-1,day,hour,minute,second));
+  let result=new Date(guess.getTime()-timeZoneOffsetMs(guess,'Europe/Berlin'));
+  result=new Date(guess.getTime()-timeZoneOffsetMs(result,'Europe/Berlin'));
+  return result;
+}
+
+function nextLargeOrderGenerationDate(now=new Date()) {
+  const berlin=berlinDateParts(now);
+  let target=berlinLocalToUtc(berlin.year,berlin.month,berlin.day,6,0,0);
+  if(target.getTime()<=now.getTime()){
+    const noonUtc=new Date(Date.UTC(berlin.year,berlin.month-1,berlin.day,12,0,0));
+    noonUtc.setUTCDate(noonUtc.getUTCDate()+1);
+    const next=berlinDateParts(noonUtc);
+    target=berlinLocalToUtc(next.year,next.month,next.day,6,0,0);
+  }
+  return target;
+}
+
+function updateLargeOrdersCountdown() {
+  const el=document.getElementById('largeOrdersCountdown');
+  if(!el) return;
+  const diff=Math.max(0,nextLargeOrderGenerationDate().getTime()-Date.now());
+  const totalSeconds=Math.floor(diff/1000);
+  const hours=Math.floor(totalSeconds/3600);
+  const minutes=Math.floor((totalSeconds%3600)/60);
+  const seconds=totalSeconds%60;
+  el.textContent=`${String(hours).padStart(2,'0')}:${String(minutes).padStart(2,'0')}:${String(seconds).padStart(2,'0')}`;
+}
+
+function startLargeOrdersCountdown() {
+  updateLargeOrdersCountdown();
+  if(largeOrdersCountdownTimer) return;
+  largeOrdersCountdownTimer=setInterval(updateLargeOrdersCountdown,1000);
+}
+
 function renderLargeOrders() {
   const container = document.getElementById("largeOrdersContent");
   if (!container) return;
+  startLargeOrdersCountdown();
   const bidByOrder = new Map((state.largeCustomerBids || []).map(b => [b.order_id,b]));
   const slotUsage = largeOrderBidSlotUsage();
   const active = (state.largeOrders || []).filter(o => ["bidding","awarded"].includes(o.status));
@@ -9807,7 +9879,7 @@ function renderLargeOrders() {
       num(slotUsage.used) + ' / 3 belegt · ' + num(slotUsage.free) + ' frei</strong></div>' +
     '<div class="large-orders-list">' +
     (active.length ? active.map(renderOrder).join("") :
-      '<p class="muted">Aktuell keine offene Großausschreibung. Neue Aufträge werden um 06:00 Uhr (Europe/Berlin) erzeugt, sofern Plätze frei sind.</p>') +
+      '<p class="muted">Aktuell keine offene Großausschreibung.</p>') +
     '</div>' +
     (recent.length ? '<h3 class="large-orders-recent-title">Zuletzt beendet</h3><div class="large-orders-list">' +
       recent.map(renderOrder).join("") + '</div>' : '') +
