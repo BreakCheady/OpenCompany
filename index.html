@@ -5,14 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta name="theme-color" content="#0d2d55">
   <title>OpenCompany</title>
-  <link rel="icon" type="image/png" href="favicon.png?v=0.10.253">
-  <link rel="shortcut icon" href="favicon.ico?v=0.10.253">
-  <link rel="icon" type="image/x-icon" href="favicon.ico?v=0.10.253">
-  <link rel="manifest" href="/manifest.webmanifest?v=0.10.253">
-  <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=0.10.253">
+  <link rel="icon" type="image/png" href="favicon.png?v=0.10.254">
+  <link rel="shortcut icon" href="favicon.ico?v=0.10.254">
+  <link rel="icon" type="image/x-icon" href="favicon.ico?v=0.10.254">
+  <link rel="manifest" href="/manifest.webmanifest?v=0.10.254">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=0.10.254">
   <meta name="application-name" content="OpenCompany">
   <meta name="mobile-web-app-capable" content="yes">
-  <link rel="stylesheet" href="style.css?v=0.10.253">
+  <link rel="stylesheet" href="style.css?v=0.10.254">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     .password-field{display:flex;align-items:center;gap:.5rem}
@@ -1120,7 +1120,7 @@
       .oc-select-option{min-height:46px;padding:.7rem .8rem}
     }
   
-    /* v0.10.253 – Navigation 20 % breiter auf Basis von v0.10.230 */
+    /* v0.10.254 – Navigation 20 % breiter auf Basis von v0.10.230 */
     .app-shell{
       display:block!important;
       min-height:100dvh!important;
@@ -2129,6 +2129,23 @@
     .large-orders-shell{display:grid;gap:1rem}
     .large-orders-intro{display:grid;gap:.8rem;margin:.25rem 0 1rem}
     .large-orders-intro-text{margin:0;color:#64748b;line-height:1.5}
+    .large-orders-countdown{
+      display:flex;
+      align-items:baseline;
+      gap:.55rem;
+      flex-wrap:wrap;
+      padding:.8rem 1rem;
+      border:1px solid #d6e3f2;
+      border-radius:10px;
+      background:#f7faff;
+    }
+    .large-orders-countdown span{color:#64748b;font-size:.82rem}
+    .large-orders-countdown strong{color:#17345d;font-size:1.2rem;letter-spacing:.02em}
+    .large-orders-countdown small{margin-left:auto;color:#7b8ca3;font-size:.75rem}
+    @media(max-width:620px){
+      .large-orders-countdown{align-items:flex-start;flex-direction:column;gap:.2rem}
+      .large-orders-countdown small{margin-left:0}
+    }
     .large-orders-rule-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.55rem}
     .large-orders-rule{padding:.65rem .75rem;border:1px solid #dce6f2;border-radius:10px;background:#f7faff}
     .large-orders-rule span{display:block;color:#6b7b91;font-size:.72rem;margin-bottom:.2rem}
@@ -2972,11 +2989,10 @@
           </div>
           <div class="large-orders-intro">
             <p class="large-orders-intro-text">Systemgenerierte Ausschreibungen für größere Liefermengen. Wähle Preis, Qualität und realistische Lieferzeit sorgfältig – jedes Gebot wird nach festen Kriterien bewertet.</p>
-            <div class="large-orders-rule-grid" aria-label="Regeln für Großaufträge">
-              <div class="large-orders-rule"><span>Gebotsphase</span><strong>24 Stunden</strong></div>
-              <div class="large-orders-rule"><span>Bewertung</span><strong>50 % Preis · 25 % Qualität · 25 % Lieferzeit</strong></div>
-              <div class="large-orders-rule"><span>Aktive Aufträge</span><strong>Maximal 3 gleichzeitig</strong></div>
-              <div class="large-orders-rule"><span>Vertragsstrafe</span><strong>30 % bei Nichterfüllung</strong></div>
+            <div class="large-orders-countdown" aria-live="polite">
+              <span>Nächste Großaufträge in</span>
+              <strong id="largeOrdersCountdown">–</strong>
+              <small id="largeOrdersCountdownTarget">Täglich um 06:00 Uhr (Europe/Berlin)</small>
             </div>
           </div>
           <div id="largeOrdersContent"></div>
@@ -3140,7 +3156,7 @@
           <h2>Einstellungen</h2>
           <div class="kv">
             <span>Version</span>
-            <strong>0.10.253</strong>
+            <strong>0.10.254</strong>
           </div>
           <div class="kv settings-language-row">
             <span>Sprache</span>
@@ -3345,7 +3361,7 @@
     </div>
   </div>
 </div>
-<script src="guidance.js?v=0.10.253"></script>
+<script src="guidance.js?v=0.10.254"></script>
 <script src="config.js"></script>
 <script>
   const appScript = document.createElement('script');
