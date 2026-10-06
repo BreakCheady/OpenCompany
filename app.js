@@ -7146,6 +7146,7 @@ function renderFinanceSummary() {
 
   const retailSales = sumType('retail_sale');
   const contractSales = sumType('contract_sale');
+  const largeCustomerOrderIncome = sumType('large_customer_order');
   const storageAuctionRevenue = sumType('storage_forced_auction');
   const productionRefunds = sumType('production_refund');
   const retailCancelRefunds = sumType('retail_cancel_refund');
@@ -7168,7 +7169,7 @@ function renderFinanceSummary() {
   const bondInterestPaid = costType('bond_interest_paid');
 
   const excludedResultTypes = new Set([
-    'market_sale','retail_sale','contract_sale','storage_forced_auction',
+    'market_sale','retail_sale','contract_sale','large_customer_order','storage_forced_auction',
     'production_refund','retail_cancel_refund',
     'production','market_buy','contract_buy','market_fee','freight_cost','retail_cancel_fee',
     'storage_fee','research','research_investment',
@@ -7189,6 +7190,7 @@ function renderFinanceSummary() {
     grossMarketSales +
     retailSales +
     contractSales +
+    largeCustomerOrderIncome +
     storageAuctionRevenue +
     productionRefunds +
     retailCancelRefunds +
@@ -7224,6 +7226,7 @@ function renderFinanceSummary() {
     financeStatementRow('Warenbörse – Verkäufe', grossMarketSales),
     financeStatementRow('Einzelhandel – Verkäufe', retailSales),
     financeStatementRow('Vertragsverkäufe', contractSales),
+    financeStatementRow('Großaufträge', largeCustomerOrderIncome),
     financeStatementRow('Zwangsauktionen', storageAuctionRevenue)
   ];
   if (productionRefunds > 0) revenueRows.push(financeStatementRow('Produktionserstattungen', productionRefunds));
