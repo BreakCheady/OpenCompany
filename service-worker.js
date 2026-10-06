@@ -1,14 +1,14 @@
-const CACHE_VERSION = 'opencompany-pwa-v42';
+const CACHE_VERSION = 'opencompany-pwa-v43';
 const OFFLINE_URL = '/offline.html';
 const PRECACHE_URLS = [
-  '/offline.html?v=0.10.254',
-  '/manifest.webmanifest?v=0.10.254',
-  '/favicon.png?v=0.10.254',
-  '/favicon.ico?v=0.10.254',
-  '/icon-192.png?v=0.10.254',
-  '/icon-512.png?v=0.10.254',
-  '/icon-maskable-512.png?v=0.10.254',
-  '/apple-touch-icon.png?v=0.10.254'
+  '/offline.html?v=0.10.255',
+  '/manifest.webmanifest?v=0.10.255',
+  '/favicon.png?v=0.10.255',
+  '/favicon.ico?v=0.10.255',
+  '/icon-192.png?v=0.10.255',
+  '/icon-512.png?v=0.10.255',
+  '/icon-maskable-512.png?v=0.10.255',
+  '/apple-touch-icon.png?v=0.10.255'
 ];
 
 self.addEventListener('install', event => {
@@ -36,7 +36,7 @@ self.addEventListener('fetch', event => {
 
   if (event.request.mode === 'navigate') {
     event.respondWith(
-      fetch(event.request).catch(() => caches.match('/offline.html?v=0.10.254'))
+      fetch(event.request).catch(() => caches.match('/offline.html?v=0.10.255'))
     );
   }
 });
