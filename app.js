@@ -907,6 +907,7 @@ const state = {
   transactions: [],
   marketOrders: [],
   marketCatalogSummary: [],
+  marketCatalogProducts: [],
   marketOwnOrders: [],
   marketItemOrders: [],
   marketItemOrdersKey: '',
@@ -2074,12 +2075,18 @@ async function fetchMarketItemOrders(item) {
     return query.eq('material_id', item.id);
   }
 
-  const productIds = state.allProducts
-    .filter(product => marketProductIdentity(product) === marketProductIdentity(item.product))
-    .map(product => product.id);
+  query = sb.from('market_orders')
+    .select('*, products!inner(name,category), materials(name)')
+    .eq('order_type','sell')
+    .in('status',['open','partially_filled'])
+    .gt('remaining_quantity',0)
+    .eq('products.name',item.name)
+    .eq('products.category',item.category)
+    .order('price_per_unit',{ascending:true})
+    .order('created_at',{ascending:true})
+    .limit(500);
 
-  if (!productIds.length) return { data:[], error:null };
-  return query.in('product_id', productIds);
+  return query;
 }
 
 async function loadMarketItemOrders(item=marketItemDescriptor(), { showLoading=true } = {}) {
@@ -4066,6 +4073,7 @@ async function loadGameData() {
     sb.from('retail_sale_jobs').select('*').eq('company_id', cid).order('started_at', {ascending:false}).limit(500),
     sb.from('financial_transactions').select('*').eq('company_id', cid).order('created_at', {ascending:false}).limit(500),
     sb.rpc('get_market_catalog_summary'),
+    sb.rpc('get_market_product_catalog'),
     sb.from('market_orders').select('*, products(name,category), materials(name)').eq('company_id',cid).eq('order_type','sell').in('status',['open','partially_filled']).gt('remaining_quantity',0).order('created_at',{ascending:false}).limit(500),
     sb.from('market_trades').select('id,order_id,buyer_company_id,seller_company_id,product_id,material_id,quantity,price_per_unit,total_value,market_fee,quality_level,executed_at,products(name,category),materials(name)').or(`buyer_company_id.eq.${cid},seller_company_id.eq.${cid}`).order('executed_at',{ascending:false}).limit(500),
     sb.from('contracts').select('*').or(`seller_company_id.eq.${cid},buyer_company_id.eq.${cid}`).order('created_at',{ascending:false}),
@@ -4088,7 +4096,7 @@ async function loadGameData() {
     sb.from('company_guidance').select('*').eq('company_id',cid).maybeSingle()
   ]);
 
-  const labels = ['Produkte','Alle Produkte','Produktlager','Materialien','Materiallager','Rezepte','Gebäudetypen','Gebäude','Produktionen','Handelsverkäufe','Finanzen','Marktübersicht','Eigene Marktorders','Marktkäufe','Verträge','Globale Ereignisse','Unternehmensereignisse','Nachfrage','Nachfrage-Verlauf','Marktpreis-Indizes','Index-Verlauf','Großaufträge','Großauftragsgebote','Firmenverzeichnis','Kreditschulden','Anleihen','Unternehmenswert-Verlauf','Unternehmensranking','Lagerstatus','OC-Boost','Wirtschaftsphase','Einstieg'];
+  const labels = ['Produkte','Alle Produkte','Produktlager','Materialien','Materiallager','Rezepte','Gebäudetypen','Gebäude','Produktionen','Handelsverkäufe','Finanzen','Marktübersicht','Markt-Produktkatalog','Eigene Marktorders','Marktkäufe','Verträge','Globale Ereignisse','Unternehmensereignisse','Nachfrage','Nachfrage-Verlauf','Marktpreis-Indizes','Index-Verlauf','Großaufträge','Großauftragsgebote','Firmenverzeichnis','Kreditschulden','Anleihen','Unternehmenswert-Verlauf','Unternehmensranking','Lagerstatus','OC-Boost','Wirtschaftsphase','Einstieg'];
   const errors = results.map((r,i)=>r.error ? { label: labels[i], error:r.error } : null).filter(Boolean);
   if (errors.length) {
     console.error(errors);
@@ -4097,7 +4105,7 @@ async function loadGameData() {
   }
   clearGameDataError();
 
-  const [products, allProducts, inventory, materials, materialInventory, recipes, buildingTypes, buildings, productionJobs, retailSaleJobs, tx, marketSummary, ownMarketOrders, marketTrades, contracts, globalEvents, companyEvents, marketDemand, marketDemandHistory, marketPriceIndices, marketPriceIndexHistory, largeOrders, largeCustomerBids, directory, companyDebt, bondDashboard, valuationHistory, companyRanking, storageStatus, ocbStatus, economyState, companyGuidance] = results;
+  const [products, allProducts, inventory, materials, materialInventory, recipes, buildingTypes, buildings, productionJobs, retailSaleJobs, tx, marketSummary, marketCatalogProducts, ownMarketOrders, marketTrades, contracts, globalEvents, companyEvents, marketDemand, marketDemandHistory, marketPriceIndices, marketPriceIndexHistory, largeOrders, largeCustomerBids, directory, companyDebt, bondDashboard, valuationHistory, companyRanking, storageStatus, ocbStatus, economyState, companyGuidance] = results;
   state.products = products.data;
   state.allProducts = allProducts.data;
   state.inventory = inventory.data;
@@ -4112,6 +4120,7 @@ async function loadGameData() {
   state.retailSaleJobs = retailSaleJobs.data;
   state.transactions = tx.data;
   state.marketCatalogSummary = marketSummary.data || [];
+  state.marketCatalogProducts = marketCatalogProducts.data || [];
   state.marketOwnOrders = ownMarketOrders.data || [];
   state.marketTrades = marketTrades.data || [];
   state.contracts = contracts.data;
@@ -6150,17 +6159,17 @@ function marketCatalogItems() {
     }));
 
   const seen = new Set();
-  state.allProducts
-    .filter(p => p.status === 'active')
-    .forEach(product => {
-      const identity = marketProductIdentity(product);
-      if (!identity || seen.has(identity)) return;
-      seen.add(identity);
-      items.push({
-        key:`product:${identity}`,
-        type:'product', name:product.name, category:product.category, product
-      });
+  const catalogProducts = (state.marketCatalogProducts?.length ? state.marketCatalogProducts : state.allProducts)
+    .filter(p => p.status == null || p.status === 'active');
+  catalogProducts.forEach(product => {
+    const identity = marketProductIdentity(product);
+    if (!identity || seen.has(identity)) return;
+    seen.add(identity);
+    items.push({
+      key:`product:${identity}`,
+      type:'product', name:product.name, category:product.category, product
     });
+  });
   return items;
 }
 
