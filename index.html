@@ -5,14 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta name="theme-color" content="#0d2d55">
   <title>OpenCompany</title>
-  <link rel="icon" type="image/png" href="favicon.png?v=0.10.249">
-  <link rel="shortcut icon" href="favicon.ico?v=0.10.249">
-  <link rel="icon" type="image/x-icon" href="favicon.ico?v=0.10.249">
-  <link rel="manifest" href="/manifest.webmanifest?v=0.10.249">
-  <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=0.10.249">
+  <link rel="icon" type="image/png" href="favicon.png?v=0.10.250">
+  <link rel="shortcut icon" href="favicon.ico?v=0.10.250">
+  <link rel="icon" type="image/x-icon" href="favicon.ico?v=0.10.250">
+  <link rel="manifest" href="/manifest.webmanifest?v=0.10.250">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=0.10.250">
   <meta name="application-name" content="OpenCompany">
   <meta name="mobile-web-app-capable" content="yes">
-  <link rel="stylesheet" href="style.css?v=0.10.249">
+  <link rel="stylesheet" href="style.css?v=0.10.250">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     .password-field{display:flex;align-items:center;gap:.5rem}
@@ -1120,7 +1120,7 @@
       .oc-select-option{min-height:46px;padding:.7rem .8rem}
     }
   
-    /* v0.10.249 – Navigation 20 % breiter auf Basis von v0.10.230 */
+    /* v0.10.250 – Navigation 20 % breiter auf Basis von v0.10.230 */
     .app-shell{
       display:block!important;
       min-height:100dvh!important;
@@ -1645,9 +1645,24 @@
     .market-orderbook th:nth-child(3),.market-orderbook th:nth-child(4),.market-orderbook td:nth-child(3),.market-orderbook td:nth-child(4){text-align:right}
     .market-quality-badge,.market-own-badge{display:inline-flex;align-items:center;border-radius:999px;padding:3px 8px;font-size:.78rem;font-weight:700;background:rgba(89,156,255,.12)}
     .market-own-badge{margin-left:7px;background:rgba(0,166,60,.13)}
-    .market-purchase-bar{position:sticky;bottom:10px;z-index:5;margin-top:14px;padding:14px;border:1px solid var(--border);border-radius:12px;background:var(--panel,#171d28);box-shadow:0 10px 28px rgba(0,0,0,.22);display:grid;grid-template-columns:minmax(120px,170px) 1fr 1fr auto;gap:12px;align-items:end}
-    .market-purchase-info{display:flex;flex-direction:column;gap:4px}.market-purchase-info span{font-size:.78rem;color:var(--muted)}
-    .market-purchase-bar button{min-width:130px}
+    .market-purchase-bar{
+      margin:10px 0 14px;
+      padding:10px 12px;
+      border:1px solid var(--border);
+      border-radius:10px;
+      background:var(--panel,#171d28);
+      box-shadow:0 4px 14px rgba(0,0,0,.10);
+      display:grid;
+      grid-template-columns:170px 180px 190px 130px;
+      gap:12px;
+      align-items:end;
+      justify-content:start;
+    }
+    .market-purchase-bar label{margin:0}
+    .market-purchase-bar input{width:100%}
+    .market-purchase-info{display:flex;flex-direction:column;gap:3px}
+    .market-purchase-info span{font-size:.76rem;color:var(--muted)}
+    .market-purchase-bar button{min-width:130px;width:130px}
     .market-sell-modal{position:fixed;inset:0;z-index:1200;background:rgba(0,0,0,.58);display:flex;align-items:center;justify-content:center;padding:20px}
     .market-sell-modal.hidden{display:none!important}
     .market-sell-dialog{width:min(680px,100%);max-height:90vh;overflow:auto;margin:0}
@@ -1659,7 +1674,8 @@
       .market-product-tile{min-height:112px;padding:9px 6px}
       .market-product-topbar{align-items:stretch;flex-direction:column}.market-product-topbar button{width:100%!important}
       .market-orderbook th:nth-child(5),.market-orderbook td:nth-child(5){display:table-cell}
-      .market-purchase-bar{grid-template-columns:1fr 1fr;bottom:6px}.market-purchase-bar button{grid-column:1/-1;width:100%}
+      .market-purchase-bar{grid-template-columns:1fr 1fr;padding:10px;gap:10px}
+      .market-purchase-bar button{grid-column:1/-1;width:100%;min-width:0}
       .market-sell-form{grid-template-columns:1fr}.market-sell-form button{width:100%}
       .market-sell-form.market-sell-generic .market-sell-hidden-fields{grid-template-columns:1fr}
     }
@@ -3109,7 +3125,7 @@
           <h2>Einstellungen</h2>
           <div class="kv">
             <span>Version</span>
-            <strong>0.10.249</strong>
+            <strong>0.10.250</strong>
           </div>
           <div class="kv settings-language-row">
             <span>Sprache</span>
@@ -3314,7 +3330,7 @@
     </div>
   </div>
 </div>
-<script src="guidance.js?v=0.10.249"></script>
+<script src="guidance.js?v=0.10.250"></script>
 <script src="config.js"></script>
 <script>
   const appScript = document.createElement('script');
