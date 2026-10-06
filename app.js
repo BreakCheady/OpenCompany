@@ -3493,6 +3493,7 @@ async function savePushPreferences(enabled = true) {
     market_enabled: enabled,
     contract_enabled: enabled,
     chat_enabled: enabled,
+    bond_enabled: enabled,
     updated_at: new Date().toISOString()
   }, { onConflict: 'user_id' });
 
