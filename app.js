@@ -9382,9 +9382,9 @@ window.goToEncyclopediaTarget = function(view) {
 
 
 
-function dashboardMarketCategoryLabel(category) {
-  const demand = (state.marketDemand || []).find(row => row.category === category);
-  return translateUiString(demand?.label || category || 'Gesamtmarkt');
+function dashboardMarketCategoryLabel(row) {
+  const product=(state.marketCatalogProducts || []).find(p=>p.name===row.product_name && p.category===row.product_category) || {name:row.product_name,category:row.product_category,required_building_type_id:null};
+  return marketCatalogCategory({type:'product',name:row.product_name,category:row.product_category,product});
 }
 
 function dashboardDemandBadge(value) {
