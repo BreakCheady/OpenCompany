@@ -9428,17 +9428,13 @@ function renderDashboardMarketOverview() {
 
   select.disabled = false;
   if (!state.dashboardMarketCategory || !categories.includes(state.dashboardMarketCategory)) {
-    state.dashboardMarketCategory = categories.includes('component')
-      ? 'component'
-      : categories.includes('electronics')
-        ? 'electronics'
-        : categories[0];
+    state.dashboardMarketCategory = categories.includes('Elektronik') ? 'Elektronik' : categories[0];
   }
 
   select.innerHTML = categories.map(category =>
     '<option value="' + escapeChatText(category) + '"' +
     (category === state.dashboardMarketCategory ? ' selected' : '') + '>' +
-    escapeChatText(dashboardMarketCategoryLabel(category)) + '</option>'
+    escapeChatText(category) + '</option>'
   ).join('');
 
   const category = state.dashboardMarketCategory;
