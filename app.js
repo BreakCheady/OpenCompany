@@ -6300,7 +6300,7 @@ function updateMarketOrderFillPreview(plan) {
     row.querySelectorAll(':scope > td').forEach(cell=>{
       if (percent>0) {
         const stop=percent.toFixed(2)+'%';
-        cell.style.backgroundImage=`linear-gradient(90deg, rgba(76,175,80,.34) 0, rgba(76,175,80,.34) ${stop}, transparent ${stop}, transparent 100%)`;
+        cell.style.backgroundImage=`linear-gradient(180deg, rgba(76,175,80,.34) 0, rgba(76,175,80,.34) ${stop}, transparent ${stop}, transparent 100%)`;
         cell.style.backgroundRepeat='no-repeat';
       } else {
         cell.style.backgroundImage='';
