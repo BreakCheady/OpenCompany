@@ -9594,6 +9594,25 @@ function largeOrderTypeLabel(type) {
   return ({raw_material:"Rohstoffauftrag",production:"Produktionsauftrag",quality:"Qualitätsauftrag",rush:"Eilauftrag"})[type] || type;
 }
 
+function largeOrderDeliverableInventory(order,bid) {
+  const minQuality=Math.max(Number(order?.minimum_quality||1),Number(bid?.offered_quality||1));
+  if (order?.item_kind==='material') {
+    return (state.materialInventory || [])
+      .filter(row=>row.material_id===order.material_id && Number(row.quality_level||1)>=minQuality)
+      .reduce((sum,row)=>sum+Math.max(0,Number(row.quantity||0)),0);
+  }
+
+  return (state.inventory || [])
+    .filter(row=>{
+      const product=state.products.find(p=>p.id===row.product_id);
+      return product
+        && product.name===order?.item_name
+        && (!order?.product_category || product.category===order.product_category)
+        && Number(row.quality_level||1)>=minQuality;
+    })
+    .reduce((sum,row)=>sum+Math.max(0,Number(row.quantity||0)),0);
+}
+
 function renderLargeOrders() {
   const container = document.getElementById("largeOrdersContent");
   if (!container) return;
@@ -9616,6 +9635,7 @@ function renderLargeOrders() {
     const bidding = order.status === "bidding" && new Date(order.bidding_ends_at).getTime() > Date.now();
     const ownAward = order.status === "awarded" && order.awarded_company_id === state.company?.id;
     const remaining = Math.max(0,Number(order.quantity||0)-Number(order.delivered_quantity||0));
+    const deliverable = ownAward ? Math.min(remaining,largeOrderDeliverableInventory(order,bid)) : 0;
     const status = statusMeta(order, ownAward);
 
     let html = '<section class="large-order-card">' +
@@ -9674,12 +9694,13 @@ function renderLargeOrders() {
         '<h4 class="large-order-section-title">Auftrag ausliefern</h4>' +
         '<div class="large-order-delivery-progress">' +
           '<div><span>Geliefert</span><strong>' + num(order.delivered_quantity) + ' / ' + num(order.quantity) + '</strong></div>' +
+          '<div><span>Lieferbar aus Lager</span><strong>' + num(deliverable) + ' / ' + num(remaining) + '</strong></div>' +
           '<div><span>Deadline</span><strong>' + new Date(order.delivery_deadline).toLocaleString(uiLocale()) + '</strong></div>' +
         '</div>' +
-        '<form class="large-order-delivery-form" onsubmit="deliverLargeCustomerOrder(event,\'' + order.id + '\',' + remaining + ')">' +
+        '<form class="large-order-delivery-form" onsubmit="deliverLargeCustomerOrder(event,\'' + order.id + '\',' + deliverable + ')">' +
           '<label><span>Teillieferung</span><input id="largeDeliveryQty-' + order.id +
-          '" type="number" min="0.01" max="' + remaining + '" step="0.01" value="' + remaining + '" required></label>' +
-          '<div class="large-order-form-action"><button type="submit">Liefern</button></div>' +
+          '" type="number" min="0.01" max="' + deliverable + '" step="0.01" value="' + deliverable + '" ' + (deliverable>0?'required':'disabled') + '></label>' +
+          '<div class="large-order-form-action"><button type="submit" ' + (deliverable>0?'':'disabled') + '>' + (deliverable>0?'Liefern':'Kein passender Bestand') + '</button></div>' +
         '</form>' +
       '</div>';
     }
@@ -9709,9 +9730,14 @@ window.submitLargeCustomerBid = async function(event, orderId) {
 
 window.deliverLargeCustomerOrder = async function(event, orderId, maxQty) {
   event.preventDefault();
-  const qty=Math.min(Number(maxQty||0),Number(document.getElementById("largeDeliveryQty-"+orderId)?.value||0));
-  if(!(qty>0)) return;
-  const { error }=await sb.rpc("deliver_large_customer_order",{p_company_id:state.company.id,p_order_id:orderId,p_quantity:qty});
+  const inputQty=Number(document.getElementById("largeDeliveryQty-"+orderId)?.value||0);
+  const available=Math.max(0,Number(maxQty||0));
+  if(!(inputQty>0) || !(available>0)) return;
+  if(inputQty>available){
+    await gameAlert(`Aktuell sind nur ${num(available)} passende Einheiten für diese Teillieferung verfügbar.`);
+    return;
+  }
+  const { error }=await sb.rpc("deliver_large_customer_order",{p_company_id:state.company.id,p_order_id:orderId,p_quantity:inputQty});
   if(error) gameAlert(error.message); else await loadCompany();
 };
 
