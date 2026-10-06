@@ -9940,7 +9940,7 @@ function renderCompanyGuidance(){
     if(progress.current==='overview')action='<button type="button" onclick="completeGuidanceStep(\'overview\')">Überblick verstanden</button><button type="button" class="ghost" onclick="openEncyclopediaArticle(\'getting-started\')">Erste Schritte erklären</button>';
     if(progress.current==='choose'){
       const ids=new Set(state.buildings.filter(b=>b.status==='active').map(b=>b.building_type_id));
-      const products=state.products.filter(p=>p.status==='active' && ids.has(p.required_building_type_id) && Number(p.base_production_rate)>0);
+      const products=state.products.filter(p=>p.status==='active' && p.category!=='research' && ids.has(p.required_building_type_id) && Number(p.base_production_rate)>0);
       action=products.length ? `<label>Produkt<select id="guidanceProduct">${products.map(p=>`<option value="${p.id}" ${p.id===progress.product?.id?'selected':''}>${encyclopediaEscapeHtml(p.name)} · Q${productQuality(p)}</option>`).join('')}</select></label><button type="button" onclick="chooseGuidanceProduct()">Mit diesem Produkt starten</button>`:'<p class="muted">Aktuell fehlt ein passendes aktives Produktionsgebäude.</p><button type="button" onclick="goToEncyclopediaTarget(\'production\')">Gebäude öffnen</button>';
     }
     if(['materials','produce','claim'].includes(progress.current))action=`<button type="button" onclick="guidanceOpenProduction()">${progress.current==='materials'?'Rezept und Fehlmengen prüfen':progress.current==='claim'?'Produktion und Abholung öffnen':'Produktion vorbereiten'}</button>`;
