@@ -9389,8 +9389,8 @@ function dashboardMarketCategoryLabel(category) {
 
 function dashboardDemandBadge(value) {
   const index = Number(value || 100);
-  if (index >= 112) return { cls:'high', label:'Hoch' };
-  if (index <= 88) return { cls:'low', label:'Niedrig' };
+  if (index >= 107) return { cls:'high', label:'Hoch' };
+  if (index <= 93) return { cls:'low', label:'Niedrig' };
   return { cls:'medium', label:'Mittel' };
 }
 
