@@ -6288,12 +6288,25 @@ function marketProductBuyPlan() {
   return {item,qty,orders,fills,total,remaining,available:orders.reduce((s,o)=>s+Number(o.remaining_quantity||0),0)};
 }
 
+function updateMarketOrderFillPreview(plan) {
+  const fillByOrder=new Map((plan?.fills||[]).map(fill=>[
+    String(fill.order?.id||''),
+    Math.max(0,Math.min(100,(Number(fill.quantity||0)/Math.max(1,Number(fill.order?.remaining_quantity||0)))*100))
+  ]));
+  document.querySelectorAll('#marketOrderBookBody tr[data-market-order-id]').forEach(row=>{
+    const percent=fillByOrder.get(String(row.dataset.marketOrderId||''))||0;
+    row.style.setProperty('--market-buy-fill',percent.toFixed(2)+'%');
+    row.classList.toggle('market-buy-fill-full',percent>=99.999);
+  });
+}
+
 function updateMarketProductBuyPreview() {
   const totalEl=document.getElementById('marketProductBuyTotal');
   const button=document.getElementById('marketProductBuyBtn');
   const availability=document.getElementById('marketProductBuyAvailability');
   if (!totalEl || !button) return;
   const plan=marketProductBuyPlan();
+  updateMarketOrderFillPreview(plan);
   if (availability) availability.textContent=`${num(plan.available)} verfügbar`;
   if (!plan.item || !(plan.qty>0)) {
     totalEl.textContent='–'; button.disabled=true; return;
@@ -6333,7 +6346,7 @@ function renderMarketProductPage() {
   }
   if (body) body.innerHTML=orders.length ? orders.map(order=>{
     const own=order.company_id===state.company?.id;
-    return `<tr class="${own?'own-market-order':''}">
+    return `<tr class="${own?'own-market-order':''}" data-market-order-id="${order.id}">
       <td><strong>${companyProfileNameButton(order.company_id)}</strong>${own?'<span class="market-own-badge">Du</span>':''}</td>
       <td><span class="market-quality-badge">Q${Number(order.quality_level||1)}</span></td>
       <td>${num(order.remaining_quantity)}</td>
