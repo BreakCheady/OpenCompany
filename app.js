@@ -9438,13 +9438,18 @@ function renderDashboardMarketOverview() {
   ).join('');
 
   const category = state.dashboardMarketCategory;
-  const demandRow = (state.marketDemand || []).find(row => row.category === category);
+  const categoryRows = productSummaries.filter(row => dashboardMarketCategoryLabel(row) === category);
+  const demandCategories = [...new Set(categoryRows.map(row => row.product_category))];
+  const currentDemandRows = (state.marketDemand || []).filter(row => demandCategories.includes(row.category));
+  const demandValue = currentDemandRows.length
+    ? currentDemandRows.reduce((sum,row) => sum + Number(row.demand_index || 100),0) / currentDemandRows.length
+    : 100;
   let history = (state.marketDemandHistory || [])
-    .filter(row => row.category === category)
+    .filter(row => demandCategories.includes(row.category))
     .slice(-7);
 
-  if (!history.length && demandRow) {
-    history = [{ demand_date:new Date().toISOString().slice(0,10), demand_index:Number(demandRow.demand_index || 100) }];
+  if (!history.length) {
+    history = [{ demand_date:new Date().toISOString().slice(0,10), demand_index:demandValue }];
   }
 
   if (!history.length) {
