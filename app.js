@@ -9493,7 +9493,7 @@ function renderDashboardMarketOverview() {
     ).join('');
 
     chart.innerHTML =
-      '<svg viewBox="0 0 ' + width + ' ' + height + '" role="img" aria-label="Nachfrageentwicklung ' + escapeChatText(dashboardMarketCategoryLabel(category)) + '">' +
+      '<svg viewBox="0 0 ' + width + ' ' + height + '" role="img" aria-label="Nachfrageentwicklung ' + escapeChatText(category) + '">' +
         grid +
         '<line class="dashboard-chart-axis" x1="' + left + '" y1="' + (top+plotH) + '" x2="' + (left+plotW) + '" y2="' + (top+plotH) + '"></line>' +
         '<polygon class="dashboard-chart-area" points="' + area + '"></polygon>' +
@@ -9505,10 +9505,8 @@ function renderDashboardMarketOverview() {
       '</svg>';
   }
 
-  const demandValue = Number(demandRow?.demand_index || 100);
   const badge = dashboardDemandBadge(demandValue);
-  const rows = productSummaries
-    .filter(row => row.product_category === category)
+  const rows = categoryRows
     .sort((a,b) => Number(b.total_quantity || 0) - Number(a.total_quantity || 0) || Number(a.best_price || 0) - Number(b.best_price || 0))
     .slice(0,5);
 
