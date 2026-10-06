@@ -15,7 +15,7 @@
     const types=new Map((data.buildingTypes || []).map(t=>[t.id,t]));
     const buildingIds=new Set((data.buildings || []).filter(b=>b.status==='active' && ['production','research'].includes(types.get(b.building_type_id)?.building_category)).map(b=>b.building_type_id));
     const retailIds=new Set((data.buildings || []).filter(b=>b.status==='active' && types.get(b.building_type_id)?.building_category==='retail').map(b=>b.building_type_id));
-    const candidates=(data.products || []).filter(p=>p.status==='active' && buildingIds.has(p.required_building_type_id) && num(p.base_production_rate)>0);
+    const candidates=(data.products || []).filter(p=>p.status==='active' && p.category!=='research' && buildingIds.has(p.required_building_type_id) && num(p.base_production_rate)>0);
     const prior=(data.productionJobs || []).find(j=>candidates.some(p=>p.id===j.product_id));
     if(prior)return candidates.find(p=>p.id===prior.product_id);
     const estimate=p=>{
@@ -35,10 +35,14 @@
     const sales=(data.retailSaleJobs || []).filter(j=>j.product_id===product?.id);
     const trades=(data.marketTrades || []).filter(t=>t.seller_company_id===data.companyId && t.product_id===product?.id);
     const orders=(data.marketOwnOrders || []).filter(o=>o.product_id===product?.id);
+    const allCompletedSales=(data.retailSaleJobs || []).filter(j=>j.status==='completed');
+    const allCompletedTrades=(data.marketTrades || []).filter(t=>t.seller_company_id===data.companyId && num(t.quantity)>0);
     if(jobs.length || sales.length || trades.length){['overview','choose','materials'].forEach(s=>done.add(s));}
     if(jobs.length)done.add('produce');
     if(jobs.some(j=>num(j.claimed_quantity)>0 || j.status==='completed'))done.add('claim');
-    if(sales.length || trades.length || orders.length)done.add('sell');
+    // "Ware verkaufen" is a company-wide business milestone. A successful sale of any
+    // product counts, even if the player changed products after starting the tutorial.
+    if(allCompletedSales.length || allCompletedTrades.length)done.add('sell');
     const minQuality=Math.max(1,num(product?.quality_level)-1);
     const recipe=(data.recipes || []).filter(r=>r.product_id===product?.id);
     const hasMaterials=!!product && recipe.every(r=>{
@@ -47,8 +51,8 @@
         .reduce((sum,l)=>sum+num(l.quantity),0)+1e-8>=num(r.quantity_per_unit);
     });
     if(done.has('choose') && hasMaterials)done.add('materials');
-    const completedSale=sales.find(s=>s.status==='completed') || null;
-    const completedTrade=trades.find(t=>num(t.quantity)>0) || null;
+    const completedSale=sales.find(s=>s.status==='completed') || allCompletedSales[0] || null;
+    const completedTrade=trades.find(t=>num(t.quantity)>0) || allCompletedTrades[0] || null;
     let result=null;
     if(completedSale){
       const snapshot=completedSale.start_snapshot || {};
