@@ -587,8 +587,8 @@ td button {
   }
 
   .nav-item {
-    flex-basis: 82px;
-    min-width: 82px;
+    flex-basis: 98.4px;
+    min-width: 98.4px;
     font-size: 9px;
   }
 }
