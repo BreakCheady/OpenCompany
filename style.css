@@ -446,8 +446,8 @@ td button {
   }
 
   .nav-item {
-    flex: 0 0 88px;
-    min-width: 88px;
+    flex: 0 0 106px;
+    min-width: 106px;
     height: 50px;
     padding: 7px 6px;
     display: grid;
