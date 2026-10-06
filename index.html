@@ -5,14 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta name="theme-color" content="#0d2d55">
   <title>OpenCompany</title>
-  <link rel="icon" type="image/png" href="favicon.png?v=0.10.244">
-  <link rel="shortcut icon" href="favicon.ico?v=0.10.244">
-  <link rel="icon" type="image/x-icon" href="favicon.ico?v=0.10.244">
-  <link rel="manifest" href="/manifest.webmanifest?v=0.10.244">
-  <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=0.10.244">
+  <link rel="icon" type="image/png" href="favicon.png?v=0.10.245">
+  <link rel="shortcut icon" href="favicon.ico?v=0.10.245">
+  <link rel="icon" type="image/x-icon" href="favicon.ico?v=0.10.245">
+  <link rel="manifest" href="/manifest.webmanifest?v=0.10.245">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=0.10.245">
   <meta name="application-name" content="OpenCompany">
   <meta name="mobile-web-app-capable" content="yes">
-  <link rel="stylesheet" href="style.css?v=0.10.244">
+  <link rel="stylesheet" href="style.css?v=0.10.245">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     .password-field{display:flex;align-items:center;gap:.5rem}
@@ -1120,7 +1120,7 @@
       .oc-select-option{min-height:46px;padding:.7rem .8rem}
     }
   
-    /* v0.10.244 – Navigation 20 % breiter auf Basis von v0.10.230 */
+    /* v0.10.245 – Navigation 20 % breiter auf Basis von v0.10.230 */
     .app-shell{
       display:block!important;
       min-height:100dvh!important;
@@ -2306,6 +2306,23 @@
       border:1px solid #d8e1eb;
       border-radius:8px;
     }
+    .dashboard-market-item-row{
+      cursor:pointer;
+      transition:background .12s ease, box-shadow .12s ease;
+    }
+    .dashboard-market-item-row:hover,
+    .dashboard-market-item-row:focus-visible{
+      background:#f3f7fb;
+      outline:none;
+    }
+    .dashboard-market-item-row.is-selected{
+      background:#e8f1fb;
+      box-shadow:inset 3px 0 0 #1976d2;
+    }
+    .dashboard-market-item-row td:first-child .muted{
+      margin-top:2px;
+      font-size:10px;
+    }
     .dashboard-market-orders table{
       min-width:560px;
       margin:0;
@@ -2479,11 +2496,11 @@
           </div>
           <div class="dashboard-market-overview-body">
             <section class="dashboard-demand-chart-section">
-              <h3>Nachfrageentwicklung (Index)</h3>
+              <h3 id="dashboardDemandChartTitle">Nachfrageentwicklung (Index)</h3>
               <div id="dashboardDemandChart" class="dashboard-demand-chart"></div>
             </section>
             <section class="dashboard-market-orders-section">
-              <h3>Aktuelle Aufträge (Warenbörse)</h3>
+              <h3>Produkte & Rohstoffe der Kategorie</h3>
               <div id="dashboardMarketOrders" class="dashboard-market-orders"></div>
             </section>
           </div>
@@ -3079,7 +3096,7 @@
           <h2>Einstellungen</h2>
           <div class="kv">
             <span>Version</span>
-            <strong>0.10.244</strong>
+            <strong>0.10.245</strong>
           </div>
           <div class="kv settings-language-row">
             <span>Sprache</span>
@@ -3284,7 +3301,7 @@
     </div>
   </div>
 </div>
-<script src="guidance.js?v=0.10.244"></script>
+<script src="guidance.js?v=0.10.245"></script>
 <script src="config.js"></script>
 <script>
   const appScript = document.createElement('script');
