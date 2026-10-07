@@ -9,10 +9,7 @@ as $function$
   select (p_at at time zone 'Europe/Berlin')::time >= time '18:00'
 $function$;
 
-select cron.unschedule(21);
-
-select cron.schedule(
-  'large_customer_orders_daily_18_berlin',
-  '0 16,17 * * *',
-  'select private.generate_large_customer_order_if_due();'
+select cron.alter_job(
+  21,
+  schedule => '0 16,17 * * *'
 );
