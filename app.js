@@ -7014,7 +7014,18 @@ const FINANCE_MOVEMENT_FILTERS = [
 function financeMovementCategory(transaction) {
   const type = transaction?.transaction_type || '';
 
-  if (['market_sale','retail_sale'].includes(type)) return 'sales';
+  if (['market_sale','retail_sale','manager_revenue_bonus'].includes(type)) return 'sales';
+  if (type === 'manager_patent_gain') return 'research';
+  if (type === 'manager_salary') return 'finance';
+  if (type === 'manager_saving') {
+    if (transaction?.cost_center === 'production') return 'production';
+    if (transaction?.cost_center === 'research') return 'research';
+    if (transaction?.cost_center === 'storage_logistics') return 'storage';
+    if (transaction?.cost_center === 'market') return 'trade';
+    if (transaction?.cost_center === 'retail') return 'sales';
+    if (transaction?.cost_center === 'buildings') return 'building';
+    return 'other';
+  }
   if (['production','production_refund'].includes(type)) return 'production';
   if (type === 'operating_cost') {
     if (transaction?.reference_type === 'retail_sale_job') return 'trade';
