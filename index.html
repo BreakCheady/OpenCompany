@@ -5,14 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta name="theme-color" content="#0d2d55">
   <title>OpenCompany</title>
-  <link rel="icon" type="image/png" href="favicon.png?v=0.10.278">
-  <link rel="shortcut icon" href="favicon.ico?v=0.10.278">
-  <link rel="icon" type="image/x-icon" href="favicon.ico?v=0.10.278">
-  <link rel="manifest" href="/manifest.webmanifest?v=0.10.278">
-  <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=0.10.278">
+  <link rel="icon" type="image/png" href="favicon.png?v=0.10.279">
+  <link rel="shortcut icon" href="favicon.ico?v=0.10.279">
+  <link rel="icon" type="image/x-icon" href="favicon.ico?v=0.10.279">
+  <link rel="manifest" href="/manifest.webmanifest?v=0.10.279">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=0.10.279">
   <meta name="application-name" content="OpenCompany">
   <meta name="mobile-web-app-capable" content="yes">
-  <link rel="stylesheet" href="style.css?v=0.10.278">
+  <link rel="stylesheet" href="style.css?v=0.10.279">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     .password-field{display:flex;align-items:center;gap:.5rem}
@@ -1120,7 +1120,7 @@
       .oc-select-option{min-height:46px;padding:.7rem .8rem}
     }
   
-    /* v0.10.278 – Navigation 20 % breiter auf Basis von v0.10.230 */
+    /* v0.10.279 – Navigation 20 % breiter auf Basis von v0.10.230 */
     .app-shell{
       display:block!important;
       min-height:100dvh!important;
@@ -2470,10 +2470,35 @@
     .management-grade-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin-top:10px}
     .management-grade-grid .kv{margin:0;padding:7px;background:#f7f9fb;border-radius:7px}
     .management-cost-share{font-size:11px;color:#718198}
+    .management-finance-grid{min-width:0}
+    .management-finance-grid>.panel{min-width:0;max-width:100%}
+    #financeBudgets,#financeCostCenters{min-width:0;max-width:100%}
+    .management-cost-center-table{
+      width:100%;
+      max-width:100%;
+      min-width:0;
+      overflow-x:auto;
+      overflow-y:hidden;
+      -webkit-overflow-scrolling:touch;
+      overscroll-behavior-x:contain;
+      touch-action:pan-x pan-y;
+    }
     @media(max-width:1000px){.management-manager-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.management-goal-form{grid-template-columns:1fr 1fr}.management-goal-form button{grid-column:1/-1}}
-    @media(max-width:620px){.management-kpi-grid,.management-manager-grid,.management-recruit-options,.management-grade-grid{grid-template-columns:1fr}.management-goal-form{grid-template-columns:1fr}}
+    @media(max-width:620px){
+      .management-kpi-grid,.management-manager-grid,.management-recruit-options,.management-grade-grid{grid-template-columns:1fr}
+      .management-goal-form{grid-template-columns:1fr}
+      .management-finance-grid{grid-template-columns:1fr!important;width:100%;min-width:0}
+      .management-finance-grid>.panel{width:100%;min-width:0;max-width:100%;overflow:hidden}
+      .management-budget-list{min-width:0;width:100%}
+      .management-budget-card{min-width:0;width:100%;max-width:100%}
+      .management-budget-edit{grid-template-columns:minmax(0,1fr) auto}
+      .management-budget-edit label{min-width:0}
+      .management-budget-edit input{min-width:0}
+      .management-cost-center-table{overflow-x:auto!important}
+      .management-cost-center-table table{width:max-content;min-width:610px}
+    }
 
-    /* OpenCompany 0.10.278 – sichere Hamburger-Navigation ohne Eingriff in den Login */
+    /* OpenCompany 0.10.279 – sichere Hamburger-Navigation ohne Eingriff in den Login */
     .app-shell{padding-bottom:0!important}
     .main-content{width:100%!important;max-width:1500px!important;margin:0 auto!important;padding-bottom:28px!important}
 
@@ -2629,7 +2654,7 @@
       .navigation-drawer-toggle{width:40px!important;min-width:40px!important;height:40px!important;padding:0 9px!important}
     }
 
-    /* OpenCompany 0.10.278 – stärkere schwarze Rahmen nur an Kartenfeldern */
+    /* OpenCompany 0.10.279 – stärkere schwarze Rahmen nur an Kartenfeldern */
     :where(
       .panel,
       .stat-card,
@@ -3529,7 +3554,7 @@
           <h2>Einstellungen</h2>
           <div class="kv">
             <span>Version</span>
-            <strong>0.10.278</strong>
+            <strong>0.10.279</strong>
           </div>
           <div class="kv settings-language-row">
             <span>Sprache</span>
@@ -3761,7 +3786,7 @@
     if (event.key === 'Escape') closeMainNavigationDrawer();
   });
 </script>
-<script src="guidance.js?v=0.10.278"></script>
+<script src="guidance.js?v=0.10.279"></script>
 <script src="config.js"></script>
 <script>
   const appScript = document.createElement('script');
