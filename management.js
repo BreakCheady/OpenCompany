@@ -79,23 +79,34 @@ function managementBudgetTone(utilization){
   return 'neutral';
 }
 
+function managementValueTone(value){
+  const n=Number(value||0);
+  if(n>0) return 'positive';
+  if(n<0) return 'negative';
+  return 'neutral';
+}
+
 function renderManagementKpis(){
   const root=document.getElementById('managementKpis');
   if(!root) return;
   const m=(state.managementOverview&&state.managementOverview.metrics)||{};
   const change=Number(m.revenue_change_percent||0);
+  const operatingResult=Number(m.operating_result||0);
+  const cashflow=Number(m.cashflow||0);
   const cards=[
-    ['Umsatz',money(m.revenue),(change>=0?'+':'')+managementNumber(change,1)+' % zur Vorwoche'],
-    ['Betriebsergebnis',balanceMoney(Number(m.operating_result||0)),'Letzte 7 Tage'],
-    ['Gewinnmarge',managementNumber(m.profit_margin,1)+' %','Letzte 7 Tage'],
-    ['Cashflow',balanceMoney(Number(m.cashflow||0)),'Letzte 7 Tage'],
-    ['Verschuldungsgrad',managementNumber(m.debt_ratio,1)+' %','Schulden / Unternehmenswert'],
-    ['Lagerauslastung',managementNumber(m.storage_utilization,1)+' %','Aktuelle Kapazität'],
-    ['Produktionsauslastung',managementNumber(m.production_utilization,1)+' %','Letzte 7 Tage'],
-    ['Großaufträge',num(Number(m.active_large_orders||0)),'Aktiv']
+    {label:'Umsatz',value:money(m.revenue),note:(change>=0?'+':'')+managementNumber(change,1)+' % zur Vorwoche',noteTone:managementValueTone(change)},
+    {label:'Betriebsergebnis',value:balanceMoney(operatingResult),note:'Letzte 7 Tage',valueTone:managementValueTone(operatingResult)},
+    {label:'Gewinnmarge',value:managementNumber(m.profit_margin,1)+' %',note:'Letzte 7 Tage'},
+    {label:'Cashflow',value:balanceMoney(cashflow),note:'Letzte 7 Tage',valueTone:managementValueTone(cashflow)},
+    {label:'Verschuldungsgrad',value:managementNumber(m.debt_ratio,1)+' %',note:'Schulden / Unternehmenswert'},
+    {label:'Lagerauslastung',value:managementNumber(m.storage_utilization,1)+' %',note:'Aktuelle Kapazität'},
+    {label:'Produktionsauslastung',value:managementNumber(m.production_utilization,1)+' %',note:'Letzte 7 Tage'},
+    {label:'Großaufträge',value:num(Number(m.active_large_orders||0)),note:'Aktiv'}
   ];
   root.innerHTML=cards.map(function(card){
-    return '<div class="management-kpi-card"><span>'+card[0]+'</span><strong>'+card[1]+'</strong><small>'+card[2]+'</small></div>';
+    const valueClass=card.valueTone ? ' management-kpi-value-'+card.valueTone : '';
+    const noteClass=card.noteTone ? ' management-kpi-change-'+card.noteTone : '';
+    return '<div class="management-kpi-card"><span>'+card.label+'</span><strong class="'+valueClass.trim()+'">'+card.value+'</strong><small class="'+noteClass.trim()+'">'+card.note+'</small></div>';
   }).join('');
 }
 
