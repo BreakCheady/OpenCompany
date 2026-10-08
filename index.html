@@ -5,14 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta name="theme-color" content="#0d2d55">
   <title>OpenCompany</title>
-  <link rel="icon" type="image/png" href="favicon.png?v=0.10.276">
-  <link rel="shortcut icon" href="favicon.ico?v=0.10.276">
-  <link rel="icon" type="image/x-icon" href="favicon.ico?v=0.10.276">
-  <link rel="manifest" href="/manifest.webmanifest?v=0.10.276">
-  <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=0.10.276">
+  <link rel="icon" type="image/png" href="favicon.png?v=0.10.277">
+  <link rel="shortcut icon" href="favicon.ico?v=0.10.277">
+  <link rel="icon" type="image/x-icon" href="favicon.ico?v=0.10.277">
+  <link rel="manifest" href="/manifest.webmanifest?v=0.10.277">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=0.10.277">
   <meta name="application-name" content="OpenCompany">
   <meta name="mobile-web-app-capable" content="yes">
-  <link rel="stylesheet" href="style.css?v=0.10.276">
+  <link rel="stylesheet" href="style.css?v=0.10.277">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     .password-field{display:flex;align-items:center;gap:.5rem}
@@ -1120,7 +1120,7 @@
       .oc-select-option{min-height:46px;padding:.7rem .8rem}
     }
   
-    /* v0.10.276 – Navigation 20 % breiter auf Basis von v0.10.230 */
+    /* v0.10.277 – Navigation 20 % breiter auf Basis von v0.10.230 */
     .app-shell{
       display:block!important;
       min-height:100dvh!important;
@@ -2432,6 +2432,9 @@
     .management-kpi-card span,.management-kpi-card small{display:block;color:#6b7d90;font-size:12px}
     .management-kpi-card strong{display:block;margin-top:4px;font-size:18px;color:#173654}
     .management-kpi-card small{margin-top:3px}
+    .management-kpi-card .management-kpi-value-positive,.management-kpi-card .management-kpi-change-positive{color:#16803a}
+    .management-kpi-card .management-kpi-value-negative,.management-kpi-card .management-kpi-change-negative{color:#c62828}
+    .management-kpi-card .management-kpi-value-neutral,.management-kpi-card .management-kpi-change-neutral{color:#6b7d90}
     .management-manager-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
     .management-manager-card{border:1px solid var(--border);border-radius:12px;padding:14px;background:#fff;min-width:0}
     .management-manager-card h3{margin:0 0 4px;font-size:15px;color:#173654}
@@ -2470,7 +2473,7 @@
     @media(max-width:1000px){.management-manager-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.management-goal-form{grid-template-columns:1fr 1fr}.management-goal-form button{grid-column:1/-1}}
     @media(max-width:620px){.management-kpi-grid,.management-manager-grid,.management-recruit-options,.management-grade-grid{grid-template-columns:1fr}.management-goal-form{grid-template-columns:1fr}}
 
-    /* OpenCompany 0.10.276 – sichere Hamburger-Navigation ohne Eingriff in den Login */
+    /* OpenCompany 0.10.277 – sichere Hamburger-Navigation ohne Eingriff in den Login */
     .app-shell{padding-bottom:0!important}
     .main-content{width:100%!important;max-width:1500px!important;margin:0 auto!important;padding-bottom:28px!important}
 
@@ -2626,7 +2629,7 @@
       .navigation-drawer-toggle{width:40px!important;min-width:40px!important;height:40px!important;padding:0 9px!important}
     }
 
-    /* OpenCompany 0.10.276 – stärkere schwarze Rahmen nur an Kartenfeldern */
+    /* OpenCompany 0.10.277 – stärkere schwarze Rahmen nur an Kartenfeldern */
     :where(
       .panel,
       .stat-card,
@@ -3526,7 +3529,7 @@
           <h2>Einstellungen</h2>
           <div class="kv">
             <span>Version</span>
-            <strong>0.10.276</strong>
+            <strong>0.10.277</strong>
           </div>
           <div class="kv settings-language-row">
             <span>Sprache</span>
@@ -3758,7 +3761,7 @@
     if (event.key === 'Escape') closeMainNavigationDrawer();
   });
 </script>
-<script src="guidance.js?v=0.10.276"></script>
+<script src="guidance.js?v=0.10.277"></script>
 <script src="config.js"></script>
 <script>
   const appScript = document.createElement('script');
