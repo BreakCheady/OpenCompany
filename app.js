@@ -961,6 +961,8 @@ const state = {
   bondDashboard: null,
   companyPublicProfile: { slogan:'', description:'', logo_path:null },
   companyPublicProfileExists: false,
+  managementOverview: { metrics:{}, budgets:[], managers:[], recruitments:[], goals:[], decisions:[], monthly_closings:[], cost_centers:[] },
+  managementRecruitRole: '',
   economyState: {
     phase:'neutral',
     effect_rate:0.15,
@@ -1500,6 +1502,10 @@ function transactionLabel(type) {
     specialization_upgrade: 'Spezialisierungsausbau',
     contract_penalty: 'Vertragsstrafe',
     contract_penalty_income: 'Vertragsstrafe erhalten',
+    manager_saving: 'Management-Einsparung',
+    manager_revenue_bonus: 'Vertriebsbonus',
+    manager_patent_gain: 'Patentwert-Bonus',
+    manager_salary: 'Managergehälter',
     company_event: 'Unternehmensereignis',
     freight_cost: 'Frachtkosten'
   })[type] || type;
@@ -4099,10 +4105,11 @@ async function loadGameData() {
     sb.rpc('get_storage_status', { p_company_id: cid }),
     sb.rpc('get_ocb_status', { p_company_id: cid }),
     sb.from('game_economy_state').select('*').eq('id',1).single(),
-    sb.from('company_guidance').select('*').eq('company_id',cid).maybeSingle()
+    sb.from('company_guidance').select('*').eq('company_id',cid).maybeSingle(),
+    sb.rpc('get_management_overview', { p_company_id: cid })
   ]);
 
-  const labels = ['Produkte','Alle Produkte','Produktlager','Materialien','Materiallager','Rezepte','Gebäudetypen','Gebäude','Produktionen','Handelsverkäufe','Finanzen','Marktübersicht','Markt-Produktkatalog','Eigene Marktorders','Marktkäufe','Verträge','Globale Ereignisse','Unternehmensereignisse','Nachfrage','Nachfrage-Verlauf','Artikel-Nachfrage','Artikel-Nachfrage-Verlauf','Marktpreis-Indizes','Index-Verlauf','Großaufträge','Großauftragsgebote','Firmenverzeichnis','Kreditschulden','Anleihen','Unternehmenswert-Verlauf','Unternehmensranking','Lagerstatus','OC-Boost','Wirtschaftsphase','Einstieg'];
+  const labels = ['Produkte','Alle Produkte','Produktlager','Materialien','Materiallager','Rezepte','Gebäudetypen','Gebäude','Produktionen','Handelsverkäufe','Finanzen','Marktübersicht','Markt-Produktkatalog','Eigene Marktorders','Marktkäufe','Verträge','Globale Ereignisse','Unternehmensereignisse','Nachfrage','Nachfrage-Verlauf','Artikel-Nachfrage','Artikel-Nachfrage-Verlauf','Marktpreis-Indizes','Index-Verlauf','Großaufträge','Großauftragsgebote','Firmenverzeichnis','Kreditschulden','Anleihen','Unternehmenswert-Verlauf','Unternehmensranking','Lagerstatus','OC-Boost','Wirtschaftsphase','Einstieg','Management'];
   const errors = results.map((r,i)=>r.error ? { label: labels[i], error:r.error } : null).filter(Boolean);
   if (errors.length) {
     console.error(errors);
@@ -4111,7 +4118,7 @@ async function loadGameData() {
   }
   clearGameDataError();
 
-  const [products, allProducts, inventory, materials, materialInventory, recipes, buildingTypes, buildings, productionJobs, retailSaleJobs, tx, marketSummary, marketCatalogProducts, ownMarketOrders, marketTrades, contracts, globalEvents, companyEvents, marketDemand, marketDemandHistory, marketItemDemand, marketItemDemandHistory, marketPriceIndices, marketPriceIndexHistory, largeOrders, largeCustomerBids, directory, companyDebt, bondDashboard, valuationHistory, companyRanking, storageStatus, ocbStatus, economyState, companyGuidance] = results;
+  const [products, allProducts, inventory, materials, materialInventory, recipes, buildingTypes, buildings, productionJobs, retailSaleJobs, tx, marketSummary, marketCatalogProducts, ownMarketOrders, marketTrades, contracts, globalEvents, companyEvents, marketDemand, marketDemandHistory, marketItemDemand, marketItemDemandHistory, marketPriceIndices, marketPriceIndexHistory, largeOrders, largeCustomerBids, directory, companyDebt, bondDashboard, valuationHistory, companyRanking, storageStatus, ocbStatus, economyState, companyGuidance, managementOverview] = results;
   state.products = products.data;
   state.allProducts = allProducts.data;
   state.inventory = inventory.data;
@@ -4158,6 +4165,7 @@ async function loadGameData() {
     today: { login:false, production:false, retail:false, earned:0, maximum:GAME_RULES.ocb.dailyMaximum }
   };
   state.economyState = economyState.data || state.economyState;
+  state.managementOverview = managementOverview.data || { metrics:{}, budgets:[], managers:[], recruitments:[], goals:[], decisions:[], monthly_closings:[], cost_centers:[] };
   if (state.company) state.company.ocb_balance = Number(state.ocbStatus.balance || 0);
   renderAll();
 }
@@ -7144,7 +7152,7 @@ function renderFinanceSummary() {
   const marketFees = costType('market_fee');
   const grossMarketSales = netMarketSales + marketFees;
 
-  const retailSales = sumType('retail_sale');
+  const retailSales = sumType('retail_sale', 'manager_revenue_bonus');
   const contractSales = sumType('contract_sale');
   const largeCustomerOrderIncome = sumType('large_customer_order');
   const storageAuctionRevenue = sumType('storage_forced_auction');
@@ -7160,7 +7168,9 @@ function renderFinanceSummary() {
   const freightCosts = costType('freight_cost');
   const retailCancelFees = costType('retail_cancel_fee');
   const storageHoldingCosts = costType('storage_fee');
-  const patentValueGains = sumType('research_investment');
+  const patentValueGains = sumType('research_investment', 'manager_patent_gain');
+  const managerSavings = sumType('manager_saving');
+  const managerSalaryCosts = costType('manager_salary');
 
   const buildingCosts = costType('construction');
   const buildingRefunds = sumType('building_refund');
@@ -7175,6 +7185,7 @@ function renderFinanceSummary() {
     'storage_fee','research','research_investment',
     'construction','building_refund',
     'bond_interest_income','bond_interest_state','bond_interest_paid',
+    'manager_saving','manager_revenue_bonus','manager_patent_gain','manager_salary',
     'bond_investment','bond_proceeds','bond_repayment','founding_capital'
   ]);
 
@@ -7195,6 +7206,7 @@ function renderFinanceSummary() {
     productionRefunds +
     retailCancelRefunds +
     patentValueGains +
+    managerSavings +
     otherOperatingIncome;
 
   const operatingCosts =
@@ -7205,6 +7217,7 @@ function renderFinanceSummary() {
     freightCosts +
     retailCancelFees +
     storageHoldingCosts +
+    managerSalaryCosts +
     otherOperatingCosts;
 
   const operatingResult = operatingRevenue - operatingCosts;
@@ -7232,6 +7245,7 @@ function renderFinanceSummary() {
   if (productionRefunds > 0) revenueRows.push(financeStatementRow('Produktionserstattungen', productionRefunds));
   if (retailCancelRefunds > 0) revenueRows.push(financeStatementRow('Verkaufserstattungen', retailCancelRefunds));
   if (patentValueGains > 0) revenueRows.push(financeStatementRow('Patentwert-Gewinne', patentValueGains));
+  if (managerSavings > 0) revenueRows.push(financeStatementRow('Management-Einsparungen', managerSavings));
   if (otherOperatingIncome > 0) revenueRows.push(financeStatementRow('Sonstige Einnahmen', otherOperatingIncome));
 
   const expenseRows = [
@@ -7243,6 +7257,7 @@ function renderFinanceSummary() {
     financeStatementRow('Storno-/Abbruchgebühren', retailCancelFees, { cost:true }),
     financeStatementRow('Lagerhaltungskosten', storageHoldingCosts, { cost:true })
   ];
+  if (managerSalaryCosts > 0) expenseRows.push(financeStatementRow('Managergehälter', managerSalaryCosts, { cost:true }));
   if (otherOperatingCosts > 0) expenseRows.push(financeStatementRow('Sonstige Betriebskosten', otherOperatingCosts, { cost:true }));
 
   const investmentRows = [
