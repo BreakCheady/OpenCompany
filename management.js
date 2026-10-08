@@ -96,7 +96,7 @@ function renderManagementKpis(){
   const cards=[
     {label:'Umsatz',value:money(m.revenue),note:(change>=0?'+':'')+managementNumber(change,1)+' % zur Vorwoche',noteTone:managementValueTone(change)},
     {label:'Betriebsergebnis',value:balanceMoney(operatingResult),note:'Letzte 7 Tage',valueTone:managementValueTone(operatingResult)},
-    {label:'Gewinnmarge',value:managementNumber(m.profit_margin,1)+' %',note:'Letzte 7 Tage'},
+    {label:'Gewinnmarge',value:managementNumber(m.profit_margin,1)+' %',note:'Letzte 7 Tage',valueTone:managementValueTone(Number(m.profit_margin||0))},
     {label:'Cashflow',value:balanceMoney(cashflow),note:'Letzte 7 Tage',valueTone:managementValueTone(cashflow)},
     {label:'Verschuldungsgrad',value:managementNumber(m.debt_ratio,1)+' %',note:'Schulden / Unternehmenswert'},
     {label:'Lagerauslastung',value:managementNumber(m.storage_utilization,1)+' %',note:'Aktuelle Kapazität'},
