@@ -42,6 +42,15 @@ function managementRemainingText(value){
   return hours>0 ? hours+' Std. '+mins+' Min.' : mins+' Min.';
 }
 
+function managementGoalProgressClass(percent){
+  const p=Number(percent||0);
+  if(p<=35) return 'goal-progress-red';
+  if(p<45) return 'goal-progress-red-yellow';
+  if(p<=75) return 'goal-progress-yellow';
+  if(p<85) return 'goal-progress-yellow-green';
+  return 'goal-progress-green';
+}
+
 function managementGoalMeta(type){
   return ({
     revenue:{label:'Umsatz',unit:'money'},
@@ -97,7 +106,7 @@ function managementGoalCard(goal,compact){
   html+='<div class="management-goal-head"><div><strong>'+meta.label+'</strong><div class="muted">'+
     (goal.period_type==='week'?'Diese Woche':goal.period_type==='month'?'Dieser Monat':'30 Tage')+
     '</div></div><strong>'+managementGoalValue(goal,goal.current_value)+' / '+managementGoalValue(goal,goal.target_value)+'</strong></div>';
-  html+='<div class="management-progress"><span style="width:'+pct+'%"></span></div>';
+  html+='<div class="management-progress"><span class="'+managementGoalProgressClass(pct)+'" style="width:'+pct+'%"></span></div>';
   html+='<div class="kv"><span>Fortschritt</span><strong>'+managementNumber(pct,1)+' %</strong></div>';
   if(goal.status==='completed'){
     html+='<div class="status success">Ziel erreicht</div>';
