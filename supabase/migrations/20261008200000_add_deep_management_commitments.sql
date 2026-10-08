@@ -131,7 +131,7 @@ insert into private.management_decision_templates (
 (
  'capacity_investment_board','strategic','important','Kapazitätsentscheidung mit Folgekosten',
  'Ein Kapazitätsfenster eröffnet Chancen. Die falsche Entscheidung kann die Liquidität erst Wochen später treffen.',
- '[]'::jsonb,ARRAY['production_utilization','cash_balance','cashflow','company_value_growth'],
+ '[]'::jsonb,ARRAY['prod_util','cash_balance','cashflow','company_value_growth_7d'],
  $json$[
  {"key":"accelerate","label":"Kapazität offensiv ausbauen","summary":"Mehr Produktion, spätere Investitionsrate und unsichere Nachfrage.","view":"production","impact":"Produktion steigt kurzfristig; eine zweite Investitionsrate wird nach 21 Tagen fällig.","effects":{"cash_pct_value":-0.012,"temporary":[{"key":"production_output","min":0.08,"max":0.12,"hours":504}]},"commitment_cash_pct_value":-0.024,"commitment_delay_hours":504,"guaranteed_followup":"investment_payback_review","style":{"growth":7,"risk":6}},
  {"key":"outsource","label":"Spitzen extern abfedern","summary":"Bilanz schonen, variable Stückkosten akzeptieren.","view":"purchasing","impact":"Geringeres Investitionsrisiko bei höheren Produktionskosten für zwei Wochen.","effects":{"temporary":[{"key":"production_cost","min":0.05,"max":0.09,"hours":336},{"key":"production_output","min":0.03,"max":0.06,"hours":336}]},"style":{"discipline":3,"growth":2}},
@@ -155,7 +155,7 @@ insert into private.management_decision_templates (
 (
  'investment_payback_review','strategic','important','Investitionskontrolle nach drei Wochen',
  'Die zweite Investitionsrate ist abgeflossen. Jetzt müssen Wachstum und finanzielle Widerstandskraft neu abgewogen werden.',
- '[]'::jsonb,ARRAY['profit_margin','cashflow','cash_runway','production_utilization'],
+ '[]'::jsonb,ARRAY['profit_margin','cashflow','cash_runway','prod_util'],
  $json$[
  {"key":"optimize","label":"Auslastung priorisieren","summary":"Rendite der Investition absichern.","view":"production","impact":"Effizienz steigt, aber Wachstumsreserven bleiben begrenzt.","effects":{"temporary":[{"key":"production_cost","min":-0.08,"max":-0.04,"hours":336}]},"style":{"discipline":5}},
  {"key":"commercialize","label":"Absatz mit Nachdruck entwickeln","summary":"Zusätzlichen Vertriebserfolg suchen.","view":"market","impact":"Handelsvolumen steigt, Erlös pro Einheit fällt.","effects":{"temporary":[{"key":"retail_rate","min":0.06,"max":0.11,"hours":336},{"key":"retail_revenue","min":-0.04,"max":-0.02,"hours":336}]},"style":{"growth":5,"risk":2}},
