@@ -9872,7 +9872,6 @@ function renderLargeOrders() {
   const bidByOrder = new Map((state.largeCustomerBids || []).map(b => [b.order_id,b]));
   const slotUsage = largeOrderBidSlotUsage();
   const active = (state.largeOrders || []).filter(o => ["bidding","awarded"].includes(o.status));
-  const recent = (state.largeOrders || []).filter(o => !["bidding","awarded"].includes(o.status)).slice(0,10);
 
   const statusMeta = (order, ownAward) => {
     if (order.status === "bidding") return { label:"Ausschreibung", cls:"" };
@@ -9973,8 +9972,6 @@ function renderLargeOrders() {
     (active.length ? active.map(renderOrder).join("") :
       '<p class="muted">Aktuell keine offene Großausschreibung.</p>') +
     '</div>' +
-    (recent.length ? '<h3 class="large-orders-recent-title">Zuletzt beendet</h3><div class="large-orders-list">' +
-      recent.map(renderOrder).join("") + '</div>' : '') +
     '</div>';
 }
 
