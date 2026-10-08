@@ -262,6 +262,7 @@ function renderMonthlyClosings(){
     html+='<div class="kv"><span>Umsatz</span><strong>'+money(m.revenue)+'</strong></div>';
     html+='<div class="kv"><span>Wareneinsatz / Beschaffung</span><strong>'+money(m.procurement)+'</strong></div>';
     html+='<div class="kv"><span>Betriebskosten</span><strong>'+money(m.operating_costs)+'</strong></div>';
+    html+='<div class="kv"><span>Betriebsergebnis</span><strong>'+balanceMoney(Number(m.operating_result||0))+'</strong></div>';
     html+='<div class="kv"><span>Zinsaufwand</span><strong>'+money(m.interest_expense)+'</strong></div></div><div>';
     html+='<div class="kv"><span>Gewinn</span><strong>'+balanceMoney(Number(m.profit||0))+'</strong></div>';
     html+='<div class="kv"><span>Cashflow</span><strong>'+balanceMoney(Number(m.cashflow||0))+'</strong></div>';
@@ -393,3 +394,5 @@ setInterval(function(){
   if(dueRecruitment||dueTraining) refreshManagementOverview();
   else if(document.getElementById('management')&&document.getElementById('management').classList.contains('active-view')) renderManagementManagers();
 },30000);
+
+if(typeof state!=='undefined' && state.company) renderManagement();
