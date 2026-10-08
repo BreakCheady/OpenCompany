@@ -243,7 +243,9 @@ const MANAGEMENT_CONTEXT_META=Object.freeze({
   company_value:['Unternehmenswert','money'],
   company_value_growth_7d:['UW-Wachstum 7 Tage','percentSigned'],
   cash_ratio:['Cash-Anteil am UW','percent'],
-  cost_change:['Kosten vs. Vorwoche','percentSigned']
+  cost_change:['Kosten vs. Vorwoche','percentSigned'],
+  affected_manager:['Betroffene Führungskraft','text'],
+  affected_manager_motivation:['Motivation dieser Führungskraft','percent']
 });
 
 const MANAGEMENT_EFFECT_LABELS=Object.freeze({
@@ -263,6 +265,7 @@ const MANAGEMENT_EFFECT_LABELS=Object.freeze({
 function managementContextValue(key,value){
   const meta=MANAGEMENT_CONTEXT_META[key]||[key,'number'];
   const n=Number(value||0);
+  if(meta[1]==='text') return String(value==null?'–':value);
   if(meta[1]==='money') return money(n);
   if(meta[1]==='moneySigned') return balanceMoney(n);
   if(meta[1]==='percent') return managementNumber(n,1)+' %';
@@ -318,6 +321,8 @@ function managementDecisionOptionHtml(d,o){
     '<strong>'+managementEscape(o.label||'Entscheiden')+'</strong>'+
     '<span>'+managementEscape(o.summary||'')+'</span>'+
     (o.impact?'<small><b>Erwarteter Impact:</b> '+managementEscape(o.impact)+'</small>':'')+
+    (o.commitment_cash_pct_value?'<small><b>Verbindliche Spätfolge:</b> '+managementEscape(managementNumber(Number(o.commitment_cash_pct_value)*100,1))+' % des aktuellen Unternehmenswerts nach '+managementEscape(managementNumber(Number(o.commitment_delay_hours||168)/24,0))+' Tagen</small>':'')+
+    (o.guaranteed_followup?'<small><b>Folgeentscheidung:</b> Nach '+managementEscape(managementNumber(Number(o.commitment_delay_hours||168)/24,0))+' Tagen entsteht eine neue Managementsituation.</small>':'')+
     (risk?'<small class="management-decision-risk"><b>Unsicherheit:</b> '+risk+(o.risk_text?' · '+managementEscape(o.risk_text):'')+'</small>':'')+
     '</button>';
 }
