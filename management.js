@@ -396,34 +396,9 @@ function renderManagementActiveEffects(){
   }).join('');
 }
 
-function renderManagementDecisionHistory(){
-  const root=document.getElementById('managementDecisionHistory');
-  if(!root) return;
-  const items=(state.managementDecisionCenter&&state.managementDecisionCenter.history)||[];
-  if(!items.length){
-    root.innerHTML='<p class="muted">Noch keine abgeschlossenen Managemententscheidungen.</p>';
-    return;
-  }
-  root.innerHTML=items.slice(0,12).map(function(d){
-    const out=d.outcome||{};
-    const cash=Number(out.cash_delta||0);
-    const when=d.resolved_at ? new Date(d.resolved_at).toLocaleString(uiLocale(),{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}) : '';
-    return '<details class="management-history-card"><summary><div><strong>'+managementEscape(d.title||'Entscheidung')+'</strong>'+
-      '<span>'+managementEscape(out.option_label||d.chosen_option_key||'Abgeschlossen')+(d.auto_resolved?' · automatisch':'')+'</span></div>'+
-      '<small>'+managementEscape(when)+'</small></summary>'+
-      '<div class="management-history-body">'+
-      (out.summary?'<p>'+managementEscape(out.summary)+'</p>':'')+
-      (out.impact_text?'<div class="kv"><span>Bewerteter Impact</span><strong>'+managementEscape(out.impact_text)+'</strong></div>':'')+
-      '<div class="kv"><span>Direkter Cash-Effekt</span><strong class="'+(cash>0?'positive':cash<0?'negative':'')+'">'+balanceMoney(cash)+'</strong></div>'+
-      (out.risk_triggered?'<div class="status error">Eine Folgeentscheidung wurde ausgelöst.</div>':'')+
-      '</div></details>';
-  }).join('');
-}
-
 function renderManagementDecisionCenterExtras(){
   renderManagementDecisionProfile();
   renderManagementActiveEffects();
-  renderManagementDecisionHistory();
 }
 
 function renderFinanceBudgets(){
