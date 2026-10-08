@@ -5,14 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta name="theme-color" content="#0d2d55">
   <title>OpenCompany</title>
-  <link rel="icon" type="image/png" href="favicon.png?v=0.10.280">
-  <link rel="shortcut icon" href="favicon.ico?v=0.10.280">
-  <link rel="icon" type="image/x-icon" href="favicon.ico?v=0.10.280">
-  <link rel="manifest" href="/manifest.webmanifest?v=0.10.280">
-  <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=0.10.280">
+  <link rel="icon" type="image/png" href="favicon.png?v=0.10.281">
+  <link rel="shortcut icon" href="favicon.ico?v=0.10.281">
+  <link rel="icon" type="image/x-icon" href="favicon.ico?v=0.10.281">
+  <link rel="manifest" href="/manifest.webmanifest?v=0.10.281">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=0.10.281">
   <meta name="application-name" content="OpenCompany">
   <meta name="mobile-web-app-capable" content="yes">
-  <link rel="stylesheet" href="style.css?v=0.10.280">
+  <link rel="stylesheet" href="style.css?v=0.10.281">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     .password-field{display:flex;align-items:center;gap:.5rem}
@@ -1120,7 +1120,7 @@
       .oc-select-option{min-height:46px;padding:.7rem .8rem}
     }
   
-    /* v0.10.280 – Navigation 20 % breiter auf Basis von v0.10.230 */
+    /* v0.10.281 – Navigation 20 % breiter auf Basis von v0.10.230 */
     .app-shell{
       display:block!important;
       min-height:100dvh!important;
@@ -2465,6 +2465,60 @@
     .management-budget-card[data-tone="red"] .management-progress>span{background:#c43d3d}
     .management-budget-edit{display:grid;grid-template-columns:1fr auto;gap:8px;margin-top:8px;align-items:end}
     .management-decision-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+    .management-decision-card{display:grid;gap:10px;min-width:0}
+    .management-decision-card h3{margin:0;color:#173654;font-size:17px}
+    .management-decision-card>p{margin:0;line-height:1.5;color:#40566f}
+    .management-decision-head{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+    .management-decision-badges{display:flex;gap:6px;flex-wrap:wrap}
+    .management-decision-level,.management-decision-severity,.management-decision-deadline{display:inline-flex;align-items:center;border-radius:999px;padding:4px 8px;font-size:11px;font-weight:800}
+    .management-decision-level{background:#edf4fb;color:#315d84}
+    .management-decision-card[data-level="strategic"] .management-decision-level{background:#eee7fb;color:#65459b}
+    .management-decision-card[data-level="tactical"] .management-decision-level{background:#e8f3f2;color:#216e68}
+    .management-decision-severity{background:#f1f4f7;color:#607085}
+    .management-decision-card[data-severity="important"] .management-decision-severity{background:#fff1d5;color:#9a6200}
+    .management-decision-card[data-severity="critical"] .management-decision-severity{background:#ffe5e5;color:var(--danger,#d60000)}
+    .management-decision-deadline{background:#f4f6f8;color:#56677c;font-variant-numeric:tabular-nums}
+    .management-decision-card[data-severity="critical"] .management-decision-deadline{background:#fff0f0;color:var(--danger,#d60000)}
+    .management-decision-context{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
+    .management-decision-context>div{padding:8px 9px;border-radius:8px;background:#f6f8fb;min-width:0}
+    .management-decision-context span{display:block;font-size:10px;color:#718198}
+    .management-decision-context strong{display:block;margin-top:2px;font-size:13px;color:#173654;overflow-wrap:anywhere}
+    .management-decision-advice{padding:10px;border-radius:10px;background:#f8fafc;border:1px solid #e3e9f0}
+    .management-decision-advice h4{margin:0 0 7px;font-size:12px;color:#536b82}
+    .management-advice-row{display:grid;grid-template-columns:minmax(120px,.8fr) minmax(0,1.7fr);gap:10px;padding:7px 0;border-top:1px solid #e8edf2}
+    .management-advice-row:first-of-type{border-top:0}
+    .management-advice-row strong,.management-advice-row span{display:block}
+    .management-advice-row span{margin-top:2px;font-size:10px;color:#718198}
+    .management-advice-row p{margin:0;font-size:12px;line-height:1.45;color:#40566f}
+    .management-decision-options{display:grid;gap:8px}
+    .management-decision-option{width:100%;min-height:0;text-align:left;background:#fff!important;color:#173654!important;border:1px solid #cbd7e4!important;padding:10px 11px!important;display:grid;gap:4px;box-shadow:none!important}
+    .management-decision-option:hover{background:#f5f9fd!important;border-color:#7ba8d6!important;transform:none!important}
+    .management-decision-option strong{font-size:13px}
+    .management-decision-option span{font-size:12px;color:#4d6278;line-height:1.4}
+    .management-decision-option small{font-size:10px;color:#6b7d90;line-height:1.35}
+    .management-decision-option .management-decision-risk{color:#9b5d00}
+    .management-decision-secondary-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px}
+    .management-decision-subpanel{border:1px solid #e0e6ed;border-radius:10px;padding:10px;background:#fafbfd;min-width:0}
+    .management-decision-subpanel h3,.management-decision-history-title{margin:0 0 8px;font-size:13px;color:#173654}
+    .management-style-row{display:grid;grid-template-columns:minmax(120px,1fr) minmax(80px,1fr) 34px;gap:8px;align-items:center;padding:5px 0;font-size:11px}
+    .management-style-bar{height:7px;border-radius:999px;background:#e5eaf0;overflow:hidden}
+    .management-style-bar i{display:block;height:100%;background:#607d8b;border-radius:inherit}
+    .management-style-row strong{text-align:right;font-size:11px}
+    .management-effect-row{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;padding:7px 0;border-bottom:1px solid #e8edf2}
+    .management-effect-row:last-child{border-bottom:0}
+    .management-effect-row strong,.management-effect-row span,.management-effect-row small{display:block}
+    .management-effect-row span,.management-effect-row small{font-size:10px;color:#718198;margin-top:2px}
+    .management-effect-row>div:last-child{text-align:right;white-space:nowrap}
+    .management-effect-row .positive,.management-history-body .positive{color:var(--success,#00a63c)}
+    .management-effect-row .negative,.management-history-body .negative{color:var(--danger,#d60000)}
+    .management-decision-history{display:grid;gap:7px}
+    .management-history-card{border:1px solid #e0e6ed;border-radius:9px;background:#fff;overflow:hidden}
+    .management-history-card summary{list-style:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 10px}
+    .management-history-card summary::-webkit-details-marker{display:none}
+    .management-history-card summary strong,.management-history-card summary span{display:block}
+    .management-history-card summary span,.management-history-card summary small{font-size:10px;color:#718198;margin-top:2px}
+    .management-history-body{padding:0 10px 10px;border-top:1px solid #edf1f5}
+    .management-history-body p{font-size:12px;color:#40566f;line-height:1.45}
     .management-center-type{display:inline-flex;padding:3px 7px;border-radius:999px;background:#eef3f7;color:#536b82;font-size:10px;font-weight:800}
     .management-grade{display:inline-flex;align-items:center;justify-content:center;min-width:42px;height:34px;padding:0 9px;border-radius:9px;background:#eef3f7;color:#173654;font-weight:900;font-size:17px}
     .management-grade-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin-top:10px}
@@ -2496,9 +2550,13 @@
       .management-budget-edit input{min-width:0}
       .management-cost-center-table{overflow-x:auto!important}
       .management-cost-center-table table{width:max-content;min-width:610px}
+      .management-decision-context,.management-decision-secondary-grid{grid-template-columns:1fr}
+      .management-advice-row{grid-template-columns:1fr}
+      .management-style-row{grid-template-columns:minmax(110px,1fr) minmax(70px,.8fr) 32px}
+      .management-decision-option{padding:11px!important}
     }
 
-    /* OpenCompany 0.10.280 – sichere Hamburger-Navigation ohne Eingriff in den Login */
+    /* OpenCompany 0.10.281 – sichere Hamburger-Navigation ohne Eingriff in den Login */
     .app-shell{padding-bottom:0!important}
     .main-content{width:100%!important;max-width:1500px!important;margin:0 auto!important;padding-bottom:28px!important}
 
@@ -2654,7 +2712,7 @@
       .navigation-drawer-toggle{width:40px!important;min-width:40px!important;height:40px!important;padding:0 9px!important}
     }
 
-    /* OpenCompany 0.10.280 – stärkere schwarze Rahmen nur an Kartenfeldern */
+    /* OpenCompany 0.10.281 – stärkere schwarze Rahmen nur an Kartenfeldern */
     :where(
       .panel,
       .stat-card,
@@ -2676,6 +2734,7 @@
       .management-manager-card,
       .management-goal-card,
       .management-decision-card,
+      .management-history-card,
       .management-budget-card,
       .management-closing-card
     ){
@@ -2998,10 +3057,22 @@
             <div class="panel-head">
               <div>
                 <h2>Entscheidungsvorlagen</h2>
-                <p class="muted">Hinweise aus echten Unternehmensdaten statt zufälliger Buff-/Debuff-Entscheidungen.</p>
+                <p class="muted">Datenbasierte Geschäftsführerentscheidungen mit echten Konsequenzen. Jede Entscheidung hat höchstens 24 Stunden Frist.</p>
               </div>
             </div>
             <div id="managementDecisions" class="management-decision-list"></div>
+            <div class="management-decision-secondary-grid">
+              <section class="management-decision-subpanel">
+                <h3>Managementstil &amp; Reputation</h3>
+                <div id="managementDecisionProfile"></div>
+              </section>
+              <section class="management-decision-subpanel">
+                <h3>Aktive Entscheidungseffekte</h3>
+                <div id="managementDecisionEffects"></div>
+              </section>
+            </div>
+            <h3 class="management-decision-history-title" style="margin-top:14px">Vergangene Entscheidungen</h3>
+            <div id="managementDecisionHistory" class="management-decision-history"></div>
           </article>
         </div>
       </div>
@@ -3543,7 +3614,7 @@
           <h2>Einstellungen</h2>
           <div class="kv">
             <span>Version</span>
-            <strong>0.10.280</strong>
+            <strong>0.10.281</strong>
           </div>
           <div class="kv settings-language-row">
             <span>Sprache</span>
@@ -3775,7 +3846,7 @@
     if (event.key === 'Escape') closeMainNavigationDrawer();
   });
 </script>
-<script src="guidance.js?v=0.10.280"></script>
+<script src="guidance.js?v=0.10.281"></script>
 <script src="config.js"></script>
 <script>
   const appScript = document.createElement('script');
