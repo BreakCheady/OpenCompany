@@ -245,7 +245,13 @@ const MANAGEMENT_CONTEXT_META=Object.freeze({
   cash_ratio:['Cash-Anteil am UW','percent'],
   cost_change:['Kosten vs. Vorwoche','percentSigned'],
   affected_manager:['Betroffene Führungskraft','text'],
-  affected_manager_motivation:['Motivation dieser Führungskraft','percent']
+  affected_manager_motivation:['Motivation dieser Führungskraft','percent'],
+  order_customer:['Auftraggeber','text'],
+  order_item:['Auftragsware','text'],
+  order_remaining:['Offene Menge','number'],
+  order_deadline:['Lieferfrist','datetime'],
+  order_remaining_value:['Offener Auftragswert','money'],
+  order_renegotiation_fee:['Gebühr für Fristverlängerung','money']
 });
 
 const MANAGEMENT_EFFECT_LABELS=Object.freeze({
@@ -266,6 +272,7 @@ function managementContextValue(key,value){
   const meta=MANAGEMENT_CONTEXT_META[key]||[key,'number'];
   const n=Number(value||0);
   if(meta[1]==='text') return String(value==null?'–':value);
+  if(meta[1]==='datetime') return value?new Date(value).toLocaleString(uiLocale()):'–';
   if(meta[1]==='money') return money(n);
   if(meta[1]==='moneySigned') return balanceMoney(n);
   if(meta[1]==='percent') return managementNumber(n,1)+' %';
@@ -294,7 +301,7 @@ function managementDecisionRiskLabel(chance){
 }
 
 function managementDecisionContextHtml(context){
-  const entries=Object.entries(context||{});
+  const entries=Object.entries(context||{}).filter(function(entry){return entry[0]!=='order_id' && entry[0]!=='affected_manager_id';});
   if(!entries.length) return '';
   return '<div class="management-decision-context">'+entries.map(function(entry){
     const meta=MANAGEMENT_CONTEXT_META[entry[0]]||[entry[0],'number'];
