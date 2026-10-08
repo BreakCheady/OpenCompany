@@ -2465,6 +2465,154 @@
     @media(max-width:1000px){.management-manager-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.management-goal-form{grid-template-columns:1fr 1fr}.management-goal-form button{grid-column:1/-1}}
     @media(max-width:620px){.management-kpi-grid,.management-manager-grid,.management-recruit-options,.management-grade-grid{grid-template-columns:1fr}.management-goal-form{grid-template-columns:1fr}}
 
+    /* OpenCompany 0.10.274 – sichere Hamburger-Navigation ohne Eingriff in den Login */
+    .app-shell{padding-bottom:0!important}
+    .main-content{width:100%!important;max-width:1500px!important;margin:0 auto!important;padding-bottom:28px!important}
+
+    .sidebar.hidden{display:none!important}
+    .sidebar:not(.hidden){
+      position:fixed!important;
+      inset:0 auto 0 0!important;
+      width:300px!important;
+      min-width:300px!important;
+      max-width:88vw!important;
+      height:100dvh!important;
+      min-height:100dvh!important;
+      max-height:100dvh!important;
+      margin:0!important;
+      padding:0!important;
+      display:flex!important;
+      flex-direction:column!important;
+      overflow:hidden!important;
+      z-index:2147483000!important;
+      background:#102f52!important;
+      box-shadow:10px 0 28px rgba(16,47,82,.25)!important;
+      transform:translateX(-105%)!important;
+      visibility:hidden;
+      pointer-events:none;
+      transition:transform .22s ease,visibility .22s ease!important;
+    }
+    .sidebar:not(.hidden).drawer-open{
+      transform:translateX(0)!important;
+      visibility:visible;
+      pointer-events:auto;
+    }
+    .sidebar .brand{
+      display:flex!important;
+      align-items:center!important;
+      justify-content:flex-start!important;
+      min-height:74px!important;
+      padding:14px 18px!important;
+      border-bottom:1px solid rgba(255,255,255,.12);
+      flex:0 0 auto;
+    }
+    .sidebar .brand img{
+      display:block!important;
+      width:auto!important;
+      max-width:180px!important;
+      max-height:44px!important;
+    }
+    .sidebar nav{
+      width:100%!important;
+      height:auto!important;
+      min-height:0!important;
+      margin:0!important;
+      padding:12px!important;
+      display:flex!important;
+      flex:1 1 auto!important;
+      flex-direction:column!important;
+      align-items:stretch!important;
+      justify-content:flex-start!important;
+      gap:5px!important;
+      overflow-x:hidden!important;
+      overflow-y:auto!important;
+    }
+    .sidebar .nav-item{
+      flex:0 0 auto!important;
+      width:100%!important;
+      min-width:0!important;
+      max-width:none!important;
+      height:auto!important;
+      min-height:43px!important;
+      padding:10px 12px!important;
+      display:flex!important;
+      align-items:center!important;
+      justify-content:flex-start!important;
+      text-align:left!important;
+      white-space:normal!important;
+      border-radius:9px!important;
+      font-size:14px!important;
+      line-height:1.25!important;
+    }
+    .sidebar .nav-item.active{background:rgba(255,255,255,.16)!important}
+    .sidebar .nav-item.active::before{display:none!important}
+    .sidebar .nav-logout{
+      flex:0 0 auto!important;
+      width:100%!important;
+      min-width:0!important;
+      max-width:none!important;
+      margin-top:auto!important;
+      background:#d60000!important;
+      border-color:#d60000!important;
+      color:#fff!important;
+      font-size:14px!important;
+    }
+    .sidebar .sidebar-footer{
+      display:flex!important;
+      flex-direction:column!important;
+      padding:11px 18px 14px!important;
+      border-top:1px solid rgba(255,255,255,.12);
+      color:rgba(255,255,255,.72);
+      font-size:11px;
+    }
+
+    .navigation-drawer-overlay{
+      position:fixed;
+      inset:0;
+      z-index:2147482990;
+      background:rgba(15,23,42,.32);
+      opacity:0;
+      visibility:hidden;
+      pointer-events:none;
+      transition:opacity .22s ease,visibility .22s ease;
+    }
+    .navigation-drawer-overlay.open{
+      opacity:1;
+      visibility:visible;
+      pointer-events:auto;
+    }
+    body.navigation-drawer-open{overflow:hidden}
+
+    .topbar-title-group{display:flex;align-items:center;gap:14px;min-width:0}
+    .navigation-drawer-toggle{
+      width:44px!important;
+      min-width:44px!important;
+      height:44px!important;
+      padding:0 10px!important;
+      display:flex!important;
+      flex-direction:column!important;
+      align-items:stretch!important;
+      justify-content:center!important;
+      gap:5px!important;
+      border:1px solid #9aabbd!important;
+      border-radius:9px!important;
+      background:#fff!important;
+      box-shadow:none!important;
+    }
+    .navigation-drawer-toggle span{
+      display:block;
+      width:100%;
+      height:2px;
+      border-radius:999px;
+      background:#173654;
+    }
+    #mainNavigation.hidden ~ .main-content #navigationDrawerToggle{display:none!important}
+    @media(max-width:620px){
+      .sidebar:not(.hidden){width:284px!important;min-width:284px!important}
+      .topbar-title-group{gap:10px}
+      .navigation-drawer-toggle{width:40px!important;min-width:40px!important;height:40px!important;padding:0 9px!important}
+    }
+
     /* OpenCompany 0.10.273 – stärkere schwarze Rahmen nur an Kartenfeldern */
     :where(
       .panel,
@@ -2531,12 +2679,18 @@
       </div>
     </div>
   </aside>
+  <div id="navigationDrawerOverlay" class="navigation-drawer-overlay" onclick="closeMainNavigationDrawer()" aria-hidden="true"></div>
 
   <main class="main-content">
     <header class="topbar">
-      <div>
-        <h1 id="pageTitle">Dashboard</h1>
-        <p class="muted">OpenCompany – spielbare Unternehmenssimulation</p>
+      <div class="topbar-title-group">
+        <button id="navigationDrawerToggle" class="navigation-drawer-toggle" type="button" aria-label="Menü öffnen" title="Menü öffnen" aria-controls="mainNavigation" aria-expanded="false" onclick="toggleMainNavigationDrawer()">
+          <span></span><span></span><span></span>
+        </button>
+        <div>
+          <h1 id="pageTitle">Dashboard</h1>
+          <p class="muted">OpenCompany – spielbare Unternehmenssimulation</p>
+        </div>
       </div>
       <div class="topbar-actions">
         <button id="headerGuidanceBtn" class="ghost hidden" type="button" onclick="showCompanyGuidance()">Einstieg</button>
@@ -3564,6 +3718,33 @@
     </div>
   </div>
 </div>
+<script>
+  function openMainNavigationDrawer() {
+    const nav = document.getElementById('mainNavigation');
+    if (!nav || nav.classList.contains('hidden')) return;
+    nav.classList.add('drawer-open');
+    document.getElementById('navigationDrawerOverlay')?.classList.add('open');
+    document.getElementById('navigationDrawerToggle')?.setAttribute('aria-expanded','true');
+    document.body.classList.add('navigation-drawer-open');
+  }
+  function closeMainNavigationDrawer() {
+    document.getElementById('mainNavigation')?.classList.remove('drawer-open');
+    document.getElementById('navigationDrawerOverlay')?.classList.remove('open');
+    document.getElementById('navigationDrawerToggle')?.setAttribute('aria-expanded','false');
+    document.body.classList.remove('navigation-drawer-open');
+  }
+  function toggleMainNavigationDrawer() {
+    const nav = document.getElementById('mainNavigation');
+    if (nav?.classList.contains('drawer-open')) closeMainNavigationDrawer();
+    else openMainNavigationDrawer();
+  }
+  document.getElementById('mainNavigation')?.addEventListener('click', event => {
+    if (event.target.closest('.nav-item')) closeMainNavigationDrawer();
+  });
+  document.addEventListener('keydown', event => {
+    if (event.key === 'Escape') closeMainNavigationDrawer();
+  });
+</script>
 <script src="guidance.js?v=0.10.273"></script>
 <script src="config.js"></script>
 <script>
