@@ -170,3 +170,65 @@ on conflict(template_key) do update set
  options=excluded.options,manager_prompts=excluded.manager_prompts,default_option_key=excluded.default_option_key,
  cooldown_hours=excluded.cooldown_hours,expires_hours=excluded.expires_hours,weight=excluded.weight,
  trigger_enabled=excluded.trigger_enabled,enabled=excluded.enabled,updated_at=now();
+
+-- Snapshot the actual manager affected by a retention decision.
+-- Apply motivation to the chosen person, not the replacement who might later hold the role.
+create or replace function private.bind_management_decision_manager()
+returns trigger language plpgsql security definer set search_path=''
+as $$
+declare v_manager public.company_managers%rowtype;
+        v_options jsonb:='[]'::jsonb;
+        v_option jsonb;
+        v_motivation jsonb;
+        v_entry jsonb;
+        v_new_motivation jsonb;
+begin
+  if new.template_key<>'key_manager_retention' then return new; end if;
+  select * into v_manager
+  from public.company_managers
+  where company_id=new.company_id and role='production' and status='active'
+  order by id limit 1;
+  if v_manager.id is null then return new; end if;
+  new.context:=coalesce(new.context,'{}'::jsonb) || jsonb_build_object(
+    'affected_manager',v_manager.manager_name,
+    'affected_manager_id',v_manager.id,
+    'affected_manager_motivation',v_manager.motivation
+  );
+  for v_option in select value from jsonb_array_elements(new.options) loop
+    v_new_motivation:='[]'::jsonb;
+    v_motivation:=coalesce(v_option#>'{effects,motivation}','[]'::jsonb);
+    for v_entry in select value from jsonb_array_elements(v_motivation) loop
+      if v_entry->>'role'='production' then
+        v_entry:=v_entry || jsonb_build_object('manager_id',v_manager.id);
+      end if;
+      v_new_motivation:=v_new_motivation||jsonb_build_array(v_entry);
+    end loop;
+    if jsonb_array_length(v_motivation)>0 then
+      v_option:=jsonb_set(v_option,'{effects,motivation}',v_new_motivation);
+    end if;
+    v_options:=v_options||jsonb_build_array(v_option);
+  end loop;
+  new.options:=v_options;
+  return new;
+end $$;
+
+drop trigger if exists trg_bind_management_decision_manager on public.management_decisions;
+create trigger trg_bind_management_decision_manager
+before insert on public.management_decisions
+for each row execute function private.bind_management_decision_manager();
+
+-- The existing option engine accepts manager_id when supplied, keeping old
+-- role-wide motivations unchanged for all existing decision templates.
+do $patch$
+declare v_def text;
+        v_old text:='and ((m->>''role'')=''all'' or role=(m->>''role''));';
+        v_new text:='and (case when m ? ''manager_id'' then id=(m->>''manager_id'')::uuid else ((m->>''role'')=''all'' or role=(m->>''role'')) end);';
+begin
+  select pg_get_functiondef('private.apply_management_option(uuid,uuid,text,boolean)'::regprocedure) into v_def;
+  if position(v_new in v_def)=0 then
+    if position(v_old in v_def)=0 then
+      raise exception 'Unknown motivation update structure in apply_management_option';
+    end if;
+    execute replace(v_def,v_old,v_new);
+  end if;
+end $patch$;
