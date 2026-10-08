@@ -1508,6 +1508,8 @@ function transactionLabel(type) {
     manager_patent_gain: 'Patentwert-Bonus',
     manager_salary: 'Managergehälter',
     management_decision: 'Managemententscheidung',
+    management_decision_cost: 'Kosten aus Managemententscheidung',
+    management_decision_financing: 'Finanzierung aus Managemententscheidung',
     management_decision_adjustment: 'Entscheidungseffekt',
     management_decision_patent_adjustment: 'Patentwert-Effekt',
     company_event: 'Unternehmensereignis',
@@ -7203,6 +7205,7 @@ function renderFinanceSummary() {
     'construction','building_refund',
     'bond_interest_income','bond_interest_state','bond_interest_paid',
     'manager_saving','manager_revenue_bonus','manager_patent_gain','manager_salary',
+    'management_decision_financing','management_decision_patent_adjustment',
     'bond_investment','bond_proceeds','bond_repayment','founding_capital'
   ]);
 
