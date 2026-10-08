@@ -2426,6 +2426,45 @@
       .dashboard-demand-chart,.dashboard-demand-chart svg{min-height:200px;height:200px}
     }
 
+    /* Managementsysteme */
+    .management-kpi-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+    .management-kpi-card{border:1px solid var(--border);border-radius:10px;padding:12px;background:#fff;min-width:0}
+    .management-kpi-card span,.management-kpi-card small{display:block;color:#6b7d90;font-size:12px}
+    .management-kpi-card strong{display:block;margin-top:4px;font-size:18px;color:#173654}
+    .management-kpi-card small{margin-top:3px}
+    .management-manager-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+    .management-manager-card{border:1px solid var(--border);border-radius:12px;padding:14px;background:#fff;min-width:0}
+    .management-manager-card h3{margin:0 0 4px;font-size:15px;color:#173654}
+    .management-manager-card .manager-name{font-weight:800;font-size:16px}
+    .manager-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin:10px 0}
+    .manager-stat{padding:7px;border-radius:8px;background:#f4f7fa;text-align:center}
+    .manager-stat span{display:block;font-size:10px;color:#718198}.manager-stat strong{font-size:14px}
+    .manager-perks{display:grid;gap:4px;margin:8px 0;font-size:12px;color:#48627b}
+    .manager-training-note{padding:7px 9px;border-radius:8px;background:#fff5d9;color:#8b6300;font-size:12px;font-weight:700}
+    .management-recruit-panel{margin-top:14px;padding:14px;border:1px solid var(--border);border-radius:12px;background:#f8fafc}
+    .management-recruit-options{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+    .management-recruit-option{min-height:116px;text-align:left;display:flex;flex-direction:column;align-items:flex-start;gap:5px}
+    .management-recruit-option span{font-weight:800}.management-recruit-option small{line-height:1.35}
+    .management-goal-form{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(110px,.8fr) minmax(120px,.9fr) auto;gap:8px;align-items:end;margin-bottom:12px}
+    .management-goal-list,.management-decision-list,.management-budget-list,.management-closing-list{display:grid;gap:10px}
+    .management-goal-card,.management-decision-card,.management-budget-card,.management-closing-card{border:1px solid var(--border);border-radius:10px;padding:12px;background:#fff}
+    .management-goal-head,.management-budget-head,.management-closing-head{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+    .management-progress{height:8px;border-radius:999px;background:#e8edf2;overflow:hidden;margin:8px 0}
+    .management-progress>span{display:block;height:100%;background:#607d8b;border-radius:inherit}
+    .management-budget-card[data-tone="green"] .management-progress>span{background:#2e8b57}
+    .management-budget-card[data-tone="yellow"] .management-progress>span{background:#d3a316}
+    .management-budget-card[data-tone="orange"] .management-progress>span{background:#d97816}
+    .management-budget-card[data-tone="red"] .management-progress>span{background:#c43d3d}
+    .management-budget-edit{display:grid;grid-template-columns:1fr auto;gap:8px;margin-top:8px;align-items:end}
+    .management-decision-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+    .management-center-type{display:inline-flex;padding:3px 7px;border-radius:999px;background:#eef3f7;color:#536b82;font-size:10px;font-weight:800}
+    .management-grade{display:inline-flex;align-items:center;justify-content:center;min-width:42px;height:34px;padding:0 9px;border-radius:9px;background:#eef3f7;color:#173654;font-weight:900;font-size:17px}
+    .management-grade-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin-top:10px}
+    .management-grade-grid .kv{margin:0;padding:7px;background:#f7f9fb;border-radius:7px}
+    .management-cost-share{font-size:11px;color:#718198}
+    @media(max-width:1000px){.management-manager-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.management-goal-form{grid-template-columns:1fr 1fr}.management-goal-form button{grid-column:1/-1}}
+    @media(max-width:620px){.management-kpi-grid,.management-manager-grid,.management-recruit-options,.management-grade-grid{grid-template-columns:1fr}.management-goal-form{grid-template-columns:1fr}}
+
     /* OpenCompany 0.10.270 – stärkere schwarze Rahmen nur an Kartenfeldern */
     :where(
       .panel,
@@ -2443,7 +2482,13 @@
       .moderation-message-card,
       .finance-summary-card,
       .finance-profit-card,
-      .finance-period-card
+      .finance-period-card,
+      .management-kpi-card,
+      .management-manager-card,
+      .management-goal-card,
+      .management-decision-card,
+      .management-budget-card,
+      .management-closing-card
     ){
       border-width:1px!important;
       border-style:solid!important;
@@ -2466,6 +2511,7 @@
     <div class="brand"><img src="opencompany-logo.png" alt="OpenCompany"></div>
     <nav>
       <button class="nav-item active" data-view="dashboard">Dashboard</button>
+      <button class="nav-item" data-view="management">Management</button>
       <button class="nav-item" data-view="production">Gebäude</button>
       <button class="nav-item" data-view="storage">Lager</button>
       <button class="nav-item" data-view="market">Warenbörse</button>
@@ -2556,6 +2602,29 @@
           <article class="stat-card dashboard-history-card" data-dashboard-history="loan_debt" role="button" tabindex="0" aria-label="Schulden Verlauf der letzten 7 Tage"><span>Schulden</span><strong id="statDebt">–</strong></article>
           <article class="stat-card dashboard-history-card" data-dashboard-history="building_value" role="button" tabindex="0" aria-label="Gebäudewert Verlauf der letzten 7 Tage"><span>Gebäudewert</span><strong id="statBuildingValue">–</strong></article>
         </div>
+
+        <div class="grid two management-dashboard-grid">
+          <article class="panel">
+            <div class="panel-head">
+              <div>
+                <h2>Management-Kennzahlen</h2>
+                <p class="muted">Geschäftsführer-KPIs der letzten sieben Tage.</p>
+              </div>
+            </div>
+            <div id="managementKpis" class="management-kpi-grid"></div>
+          </article>
+          <article class="panel">
+            <div class="panel-head">
+              <div>
+                <h2>Unternehmensziele</h2>
+                <p class="muted">Bis zu drei aktive Ziele gleichzeitig.</p>
+              </div>
+              <button type="button" class="ghost" onclick="activateView('management')">Management öffnen</button>
+            </div>
+            <div id="dashboardCompanyGoals" class="management-goal-list"></div>
+          </article>
+        </div>
+
         <div class="grid two">
           <article class="panel">
             <h2>Globale Wirtschaftsereignisse</h2>
@@ -2661,6 +2730,85 @@
             </div>
           </form>
         </article>
+      </div>
+
+      <div id="management" class="view">
+        <article class="panel">
+          <div class="panel-head">
+            <div>
+              <h2>Führungskräfte</h2>
+              <p class="muted">Besetze die sechs Schlüsselpositionen deines Unternehmens. Manager in Training setzen ihre Buffs für die Trainingsdauer aus.</p>
+            </div>
+            <button type="button" class="ghost" onclick="refreshManagementOverview()">Aktualisieren</button>
+          </div>
+          <div id="managementManagers" class="management-manager-grid"></div>
+          <div id="managementRecruitPanel" class="management-recruit-panel hidden">
+            <div class="panel-head">
+              <div>
+                <h3 id="managementRecruitTitle">Manager rekrutieren</h3>
+                <p class="muted">Wähle den Rekrutierungsweg. Nach Ablauf der Suche wird genau ein Kandidat vorgeschlagen.</p>
+              </div>
+              <button type="button" class="ghost" onclick="closeManagerRecruitment()">Schließen</button>
+            </div>
+            <div class="management-recruit-options">
+              <button type="button" class="management-recruit-option" onclick="startManagerRecruitment('internal')">
+                <strong>Hausintern</strong><span>6 Stunden</span><small>Junge Nachwuchskraft mit niedrigen Startwerten.</small>
+              </button>
+              <button type="button" class="management-recruit-option" onclick="startManagerRecruitment('agency')">
+                <strong>Personalvermittlung</strong><span>8 Stunden</span><small>Erfahrenere Kandidaten mit durchschnittlichen Werten.</small>
+              </button>
+              <button type="button" class="management-recruit-option" onclick="startManagerRecruitment('elite')">
+                <strong>Elite Agentur</strong><span>10 Stunden</span><small>Top-Talente mit hohen Startwerten und höherem Gehaltswunsch.</small>
+              </button>
+            </div>
+          </div>
+        </article>
+
+        <div class="grid two">
+          <article class="panel">
+            <div class="panel-head">
+              <div>
+                <h2>Unternehmensziele</h2>
+                <p class="muted">Lege eigene strategische Ziele fest. Es gibt keine künstlichen Gameplay-Boni.</p>
+              </div>
+            </div>
+            <form id="managementGoalForm" class="management-goal-form" onsubmit="createManagementGoal(event)">
+              <label>Ziel
+                <select id="managementGoalType">
+                  <option value="revenue">Umsatz</option>
+                  <option value="profit">Gewinn</option>
+                  <option value="company_value_growth">Unternehmenswert-Wachstum</option>
+                  <option value="debt_max">Verschuldung unter</option>
+                  <option value="storage_max">Lagerauslastung unter</option>
+                  <option value="large_orders">Großaufträge abschließen</option>
+                  <option value="research_patents">Neues Patent entwickeln</option>
+                </select>
+              </label>
+              <label>Zielwert
+                <input id="managementGoalTarget" type="number" min="0" step="0.01" value="100000">
+              </label>
+              <label>Zeitraum
+                <select id="managementGoalPeriod">
+                  <option value="week">Diese Woche</option>
+                  <option value="month" selected>Dieser Monat</option>
+                  <option value="30d">30 Tage</option>
+                </select>
+              </label>
+              <button type="submit" id="managementGoalSubmit">Ziel festlegen</button>
+            </form>
+            <div id="managementGoals" class="management-goal-list"></div>
+          </article>
+
+          <article class="panel">
+            <div class="panel-head">
+              <div>
+                <h2>Entscheidungsvorlagen</h2>
+                <p class="muted">Hinweise aus echten Unternehmensdaten statt zufälliger Buff-/Debuff-Entscheidungen.</p>
+              </div>
+            </div>
+            <div id="managementDecisions" class="management-decision-list"></div>
+          </article>
+        </div>
       </div>
 
       <div id="production" class="view">
@@ -3070,6 +3218,37 @@
             </div>
           </div>
           <div id="bondFinanceContent"></div>
+        </article>
+
+        <div class="grid two management-finance-grid">
+          <article class="panel">
+            <div class="panel-head">
+              <div>
+                <h2>Abteilungsbudgets</h2>
+                <p class="muted">Wochenbudgets sind weiche Limits. Überschreitungen blockieren keine Aktion, lösen aber einmal pro Woche eine PA-Warnung aus.</p>
+              </div>
+            </div>
+            <div id="financeBudgets" class="management-budget-list"></div>
+          </article>
+          <article class="panel">
+            <div class="panel-head">
+              <div>
+                <h2>Ergebnis nach Geschäftsbereich</h2>
+                <p class="muted">Aktueller Monat · Profit-Center und Kostenstellen getrennt ausgewiesen.</p>
+              </div>
+            </div>
+            <div id="financeCostCenters"></div>
+          </article>
+        </div>
+
+        <article class="panel">
+          <div class="panel-head">
+            <div>
+              <h2>Monatsabschlüsse</h2>
+              <p class="muted">Gespeicherte Monatsberichte mit Managementbewertung.</p>
+            </div>
+          </div>
+          <div id="financeMonthlyClosings" class="management-closing-list"></div>
         </article>
 
         <div class="finance-layout finance-ledger-layout">
