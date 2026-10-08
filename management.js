@@ -244,27 +244,6 @@ function renderFinanceBudgets(){
   }).join('');
 }
 
-function renderFinanceCostCenters(){
-  const root=document.getElementById('financeCostCenters');
-  if(!root) return;
-  const rows=(state.managementOverview&&state.managementOverview.cost_centers)||[];
-  if(!rows.length){
-    root.innerHTML='<p class="muted">Für den aktuellen Monat liegen noch keine Buchungen vor.</p>';
-    return;
-  }
-  const totalCosts=rows.reduce(function(sum,r){return sum+Number(r.costs||0);},0);
-  root.innerHTML='<div class="table-wrap management-cost-center-table">'+renderTable(
-    ['Bereich','Typ','Einnahmen','Kosten','Ergebnis','Anteil Gesamtkosten'],
-    rows.map(function(r){
-      const share=totalCosts>0?Number(r.costs||0)/totalCosts*100:0;
-      return '<tr><td><strong>'+(MANAGEMENT_COST_CENTER_LABELS[r.cost_center]||r.cost_center)+'</strong></td>'+
-        '<td><span class="management-center-type">'+(r.center_type==='profit'?'Profit-Center':'Kostenstelle')+'</span></td>'+
-        '<td>'+money(r.income)+'</td><td>'+money(r.costs)+'</td><td>'+balanceMoney(Number(r.result||0))+'</td>'+
-        '<td><span class="management-cost-share">'+managementNumber(share,1)+' %</span></td></tr>';
-    })
-  )+'</div>';
-}
-
 function renderMonthlyClosings(){
   const root=document.getElementById('financeMonthlyClosings');
   if(!root) return;
@@ -305,7 +284,6 @@ function renderManagement(){
   renderManagementManagers();
   renderManagementDecisions();
   renderFinanceBudgets();
-  renderFinanceCostCenters();
   renderMonthlyClosings();
 }
 
