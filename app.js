@@ -10262,6 +10262,7 @@ function renderAll() {
   renderCompanyEvents();
   renderMarketPriceIndices();
   renderLargeOrders();
+  if (window.renderManagement) window.renderManagement();
   renderSettingsCompanyManagement();
   renderResearch();
   renderEncyclopedia();
