@@ -93,20 +93,20 @@ begin
   end loop;
 end $$;
 
--- Execute due settlements whenever the decision center is opened, before metrics are read.
--- Preserve the deployed function signature and all other behavior.
+-- Settle during the normal management processing cycle, not in the read-only
+-- decision-center RPC introduced in 0.10.281.
 do $patch$
 declare v_def text;
 begin
-  select pg_get_functiondef('public.get_management_decision_center(uuid)'::regprocedure) into v_def;
+  select pg_get_functiondef('private.process_management_company(uuid)'::regprocedure) into v_def;
   if position('private.settle_due_management_commitments(p_company_id)' in v_def)=0 then
-    if position('perform private.process_management_company(p_company_id);' in v_def)=0 then
-      raise exception 'Unexpected decision center function; cannot safely attach commitments';
+    if position('perform private.complete_due_manager_states(p_company_id);' in v_def)=0 then
+      raise exception 'Unexpected management processing function; cannot safely attach commitments';
     end if;
     v_def:=replace(v_def,
-      'perform private.process_management_company(p_company_id);',
+      'perform private.complete_due_manager_states(p_company_id);',
       'perform private.settle_due_management_commitments(p_company_id);'
-      ||chr(10)||'  perform private.process_management_company(p_company_id);');
+      ||chr(10)||'  perform private.complete_due_manager_states(p_company_id);');
     execute v_def;
   end if;
 end $patch$;
