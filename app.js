@@ -2665,6 +2665,8 @@ function renderChatNavigation() {
   });
 }
 
+let lastRenderedChatTargetKey = null;
+
 function renderChatMessages() {
   const layout = document.getElementById('chatLayout');
   const title = document.getElementById('chatConversationTitle');
@@ -2676,6 +2678,12 @@ function renderChatMessages() {
   if (!layout || !title || !subtitle || !icon || !messages || !form || !input) return;
 
   const target = selectedChatTarget();
+  const targetKey = target ? `${target.type}:${target.id}` : null;
+  const switchedConversation = targetKey !== lastRenderedChatTargetKey;
+  const distanceFromBottom = messages.scrollHeight - messages.scrollTop - messages.clientHeight;
+  const shouldStickToBottom = switchedConversation || distanceFromBottom <= 72;
+  const previousScrollTop = messages.scrollTop;
+  lastRenderedChatTargetKey = targetKey;
   layout.classList.toggle('chat-has-selection', !!target);
   form.classList.toggle('hidden', !target || !!target?.isAssistant || !!target?.isLog);
   input.disabled = !target || !!target?.isAssistant || !!target?.isLog;
@@ -2747,7 +2755,9 @@ function renderChatMessages() {
   });
 
   requestAnimationFrame(() => {
-    messages.scrollTop = messages.scrollHeight;
+    // Do not snap back to the latest message while reading older messages.
+    if (selectedChatTarget()?.id !== target.id) return;
+    messages.scrollTop = shouldStickToBottom ? messages.scrollHeight : previousScrollTop;
   });
 }
 
