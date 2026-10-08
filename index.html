@@ -2465,6 +2465,192 @@
     @media(max-width:1000px){.management-manager-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.management-goal-form{grid-template-columns:1fr 1fr}.management-goal-form button{grid-column:1/-1}}
     @media(max-width:620px){.management-kpi-grid,.management-manager-grid,.management-recruit-options,.management-grade-grid{grid-template-columns:1fr}.management-goal-form{grid-template-columns:1fr}}
 
+    /* OpenCompany 0.10.272 – seitlich einfahrende Hauptnavigation */
+    .app-shell{
+      display:block!important;
+      min-height:100dvh!important;
+      padding-bottom:0!important;
+    }
+    .main-content{
+      width:100%!important;
+      max-width:1500px!important;
+      margin:0 auto!important;
+      padding-bottom:28px!important;
+    }
+    .sidebar.hidden{display:none!important}
+    .sidebar:not(.hidden){
+      position:fixed!important;
+      inset:0 auto 0 0!important;
+      width:310px!important;
+      min-width:310px!important;
+      max-width:min(310px,88vw)!important;
+      height:100dvh!important;
+      min-height:100dvh!important;
+      max-height:100dvh!important;
+      margin:0!important;
+      padding:0!important;
+      display:flex!important;
+      flex-direction:column!important;
+      overflow:hidden!important;
+      z-index:2147483000!important;
+      background:#102f52!important;
+      box-shadow:10px 0 30px rgba(16,47,82,.22)!important;
+      transform:translateX(-105%);
+      transition:transform .22s ease!important;
+      visibility:hidden;
+      pointer-events:none;
+    }
+    .sidebar:not(.hidden).navigation-drawer-open{
+      transform:translateX(0);
+      visibility:visible;
+      pointer-events:auto;
+    }
+    .sidebar .brand{
+      min-height:78px!important;
+      padding:15px 14px 14px 18px!important;
+      display:flex!important;
+      align-items:center!important;
+      justify-content:space-between!important;
+      gap:12px;
+      border-bottom:1px solid rgba(255,255,255,.12);
+      flex:0 0 auto;
+    }
+    .sidebar .brand img{
+      display:block!important;
+      width:auto!important;
+      max-width:176px!important;
+      max-height:44px!important;
+      object-fit:contain;
+    }
+    .navigation-drawer-close{
+      width:38px!important;
+      min-width:38px!important;
+      height:38px!important;
+      padding:0!important;
+      display:grid!important;
+      place-items:center!important;
+      border:1px solid rgba(255,255,255,.26)!important;
+      border-radius:9px!important;
+      background:rgba(255,255,255,.08)!important;
+      color:#fff!important;
+      font-size:24px!important;
+      font-weight:500!important;
+      line-height:1!important;
+      box-shadow:none!important;
+    }
+    .navigation-drawer-close:hover{background:rgba(255,255,255,.16)!important}
+    .sidebar nav{
+      width:100%!important;
+      height:auto!important;
+      min-height:0!important;
+      margin:0!important;
+      padding:12px!important;
+      display:flex!important;
+      flex:1 1 auto!important;
+      flex-direction:column!important;
+      align-items:stretch!important;
+      justify-content:flex-start!important;
+      gap:5px!important;
+      overflow-x:hidden!important;
+      overflow-y:auto!important;
+      scrollbar-width:thin;
+    }
+    .sidebar .nav-item{
+      flex:0 0 auto!important;
+      width:100%!important;
+      min-width:0!important;
+      max-width:none!important;
+      height:auto!important;
+      min-height:43px!important;
+      padding:10px 12px!important;
+      display:flex!important;
+      align-items:center!important;
+      justify-content:flex-start!important;
+      text-align:left!important;
+      white-space:normal!important;
+      border-radius:9px!important;
+      font-size:14px!important;
+      line-height:1.25!important;
+    }
+    .sidebar .nav-item.active{
+      background:rgba(255,255,255,.16)!important;
+    }
+    .sidebar .nav-item.active::before{display:none!important}
+    .sidebar .nav-logout{
+      width:100%!important;
+      min-width:0!important;
+      max-width:none!important;
+      margin-top:auto!important;
+      background:#d60000!important;
+      border-color:#d60000!important;
+      color:#fff!important;
+      font-size:14px!important;
+      font-weight:700!important;
+    }
+    .sidebar .sidebar-footer{
+      display:flex!important;
+      flex:0 0 auto!important;
+      flex-direction:column!important;
+      gap:3px;
+      padding:12px 18px 16px!important;
+      border-top:1px solid rgba(255,255,255,.12);
+      color:rgba(255,255,255,.74);
+      font-size:11px;
+    }
+    .navigation-drawer-overlay{
+      position:fixed;
+      inset:0;
+      z-index:2147482990;
+      background:rgba(15,23,42,.34);
+      opacity:0;
+      visibility:hidden;
+      pointer-events:none;
+      transition:opacity .22s ease,visibility .22s ease;
+    }
+    .navigation-drawer-overlay.open{
+      opacity:1;
+      visibility:visible;
+      pointer-events:auto;
+    }
+    body.navigation-drawer-active{overflow:hidden}
+    .topbar-title-group{
+      min-width:0;
+      display:flex;
+      align-items:center;
+      gap:14px;
+    }
+    .topbar-title-copy{min-width:0}
+    .topbar-title-copy h1{margin-top:0}
+    .navigation-drawer-toggle{
+      width:44px!important;
+      min-width:44px!important;
+      height:44px!important;
+      padding:0 10px!important;
+      display:flex!important;
+      flex-direction:column!important;
+      align-items:stretch!important;
+      justify-content:center!important;
+      gap:5px!important;
+      border:1px solid #9aabbd!important;
+      border-radius:9px!important;
+      background:#fff!important;
+      box-shadow:none!important;
+    }
+    .navigation-drawer-toggle.hidden{display:none!important}
+    .navigation-drawer-toggle span{
+      display:block;
+      width:100%;
+      height:2px;
+      border-radius:999px;
+      background:#173654;
+    }
+    .navigation-drawer-toggle:hover{background:#f5f8fb!important}
+    @media(max-width:620px){
+      .sidebar:not(.hidden){width:286px!important;min-width:286px!important;max-width:88vw!important}
+      .topbar-title-group{gap:10px}
+      .navigation-drawer-toggle{width:40px!important;min-width:40px!important;height:40px!important;padding:0 9px!important}
+    }
+
     /* OpenCompany 0.10.271 – stärkere schwarze Rahmen nur an Kartenfeldern */
     :where(
       .panel,
@@ -2507,8 +2693,11 @@
 </head>
 <body>
 <div class="app-shell">
-  <aside class="sidebar hidden" id="mainNavigation">
-    <div class="brand"><img src="opencompany-logo.png" alt="OpenCompany"></div>
+  <aside class="sidebar hidden" id="mainNavigation" aria-hidden="true">
+    <div class="brand">
+      <img src="opencompany-logo.png" alt="OpenCompany">
+      <button id="navigationDrawerClose" class="navigation-drawer-close" type="button" aria-label="Menü schließen" title="Menü schließen">×</button>
+    </div>
     <nav>
       <button class="nav-item active" data-view="dashboard">Dashboard</button>
       <button class="nav-item" data-view="management">Management</button>
@@ -2531,12 +2720,18 @@
       </div>
     </div>
   </aside>
+  <div id="navigationDrawerOverlay" class="navigation-drawer-overlay" aria-hidden="true"></div>
 
   <main class="main-content">
     <header class="topbar">
-      <div>
-        <h1 id="pageTitle">Dashboard</h1>
-        <p class="muted">OpenCompany – spielbare Unternehmenssimulation</p>
+      <div class="topbar-title-group">
+        <button id="navigationDrawerToggle" class="navigation-drawer-toggle hidden" type="button" aria-label="Menü öffnen" title="Menü öffnen" aria-controls="mainNavigation" aria-expanded="false">
+          <span></span><span></span><span></span>
+        </button>
+        <div class="topbar-title-copy">
+          <h1 id="pageTitle">Dashboard</h1>
+          <p class="muted">OpenCompany – spielbare Unternehmenssimulation</p>
+        </div>
       </div>
       <div class="topbar-actions">
         <button id="headerGuidanceBtn" class="ghost hidden" type="button" onclick="showCompanyGuidance()">Einstieg</button>
