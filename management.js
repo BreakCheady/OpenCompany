@@ -205,6 +205,123 @@ function renderManagementManagers(){
   }).join('');
 }
 
+function managementEscape(value){
+  return String(value==null?'':value)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+function managementDecisionLevelLabel(level){
+  return ({operational:'Operativ',tactical:'Taktisch',strategic:'Strategisch'})[level]||level||'Operativ';
+}
+
+function managementDecisionSeverityLabel(severity){
+  return ({normal:'Normal',important:'Wichtig',critical:'Kritisch'})[severity]||severity||'Normal';
+}
+
+const MANAGEMENT_CONTEXT_META=Object.freeze({
+  storage_pct:['Lagerauslastung','percent'],
+  debt_pct:['Verschuldungsgrad','percent'],
+  debt_amount:['Schulden','money'],
+  cash_runway:['Liquiditätsreichweite','days'],
+  cash_balance:['Liquidität','money'],
+  cashflow:['Cashflow (7 Tage)','moneySigned'],
+  prod_util:['Produktionsauslastung','percent'],
+  revenue_change:['Umsatz vs. Vorwoche','percentSigned'],
+  profit_margin:['Gewinnmarge','percentSigned'],
+  active_large_orders:['Aktive Großaufträge','count'],
+  large_order_due_24h:['Großaufträge ≤24 Std.','count'],
+  max_budget_util:['Höchste Budgetauslastung','percent'],
+  production_budget_util:['Produktionsbudget','percent'],
+  purchasing_budget_util:['Einkaufsbudget','percent'],
+  research_budget_util:['Forschungsbudget','percent'],
+  logistics_budget_util:['Logistikbudget','percent'],
+  finance_budget_util:['Finanzbudget','percent'],
+  min_manager_motivation:['Niedrigste Manager-Motivation','percent'],
+  vacant_manager_count:['Unbesetzte Führungsstellen','count'],
+  top_revenue_share:['Größter Umsatzanteil','percent'],
+  company_value:['Unternehmenswert','money'],
+  company_value_growth_7d:['UW-Wachstum 7 Tage','percentSigned'],
+  cash_ratio:['Cash-Anteil am UW','percent'],
+  cost_change:['Kosten vs. Vorwoche','percentSigned']
+});
+
+const MANAGEMENT_EFFECT_LABELS=Object.freeze({
+  production_output:'Produktionsleistung',
+  production_cost:'Produktionskosten',
+  retail_revenue:'Handelserlöse',
+  retail_rate:'Verkaufstempo',
+  purchase_cost:'Einkaufskosten',
+  market_fee:'Marktgebühren',
+  maintenance_cost:'Unterhaltskosten',
+  research_cost:'Forschungskosten',
+  patent_gain:'Patentwert-Gewinn',
+  freight_cost:'Frachtkosten',
+  storage_cost:'Lagerkosten'
+});
+
+function managementContextValue(key,value){
+  const meta=MANAGEMENT_CONTEXT_META[key]||[key,'number'];
+  const n=Number(value||0);
+  if(meta[1]==='money') return money(n);
+  if(meta[1]==='moneySigned') return balanceMoney(n);
+  if(meta[1]==='percent') return managementNumber(n,1)+' %';
+  if(meta[1]==='percentSigned') return (n>0?'+':'')+managementNumber(n,1)+' %';
+  if(meta[1]==='days') return managementNumber(n,1)+' Tage';
+  if(meta[1]==='count') return num(n);
+  return managementNumber(n,1);
+}
+
+function managementDecisionRemaining(expiresAt){
+  if(!expiresAt) return 'Max. 24 Std.';
+  const ms=new Date(expiresAt).getTime()-Date.now();
+  if(ms<=0) return 'Frist abgelaufen';
+  const totalMinutes=Math.ceil(ms/60000);
+  const hours=Math.floor(totalMinutes/60);
+  const minutes=totalMinutes%60;
+  return hours>0 ? hours+' Std. '+minutes+' Min.' : minutes+' Min.';
+}
+
+function managementDecisionRiskLabel(chance){
+  const c=Number(chance||0);
+  if(c>=.35) return 'hoch';
+  if(c>=.18) return 'mittel';
+  if(c>0) return 'niedrig';
+  return '';
+}
+
+function managementDecisionContextHtml(context){
+  const entries=Object.entries(context||{});
+  if(!entries.length) return '';
+  return '<div class="management-decision-context">'+entries.map(function(entry){
+    const meta=MANAGEMENT_CONTEXT_META[entry[0]]||[entry[0],'number'];
+    return '<div><span>'+managementEscape(meta[0])+'</span><strong>'+managementEscape(managementContextValue(entry[0],entry[1]))+'</strong></div>';
+  }).join('')+'</div>';
+}
+
+function managementDecisionAdviceHtml(advice){
+  const rows=Array.isArray(advice)?advice:[];
+  if(!rows.length) return '';
+  return '<div class="management-decision-advice"><h4>Meinung deiner Führungskräfte</h4>'+
+    rows.map(function(a){
+      return '<div class="management-advice-row"><div><strong>'+managementEscape(a.manager_name||a.role_label||'Führungskraft')+'</strong>'+
+        '<span>'+managementEscape(a.role_label||'')+' · Einschätzung '+managementEscape(a.confidence||'mittel')+'</span></div>'+
+        '<p>'+managementEscape(a.opinion||'')+'</p></div>';
+    }).join('')+'</div>';
+}
+
+function managementDecisionOptionHtml(d,o){
+  const risk=managementDecisionRiskLabel(o.risk_chance);
+  const view=String(o.view||'management');
+  return '<button type="button" class="management-decision-option" onclick="handleManagementDecision(\''+
+    managementEscape(d.id)+'\',\''+managementEscape(o.key)+'\',\''+managementEscape(view)+'\')">'+
+    '<strong>'+managementEscape(o.label||'Entscheiden')+'</strong>'+
+    '<span>'+managementEscape(o.summary||'')+'</span>'+
+    (o.impact?'<small><b>Erwarteter Impact:</b> '+managementEscape(o.impact)+'</small>':'')+
+    (risk?'<small class="management-decision-risk"><b>Unsicherheit:</b> '+risk+(o.risk_text?' · '+managementEscape(o.risk_text):'')+'</small>':'')+
+    '</button>';
+}
+
 function renderManagementDecisions(){
   const root=document.getElementById('managementDecisions');
   if(!root) return;
@@ -214,14 +331,87 @@ function renderManagementDecisions(){
     return;
   }
   root.innerHTML=items.map(function(d){
-    let html='<div class="management-decision-card"><strong>'+d.title+'</strong><p>'+d.description+'</p><div class="management-decision-actions">';
-    html+='<button type="button" onclick="handleManagementDecision(\''+d.id+'\',\'primary\',\''+d.primary_view+'\')">'+d.primary_label+'</button>';
-    if(d.secondary_label){
-      html+='<button type="button" class="ghost" onclick="handleManagementDecision(\''+d.id+'\',\'secondary\',\''+d.secondary_view+'\')">'+d.secondary_label+'</button>';
-    }
-    html+='<button type="button" class="ghost" onclick="handleManagementDecision(\''+d.id+'\',\'observe\',\'\')">Situation beobachten</button></div></div>';
+    const options=Array.isArray(d.options)?d.options:[];
+    let html='<div class="management-decision-card" data-level="'+managementEscape(d.decision_level||'operational')+'" data-severity="'+managementEscape(d.severity||'normal')+'">';
+    html+='<div class="management-decision-head"><div class="management-decision-badges">'+
+      '<span class="management-decision-level">'+managementEscape(managementDecisionLevelLabel(d.decision_level))+'</span>'+
+      '<span class="management-decision-severity">'+managementEscape(managementDecisionSeverityLabel(d.severity))+'</span>'+
+      '</div><span class="management-decision-deadline">'+managementEscape(managementDecisionRemaining(d.expires_at))+'</span></div>';
+    html+='<h3>'+managementEscape(d.title)+'</h3><p>'+managementEscape(d.description)+'</p>';
+    html+=managementDecisionContextHtml(d.context);
+    html+=managementDecisionAdviceHtml(d.manager_advice);
+    html+='<div class="management-decision-options">'+
+      options.map(function(o){return managementDecisionOptionHtml(d,o);}).join('')+
+      '</div></div>';
     return html;
   }).join('');
+}
+
+function renderManagementDecisionProfile(){
+  const root=document.getElementById('managementDecisionProfile');
+  if(!root) return;
+  const p=(state.managementDecisionCenter&&state.managementDecisionCenter.profile)||{};
+  const rows=[
+    ['Reputation',p.reputation],
+    ['Wachstumsorientierung',p.growth_orientation],
+    ['Risikobereitschaft',p.risk_orientation],
+    ['Mitarbeiterorientierung',p.people_orientation],
+    ['Finanzielle Disziplin',p.discipline_orientation],
+    ['Kostenorientierung',p.cost_orientation]
+  ];
+  root.innerHTML=rows.map(function(row){
+    const value=Math.max(0,Math.min(100,Number(row[1]||50)));
+    return '<div class="management-style-row"><span>'+row[0]+'</span><div class="management-style-bar"><i style="width:'+value+'%"></i></div><strong>'+managementNumber(value,0)+'</strong></div>';
+  }).join('');
+}
+
+function renderManagementActiveEffects(){
+  const root=document.getElementById('managementDecisionEffects');
+  if(!root) return;
+  const items=(state.managementDecisionCenter&&state.managementDecisionCenter.effects)||[];
+  if(!items.length){
+    root.innerHTML='<p class="muted">Aktuell wirken keine temporären Entscheidungseffekte.</p>';
+    return;
+  }
+  root.innerHTML=items.map(function(e){
+    const value=Number(e.effect_value||0)*100;
+    const favorable=(String(e.effect_key||'').includes('cost')||e.effect_key==='market_fee') ? value<0 : value>0;
+    const cls=value===0?'':(favorable?'positive':'negative');
+    return '<div class="management-effect-row"><div><strong>'+managementEscape(MANAGEMENT_EFFECT_LABELS[e.effect_key]||e.effect_key)+'</strong>'+
+      '<span>'+managementEscape(e.description||'Managemententscheidung')+'</span></div>'+
+      '<div><strong class="'+cls+'">'+(value>0?'+':'')+managementNumber(value,1)+' %</strong>'+
+      '<small>'+managementEscape(managementDecisionRemaining(e.ends_at))+'</small></div></div>';
+  }).join('');
+}
+
+function renderManagementDecisionHistory(){
+  const root=document.getElementById('managementDecisionHistory');
+  if(!root) return;
+  const items=(state.managementDecisionCenter&&state.managementDecisionCenter.history)||[];
+  if(!items.length){
+    root.innerHTML='<p class="muted">Noch keine abgeschlossenen Managemententscheidungen.</p>';
+    return;
+  }
+  root.innerHTML=items.slice(0,12).map(function(d){
+    const out=d.outcome||{};
+    const cash=Number(out.cash_delta||0);
+    const when=d.resolved_at ? new Date(d.resolved_at).toLocaleString(uiLocale(),{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}) : '';
+    return '<details class="management-history-card"><summary><div><strong>'+managementEscape(d.title||'Entscheidung')+'</strong>'+
+      '<span>'+managementEscape(out.option_label||d.chosen_option_key||'Abgeschlossen')+(d.auto_resolved?' · automatisch':'')+'</span></div>'+
+      '<small>'+managementEscape(when)+'</small></summary>'+
+      '<div class="management-history-body">'+
+      (out.summary?'<p>'+managementEscape(out.summary)+'</p>':'')+
+      (out.impact_text?'<div class="kv"><span>Bewerteter Impact</span><strong>'+managementEscape(out.impact_text)+'</strong></div>':'')+
+      '<div class="kv"><span>Direkter Cash-Effekt</span><strong class="'+(cash>0?'positive':cash<0?'negative':'')+'">'+balanceMoney(cash)+'</strong></div>'+
+      (out.risk_triggered?'<div class="status error">Eine Folgeentscheidung wurde ausgelöst.</div>':'')+
+      '</div></details>';
+  }).join('');
+}
+
+function renderManagementDecisionCenterExtras(){
+  renderManagementDecisionProfile();
+  renderManagementActiveEffects();
+  renderManagementDecisionHistory();
 }
 
 function renderFinanceBudgets(){
@@ -283,6 +473,7 @@ function renderManagement(){
   renderManagementGoals();
   renderManagementManagers();
   renderManagementDecisions();
+  renderManagementDecisionCenterExtras();
   renderFinanceBudgets();
   renderMonthlyClosings();
 }
@@ -291,12 +482,18 @@ window.renderManagement=renderManagement;
 
 window.refreshManagementOverview=async function(){
   if(!state.company||!state.company.id) return;
-  const result=await sb.rpc('get_management_overview',{p_company_id:state.company.id});
-  if(result.error){
-    await gameAlert('Managementdaten konnten nicht aktualisiert werden. '+result.error.message);
+  const results=await Promise.all([
+    sb.rpc('get_management_overview',{p_company_id:state.company.id}),
+    sb.rpc('get_management_decision_center',{p_company_id:state.company.id})
+  ]);
+  const overview=results[0], center=results[1];
+  if(overview.error||center.error){
+    const error=overview.error||center.error;
+    await gameAlert('Managementdaten konnten nicht aktualisiert werden. '+error.message);
     return;
   }
-  state.managementOverview=result.data||state.managementOverview;
+  state.managementOverview=overview.data||state.managementOverview;
+  state.managementDecisionCenter=center.data||state.managementDecisionCenter;
   renderManagement();
 };
 
@@ -375,10 +572,20 @@ window.cancelManagementGoal=async function(id){
 };
 
 window.handleManagementDecision=async function(id,action,view){
+  const decision=((state.managementOverview&&state.managementOverview.decisions)||[]).find(function(d){return d.id===id;});
+  const option=(decision&&Array.isArray(decision.options))?decision.options.find(function(o){return o.key===action;}):null;
+  if(!decision||!option){await gameAlert('Diese Entscheidung ist nicht mehr verfügbar.');await refreshManagementOverview();return;}
+  const ok=await gameConfirm(
+    (option.label||'Diese Option')+' wirklich umsetzen?'+
+    (option.impact?'\n\nErwarteter Impact: '+option.impact:'')+
+    (Number(option.risk_chance||0)>0?'\n\nDie Option enthält ein Folgerisiko.':''),
+    'Managemententscheidung'
+  );
+  if(!ok) return;
   const result=await sb.rpc('resolve_management_decision',{p_company_id:state.company.id,p_decision_id:id,p_action:action});
-  if(result.error){await gameAlert(result.error.message);return;}
+  if(result.error){await gameAlert(result.error.message);await refreshManagementOverview();return;}
   await refreshManagementOverview();
-  if(action!=='observe'&&view) activateView(view);
+  if(view) activateView(view);
 };
 
 setInterval(function(){
@@ -389,8 +596,15 @@ setInterval(function(){
   const dueTraining=((state.managementOverview.managers||[]).some(function(m){
     return m.status==='training'&&new Date(m.training_ends_at).getTime()<=Date.now();
   }));
-  if(dueRecruitment||dueTraining) refreshManagementOverview();
-  else if(document.getElementById('management')&&document.getElementById('management').classList.contains('active-view')) renderManagementManagers();
+  const dueDecision=((state.managementOverview.decisions||[]).some(function(d){
+    return d.status==='open'&&d.expires_at&&new Date(d.expires_at).getTime()<=Date.now();
+  }));
+  if(dueRecruitment||dueTraining||dueDecision) refreshManagementOverview();
+  else if(document.getElementById('management')&&document.getElementById('management').classList.contains('active-view')){
+    renderManagementManagers();
+    renderManagementDecisions();
+    renderManagementActiveEffects();
+  }
 },30000);
 
 if(typeof state!=='undefined' && state.company) renderManagement();
