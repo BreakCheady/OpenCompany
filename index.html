@@ -3569,6 +3569,11 @@
 <script>
   const appScript = document.createElement('script');
   appScript.src = `app.js?v=${Date.now()}`;
+  appScript.onload = () => {
+    const managementScript = document.createElement('script');
+    managementScript.src = `management.js?v=${Date.now()}`;
+    document.body.appendChild(managementScript);
+  };
   document.body.appendChild(appScript);
 </script>
 </body>
