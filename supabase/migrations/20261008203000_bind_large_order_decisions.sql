@@ -26,14 +26,14 @@ begin
     and delivery_deadline<=now()+interval '24 hours'
   order by delivery_deadline,id limit 1;
   if v_order.id is null then
-    raise exception 'No eligible large customer order remains';
+    return null; -- Candidate disappeared; skip without interrupting management refresh.
   end if;
 
   select * into v_bid from public.large_customer_bids
   where id=v_order.winning_bid_id and company_id=new.company_id and order_id=v_order.id
     and status='won';
   if v_bid.id is null then
-    raise exception 'Winning bid unavailable for the selected large customer order';
+    return null; -- Incomplete award data must not block company processing.
   end if;
 
   v_remaining:=greatest(0,v_order.quantity-v_order.delivered_quantity);
