@@ -253,7 +253,7 @@ function renderFinanceCostCenters(){
     return;
   }
   const totalCosts=rows.reduce(function(sum,r){return sum+Number(r.costs||0);},0);
-  root.innerHTML=renderTable(
+  root.innerHTML='<div class="table-wrap management-cost-center-table">'+renderTable(
     ['Bereich','Typ','Einnahmen','Kosten','Ergebnis','Anteil Gesamtkosten'],
     rows.map(function(r){
       const share=totalCosts>0?Number(r.costs||0)/totalCosts*100:0;
@@ -262,7 +262,7 @@ function renderFinanceCostCenters(){
         '<td>'+money(r.income)+'</td><td>'+money(r.costs)+'</td><td>'+balanceMoney(Number(r.result||0))+'</td>'+
         '<td><span class="management-cost-share">'+managementNumber(share,1)+' %</span></td></tr>';
     })
-  );
+  )+'</div>';
 }
 
 function renderMonthlyClosings(){
