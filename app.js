@@ -962,6 +962,7 @@ const state = {
   companyPublicProfile: { slogan:'', description:'', logo_path:null },
   companyPublicProfileExists: false,
   managementOverview: { metrics:{}, budgets:[], managers:[], recruitments:[], goals:[], decisions:[], monthly_closings:[], cost_centers:[] },
+  managementDecisionCenter: { profile:{}, history:[], effects:[], metrics:{} },
   managementRecruitRole: '',
   economyState: {
     phase:'neutral',
@@ -1506,6 +1507,9 @@ function transactionLabel(type) {
     manager_revenue_bonus: 'Vertriebsbonus',
     manager_patent_gain: 'Patentwert-Bonus',
     manager_salary: 'Managergehälter',
+    management_decision: 'Managemententscheidung',
+    management_decision_adjustment: 'Entscheidungseffekt',
+    management_decision_patent_adjustment: 'Patentwert-Effekt',
     company_event: 'Unternehmensereignis',
     freight_cost: 'Frachtkosten'
   })[type] || type;
@@ -4106,10 +4110,11 @@ async function loadGameData() {
     sb.rpc('get_ocb_status', { p_company_id: cid }),
     sb.from('game_economy_state').select('*').eq('id',1).single(),
     sb.from('company_guidance').select('*').eq('company_id',cid).maybeSingle(),
-    sb.rpc('get_management_overview', { p_company_id: cid })
+    sb.rpc('get_management_overview', { p_company_id: cid }),
+    sb.rpc('get_management_decision_center', { p_company_id: cid })
   ]);
 
-  const labels = ['Produkte','Alle Produkte','Produktlager','Materialien','Materiallager','Rezepte','Gebäudetypen','Gebäude','Produktionen','Handelsverkäufe','Finanzen','Marktübersicht','Markt-Produktkatalog','Eigene Marktorders','Marktkäufe','Verträge','Globale Ereignisse','Unternehmensereignisse','Nachfrage','Nachfrage-Verlauf','Artikel-Nachfrage','Artikel-Nachfrage-Verlauf','Marktpreis-Indizes','Index-Verlauf','Großaufträge','Großauftragsgebote','Firmenverzeichnis','Kreditschulden','Anleihen','Unternehmenswert-Verlauf','Unternehmensranking','Lagerstatus','OC-Boost','Wirtschaftsphase','Einstieg','Management'];
+  const labels = ['Produkte','Alle Produkte','Produktlager','Materialien','Materiallager','Rezepte','Gebäudetypen','Gebäude','Produktionen','Handelsverkäufe','Finanzen','Marktübersicht','Markt-Produktkatalog','Eigene Marktorders','Marktkäufe','Verträge','Globale Ereignisse','Unternehmensereignisse','Nachfrage','Nachfrage-Verlauf','Artikel-Nachfrage','Artikel-Nachfrage-Verlauf','Marktpreis-Indizes','Index-Verlauf','Großaufträge','Großauftragsgebote','Firmenverzeichnis','Kreditschulden','Anleihen','Unternehmenswert-Verlauf','Unternehmensranking','Lagerstatus','OC-Boost','Wirtschaftsphase','Einstieg','Management','Entscheidungszentrale'];
   const errors = results.map((r,i)=>r.error ? { label: labels[i], error:r.error } : null).filter(Boolean);
   if (errors.length) {
     console.error(errors);
@@ -4118,7 +4123,7 @@ async function loadGameData() {
   }
   clearGameDataError();
 
-  const [products, allProducts, inventory, materials, materialInventory, recipes, buildingTypes, buildings, productionJobs, retailSaleJobs, tx, marketSummary, marketCatalogProducts, ownMarketOrders, marketTrades, contracts, globalEvents, companyEvents, marketDemand, marketDemandHistory, marketItemDemand, marketItemDemandHistory, marketPriceIndices, marketPriceIndexHistory, largeOrders, largeCustomerBids, directory, companyDebt, bondDashboard, valuationHistory, companyRanking, storageStatus, ocbStatus, economyState, companyGuidance, managementOverview] = results;
+  const [products, allProducts, inventory, materials, materialInventory, recipes, buildingTypes, buildings, productionJobs, retailSaleJobs, tx, marketSummary, marketCatalogProducts, ownMarketOrders, marketTrades, contracts, globalEvents, companyEvents, marketDemand, marketDemandHistory, marketItemDemand, marketItemDemandHistory, marketPriceIndices, marketPriceIndexHistory, largeOrders, largeCustomerBids, directory, companyDebt, bondDashboard, valuationHistory, companyRanking, storageStatus, ocbStatus, economyState, companyGuidance, managementOverview, managementDecisionCenter] = results;
   state.products = products.data;
   state.allProducts = allProducts.data;
   state.inventory = inventory.data;
@@ -4166,6 +4171,7 @@ async function loadGameData() {
   };
   state.economyState = economyState.data || state.economyState;
   state.managementOverview = managementOverview.data || { metrics:{}, budgets:[], managers:[], recruitments:[], goals:[], decisions:[], monthly_closings:[], cost_centers:[] };
+  state.managementDecisionCenter = managementDecisionCenter.data || { profile:{}, history:[], effects:[], metrics:{} };
   if (state.company) state.company.ocb_balance = Number(state.ocbStatus.balance || 0);
   renderAll();
 }
