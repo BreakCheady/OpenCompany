@@ -243,7 +243,15 @@ const MANAGEMENT_CONTEXT_META=Object.freeze({
   company_value:['Unternehmenswert','money'],
   company_value_growth_7d:['UW-Wachstum 7 Tage','percentSigned'],
   cash_ratio:['Cash-Anteil am UW','percent'],
-  cost_change:['Kosten vs. Vorwoche','percentSigned']
+  cost_change:['Kosten vs. Vorwoche','percentSigned'],
+  affected_manager:['Betroffene Führungskraft','text'],
+  affected_manager_motivation:['Motivation dieser Führungskraft','percent'],
+  order_customer:['Auftraggeber','text'],
+  order_item:['Auftragsware','text'],
+  order_remaining:['Offene Menge','number'],
+  order_deadline:['Lieferfrist','datetime'],
+  order_remaining_value:['Offener Auftragswert','money'],
+  order_renegotiation_fee:['Gebühr für Fristverlängerung','money']
 });
 
 const MANAGEMENT_EFFECT_LABELS=Object.freeze({
@@ -263,6 +271,8 @@ const MANAGEMENT_EFFECT_LABELS=Object.freeze({
 function managementContextValue(key,value){
   const meta=MANAGEMENT_CONTEXT_META[key]||[key,'number'];
   const n=Number(value||0);
+  if(meta[1]==='text') return String(value==null?'–':value);
+  if(meta[1]==='datetime') return value?new Date(value).toLocaleString(uiLocale()):'–';
   if(meta[1]==='money') return money(n);
   if(meta[1]==='moneySigned') return balanceMoney(n);
   if(meta[1]==='percent') return managementNumber(n,1)+' %';
@@ -291,7 +301,7 @@ function managementDecisionRiskLabel(chance){
 }
 
 function managementDecisionContextHtml(context){
-  const entries=Object.entries(context||{});
+  const entries=Object.entries(context||{}).filter(function(entry){return entry[0]!=='order_id' && entry[0]!=='affected_manager_id';});
   if(!entries.length) return '';
   return '<div class="management-decision-context">'+entries.map(function(entry){
     const meta=MANAGEMENT_CONTEXT_META[entry[0]]||[entry[0],'number'];
@@ -318,6 +328,8 @@ function managementDecisionOptionHtml(d,o){
     '<strong>'+managementEscape(o.label||'Entscheiden')+'</strong>'+
     '<span>'+managementEscape(o.summary||'')+'</span>'+
     (o.impact?'<small><b>Erwarteter Impact:</b> '+managementEscape(o.impact)+'</small>':'')+
+    (o.commitment_cash_pct_value?'<small><b>Verbindliche Spätfolge:</b> '+managementEscape(managementNumber(Number(o.commitment_cash_pct_value)*100,1))+' % des aktuellen Unternehmenswerts nach '+managementEscape(managementNumber(Number(o.commitment_delay_hours||168)/24,0))+' Tagen</small>':'')+
+    (o.guaranteed_followup?'<small><b>Folgeentscheidung:</b> Nach '+managementEscape(managementNumber(Number(o.commitment_delay_hours||168)/24,0))+' Tagen entsteht eine neue Managementsituation.</small>':'')+
     (risk?'<small class="management-decision-risk"><b>Unsicherheit:</b> '+risk+(o.risk_text?' · '+managementEscape(o.risk_text):'')+'</small>':'')+
     '</button>';
 }
