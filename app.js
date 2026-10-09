@@ -7200,6 +7200,7 @@ function renderFinanceSummary() {
   const patentValueGains = sumType('research_investment', 'manager_patent_gain');
   const managerSavings = sumType('manager_saving');
   const managerSalaryCosts = costType('manager_salary');
+  const managerSeveranceCosts = costType('manager_severance');
 
   const buildingCosts = costType('construction');
   const buildingRefunds = sumType('building_refund');
@@ -7214,7 +7215,7 @@ function renderFinanceSummary() {
     'storage_fee','research','research_investment',
     'construction','building_refund',
     'bond_interest_income','bond_interest_state','bond_interest_paid',
-    'manager_saving','manager_revenue_bonus','manager_patent_gain','manager_salary',
+    'manager_saving','manager_revenue_bonus','manager_patent_gain','manager_salary','manager_severance',
     'management_decision_financing','management_decision_patent_adjustment',
     'bond_investment','bond_proceeds','bond_repayment','founding_capital'
   ]);
@@ -7248,6 +7249,7 @@ function renderFinanceSummary() {
     retailCancelFees +
     storageHoldingCosts +
     managerSalaryCosts +
+    managerSeveranceCosts +
     otherOperatingCosts;
 
   const operatingResult = operatingRevenue - operatingCosts;
@@ -7287,7 +7289,8 @@ function renderFinanceSummary() {
     financeStatementRow('Storno-/Abbruchgebühren', retailCancelFees, { cost:true }),
     financeStatementRow('Lagerhaltungskosten', storageHoldingCosts, { cost:true })
   ];
-  if (managerSalaryCosts > 0) expenseRows.push(financeStatementRow('Managergehälter', managerSalaryCosts, { cost:true }));
+  expenseRows.push(financeStatementRow('Managergehälter', managerSalaryCosts, { cost:true }));
+  if (managerSeveranceCosts > 0) expenseRows.push(financeStatementRow('Manager-Abfindungen', managerSeveranceCosts, { cost:true }));
   if (otherOperatingCosts > 0) expenseRows.push(financeStatementRow('Sonstige Betriebskosten', otherOperatingCosts, { cost:true }));
 
   const investmentRows = [
