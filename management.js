@@ -165,7 +165,7 @@ function renderManagementManagers(){
       const training=manager.status==='training';
       let html='<div class="management-manager-card"><h3>'+meta.label+'</h3>';
       html+='<div class="manager-name">'+manager.manager_name+'</div>';
-      html+='<div class="muted">'+manager.age+' Jahre · '+money(Number(manager.weekly_salary||0)/7)+' / Tag</div>';
+      html+='<div class="muted">'+manager.age+' Jahre · '+money(Number(manager.weekly_salary||0))+' / Tag</div>';
       html+='<div class="manager-stats">';
       html+='<div class="manager-stat"><span>Kompetenz</span><strong>'+manager.competence+'</strong></div>';
       html+='<div class="manager-stat"><span>Erfahrung</span><strong>'+manager.experience+'</strong></div>';
@@ -177,7 +177,7 @@ function renderManagementManagers(){
         html+='<span>'+meta.secondary+': <strong>'+managementNumber(secondary,1)+' %</strong></span></div>';
         html+='<button type="button" class="ghost" onclick="startManagerTraining(\''+manager.id+'\')">8 Std. trainieren</button>';
       }
-      html+='<button type="button" class="ghost" onclick="dismissCompanyManager(\''+manager.id+'\')">Manager kündigen · Abfindung '+money(Number(manager.weekly_salary||0)/7*3)+'</button>';
+      html+='<button type="button" class="ghost" onclick="dismissCompanyManager(\''+manager.id+'\')">Manager kündigen · Abfindung '+money(Number(manager.weekly_salary||0)*3)+'</button>';
       return html+'</div>';
     }
 
@@ -186,7 +186,7 @@ function renderManagementManagers(){
         const avg=(Number(recruitment.candidate_competence||0)+Number(recruitment.candidate_experience||0)+Number(recruitment.candidate_motivation||0))/3;
         let html='<div class="management-manager-card"><h3>'+meta.label+'</h3><div class="status success">Kandidat verfügbar</div>';
         html+='<div class="manager-name">'+recruitment.candidate_name+'</div>';
-        html+='<div class="muted">'+recruitment.candidate_age+' Jahre · '+money(Number(recruitment.candidate_salary||0)/7)+' / Tag</div>';
+        html+='<div class="muted">'+recruitment.candidate_age+' Jahre · '+money(Number(recruitment.candidate_salary||0))+' / Tag</div>';
         html+='<div class="manager-stats">';
         html+='<div class="manager-stat"><span>Kompetenz</span><strong>'+recruitment.candidate_competence+'</strong></div>';
         html+='<div class="manager-stat"><span>Erfahrung</span><strong>'+recruitment.candidate_experience+'</strong></div>';
@@ -610,7 +610,7 @@ if(typeof state!=='undefined' && state.company) renderManagement();
 window.dismissCompanyManager=async function(managerId){
   const manager=((state.managementOverview&&state.managementOverview.managers)||[]).find(m=>m.id===managerId);
   if(!manager) return;
-  const severance=Math.round(Number(manager.weekly_salary||0)/7*3*100)/100;
+  const severance=Math.round(Number(manager.weekly_salary||0)*3*100)/100;
   const accepted=window.confirm('Manager „'+manager.manager_name+'“ kündigen? Abfindung: '+money(severance)+'. Ein unbezahlter Teil bleibt als Verbindlichkeit bestehen.');
   if(!accepted) return;
   const {data,error}=await sb.rpc('dismiss_company_manager',{p_company_id:state.company.id,p_manager_id:managerId});
