@@ -415,6 +415,14 @@ function renderFinanceBudgets(){
     html+='<div class="management-progress"><span style="width:'+(configured?Math.min(100,Math.max(0,util)):0)+'%"></span></div>';
     html+='<div class="kv"><span>Bisher ausgegeben</span><strong>'+money(b.used)+'</strong></div>';
     html+='<div class="kv"><span>Verfügbar</span><strong>'+(configured?balanceMoney(Number(b.remaining||0)):'–')+'</strong></div>';
+    if(b.department==='finance'){
+      const extra=state.managementFinanceBudgetBreakdown||{};
+      html+='<div class="muted" style="margin:9px 0 5px">Separat erfasste Zahlungsströme (diese Woche; nicht im Finanzbudget)</div>';
+      html+='<div class="kv"><span>Investitionen</span><strong>'+money(extra.investment_outflows||0)+'</strong></div>';
+      html+='<div class="kv"><span>Kapitalabflüsse</span><strong>'+money(extra.capital_outflows||0)+'</strong></div>';
+      html+='<div class="kv"><span>Kapitalzuflüsse</span><strong>'+money(extra.capital_inflows||0)+'</strong></div>';
+      html+='<div class="kv"><span>Finanzerträge</span><strong>'+money(extra.financial_income||0)+'</strong></div>';
+    }
     html+='<div class="management-budget-edit"><label>Wochenbudget<input id="managementBudget_'+b.department+'" type="number" min="0" step="100" value="'+Number(b.weekly_budget||0)+'"></label>';
     html+='<button type="button" onclick="saveManagementBudget(\''+b.department+'\')">Speichern</button></div></div>';
     return html;
@@ -471,14 +479,16 @@ window.refreshManagementOverview=async function(){
   if(!state.company||!state.company.id) return;
   const results=await Promise.all([
     sb.rpc('get_management_overview',{p_company_id:state.company.id}),
-    sb.rpc('get_management_decision_center',{p_company_id:state.company.id})
+    sb.rpc('get_management_decision_center',{p_company_id:state.company.id}),
+    sb.rpc('get_management_finance_budget_breakdown',{p_company_id:state.company.id})
   ]);
-  const overview=results[0], center=results[1];
-  if(overview.error||center.error){
-    const error=overview.error||center.error;
+  const overview=results[0], center=results[1], financeBreakdown=results[2];
+  if(overview.error||center.error||financeBreakdown.error){
+    const error=overview.error||center.error||financeBreakdown.error;
     await gameAlert('Managementdaten konnten nicht aktualisiert werden. '+error.message);
     return;
   }
+  state.managementFinanceBudgetBreakdown=financeBreakdown.data||{};
   state.managementOverview=overview.data||state.managementOverview;
   state.managementDecisionCenter=center.data||state.managementDecisionCenter;
   renderManagement();
