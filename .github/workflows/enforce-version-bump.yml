@@ -24,7 +24,7 @@ jobs:
           base_ref = "${{ github.event.pull_request.base.sha }}"
           current = pathlib.Path('index.html').read_text()
           previous = subprocess.check_output(['git','show',f'{base_ref}:index.html'],text=True)
-          rx = re.compile(r'style\\.css\\?v=(\\d+)\\.(\\d+)\\.(\\d+)')
+          rx = re.compile(r'style[.]css[?]v=([0-9]+)[.]([0-9]+)[.]([0-9]+)')
           old, new = rx.search(previous), rx.search(current)
           if not old or not new:
               sys.exit('Missing version marker in style.css asset URL')
@@ -34,7 +34,7 @@ jobs:
           expected = '.'.join(map(str,new_version))
           for filename in ('index.html','service-worker.js','manifest.webmanifest'):
               data = pathlib.Path(filename).read_text()
-              versions = set(re.findall(r'\\?v=(\\d+\\.\\d+\\.\\d+)',data))
+              versions = set(re.findall(r'[?]v=([0-9]+[.][0-9]+[.][0-9]+)',data))
               if versions != {expected}:
                   sys.exit(f'{filename} asset versions {versions!r} must all match {expected}')
           print(f'Game version successfully raised to {expected}')
