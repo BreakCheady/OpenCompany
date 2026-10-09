@@ -177,7 +177,7 @@ function renderManagementManagers(){
         html+='<span>'+meta.secondary+': <strong>'+managementNumber(secondary,1)+' %</strong></span></div>';
         html+='<button type="button" class="ghost" onclick="startManagerTraining(\''+manager.id+'\')">8 Std. trainieren</button>';
       }
-      html+='<button type="button" class="ghost" onclick="dismissCompanyManager(\''+manager.id+'\')">Manager kündigen · Abfindung '+money(Number(manager.weekly_salary||0)*3)+'</button>';
+      html+='<button type="button" class="ghost" onclick="dismissCompanyManager(\''+manager.id+'\')">Entlassen</button>';
       return html+'</div>';
     }
 
@@ -611,7 +611,7 @@ window.dismissCompanyManager=async function(managerId){
   const manager=((state.managementOverview&&state.managementOverview.managers)||[]).find(m=>m.id===managerId);
   if(!manager) return;
   const severance=Math.round(Number(manager.weekly_salary||0)*3*100)/100;
-  const accepted=window.confirm('Manager „'+manager.manager_name+'“ kündigen? Abfindung: '+money(severance)+'. Ein unbezahlter Teil bleibt als Verbindlichkeit bestehen.');
+  const accepted=await gameConfirm('Möchtest du „'+manager.manager_name+'“ wirklich entlassen?\n\nAbfindung (3 × Tagesgehalt): '+money(severance)+'\n\nDie Abfindung wird sofort so weit wie möglich bezahlt. Ein offener Rest bleibt als Verbindlichkeit bestehen.','Manager entlassen');
   if(!accepted) return;
   const {data,error}=await sb.rpc('dismiss_company_manager',{p_company_id:state.company.id,p_manager_id:managerId});
   if(error){await gameAlert('Kündigung fehlgeschlagen: '+error.message);return;}
