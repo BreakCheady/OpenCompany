@@ -5171,6 +5171,27 @@ function renderOperationsHealth() {
   const health=state.operationsHealth;
   if(relations && health){
     relations.textContent='Kundenzufriedenheit: '+num(health.satisfaction||50)+' % · Kundenbindung: '+num(health.loyalty||40)+' %';
+    const complaintsRoot=document.getElementById('customerComplaintsList');
+    if(complaintsRoot){
+      const cases=health.complaints||[];
+      complaintsRoot.innerHTML=cases.length?cases.map(c=>
+        '<div class="panel" style="margin-top:8px"><strong>Reklamation · Q'+Number(c.quality)+'</strong> · '
+        +num(c.quantity)+' Einheiten <div class="muted">Antwortfrist: '
+        +new Date(c.expires_at).toLocaleString(uiLocale())+'</div><div class="retail-actions">'
+        +'<button type="button" class="ghost" data-complaint-id="'+c.id+'" data-complaint-action="refund">Erstatten</button>'
+        +'<button type="button" class="ghost" data-complaint-id="'+c.id+'" data-complaint-action="replacement">Ersatz liefern</button>'
+        +'<button type="button" class="ghost" data-complaint-id="'+c.id+'" data-complaint-action="reject">Ablehnen</button>'
+        +'</div></div>').join(''):'<p class="muted">Keine offenen Reklamationen.</p>';
+      complaintsRoot.querySelectorAll('[data-complaint-action]').forEach(btn=>btn.addEventListener('click',async()=>{
+        const action=btn.dataset.complaintAction;
+        if(!await gameConfirm('Reklamation '+(action==='refund'?'erstatten':action==='replacement'?'durch Ersatzlieferung bearbeiten':'ablehnen')+'?'))return;
+        btn.disabled=true;
+        const {error}=await sb.rpc('resolve_customer_complaint',{
+          p_company_id:state.company.id,p_complaint_id:btn.dataset.complaintId,p_action:action});
+        if(error)await gameAlert(error.message);
+        await loadCompany();
+      }));
+    }
   }
   if(!target || !health) return;
   const machines=health.machines||[];
@@ -5178,14 +5199,14 @@ function renderOperationsHealth() {
     const building=state.buildings.find(b=>b.id===machine.building_id);
     const condition=Number(machine.condition??100);
     return '<div class="kv"><span>'+String(building?.building_types?.name||'Produktionsgebäude').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;')+'</span><strong>'
-      +num(condition)+' %</strong><button type="button" class="ghost" data-machine-maintain="'+machine.building_id+'">Warten</button></div>';
+      +num(condition)+' %</strong><select aria-label="Wartungsumfang" data-maintenance-level><option value="small">Klein (+15)</option><option value="standard">Standard (+35)</option><option value="overhaul">Generalüberholung (100 %)</option></select><button type="button" class="ghost" data-machine-maintain="'+machine.building_id+'">Warten</button></div>';
   }).join(''):'<p class="muted">Keine Gebäude vorhanden.</p>';
   target.querySelectorAll('[data-machine-maintain]').forEach(btn=>btn.addEventListener('click',async()=>{
     const buildingId=btn.dataset.machineMaintain;
-    const level=await gameConfirm('Standardwartung: +35 Zustandspunkte (max. 100). Kosten: 30 $ je Zustandspunkt und Gebäudestufe. Jetzt warten?');
-    if(!level)return;
+    const level=btn.parentElement.querySelector('[data-maintenance-level]')?.value||'standard';
+    if(!await gameConfirm('Wartung durchführen? Kosten: 30 $ je wiederhergestelltem Zustandspunkt und Gebäudestufe.'))return;
     btn.disabled=true;
-    const {error}=await sb.rpc('maintain_production_machine',{p_company_id:state.company.id,p_building_id:buildingId,p_level:'standard'});
+    const {error}=await sb.rpc('maintain_production_machine',{p_company_id:state.company.id,p_building_id:buildingId,p_level:level});
     if(error) await gameAlert(error.message);
     await loadCompany();
   }));
