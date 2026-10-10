@@ -5177,7 +5177,7 @@ function renderOperationsHealth() {
   target.innerHTML=machines.length?machines.map(machine=>{
     const building=state.buildings.find(b=>b.id===machine.building_id);
     const condition=Number(machine.condition??100);
-    return '<div class="kv"><span>'+escapeHtml(building?.building_types?.name||'Produktionsgebäude')+'</span><strong>'
+    return '<div class="kv"><span>'+String(building?.building_types?.name||'Produktionsgebäude').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;')+'</span><strong>'
       +num(condition)+' %</strong><button type="button" class="ghost" data-machine-maintain="'+machine.building_id+'">Warten</button></div>';
   }).join(''):'<p class="muted">Keine Gebäude vorhanden.</p>';
   target.querySelectorAll('[data-machine-maintain]').forEach(btn=>btn.addEventListener('click',async()=>{
