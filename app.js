@@ -5202,16 +5202,41 @@ function renderOperationsHealth() {
   }
   if(!target || !health) return;
   const machines=health.machines||[];
+  const safeText=value=>String(value??'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#39;');
   target.innerHTML=machines.length?machines.map(machine=>{
     const building=state.buildings.find(b=>b.id===machine.building_id);
-    const condition=Number(machine.condition??100);
-    return '<div class="kv"><span>'+String(building?.building_types?.name||'Produktionsgebäude').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;')+'</span><strong>'
-      +num(condition)+' %</strong><select aria-label="Wartungsumfang" data-maintenance-level><option value="small">Klein (+15)</option><option value="standard">Standard (+35)</option><option value="overhaul">Generalüberholung (100 %)</option></select><button type="button" class="ghost" data-machine-maintain="'+machine.building_id+'">Warten</button></div>';
+    const type=building?.building_types || state.buildingTypes.find(bt=>bt.id===building?.building_type_id);
+    const siblings=state.buildings.filter(b=>b.building_type_id===building?.building_type_id)
+      .sort((a,b)=>new Date(a.built_at||0)-new Date(b.built_at||0)||String(a.id).localeCompare(String(b.id)));
+    const number=building?Math.max(1,siblings.findIndex(b=>b.id===building.id)+1):null;
+    const name=safeText(type?.name||'Produktionsgebäude')+(number?' #'+number:'');
+    const condition=Math.max(0,Math.min(100,Number(machine.condition??100)));
+    const missing=Math.max(0,100-condition);
+    const isFull=missing<0.005;
+    const level=Math.max(1,Math.floor(Number(building?.level||1)));
+    const options=[['small','Klein (+15)',15],['standard','Standard (+35)',35],['overhaul','Generalüberholung (100 %)',100]];
+    const optionsHtml=options.map(([value,label,points])=>{
+      const restored=Math.min(missing,points);
+      const cost=Math.round(restored*30*level*100)/100;
+      return '<option value="'+value+'">'+label+' · '+money(cost)+'</option>';
+    }).join('');
+    return '<div class="machine-maintenance-row" data-maintenance-condition="'+condition+'" data-maintenance-level-factor="'+level+'">'
+      +'<div class="machine-maintenance-name"><strong>'+name+'</strong><span class="muted">Level '+level+'</span></div>'
+      +'<strong class="machine-maintenance-condition">'+num(condition)+' %</strong>'
+      +'<select aria-label="Wartungsumfang für '+name+'" data-maintenance-level '+(isFull?'disabled':'')+'>'+optionsHtml+'</select>'
+      +'<button type="button" class="ghost" data-machine-maintain="'+safeText(machine.building_id)+'" '+(isFull?'disabled':'')+'>'+(isFull?'Optimal':'Warten')+'</button></div>';
   }).join(''):'<p class="muted">Keine Gebäude vorhanden.</p>';
   target.querySelectorAll('[data-machine-maintain]').forEach(btn=>btn.addEventListener('click',async()=>{
     const buildingId=btn.dataset.machineMaintain;
-    const level=btn.parentElement.querySelector('[data-maintenance-level]')?.value||'standard';
-    if(!await gameConfirm('Wartung durchführen? Kosten: 30 $ je wiederhergestelltem Zustandspunkt und Gebäudestufe.'))return;
+    const row=btn.closest('.machine-maintenance-row');
+    const level=row.querySelector('[data-maintenance-level]')?.value||'small';
+    const condition=Number(row.dataset.maintenanceCondition);
+    const factor=Number(row.dataset.maintenanceLevelFactor);
+    const points=level==='small'?15:level==='standard'?35:100;
+    const restored=Math.min(Math.max(0,100-condition),points);
+    if(restored<0.005)return;
+    const estimate=money(Math.round(restored*30*factor*100)/100);
+    if(!await gameConfirm('Wartung durchführen? Voraussichtliche Kosten: '+estimate+'. Der Zustand steigt maximal auf 100 %.'))return;
     btn.disabled=true;
     const {error}=await sb.rpc('maintain_production_machine',{p_company_id:state.company.id,p_building_id:buildingId,p_level:level});
     if(error) await gameAlert(error.message);

@@ -3264,3 +3264,24 @@ body.dashboard-history-open{
     line-height: 1.25;
   }
 }
+
+/* Produktionsmanagement: übersichtliche, umbruchfeste Wartungszeilen */
+#productionMachineHealth .machine-maintenance-row {
+  display:grid;
+  grid-template-columns:minmax(150px,1fr) minmax(90px,auto) minmax(220px,1fr) auto;
+  align-items:center;
+  gap:12px;
+  padding:14px 0;
+  border-bottom:1px solid var(--border);
+}
+#productionMachineHealth .machine-maintenance-row:last-child { border-bottom:0; }
+#productionMachineHealth .machine-maintenance-name { min-width:0; display:flex; flex-direction:column; gap:3px; }
+#productionMachineHealth .machine-maintenance-condition { white-space:nowrap; font-variant-numeric:tabular-nums; }
+#productionMachineHealth .machine-maintenance-row select { width:100%; min-width:0; }
+#productionMachineHealth .machine-maintenance-row button { white-space:nowrap; }
+#productionMachineHealth .machine-maintenance-row button:disabled { opacity:.55; cursor:not-allowed; }
+@media (max-width:760px) {
+  #productionMachineHealth .machine-maintenance-row { grid-template-columns:minmax(0,1fr) auto; gap:10px; }
+  #productionMachineHealth .machine-maintenance-row select { grid-column:1; }
+  #productionMachineHealth .machine-maintenance-row button { grid-column:2; }
+}
