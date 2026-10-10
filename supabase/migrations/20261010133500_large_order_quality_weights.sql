@@ -19,7 +19,7 @@ begin
   'v_quality := (array[1,2,3,4,5])[1];');
  v_def:=replace(v_def,
   'v_quality := (array[1,2,3,4,5])[1];',
-  'v_quality := case when (v_roll:=random())<0.20 then 1 when v_roll<0.50 then 2 when v_roll<0.80 then 3 when v_roll<0.95 then 4 else 5 end;');
+  'v_roll := random();'||chr(10)||'    v_quality := case when v_roll<0.20 then 1 when v_roll<0.50 then 2 when v_roll<0.80 then 3 when v_roll<0.95 then 4 else 5 end;');
  v_def:=replace(v_def,'  v_quality integer;','  v_quality integer;'||chr(10)||'  v_roll numeric;');
  -- The legacy quality branch is now unreachable; remove to keep only three types.
  if position('      elsif v_type=''quality'' then' in v_def)>0 then
