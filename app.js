@@ -11252,34 +11252,28 @@ marketProductBuyBtn?.addEventListener('click', async ()=>{
   marketProductBuyBtn.disabled=true;
   let bought=0, paid=0;
   try {
-    for (const fill of plan.fills) {
-      let result=await sb.rpc('buy_market_order',{
+    // Bounded batches avoid one network request per order while keeping
+    // transaction duration manageable for database statement timeouts.
+    for (let offset=0;offset<plan.fills.length;offset+=12) {
+      const group=plan.fills.slice(offset,offset+12);
+      const { data,error }=await sb.rpc('buy_market_orders_batch',{
         p_buyer_company_id:state.company.id,
-        p_order_id:fill.order.id,
-        p_quantity:fill.quantity
+        p_fills:group.map(fill=>({order_id:fill.order.id,quantity:fill.quantity}))
       });
-      // PostgreSQL cancels and rolls back a timed-out statement. Retry once;
-      // never retry ambiguous network failures that may already have committed.
-      if (result.error && /canceling statement due to statement timeout/i.test(result.error.message||'')) {
-        result=await sb.rpc('buy_market_order',{
-          p_buyer_company_id:state.company.id,
-          p_order_id:fill.order.id,
-          p_quantity:fill.quantity
-        });
-      }
-      if (result.error) {
+      if(error){
         const remaining=plan.qty-bought;
-        const timedOut=/statement timeout/i.test(result.error.message||'');
         await gameAlert(
-          (timedOut?'Die Warenbörse ist momentan überlastet. Bitte versuche die Restmenge erneut.':result.error.message)
-          + (bought>0?' Bereits erfolgreich gekauft: '+num(bought)+' Einheiten.':'')
-          + ' Noch offen: '+num(remaining)+' Einheiten.',
+          (/(statement timeout|timed out)/i.test(error.message||'')
+            ? 'Die Warenbörse benötigt gerade länger als erwartet.'
+            : error.message)
+          +(bought>0?' Bereits erfolgreich gekauft: '+num(bought)+' Einheiten.':'')
+          +' Noch offen: '+num(remaining)+' Einheiten.',
           'Kauf nicht vollständig abgeschlossen'
         );
         break;
       }
-      bought += fill.quantity;
-      paid += fill.quantity*Number(fill.order.price_per_unit||0);
+      bought+=Number(data?.quantity||group.reduce((n,f)=>n+f.quantity,0));
+      paid+=Number(data?.total||group.reduce((n,f)=>n+f.quantity*Number(f.order.price_per_unit||0),0));
     }
     await loadCompany();
     await loadMarketItemOrders(plan.item, { showLoading:false });
