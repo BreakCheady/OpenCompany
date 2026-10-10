@@ -6345,13 +6345,15 @@ function updateMarketProductBuyPreview() {
   const plan=marketProductBuyPlan();
   updateMarketOrderFillPreview(plan);
   if (availability) availability.textContent=`${num(plan.available)} verfügbar`;
+  totalEl.classList.remove('market-expected-cost-negative');
   if (!plan.item || !(plan.qty>0)) {
     totalEl.textContent='–'; button.disabled=true; return;
   }
   if (plan.remaining>0) {
     totalEl.textContent=`Max. ${num(plan.available)} verfügbar`; button.disabled=true; return;
   }
-  totalEl.textContent=money(plan.total);
+  totalEl.textContent='-'+money(plan.total);
+  totalEl.classList.add('market-expected-cost-negative');
   button.disabled=false;
 }
 
