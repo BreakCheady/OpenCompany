@@ -5260,6 +5260,16 @@ function renderProductionRecipe() {
     : 0;
 
   const startSnapshot = runningJob?.start_snapshot || {};
+  const disruptionStatus=document.getElementById('productionDisruptionStatus');
+  if(disruptionStatus){
+    const delay=Number(startSnapshot.machineDisruptionHours||0);
+    disruptionStatus.textContent=runningJob&&delay>0
+      ? 'Produktionsstörung: '+num(delay)+' Stunden Verzögerung. Die Fertigstellung und Teilabholung wurden angepasst.'
+      : '';
+    disruptionStatus.classList.toggle('hidden',!(runningJob&&delay>0));
+  }
+  const machineModeControl=document.getElementById('productionMachineMode');
+  if(machineModeControl)machineModeControl.disabled=!!runningJob;
   const displayOutputQty = runningJob ? Number(startSnapshot.outputQty ?? runningJob.output_quantity ?? 0) : plan.outputQty;
   const displayHours = runningJob ? Number(startSnapshot.hours ?? runningJob.hours ?? 0) : plan.hours;
   const displayProcurementCost = runningJob ? Number(startSnapshot.procurementCost ?? 0) : plan.procurementCost;
