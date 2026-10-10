@@ -6217,7 +6217,7 @@ function marketOrdersForItem(item, { includeOwn=true, quality=state.marketQualit
     .filter(order => includeOwn || order.company_id !== state.company?.id)
     .filter(order => {
       const q = Number(order.quality_level || 1);
-      return quality === 'all' || (quality === '5' ? q >= 5 : q === Number(quality));
+      return quality === 'all' || (Array.isArray(quality) ? quality.some(selected => selected === '5' ? q >= 5 : q === Number(selected)) : (quality === '5' ? q >= 5 : q === Number(quality)));
     })
     .filter(order => ['open','partially_filled'].includes(order.status) && Number(order.remaining_quantity || 0) > 0)
     .sort((a,b) => Number(a.price_per_unit || 0)-Number(b.price_per_unit || 0) || Number(b.quality_level||1)-Number(a.quality_level||1));
@@ -6372,7 +6372,13 @@ function renderMarketProductPage() {
     sellBtn.textContent=marketCanSellItem(item)?'Verkaufsorder erstellen':'Kein Bestand zum Verkaufen';
   }
 
-  document.querySelectorAll('.market-quality-btn').forEach(btn=>btn.classList.toggle('active',btn.dataset.quality===state.marketQualityFilter));
+  document.querySelectorAll('.market-quality-btn').forEach(btn=>{
+    const filter=state.marketQualityFilter;
+    const selected=btn.dataset.quality;
+    const active=selected==='all' ? filter==='all' : Array.isArray(filter) && filter.includes(selected);
+    btn.classList.toggle('active',active);
+    btn.setAttribute('aria-pressed',String(active));
+  });
 
   const orders=marketOrdersForItem(item,{includeOwn:true});
   const body=document.getElementById('marketOrderBookBody');
@@ -11226,7 +11232,14 @@ marketBackBtn?.addEventListener('click',()=>{
 });
 
 document.querySelectorAll('.market-quality-btn').forEach(button=>button.addEventListener('click',()=>{
-  state.marketQualityFilter=button.dataset.quality||'all';
+  const selected=button.dataset.quality||'all';
+  if(selected==='all') {
+    state.marketQualityFilter='all';
+  } else {
+    const previous=Array.isArray(state.marketQualityFilter)?state.marketQualityFilter:[];
+    const next=previous.includes(selected)?previous.filter(q=>q!==selected):[...previous,selected];
+    state.marketQualityFilter=next.length?next:'all';
+  }
   renderMarketProductPage();
 }));
 
