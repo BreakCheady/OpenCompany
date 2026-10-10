@@ -11245,6 +11245,16 @@ document.querySelectorAll('.market-quality-btn').forEach(button=>button.addEvent
 
 marketProductBuyQty?.addEventListener('input',updateMarketProductBuyPreview);
 
+document.getElementById('marketProductMaxBtn')?.addEventListener('click',()=>{
+  const item=marketItemDescriptor();
+  const available=marketOrdersForItem(item,{includeOwn:false})
+    .reduce((sum,order)=>sum+Number(order.remaining_quantity||0),0);
+  if(marketProductBuyQty){
+    marketProductBuyQty.value=String(Math.max(0,Math.floor(available)));
+    updateMarketProductBuyPreview();
+  }
+});
+
 marketProductBuyBtn?.addEventListener('click', async ()=>{
   const plan=marketProductBuyPlan();
   if (!plan.item || !(plan.qty>0) || plan.remaining>0) return;
