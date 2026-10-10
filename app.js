@@ -7883,7 +7883,16 @@ function renderStorage() {
     warnings.push(`⚠ Der bestehende Lagerbestand liegt ${num(overflow - 1000)} Einheiten über der neu zulässigen Überlagerung. Neue Einlagerungen sind gesperrt, bis du Bestand reduzierst oder die Lagerkapazität erhöhst.`);
   }
 
-  if (status.last_forced_auction_at) {
+  const auctionAcknowledgementKey = state.company?.id
+    ? 'opencompany_storage_auction_ack_' + state.company.id : null;
+  let acknowledgedAuction = null;
+  try {
+    acknowledgedAuction = auctionAcknowledgementKey
+      ? window.localStorage.getItem(auctionAcknowledgementKey) : null;
+  } catch (_) {}
+  const activeAuctionNotice = status.last_forced_auction_at
+    && String(status.last_forced_auction_at) !== acknowledgedAuction;
+  if (activeAuctionNotice) {
     const when = new Date(status.last_forced_auction_at).toLocaleString(uiLocale());
     if (status.last_forced_auction_full) {
       warnings.push(`⚠ ZWANGSVERSTEIGERUNG: Das gesamte Lager wurde am ${when} versteigert. Nettoerlös: ${money(status.last_forced_auction_net || 0)}.`);
@@ -7897,6 +7906,23 @@ function renderStorage() {
   const warningBanner = document.getElementById('storageWarningBanner');
   if (warningBanner) {
     warningBanner.innerHTML = warnings.map(w => `<div>${w}</div>`).join('');
+    if (activeAuctionNotice) {
+      const confirm = document.createElement('button');
+      confirm.type = 'button';
+      confirm.className = 'storage-auction-confirm-btn';
+      confirm.textContent = 'Bestätigen';
+      confirm.addEventListener('click', () => {
+        try {
+          if (auctionAcknowledgementKey) {
+            window.localStorage.setItem(auctionAcknowledgementKey, String(status.last_forced_auction_at));
+          }
+        } catch (_) {}
+        confirm.remove();
+        // Hide only the acknowledged auction, never any independent storage warning.
+        renderStorage();
+      });
+      warningBanner.appendChild(confirm);
+    }
     warningBanner.classList.toggle('hidden', warnings.length === 0);
   }
 
