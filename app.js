@@ -11253,13 +11253,29 @@ marketProductBuyBtn?.addEventListener('click', async ()=>{
   let bought=0, paid=0;
   try {
     for (const fill of plan.fills) {
-      const { error }=await sb.rpc('buy_market_order',{
+      let result=await sb.rpc('buy_market_order',{
         p_buyer_company_id:state.company.id,
         p_order_id:fill.order.id,
         p_quantity:fill.quantity
       });
-      if (error) {
-        await gameAlert(`${error.message}${bought>0?` Bereits gekauft: ${num(bought)} Einheiten.`:''}`);
+      // PostgreSQL cancels and rolls back a timed-out statement. Retry once;
+      // never retry ambiguous network failures that may already have committed.
+      if (result.error && /canceling statement due to statement timeout/i.test(result.error.message||'')) {
+        result=await sb.rpc('buy_market_order',{
+          p_buyer_company_id:state.company.id,
+          p_order_id:fill.order.id,
+          p_quantity:fill.quantity
+        });
+      }
+      if (result.error) {
+        const remaining=plan.qty-bought;
+        const timedOut=/statement timeout/i.test(result.error.message||'');
+        await gameAlert(
+          (timedOut?'Die Warenbörse ist momentan überlastet. Bitte versuche die Restmenge erneut.':result.error.message)
+          + (bought>0?' Bereits erfolgreich gekauft: '+num(bought)+' Einheiten.':'')
+          + ' Noch offen: '+num(remaining)+' Einheiten.',
+          'Kauf nicht vollständig abgeschlossen'
+        );
         break;
       }
       bought += fill.quantity;
