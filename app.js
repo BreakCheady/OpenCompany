@@ -4795,12 +4795,17 @@ function currentProductionContext() {
   const building = buildingCanProduce ? selectedBuilding : null;
   const multiplier = building ? productionLevelMultiplier(building.level) : 1;
   const baseProductRate = Number(product?.base_production_rate || 0);
+  const machineCondition=Number(state.operationsHealth?.machines?.find(m=>m.building_id===building?.id)?.condition??100);
+  const machineMode=document.getElementById('productionMachineMode')?.value||'normal';
+  const machineConditionFactor=machineCondition>=90?1.03:machineCondition>=75?1:machineCondition>=50?0.95:machineCondition>=25?0.88:0.75;
+  const machineModeFactor=machineMode==='intensive'?1.15:machineMode==='gentle'?0.90:1;
   const unitsPerHour = buildingType && building && baseProductRate > 0
     ? Math.max(
         0.01,
         Math.max(1, Math.floor(baseProductRate * multiplier))
         * Number(state.economyState?.production_output_factor || 1)
         * globalEventFactor('production_output_factor')
+        * machineConditionFactor * machineModeFactor
       )
     : 0;
 
@@ -5164,6 +5169,8 @@ async function refreshOperationsHealth() {
   if (companyId!==state.company?.id) return;
   state.operationsHealth=data;
   renderOperationsHealth();
+  if(document.getElementById('production')?.classList.contains('active-view'))renderProductionRecipe();
+  if(document.getElementById('market')?.classList.contains('active-view'))renderRetailSale();
 }
 function renderOperationsHealth() {
   const target=document.getElementById('productionMachineHealth');
@@ -5793,8 +5800,12 @@ function retailSaleContext() {
     : 0;
   const demandFactor = demandRetailFactor(product?.category);
   const baseUnitsPerHour = rawBaseUnitsPerHour;
+  const customerSatisfaction=Number(state.operationsHealth?.satisfaction??50);
+  const customerLoyalty=Number(state.operationsHealth?.loyalty??40);
+  const customerFactor=customerSatisfaction<20?0.75:customerSatisfaction<40?0.85:customerSatisfaction<60?1:customerSatisfaction<80?1.05:customerSatisfaction<95?1.10:1.15;
+  const loyaltyFactor=state.economyState?.phase==='recession'?1+Math.min(0.1,Math.max(0,customerLoyalty-40)/600):1;
   const unitsPerHour = rawBaseUnitsPerHour > 0
-    ? Math.max(1, Math.floor(baseProductRetailRate * multiplier * demandFactor))
+    ? Math.max(1, Math.floor(baseProductRetailRate * multiplier * demandFactor * customerFactor * loyaltyFactor))
     : 0;
 
   const productionCost = Number(inventory?.average_unit_cost || 0);
@@ -11329,6 +11340,7 @@ document.querySelectorAll('.market-quality-btn').forEach(button=>button.addEvent
   renderMarketProductPage();
 }));
 
+document.getElementById('productionMachineMode')?.addEventListener('change',()=>renderProductionRecipe());
 marketProductBuyQty?.addEventListener('input',updateMarketProductBuyPreview);
 
 document.getElementById('marketProductMaxBtn')?.addEventListener('click',()=>{
