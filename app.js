@@ -899,6 +899,7 @@ const state = {
   storageSearchFilter: '',
   storageTypeFilter: 'all',
   storageStatus: null,
+  operationsHealth: null,
   recipes: [],
   buildingTypes: [],
   buildings: [],
@@ -4186,6 +4187,7 @@ async function loadGameData() {
   state.managementDecisionCenter = managementDecisionCenter.data || { profile:{}, history:[], effects:[], metrics:{} };
   if (state.company) state.company.ocb_balance = Number(state.ocbStatus.balance || 0);
   renderAll();
+  await refreshOperationsHealth();
 }
 
 async function loadOwnCompanyPublicProfile() {
@@ -5154,6 +5156,40 @@ function startProductionClaimDisplayTimer() {
   }, 10000);
 }
 
+async function refreshOperationsHealth() {
+  if (!state.company?.id || !sb) return;
+  const companyId=state.company.id;
+  const {data,error}=await sb.rpc('get_company_management_health',{p_company_id:companyId});
+  if (error) { console.warn('Unternehmensmanagement:',error.message); return; }
+  if (companyId!==state.company?.id) return;
+  state.operationsHealth=data;
+  renderOperationsHealth();
+}
+function renderOperationsHealth() {
+  const target=document.getElementById('productionMachineHealth');
+  const relations=document.getElementById('customerRelationsSummary');
+  const health=state.operationsHealth;
+  if(relations && health){
+    relations.textContent='Kundenzufriedenheit: '+num(health.satisfaction||50)+' % · Kundenbindung: '+num(health.loyalty||40)+' %';
+  }
+  if(!target || !health) return;
+  const machines=health.machines||[];
+  target.innerHTML=machines.length?machines.map(machine=>{
+    const building=state.buildings.find(b=>b.id===machine.building_id);
+    const condition=Number(machine.condition??100);
+    return '<div class="kv"><span>'+escapeHtml(building?.building_types?.name||'Produktionsgebäude')+'</span><strong>'
+      +num(condition)+' %</strong><button type="button" class="ghost" data-machine-maintain="'+machine.building_id+'">Warten</button></div>';
+  }).join(''):'<p class="muted">Keine Gebäude vorhanden.</p>';
+  target.querySelectorAll('[data-machine-maintain]').forEach(btn=>btn.addEventListener('click',async()=>{
+    const buildingId=btn.dataset.machineMaintain;
+    const level=await gameConfirm('Standardwartung: +35 Zustandspunkte (max. 100). Kosten: 30 $ je Zustandspunkt und Gebäudestufe. Jetzt warten?');
+    if(!level)return;
+    btn.disabled=true;
+    const {error}=await sb.rpc('maintain_production_machine',{p_company_id:state.company.id,p_building_id:buildingId,p_level:'standard'});
+    if(error) await gameAlert(error.message);
+    await loadCompany();
+  }));
+}
 function renderProductionRecipe() {
   let plan = productionPlan();
   let { buildingType, building, multiplier, unitsPerHour, runningJob } = plan;
@@ -10599,6 +10635,7 @@ document.getElementById('productionForm').addEventListener('submit', async e => 
     p_hours:plan.hours,
     p_input_text:document.getElementById('productionUnits').value,
     p_start_snapshot:{
+      productionMode:document.getElementById('productionMachineMode')?.value||'normal',
       outputQty: plan.outputQty,
       hours: plan.hours,
       procurementCost: plan.procurementCost,
