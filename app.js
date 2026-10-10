@@ -11254,8 +11254,8 @@ marketProductBuyBtn?.addEventListener('click', async ()=>{
   try {
     // Bounded batches avoid one network request per order while keeping
     // transaction duration manageable for database statement timeouts.
-    for (let offset=0;offset<plan.fills.length;offset+=12) {
-      const group=plan.fills.slice(offset,offset+12);
+    for (let offset=0;offset<plan.fills.length;offset+=24) {
+      const group=plan.fills.slice(offset,offset+24);
       const { data,error }=await sb.rpc('buy_market_orders_batch',{
         p_buyer_company_id:state.company.id,
         p_fills:group.map(fill=>({order_id:fill.order.id,quantity:fill.quantity}))
@@ -11275,8 +11275,7 @@ marketProductBuyBtn?.addEventListener('click', async ()=>{
       bought+=Number(data?.quantity||group.reduce((n,f)=>n+f.quantity,0));
       paid+=Number(data?.total||group.reduce((n,f)=>n+f.quantity*Number(f.order.price_per_unit||0),0));
     }
-    await loadCompany();
-    await loadMarketItemOrders(plan.item, { showLoading:false });
+    await Promise.all([loadCompany(),loadMarketItemOrders(plan.item, { showLoading:false })]);
     if (bought>0) await gameAlert(`${num(bought)} × ${plan.item.name} für ${money(paid)} gekauft.`, 'Kauf abgeschlossen');
   } finally {
     updateMarketProductBuyPreview();
