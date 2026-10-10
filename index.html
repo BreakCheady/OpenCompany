@@ -5,14 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta name="theme-color" content="#0d2d55">
   <title>OpenCompany</title>
-  <link rel="icon" type="image/png" href="favicon.png?v=0.10.292">
-  <link rel="shortcut icon" href="favicon.ico?v=0.10.292">
-  <link rel="icon" type="image/x-icon" href="favicon.ico?v=0.10.292">
-  <link rel="manifest" href="/manifest.webmanifest?v=0.10.292">
-  <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=0.10.292">
+  <link rel="icon" type="image/png" href="favicon.png?v=0.10.293">
+  <link rel="shortcut icon" href="favicon.ico?v=0.10.293">
+  <link rel="icon" type="image/x-icon" href="favicon.ico?v=0.10.293">
+  <link rel="manifest" href="/manifest.webmanifest?v=0.10.293">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=0.10.293">
   <meta name="application-name" content="OpenCompany">
   <meta name="mobile-web-app-capable" content="yes">
-  <link rel="stylesheet" href="style.css?v=0.10.292">
+  <link rel="stylesheet" href="style.css?v=0.10.293">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     .storage-auction-confirm-btn{display:block;margin:14px 0 0 auto;width:auto!important;min-width:125px;padding:9px 18px;border-radius:8px;background:#b91c1c;color:#fff;border:1px solid #991b1b;font-weight:700;cursor:pointer}
@@ -1122,7 +1122,7 @@
       .oc-select-option{min-height:46px;padding:.7rem .8rem}
     }
   
-    /* v0.10.292 – Navigation 20 % breiter auf Basis von v0.10.230 */
+    /* v0.10.293 – Navigation 20 % breiter auf Basis von v0.10.230 */
     .app-shell{
       display:block!important;
       min-height:100dvh!important;
@@ -2565,7 +2565,7 @@
       .management-decision-option{padding:11px!important}
     }
 
-    /* OpenCompany 0.10.292 – sichere Hamburger-Navigation ohne Eingriff in den Login */
+    /* OpenCompany 0.10.293 – sichere Hamburger-Navigation ohne Eingriff in den Login */
     .app-shell{padding-bottom:0!important}
     .main-content{width:100%!important;max-width:1500px!important;margin:0 auto!important;padding-bottom:28px!important}
 
@@ -2721,7 +2721,7 @@
       .navigation-drawer-toggle{width:40px!important;min-width:40px!important;height:40px!important;padding:0 9px!important}
     }
 
-    /* OpenCompany 0.10.292 – stärkere schwarze Rahmen nur an Kartenfeldern */
+    /* OpenCompany 0.10.293 – stärkere schwarze Rahmen nur an Kartenfeldern */
     :where(
       .panel,
       .stat-card,
@@ -3144,15 +3144,17 @@
               <p id="productionSelectedHint" class="muted">Wähle oben ein Produktionsgebäude aus.</p>
             </div>
           </div>
+          <div class="panel" style="margin-bottom:12px"><h3>Produktionsmanagement</h3><div id="productionMachineHealth" class="stack"><p class="muted">Wird geladen …</p></div><p class="muted">Maschinen verschleißen bei aktiver Nutzung. Im Intensivmodus steigt das Störungsrisiko.</p></div>
           <form id="productionForm">
             <label>Produkt<select id="productionProduct"></select></label>
+            <label>Produktionsmodus<select id="productionMachineMode"><option value="gentle">Schonend (−10 % Leistung, weniger Verschleiß)</option><option value="normal" selected>Normal</option><option value="intensive">Intensiv (+15 % Leistung, erhöhtes Störungsrisiko)</option></select></label>
             <label>Anzahl Einheiten<input type="text" id="productionUnits" value="1" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="z. B. 120, 6hrs oder 6pm"></label>
             <div class="production-actions">
               <button type="button" id="productionMaxBtn" class="ghost">MAX</button>
               <button type="button" id="production24Btn" class="ghost">24H</button>
               <button type="submit" id="productionStartBtn" disabled>Produktion starten</button>
             </div>
-            <p id="productionCheck" class="muted"></p>
+            <p id="productionCheck" class="muted"></p><p id="productionDisruptionStatus" class="storage-warning-active hidden" role="status"></p>
           </form>
           <div id="productionRequirement" class="stack"></div>
           <h3>Produktionsrezept</h3>
@@ -3182,7 +3184,7 @@
               <button type="button" id="retail24Btn" class="ghost">24H</button>
               <button type="submit" id="retailSaleBtn" class="retail-sale-submit">Im Handel verkaufen</button>
             </div>
-            <div id="retailSaleDetails" class="retail-sale-details"></div>
+            <div id="retailSaleDetails" class="retail-sale-details"></div><p id="customerRelationsSummary" class="muted">Kundenmanagement wird geladen …</p><h3>Reklamationen</h3><div id="customerComplaintsList" class="stack"></div>
           </form>
           <p class="muted retail-sale-note">Du kannst eine Stückzahl, eine Dauer wie <strong>6hrs</strong> oder eine Zielzeit wie <strong>6pm</strong> eingeben. Der Verkauf läuft im oben ausgewählten Verkaufsgebäude.</p>
         </article>
@@ -3622,7 +3624,7 @@
           <h2>Einstellungen</h2>
           <div class="kv">
             <span>Version</span>
-            <strong>0.10.292</strong>
+            <strong>0.10.293</strong>
           </div>
           <div class="kv settings-language-row">
             <span>Sprache</span>
@@ -3854,7 +3856,7 @@
     if (event.key === 'Escape') closeMainNavigationDrawer();
   });
 </script>
-<script src="guidance.js?v=0.10.292"></script>
+<script src="guidance.js?v=0.10.293"></script>
 <script src="config.js"></script>
 <script>
   const appScript = document.createElement('script');

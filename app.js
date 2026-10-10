@@ -899,6 +899,7 @@ const state = {
   storageSearchFilter: '',
   storageTypeFilter: 'all',
   storageStatus: null,
+  operationsHealth: null,
   recipes: [],
   buildingTypes: [],
   buildings: [],
@@ -4186,6 +4187,7 @@ async function loadGameData() {
   state.managementDecisionCenter = managementDecisionCenter.data || { profile:{}, history:[], effects:[], metrics:{} };
   if (state.company) state.company.ocb_balance = Number(state.ocbStatus.balance || 0);
   renderAll();
+  await refreshOperationsHealth();
 }
 
 async function loadOwnCompanyPublicProfile() {
@@ -4793,12 +4795,17 @@ function currentProductionContext() {
   const building = buildingCanProduce ? selectedBuilding : null;
   const multiplier = building ? productionLevelMultiplier(building.level) : 1;
   const baseProductRate = Number(product?.base_production_rate || 0);
+  const machineCondition=Number(state.operationsHealth?.machines?.find(m=>m.building_id===building?.id)?.condition??100);
+  const machineMode=document.getElementById('productionMachineMode')?.value||'normal';
+  const machineConditionFactor=machineCondition>=90?1.03:machineCondition>=75?1:machineCondition>=50?0.95:machineCondition>=25?0.88:0.75;
+  const machineModeFactor=machineMode==='intensive'?1.15:machineMode==='gentle'?0.90:1;
   const unitsPerHour = buildingType && building && baseProductRate > 0
     ? Math.max(
         0.01,
         Math.max(1, Math.floor(baseProductRate * multiplier))
         * Number(state.economyState?.production_output_factor || 1)
         * globalEventFactor('production_output_factor')
+        * machineConditionFactor * machineModeFactor
       )
     : 0;
 
@@ -5154,6 +5161,63 @@ function startProductionClaimDisplayTimer() {
   }, 10000);
 }
 
+async function refreshOperationsHealth() {
+  if (!state.company?.id || !sb) return;
+  const companyId=state.company.id;
+  const {data,error}=await sb.rpc('get_company_management_health',{p_company_id:companyId});
+  if (error) { console.warn('Unternehmensmanagement:',error.message); return; }
+  if (companyId!==state.company?.id) return;
+  state.operationsHealth=data;
+  renderOperationsHealth();
+  if(document.getElementById('production')?.classList.contains('active-view'))renderProductionRecipe();
+  if(document.getElementById('market')?.classList.contains('active-view'))renderRetailSale();
+}
+function renderOperationsHealth() {
+  const target=document.getElementById('productionMachineHealth');
+  const relations=document.getElementById('customerRelationsSummary');
+  const health=state.operationsHealth;
+  if(relations && health){
+    relations.textContent='Kundenzufriedenheit: '+num(health.satisfaction||50)+' % · Kundenbindung: '+num(health.loyalty||40)+' %';
+    const complaintsRoot=document.getElementById('customerComplaintsList');
+    if(complaintsRoot){
+      const cases=health.complaints||[];
+      complaintsRoot.innerHTML=cases.length?cases.map(c=>
+        '<div class="panel" style="margin-top:8px"><strong>Reklamation · Q'+Number(c.quality)+'</strong> · '
+        +num(c.quantity)+' Einheiten <div class="muted">Antwortfrist: '
+        +new Date(c.expires_at).toLocaleString(uiLocale())+'</div><div class="retail-actions">'
+        +'<button type="button" class="ghost" data-complaint-id="'+c.id+'" data-complaint-action="refund">Erstatten</button>'
+        +'<button type="button" class="ghost" data-complaint-id="'+c.id+'" data-complaint-action="replacement">Ersatz liefern</button>'
+        +'<button type="button" class="ghost" data-complaint-id="'+c.id+'" data-complaint-action="reject">Ablehnen</button>'
+        +'</div></div>').join(''):'<p class="muted">Keine offenen Reklamationen.</p>';
+      complaintsRoot.querySelectorAll('[data-complaint-action]').forEach(btn=>btn.addEventListener('click',async()=>{
+        const action=btn.dataset.complaintAction;
+        if(!await gameConfirm('Reklamation '+(action==='refund'?'erstatten':action==='replacement'?'durch Ersatzlieferung bearbeiten':'ablehnen')+'?'))return;
+        btn.disabled=true;
+        const {error}=await sb.rpc('resolve_customer_complaint',{
+          p_company_id:state.company.id,p_complaint_id:btn.dataset.complaintId,p_action:action});
+        if(error)await gameAlert(error.message);
+        await loadCompany();
+      }));
+    }
+  }
+  if(!target || !health) return;
+  const machines=health.machines||[];
+  target.innerHTML=machines.length?machines.map(machine=>{
+    const building=state.buildings.find(b=>b.id===machine.building_id);
+    const condition=Number(machine.condition??100);
+    return '<div class="kv"><span>'+String(building?.building_types?.name||'Produktionsgebäude').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;')+'</span><strong>'
+      +num(condition)+' %</strong><select aria-label="Wartungsumfang" data-maintenance-level><option value="small">Klein (+15)</option><option value="standard">Standard (+35)</option><option value="overhaul">Generalüberholung (100 %)</option></select><button type="button" class="ghost" data-machine-maintain="'+machine.building_id+'">Warten</button></div>';
+  }).join(''):'<p class="muted">Keine Gebäude vorhanden.</p>';
+  target.querySelectorAll('[data-machine-maintain]').forEach(btn=>btn.addEventListener('click',async()=>{
+    const buildingId=btn.dataset.machineMaintain;
+    const level=btn.parentElement.querySelector('[data-maintenance-level]')?.value||'standard';
+    if(!await gameConfirm('Wartung durchführen? Kosten: 30 $ je wiederhergestelltem Zustandspunkt und Gebäudestufe.'))return;
+    btn.disabled=true;
+    const {error}=await sb.rpc('maintain_production_machine',{p_company_id:state.company.id,p_building_id:buildingId,p_level:level});
+    if(error) await gameAlert(error.message);
+    await loadCompany();
+  }));
+}
 function renderProductionRecipe() {
   let plan = productionPlan();
   let { buildingType, building, multiplier, unitsPerHour, runningJob } = plan;
@@ -5196,6 +5260,16 @@ function renderProductionRecipe() {
     : 0;
 
   const startSnapshot = runningJob?.start_snapshot || {};
+  const disruptionStatus=document.getElementById('productionDisruptionStatus');
+  if(disruptionStatus){
+    const delay=Number(startSnapshot.machineDisruptionHours||0);
+    disruptionStatus.textContent=runningJob&&delay>0
+      ? 'Produktionsstörung: '+num(delay)+' Stunden Verzögerung. Die Fertigstellung und Teilabholung wurden angepasst.'
+      : '';
+    disruptionStatus.classList.toggle('hidden',!(runningJob&&delay>0));
+  }
+  const machineModeControl=document.getElementById('productionMachineMode');
+  if(machineModeControl)machineModeControl.disabled=!!runningJob;
   const displayOutputQty = runningJob ? Number(startSnapshot.outputQty ?? runningJob.output_quantity ?? 0) : plan.outputQty;
   const displayHours = runningJob ? Number(startSnapshot.hours ?? runningJob.hours ?? 0) : plan.hours;
   const displayProcurementCost = runningJob ? Number(startSnapshot.procurementCost ?? 0) : plan.procurementCost;
@@ -5736,8 +5810,12 @@ function retailSaleContext() {
     : 0;
   const demandFactor = demandRetailFactor(product?.category);
   const baseUnitsPerHour = rawBaseUnitsPerHour;
+  const customerSatisfaction=Number(state.operationsHealth?.satisfaction??50);
+  const customerLoyalty=Number(state.operationsHealth?.loyalty??40);
+  const customerFactor=customerSatisfaction<20?0.75:customerSatisfaction<40?0.85:customerSatisfaction<60?1:customerSatisfaction<80?1.05:customerSatisfaction<95?1.10:1.15;
+  const loyaltyFactor=state.economyState?.phase==='recession'?1+Math.min(0.1,Math.max(0,customerLoyalty-40)/600):1;
   const unitsPerHour = rawBaseUnitsPerHour > 0
-    ? Math.max(1, Math.floor(baseProductRetailRate * multiplier * demandFactor))
+    ? Math.max(1, Math.floor(baseProductRetailRate * multiplier * demandFactor * customerFactor * loyaltyFactor))
     : 0;
 
   const productionCost = Number(inventory?.average_unit_cost || 0);
@@ -10599,6 +10677,7 @@ document.getElementById('productionForm').addEventListener('submit', async e => 
     p_hours:plan.hours,
     p_input_text:document.getElementById('productionUnits').value,
     p_start_snapshot:{
+      productionMode:document.getElementById('productionMachineMode')?.value||'normal',
       outputQty: plan.outputQty,
       hours: plan.hours,
       procurementCost: plan.procurementCost,
@@ -11271,6 +11350,7 @@ document.querySelectorAll('.market-quality-btn').forEach(button=>button.addEvent
   renderMarketProductPage();
 }));
 
+document.getElementById('productionMachineMode')?.addEventListener('change',()=>renderProductionRecipe());
 marketProductBuyQty?.addEventListener('input',updateMarketProductBuyPreview);
 
 document.getElementById('marketProductMaxBtn')?.addEventListener('click',()=>{
