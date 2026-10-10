@@ -91,9 +91,9 @@ begin
 '  select satisfaction into v_customer_satisfaction from public.company_customer_relations where company_id=p_company_id;'||chr(10)||
 '  v_customer_factor:=case when coalesce(v_customer_satisfaction,50)<20 then 0.75 when v_customer_satisfaction<40 then 0.85 when v_customer_satisfaction<60 then 1 when v_customer_satisfaction<80 then 1.05 when v_customer_satisfaction<95 then 1.10 else 1.15 end;'||chr(10)||
 '  v_units_per_hour:=greatest(');
-   f:=replace(f,"*private.manager_multiplier(p_company_id,'sales','sales_rate'))","*private.manager_multiplier(p_company_id,'sales','sales_rate')*v_customer_factor)");
-   f:=replace(f,"    'quantity',p_quantity,","    'customerSatisfactionAtStart',coalesce(v_customer_satisfaction,50),'customerDemandFactor',v_customer_factor,"||chr(10)||
-"    'quantity',p_quantity,");
+   f:=replace(f,$old$*private.manager_multiplier(p_company_id,'sales','sales_rate'))$old$,$new$*private.manager_multiplier(p_company_id,'sales','sales_rate')*v_customer_factor)$new$);
+   f:=replace(f,$old$    'quantity',p_quantity,$old$,$new$    'customerSatisfactionAtStart',coalesce(v_customer_satisfaction,50),'customerDemandFactor',v_customer_factor,
+    'quantity',p_quantity,$new$);
    f:=replace(f,'  return v_job;', 
 '  insert into public.company_customer_relations(company_id,satisfaction,loyalty)'||chr(10)||
 '  values(p_company_id,least(100,50+0.2+(case when p_quality>=5 then 0.5 when p_quality=4 then 0.3 else 0 end)),40.1)'||chr(10)||
