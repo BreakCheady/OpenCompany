@@ -7961,6 +7961,16 @@ function renderStorage() {
   const overflow = Math.max(0, Number(status.overflow_quantity || 0));
   const warningCount = Math.max(0, Number(status.warning_count || 0));
   const progress = Math.max(0, Math.min(100, usage));
+  const warningDecayNode=document.getElementById('storageWarningDecayStatus');
+  if(warningDecayNode){
+    const date=status.warning_decay_at ? new Date(status.warning_decay_at) : null;
+    const remaining=date&&Number.isFinite(date.getTime())?Math.max(0,Math.ceil((date.getTime()-Date.now())/86400000)):null;
+    warningDecayNode.textContent=warningCount<=0?'Keine aktiven Warnungen'
+      :overflow>0?'Warnungsabbau pausiert – Überbestand beheben'
+      :remaining===null?'Warnungsabbau startet nach Behebung des Überbestands'
+      :'Nächster Warnungsabbau in '+remaining+' Tagen';
+  }
+
 
   const storageTotalValue = document.getElementById('storageTotalValue');
   if (storageTotalValue) storageTotalValue.textContent = money(Number(status.storage_value ?? currentStorageValue()));
