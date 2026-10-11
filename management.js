@@ -94,13 +94,13 @@ function renderManagementKpis(){
   const operatingResult=Number(m.operating_result||0);
   const cashflow=Number(m.cashflow||0);
   const cards=[
-    {label:'Umsatz',value:money(((state.managementOverview?.goals||[]).find(g=>g.goal_type==='revenue'&&g.period_type==='week'&&Date.parse(g.starts_at)<=Date.now()&&Date.parse(g.ends_at)>Date.now())||{}).current_value??m.revenue),note:'Wochenziel-Zeitraum bei aktivem Ziel, sonst letzte 7 Tage',noteTone:''},
-    {label:'Betriebsergebnis',value:balanceMoney(operatingResult),note:'Letzte 7 Tage',valueTone:managementValueTone(operatingResult)},
-    {label:'Gewinnmarge',value:managementNumber(m.profit_margin,1)+' %',note:'Letzte 7 Tage',valueTone:managementValueTone(Number(m.profit_margin||0))},
-    {label:'Cashflow',value:balanceMoney(cashflow),note:'Letzte 7 Tage',valueTone:managementValueTone(cashflow)},
+    {label:'Umsatz',value:money(m.revenue),note:(change>=0?'+':'')+managementNumber(change,1)+' % zur Vorwoche (Mo–So)',noteTone:managementValueTone(change)},
+    {label:'Betriebsergebnis',value:balanceMoney(operatingResult),note:'Diese Kalenderwoche (Mo–So)',valueTone:managementValueTone(operatingResult)},
+    {label:'Gewinnmarge',value:managementNumber(m.profit_margin,1)+' %',note:'Diese Kalenderwoche (Mo–So)',valueTone:managementValueTone(Number(m.profit_margin||0))},
+    {label:'Cashflow',value:balanceMoney(cashflow),note:'Diese Kalenderwoche (Mo–So)',valueTone:managementValueTone(cashflow)},
     {label:'Verschuldungsgrad',value:managementNumber(m.debt_ratio,1)+' %',note:'Schulden / Unternehmenswert'},
     {label:'Lagerauslastung',value:managementNumber(m.storage_utilization,1)+' %',note:'Aktuelle Kapazität'},
-    {label:'Produktionsauslastung',value:managementNumber(m.production_utilization,1)+' %',note:'Letzte 7 Tage'},
+    {label:'Produktionsauslastung',value:managementNumber(m.production_utilization,1)+' %',note:'Diese Kalenderwoche (Mo–So)'},
     {label:'Großaufträge',value:num(Number(m.active_large_orders||0)),note:'Aktiv'}
   ];
   root.innerHTML=cards.map(function(card){
