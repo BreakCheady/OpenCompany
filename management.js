@@ -94,7 +94,7 @@ function renderManagementKpis(){
   const operatingResult=Number(m.operating_result||0);
   const cashflow=Number(m.cashflow||0);
   const cards=[
-    {label:'Umsatz',value:money(((state.managementOverview?.goals||[]).find(g=>g.goal_type==='revenue'&&g.period_type==='week'&&Date.parse(g.starts_at)<=Date.now()&&Date.parse(g.ends_at)>Date.now())||{}).current_value??m.revenue),note:'Wochenziel-Zeitraum (sofern aktiv), sonst letzte 7 Tage',noteTone:managementValueTone(change)},
+    {label:'Umsatz',value:money(((state.managementOverview?.goals||[]).find(g=>g.goal_type==='revenue'&&g.period_type==='week'&&Date.parse(g.starts_at)<=Date.now()&&Date.parse(g.ends_at)>Date.now())||{}).current_value??m.revenue),note:'Wochenziel-Zeitraum bei aktivem Ziel, sonst letzte 7 Tage',noteTone:''},
     {label:'Betriebsergebnis',value:balanceMoney(operatingResult),note:'Letzte 7 Tage',valueTone:managementValueTone(operatingResult)},
     {label:'Gewinnmarge',value:managementNumber(m.profit_margin,1)+' %',note:'Letzte 7 Tage',valueTone:managementValueTone(Number(m.profit_margin||0))},
     {label:'Cashflow',value:balanceMoney(cashflow),note:'Letzte 7 Tage',valueTone:managementValueTone(cashflow)},
