@@ -56,7 +56,7 @@ const run=code=>vm.runInContext(code,ctx);
   ctx.setGuidancePaused(true);await run('guidanceSaveQueue');assert.ok(get('guidanceContent').innerHTML.includes('Einstieg fortsetzen'));
   ctx.setGuidancePaused(false);await run('guidanceSaveQueue');ctx.guidanceOpenProduction();
   assert.equal(get('productionProduct').value,'goal');assert.equal(get('productionUnits').value,1);
-  const context=run('currentProductionContext()');assert.equal(context.unitsPerHour,350,'UI uses the server multiplier');
+  const context=run('currentProductionContext()');assert.equal(context.unitsPerHour,360.5,'UI includes the 3% bonus for a well-maintained machine');
   state.productionJobs=[{building_id:'machine',product_id:'goal',status:'running',claimed_quantity:0,quality_level:1,output_quantity:10,finished_unit_cost:8,finishes_at:new Date(Date.now()+3600000).toISOString()}];
   run('renderCompanyGuidance()');await run('guidanceSaveQueue');assert.ok(get('guidanceContent').innerHTML.includes('Fertige Ware abholen'));
   state.productionJobs[0].claimed_quantity=10;state.productionJobs[0].status='completed';
