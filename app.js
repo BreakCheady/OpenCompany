@@ -5838,7 +5838,7 @@ async function fetchRetailSaleRate(companyId,buildingId,productId,refresh=false)
 function requestRetailRatePreview(buildingId,productId) {
   if(!state.company?.id||!buildingId||!productId)return;
   const key=[state.company.id,buildingId,productId].join(':');
-  if(retailRatePreview.key===key)return;
+  if(retailRatePreview.key===key&&(retailRatePreview.rate>0||retailRatePreview.pending))return;
   fetchRetailSaleRate(state.company.id,buildingId,productId).then(()=>{
     recalculateRetailQuantityFromRememberedExpression();
     renderRetailSale();
