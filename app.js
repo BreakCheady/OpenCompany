@@ -4047,6 +4047,11 @@ async function loadCompany({ preserveView='' } = {}) {
   clearCompanyLoadError();
   if(state.company?.id!==data?.id)stopChatRealtime();
   state.company = data;
+  // Reload current server-side buffs after company state changes.
+  retailRatePreview.key=null;
+  retailRatePreview.rate=0;
+  retailRatePreview.pending=null;
+  retailRatePreview.sequence++;
   document.getElementById('bootstrapView').classList.toggle('hidden', !!data);
   document.getElementById('gameView').classList.toggle('hidden', !data);
 
@@ -11291,6 +11296,10 @@ document.getElementById('retailSaleForm').addEventListener('submit', async e => 
     ? retailQuantityFromInput(originalExpression)
     : retailQuantityFromInput(qtyInput.value);
   const available=Math.max(0,Math.floor(ctx.available||0));
+  if(originalExpression&&(parsedQuantity.matchedHours||parsedQuantity.matchedTime)&&parsedQuantity.units>available) {
+    await gameAlert('Für die gewünschte Verkaufsdauer oder Zielzeit ist der Warenbestand zu gering.');
+    return;
+  }
   const quantity=Math.min(Number(parsedQuantity.units||0),available,Math.floor(currentRate*24));
   if(originalExpression)qtyInput.value=formatRetailQuantityInput(quantity);
 
