@@ -13,9 +13,9 @@ const ctx={state,document:{getElementById:()=>root},Date,Number,money:n=>Number(
 vm.createContext(ctx);
 vm.runInContext(src.slice(start,end),ctx);
 ctx.renderManagementKpis();
-assert.ok(result.includes('2126572.76'),'KPI should match active weekly goal');
-assert.ok(!result.includes('2272376.84'),'Rolling total should not replace weekly goal');
+assert.ok(result.includes('2272376.84'),'KPI must use server-provided Monday–Sunday revenue');
+assert.ok(!result.includes('2126572.76'),'Custom goal periods must not override the fixed calendar-week KPI');
 state.managementOverview.goals=[];
 ctx.renderManagementKpis();
-assert.ok(result.includes('2272376.84'),'Without an active goal show rolling 7-day metric');
-console.log('Management revenue period consistency passed.');
+assert.ok(result.includes('2272376.84'),'Without an active goal, calendar-week KPI stays unchanged');
+console.log('Management calendar-week KPI period consistency passed.');
