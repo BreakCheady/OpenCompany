@@ -8043,7 +8043,15 @@ function renderStorage() {
       warnings.push(`⚠ ZWANGSVERSTEIGERUNG: 1.000 Einheiten wurden am ${when} versteigert. Aktueller Warnstand: ${warningCount} / 3. Nettoerlös: ${money(status.last_forced_auction_net || 0)}.`);
     }
   } else if (warningCount > 0) {
-    warnings.push(`⚠ Lagerwarnungen: ${warningCount} / 3. Bei der dritten Warnung wird das gesamte Lager zwangsversteigert.`);
+    // A confirmed auction must not immediately reappear as the residual 1/3 warning.
+    // A later increase in warning count must still produce a new notice.
+    const warningAckKey=state.company?.id ? 'opencompany_storage_warning_ack_'+state.company.id : null;
+    let warningAck=null;
+    try { warningAck=warningAckKey ? JSON.parse(window.localStorage.getItem(warningAckKey)||'null') : null; } catch (_) {}
+    const auctionCycle=String(status.last_forced_auction_at||'');
+    if (!warningAck || warningAck.auction!==auctionCycle || warningCount>Number(warningAck.count||0)) {
+      warnings.push(`⚠ Lagerwarnungen: ${warningCount} / 3. Bei der dritten Warnung wird das gesamte Lager zwangsversteigert.`);
+    }
   }
 
   const warningBanner = document.getElementById('storageWarningBanner');
@@ -8058,6 +8066,8 @@ function renderStorage() {
         try {
           if (auctionAcknowledgementKey) {
             window.localStorage.setItem(auctionAcknowledgementKey, String(status.last_forced_auction_at));
+            window.localStorage.setItem('opencompany_storage_warning_ack_'+state.company.id,
+              JSON.stringify({auction:String(status.last_forced_auction_at||''),count:warningCount}));
           }
         } catch (_) {}
         confirm.remove();
