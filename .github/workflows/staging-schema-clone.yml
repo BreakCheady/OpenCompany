@@ -31,9 +31,16 @@ jobs:
           import os,urllib.parse
           source=urllib.parse.urlparse(os.environ["SOURCE_URL"])
           target=urllib.parse.urlparse(os.environ["TARGET_URL"])
-          assert source.scheme in ("postgres","postgresql") and target.scheme in ("postgres","postgresql")
-          assert "vprlmimcppdurywmgqat" in source.hostname, "Production source project does not match"
-          assert "gqzydkqugwecuwkztfdr" in target.hostname, "Target must be OpenCompany-Test"
+          assert source.scheme in ("postgres","postgresql") and target.scheme in ("postgres","postgresql"), "Use complete postgres:// or postgresql:// connection URLs"
+          def is_project(url, project_id):
+              host=(url.hostname or "").lower()
+              username=urllib.parse.unquote(url.username or "").lower()
+              return (
+                  host == "db."+project_id+".supabase.co"
+                  or (host.endswith(".pooler.supabase.com") and username == "postgres."+project_id)
+              )
+          assert is_project(source,"vprlmimcppdurywmgqat"), "Source URL must identify the production project (direct or pooler)"
+          assert is_project(target,"gqzydkqugwecuwkztfdr"), "Target URL must identify OpenCompany-Test (direct or pooler)"
           print("Source and target project identities verified")
           PY
       - name: Export only application schemas (never player data)
