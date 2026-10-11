@@ -1,0 +1,31 @@
+name: Frontend quality checks
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  frontend-checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Syntax and manifest validation
+        run: |
+          node --check app.js
+          node --check guidance.js
+          node --check management.js
+          node --check service-worker.js
+          node -e "const fs=require('fs'); JSON.parse(fs.readFileSync('manifest.webmanifest','utf8'));"
+      - name: Regression tests
+        run: |
+          node tests/chat-unread.cjs
+          node tests/progression.cjs
+          node tests/progression-ui.cjs
