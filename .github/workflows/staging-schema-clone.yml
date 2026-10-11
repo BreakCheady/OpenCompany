@@ -16,11 +16,8 @@ jobs:
     environment: staging
     steps:
       - uses: actions/checkout@v4
-      - name: Install PostgreSQL 17 client
-        run: |
-          sudo install -d /usr/share/postgresql-common/pgdg
-          sudo apt-get update -qq
-          sudo apt-get install -y -qq postgresql-client
+      - name: Check Docker for matching PostgreSQL client
+        run: docker run --rm postgres:17 pg_dump --version
       - name: Validate isolated source and target
         env:
           SOURCE_URL: ${{ secrets.OPENCOMPANY_PROD_DB_URL }}
@@ -44,14 +41,14 @@ jobs:
           SOURCE_URL: ${{ secrets.OPENCOMPANY_PROD_DB_URL }}
         run: |
           set -euo pipefail
-          pg_dump --dbname="$SOURCE_URL" --format=custom --schema-only --schema=public --schema=private --no-owner --no-acl --file=/tmp/opencompany-app-schema.dump
-          pg_restore --list /tmp/opencompany-app-schema.dump | tail -n 1
+          docker run --rm --network host -e SOURCE_URL -v /tmp:/backup postgres:17 pg_dump --dbname="$SOURCE_URL" --format=custom --schema-only --schema=public --schema=private --no-owner --no-acl --file=/backup/opencompany-app-schema.dump
+          docker run --rm -v /tmp:/backup postgres:17 pg_restore --list /backup/opencompany-app-schema.dump | tail -n 1
       - name: Restore schema to isolated project
         env:
           TARGET_URL: ${{ secrets.OPENCOMPANY_TEST_DB_URL }}
         run: |
           set -euo pipefail
-          pg_restore --dbname="$TARGET_URL" --no-owner --no-acl --exit-on-error /tmp/opencompany-app-schema.dump
+          docker run --rm --network host -e TARGET_URL -v /tmp:/backup postgres:17 pg_restore --dbname="$TARGET_URL" --no-owner --no-acl --exit-on-error /backup/opencompany-app-schema.dump
       - name: Verify application object counts (no player data)
         env:
           SOURCE_URL: ${{ secrets.OPENCOMPANY_PROD_DB_URL }}
@@ -59,7 +56,7 @@ jobs:
         run: |
           set -euo pipefail
           query="select count(*) from information_schema.tables where table_schema in ('public','private')"
-          original=$(psql "$SOURCE_URL" -AtX -c "$query")
-          restored=$(psql "$TARGET_URL" -AtX -c "$query")
+          original=$(docker run --rm --network host -e SOURCE_URL postgres:17 sh -c 'psql "$SOURCE_URL" -AtX -c "select count(*) from information_schema.tables where table_schema in ('\''public'\'','\''private'\'')"')
+          restored=$(docker run --rm --network host -e TARGET_URL postgres:17 sh -c 'psql "$TARGET_URL" -AtX -c "select count(*) from information_schema.tables where table_schema in ('\''public'\'','\''private'\'')"')
           echo "Source tables: $original; Test tables: $restored"
           test "$original" = "$restored"
