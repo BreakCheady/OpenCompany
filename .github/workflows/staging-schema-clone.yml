@@ -1,0 +1,62 @@
+name: Prepare OpenCompany test database schema
+on:
+  workflow_dispatch:
+    inputs:
+      confirmation:
+        description: 'Enter COPY_SCHEMA_ONLY to confirm staging schema import'
+        required: true
+        type: string
+permissions:
+  contents: read
+jobs:
+  clone-schema:
+    if: ${{ inputs.confirmation == 'COPY_SCHEMA_ONLY' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    environment: staging
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check Docker for matching PostgreSQL client
+        run: docker run --rm postgres:17 pg_dump --version
+      - name: Validate isolated source and target
+        env:
+          SOURCE_URL: ${{ secrets.OPENCOMPANY_PROD_DB_URL }}
+          TARGET_URL: ${{ secrets.OPENCOMPANY_TEST_DB_URL }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$SOURCE_URL" && test -n "$TARGET_URL" || { echo 'Missing database URL secrets'; exit 1; }
+          test "$SOURCE_URL" != "$TARGET_URL" || { echo 'Source and target cannot be identical'; exit 1; }
+          python3 - <<'PY'
+          import os,urllib.parse
+          source=urllib.parse.urlparse(os.environ["SOURCE_URL"])
+          target=urllib.parse.urlparse(os.environ["TARGET_URL"])
+          assert source.scheme in ("postgres","postgresql") and target.scheme in ("postgres","postgresql")
+          assert "vprlmimcppdurywmgqat" in source.hostname, "Production source project does not match"
+          assert "gqzydkqugwecuwkztfdr" in target.hostname, "Target must be OpenCompany-Test"
+          print("Source and target project identities verified")
+          PY
+      - name: Export only application schemas (never player data)
+        env:
+          SOURCE_URL: ${{ secrets.OPENCOMPANY_PROD_DB_URL }}
+        run: |
+          set -euo pipefail
+          docker run --rm --network host -e SOURCE_URL -v /tmp:/backup postgres:17 pg_dump --dbname="$SOURCE_URL" --format=custom --schema-only --schema=public --schema=private --no-owner --no-acl --file=/backup/opencompany-app-schema.dump
+          docker run --rm -v /tmp:/backup postgres:17 pg_restore --list /backup/opencompany-app-schema.dump | tail -n 1
+      - name: Restore schema to isolated project
+        env:
+          TARGET_URL: ${{ secrets.OPENCOMPANY_TEST_DB_URL }}
+        run: |
+          set -euo pipefail
+          docker run --rm --network host -e TARGET_URL -v /tmp:/backup postgres:17 pg_restore --dbname="$TARGET_URL" --no-owner --no-acl --exit-on-error /backup/opencompany-app-schema.dump
+      - name: Verify application object counts (no player data)
+        env:
+          SOURCE_URL: ${{ secrets.OPENCOMPANY_PROD_DB_URL }}
+          TARGET_URL: ${{ secrets.OPENCOMPANY_TEST_DB_URL }}
+        run: |
+          set -euo pipefail
+          query="select count(*) from information_schema.tables where table_schema in ('public','private')"
+          original=$(docker run --rm --network host -e SOURCE_URL postgres:17 sh -c 'psql "$SOURCE_URL" -AtX -c "select count(*) from information_schema.tables where table_schema in ('\''public'\'','\''private'\'')"')
+          restored=$(docker run --rm --network host -e TARGET_URL postgres:17 sh -c 'psql "$TARGET_URL" -AtX -c "select count(*) from information_schema.tables where table_schema in ('\''public'\'','\''private'\'')"')
+          echo "Source tables: $original; Test tables: $restored"
+          test "$original" = "$restored"
