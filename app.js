@@ -4047,6 +4047,11 @@ async function loadCompany({ preserveView='' } = {}) {
   clearCompanyLoadError();
   if(state.company?.id!==data?.id)stopChatRealtime();
   state.company = data;
+  // Reload current server-side buffs after company state changes.
+  retailRatePreview.key=null;
+  retailRatePreview.rate=0;
+  retailRatePreview.pending=null;
+  retailRatePreview.sequence++;
   document.getElementById('bootstrapView').classList.toggle('hidden', !!data);
   document.getElementById('gameView').classList.toggle('hidden', !data);
 
@@ -5811,6 +5816,40 @@ window.openRetailBuilding = function(buildingId) {
   document.querySelector('.nav-item[data-view="production"]')?.click();
 };
 
+// Server-authoritative rate cache. The server applies manager, specialization, demand and customer buffs.
+const retailRatePreview={ key:null,rate:0,pending:null,sequence:0 };
+async function fetchRetailSaleRate(companyId,buildingId,productId,refresh=false) {
+  if(!companyId||!buildingId||!productId)return 0;
+  const key=[companyId,buildingId,productId].join(':');
+  if(!refresh&&retailRatePreview.key===key&&retailRatePreview.rate>0)return retailRatePreview.rate;
+  if(!refresh&&retailRatePreview.key===key&&retailRatePreview.pending)return retailRatePreview.pending;
+  const seq=++retailRatePreview.sequence;
+  retailRatePreview.key=key;
+  retailRatePreview.rate=0;
+  const pending=(async()=>{
+    const {data,error}=await sb.rpc('preview_retail_sale_rate',{
+      p_company_id:companyId,p_building_id:buildingId,p_product_id:productId
+    });
+    if(error)throw error;
+    const rate=Number(data);
+    if(!Number.isFinite(rate)||rate<=0)throw Error('Verkaufsrate nicht verfügbar');
+    if(seq===retailRatePreview.sequence&&retailRatePreview.key===key)retailRatePreview.rate=rate;
+    return rate;
+  })();
+  retailRatePreview.pending=pending;
+  try{return await pending;}
+  finally{if(seq===retailRatePreview.sequence)retailRatePreview.pending=null;}
+}
+function requestRetailRatePreview(buildingId,productId) {
+  if(!state.company?.id||!buildingId||!productId)return;
+  const key=[state.company.id,buildingId,productId].join(':');
+  if(retailRatePreview.key===key&&(retailRatePreview.rate>0||retailRatePreview.pending))return;
+  fetchRetailSaleRate(state.company.id,buildingId,productId).then(()=>{
+    recalculateRetailQuantityFromRememberedExpression();
+    renderRetailSale();
+  }).catch(error=>console.warn('Verkaufsrate konnte nicht geladen werden:',error));
+}
+
 function retailSaleContext() {
   const productId = document.getElementById('retailProduct')?.value;
   const product = state.products.find(p => p.id === productId);
@@ -5839,9 +5878,10 @@ function retailSaleContext() {
   const customerLoyalty=Number(state.operationsHealth?.loyalty??40);
   const customerFactor=customerSatisfaction<20?0.75:customerSatisfaction<40?0.85:customerSatisfaction<60?1:customerSatisfaction<80?1.05:customerSatisfaction<95?1.10:1.15;
   const loyaltyFactor=state.economyState?.phase==='recession'?1+Math.min(0.1,Math.max(0,customerLoyalty-40)/600):1;
-  const unitsPerHour = rawBaseUnitsPerHour > 0
-    ? Math.max(1, Math.floor(baseProductRetailRate * multiplier * demandFactor * customerFactor * loyaltyFactor))
-    : 0;
+  // Do not use the incomplete client estimate: it omits manager and specialization buffs.
+  requestRetailRatePreview(building?.id,product?.id);
+  const previewKey=[state.company?.id,building?.id,product?.id].join(':');
+  const unitsPerHour=retailRatePreview.key===previewKey?retailRatePreview.rate:0;
 
   const productionCost = Number(inventory?.average_unit_cost || 0);
   const referencePrice = retailAveragePrice(productionCost, product?.category);
@@ -11241,15 +11281,34 @@ document.getElementById('retailSaleForm').addEventListener('submit', async e => 
     return;
   }
 
-  const parsedQuantity = retailQuantityFromInput(document.getElementById('retailQty').value);
-  const quantity = Number(parsedQuantity.units || 0);
+  // Revalidate rate immediately before start so '6pm' uses the actual server buffs.
+  let currentRate;
+  try {
+    currentRate=await fetchRetailSaleRate(state.company.id,ctx.building?.id,ctx.product?.id,true);
+  } catch(error) {
+    await gameAlert('Verkaufstempo konnte nicht ermittelt werden: '+error.message);
+    return;
+  }
+  const qtyInput=document.getElementById('retailQty');
+  const originalExpression=qtyInput.dataset.quantityExpression;
+  if(originalExpression)recalculateRetailQuantityFromRememberedExpression();
+  const parsedQuantity=originalExpression
+    ? retailQuantityFromInput(originalExpression)
+    : retailQuantityFromInput(qtyInput.value);
+  const available=Math.max(0,Math.floor(ctx.available||0));
+  if(originalExpression&&(parsedQuantity.matchedHours||parsedQuantity.matchedTime)&&parsedQuantity.units>available) {
+    await gameAlert('Für die gewünschte Verkaufsdauer oder Zielzeit ist der Warenbestand zu gering.');
+    return;
+  }
+  const quantity=Math.min(Number(parsedQuantity.units||0),available,Math.floor(currentRate*24));
+  if(originalExpression)qtyInput.value=formatRetailQuantityInput(quantity);
 
   if (!ctx.product || !ctx.building || !Number.isFinite(quantity) || quantity <= 0 || !Number.isInteger(quantity)) {
     renderRetailSale();
     return;
   }
 
-  const saleHours = ctx.unitsPerHour > 0 ? quantity / ctx.unitsPerHour : 0;
+  const saleHours = currentRate > 0 ? quantity / currentRate : 0;
   if (saleHours <= 0 || saleHours > 24) {
     await gameAlert('Die maximale Verkaufsdauer beträgt 24 Stunden.');
     renderRetailSale();
@@ -11273,7 +11332,7 @@ document.getElementById('retailSaleForm').addEventListener('submit', async e => 
       demandFactor: ctx.demandFactor,
       totalValue: ctx.price * quantity,
       available: ctx.available,
-      unitsPerHour: ctx.unitsPerHour,
+      unitsPerHour: currentRate,
       buildingTypeName: ctx.buildingType?.name || '',
       operatingCost: retailBreakEvenMetrics(ctx,quantity).operatingCost,
       operatingBreakEven: retailBreakEvenMetrics(ctx,quantity).operatingBreakEven,
