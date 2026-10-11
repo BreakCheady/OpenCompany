@@ -8057,21 +8057,33 @@ function renderStorage() {
   const warningBanner = document.getElementById('storageWarningBanner');
   if (warningBanner) {
     warningBanner.innerHTML = warnings.map(w => `<div>${w}</div>`).join('');
-    if (activeAuctionNotice) {
+    // Plain warning-count notices also need an explicit acknowledgement.
+    const warningAckKey=state.company?.id ? 'opencompany_storage_warning_ack_'+state.company.id : null;
+    let storedWarningAck=null;
+    try { storedWarningAck=warningAckKey ? JSON.parse(window.localStorage.getItem(warningAckKey)||'null') : null; } catch (_) {}
+    const warningAlreadyAcknowledged=storedWarningAck
+      && storedWarningAck.auction===String(status.last_forced_auction_at||'')
+      && warningCount<=Number(storedWarningAck.count||0);
+    const showWarningConfirmation=!activeAuctionNotice && warningCount>0 && !warningAlreadyAcknowledged;
+    if (activeAuctionNotice || showWarningConfirmation) {
       const confirm = document.createElement('button');
       confirm.type = 'button';
       confirm.className = 'storage-auction-confirm-btn';
       confirm.textContent = 'Bestätigen';
       confirm.addEventListener('click', () => {
         try {
-          if (auctionAcknowledgementKey) {
+          if (auctionAcknowledgementKey && activeAuctionNotice) {
             window.localStorage.setItem(auctionAcknowledgementKey, String(status.last_forced_auction_at));
-            window.localStorage.setItem('opencompany_storage_warning_ack_'+state.company.id,
+          }
+          if (warningAckKey) {
+            window.localStorage.setItem(warningAckKey,
               JSON.stringify({auction:String(status.last_forced_auction_at||''),count:warningCount}));
           }
-        } catch (_) {}
+        } catch (error) {
+          // At least dismiss immediately when browser storage is blocked.
+          console.warn('Lagerwarnung konnte nicht dauerhaft bestätigt werden:',error);
+        }
         confirm.remove();
-        // Hide only the acknowledged auction, never any independent storage warning.
         renderStorage();
       });
       warningBanner.appendChild(confirm);
