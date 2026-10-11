@@ -29,3 +29,4 @@ jobs:
           node tests/chat-unread.cjs
           node tests/progression.cjs
           node tests/progression-ui.cjs
+          node tests/retail-target-time.cjs
