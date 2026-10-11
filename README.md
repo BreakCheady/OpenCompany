@@ -1,5 +1,31 @@
 # OpenCompany
 
+## Release-Status – 0.10.302 (öffentliche Beta)
+
+OpenCompany befindet sich vor der offiziellen Version 1.0 weiterhin in der Beta-Phase. Der Release-Stand wird in `index.html` sowie in den Asset-Versionen von `service-worker.js` und `manifest.webmanifest` geführt.
+
+### Qualitätssicherung
+
+- GitHub Actions überprüft bei Pull Requests die ansteigende und synchronisierte Versionsnummer.
+- Der CI-Workflow überprüft JavaScript-Syntax, das Webmanifest und ausgewählte automatisierte Regressionstests.
+- Umfangreiche browserbasierte End-to-End-Tests mit angemeldeten Spielern, Lasttests, vollständige Wirtschaftssimulationen sowie Wiederherstellungstests der Datenbank stehen für die Freigabe von 1.0 noch aus.
+- Neue Funktionen und Datenbankänderungen erfordern gesonderte Tests; eine erfolgreiche statische Prüfung ist keine vollständige Spielabnahme.
+
+### Entwicklerprüfungen
+
+```sh
+node --check app.js
+node --check guidance.js
+node --check management.js
+node --check service-worker.js
+node tests/chat-unread.cjs
+node tests/progression.cjs
+node tests/progression-ui.cjs
+```
+
+---
+
+
 ## Version 0.10.224 – Wirtschaftsphase und Nachfrage neu angeordnet
 
 - Die aktuelle Wirtschaftsphase steht im Finanzen-Tab ganz oben, vor Anleihen und Krediten.
@@ -17,7 +43,7 @@
 
 Validierung: `node --check app.js`, `node --check guidance.js`, `node tests/chat-unread.cjs`, `node tests/progression.cjs` und `node tests/progression-ui.cjs`. Die Controllerprüfungen prüfen tatsächliche UI-Funktionen mit simulierten Daten, einschließlich paralleler Antworten, ausgeblendeter Tabs und Firmenwechsel. `tests/chat-unread.sql` prüft Lesestände, RLS, mehr als 100 Nachrichten, deaktivierte Boni und einen tatsächlichen Marktabschluss mit 5 % Gebühr; `tests/large-orders.sql` prüft die bestehenden Zuschlags-, Liefer- und Zeitregeln. Beide SQL-Suiten enden mit ROLLBACK. Eine visuelle Prüfung im angemeldeten Browser ist zusätzlich sinnvoll.
 
-**Aktuelle Version: 0.10.224**
+**Historische Dokumentation: 0.10.224 (nicht die aktuelle Release-Version)**
 
 OpenCompany ist eine browserbasierte Multiplayer-Unternehmenssimulation mit **GitHub Pages** als Frontend und **Supabase/PostgreSQL** als Backend.
 
