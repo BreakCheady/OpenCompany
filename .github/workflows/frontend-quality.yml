@@ -31,3 +31,4 @@ jobs:
           node tests/progression-ui.cjs
           node tests/retail-target-time.cjs
           node tests/management-revenue-period.cjs
+          node tests/weekly-management-report.cjs
