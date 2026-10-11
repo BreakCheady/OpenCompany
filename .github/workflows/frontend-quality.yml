@@ -32,3 +32,4 @@ jobs:
           node tests/retail-target-time.cjs
           node tests/management-revenue-period.cjs
           node tests/weekly-management-report.cjs
+          node tests/large-order-small-quantity.cjs

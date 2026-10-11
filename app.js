@@ -10100,7 +10100,7 @@ function renderLargeOrders() {
     const bidding = order.status === "bidding" && new Date(order.bidding_ends_at).getTime() > Date.now();
     const ownAward = order.status === "awarded" && order.awarded_company_id === state.company?.id;
     const remaining = Math.max(0,Number(order.quantity||0)-Number(order.delivered_quantity||0));
-    const deliverable = ownAward ? Math.min(remaining,largeOrderDeliverableInventory(order,bid)) : 0;
+    const deliverable = ownAward ? Math.max(0,Math.floor((Math.min(remaining,largeOrderDeliverableInventory(order,bid))+1e-9)*100)/100) : 0;
     const status = statusMeta(order, ownAward);
 
     let html = '<section class="large-order-card">' +
@@ -10202,7 +10202,7 @@ window.deliverLargeCustomerOrder = async function(event, orderId, maxQty) {
   event.preventDefault();
   const inputQty=Number(document.getElementById("largeDeliveryQty-"+orderId)?.value||0);
   const available=Math.max(0,Number(maxQty||0));
-  if(!(inputQty>0) || !(available>0)) return;
+  if(!(inputQty>=0.01) || !(available>=0.01)) return;
   if(inputQty>available){
     await gameAlert(`Aktuell sind nur ${num(available)} passende Einheiten für diese Teillieferung verfügbar.`);
     return;
