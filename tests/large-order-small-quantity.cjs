@@ -1,0 +1,13 @@
+const assert=require('node:assert/strict');const fs=require('node:fs');const vm=require('node:vm');
+const src=fs.readFileSync('app.js','utf8');
+const line=src.split('\n').find(x=>x.includes('const deliverable = ownAward ?'));
+assert.ok(line&&line.includes('Math.floor'), 'delivery quantity must be rounded to step');
+const expression=line.trim().replace(/^const deliverable = /,'').replace(/;$/,'');
+const calculate=(remaining,inventory)=>vm.runInNewContext(expression,{ownAward:true,remaining,largeOrderDeliverableInventory:()=>inventory,order:{},bid:null,Math});
+assert.equal(calculate(30712,1e-17),0,'floating-point residue is not inventory');
+assert.equal(calculate(30712,0),0);
+assert.equal(calculate(30712,12.345),12.34);
+assert.equal(calculate(30712,100),100);
+assert.equal(calculate(.30000000000000004,.3),.3);
+assert.ok(src.includes('if(!(inputQty>=0.01) || !(available>=0.01)) return;'),'RPC submission rejects too-small amounts');
+console.log('Large order partial delivery normalization passed.');
