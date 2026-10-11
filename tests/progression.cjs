@@ -14,7 +14,8 @@ progress=guidance.progress(data,{selected_product_id:'goal'});assert.equal(progr
 data.productionJobs[0].claimed_quantity=1;
 progress=guidance.progress(data,{selected_product_id:'goal'});assert.equal(progress.current,'sell');
 data.retailSaleJobs=[{product_id:'goal',status:'running',total_value:100}];
-progress=guidance.progress(data,{selected_product_id:'goal'});assert.equal(progress.current,'review');assert.equal(progress.result,null);
+// A running retail sale is not yet a completed sale milestone.
+progress=guidance.progress(data,{selected_product_id:'goal'});assert.equal(progress.current,'sell');assert.equal(progress.result,null);
 data.retailSaleJobs[0]={product_id:'goal',status:'completed',total_value:100,start_snapshot:{operatingCostBasis:60,operatingCost:5}};
 progress=guidance.progress(data,{selected_product_id:'goal'});near(progress.result.margin,35);
 data.retailSaleJobs[0].start_snapshot={};progress=guidance.progress(data,{selected_product_id:'goal'});assert.equal(progress.result.margin,null);
