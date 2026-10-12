@@ -36,3 +36,4 @@ jobs:
           node tests/finance-ledger-history.cjs
           node tests/management-goals-active-only.cjs
           node tests/management-dashboard-layout.cjs
+          node tests/unified-management-week.cjs
