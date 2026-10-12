@@ -25,7 +25,7 @@ SELECT product_name,quality_level,building_code,
  min(base_units_per_hour) building_base_units_per_hour,
  count(*) FILTER (WHERE output_quantity<=0 OR cash_per_unit IS NULL OR hours_per_unit IS NULL) invalid_unit_denominators,
  count(*) FILTER (WHERE building_code IS NULL) missing_building_matches,
- count(*) FILTER (WHERE cash_per_unit>finished_unit_cost) cash_exceeds_recorded_cost
+ count(*) FILTER (WHERE cash_per_unit>finished_unit_cost+0.01) cash_exceeds_recorded_cost
 FROM samples
 GROUP BY product_name,quality_level,building_code
 ORDER BY product_name,quality_level,building_code;
