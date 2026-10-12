@@ -33,6 +33,7 @@ jobs:
           node tests/management-revenue-period.cjs
           node tests/weekly-management-report.cjs
           node tests/large-order-small-quantity.cjs
+          node tests/npc-flour-price.cjs
           node tests/finance-ledger-history.cjs
           node tests/management-goals-active-only.cjs
           node tests/management-dashboard-layout.cjs
