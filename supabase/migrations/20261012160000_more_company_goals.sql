@@ -56,7 +56,7 @@ $insert$  elsif p_goal.goal_type='production_quantity' then
       and created_at>=p_goal.starts_at and created_at<least(now(),p_goal.ends_at);
   elsif p_goal.goal_type='production_cost_max' then
     select abs(coalesce(sum(least(amount,0)),0)) into v from public.financial_transactions
-    where company_id=p_goal.company_id and transaction_type='production'
+    where company_id=p_goal.company_id and (transaction_type='production' or (transaction_type='operating_cost' and cost_center='production'))
       and created_at>=p_goal.starts_at and created_at<least(now(),p_goal.ends_at);
   elsif p_goal.goal_type='contract_revenue' then
     select coalesce(sum(greatest(amount,0)),0) into v from public.financial_transactions
