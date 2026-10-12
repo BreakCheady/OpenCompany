@@ -2436,6 +2436,36 @@
     }
 
     /* Managementsysteme */
+    /* Management dashboard hierarchy */
+    .management-kpi-grid{grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+    .management-kpi-primary{grid-column:span 2;background:#f8fbff;border-color:#cbd9e8;padding:16px}
+    .management-kpi-primary strong{font-size:clamp(19px,1.6vw,25px);font-variant-numeric:tabular-nums}
+    .management-kpi-secondary{background:#fff;padding:12px}
+    .management-kpi-secondary strong{font-size:17px}
+    .management-goal-card{padding:16px;min-width:0}
+    .management-goal-heading,.management-goal-values,.management-goal-footer{display:flex;justify-content:space-between;align-items:center;gap:12px}
+    .management-goal-heading small,.management-goal-values small{display:block;color:#718198;font-size:12px;font-weight:400}
+    .management-goal-heading strong{font-size:15px}
+    .management-goal-percent{color:#284963;font-variant-numeric:tabular-nums}
+    .management-goal-values{align-items:start;margin:14px 0;flex-wrap:wrap}
+    .management-goal-values>div{min-width:0;flex:1}
+    .management-goal-values strong{display:block;margin-top:4px;color:#173654;font-size:18px;overflow-wrap:anywhere;font-variant-numeric:tabular-nums}
+    .management-goal-values .management-goal-negative{color:var(--danger,#c52222)}
+    .management-goal-footer{font-size:12px;color:#60748a;flex-wrap:wrap}
+    .management-goal-card .management-progress{height:10px;margin:12px 0}
+    @media(max-width:680px){
+      .management-kpi-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+      .management-kpi-primary{grid-column:span 1;padding:12px}
+      .management-kpi-primary strong{font-size:19px}
+      .management-goal-values strong{font-size:16px}
+    }
+    @media(max-width:390px){
+      .management-kpi-grid{gap:8px}
+      .management-kpi-card{padding:10px}
+      .management-kpi-primary strong{font-size:17px}
+    }
+
+
     .management-kpi-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
     .management-kpi-card{border:1px solid var(--border);border-radius:10px;padding:12px;background:#fff;min-width:0}
     .management-kpi-card span,.management-kpi-card small{display:block;color:#6b7d90;font-size:12px}
