@@ -42,3 +42,4 @@ jobs:
           node tests/expanded-company-goals.cjs
           node tests/economy-cost-audit.cjs
           node tests/economy-job-ledger-audit.cjs
+          node tests/economy-retail-zero-revenue-guard.cjs
