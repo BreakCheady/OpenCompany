@@ -5,14 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta name="theme-color" content="#0d2d55">
   <title>OpenCompany</title>
-  <link rel="icon" type="image/png" href="favicon.png?v=0.10.310">
-  <link rel="shortcut icon" href="favicon.ico?v=0.10.310">
-  <link rel="icon" type="image/x-icon" href="favicon.ico?v=0.10.310">
-  <link rel="manifest" href="/manifest.webmanifest?v=0.10.310">
-  <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=0.10.310">
+  <link rel="icon" type="image/png" href="favicon.png?v=0.10.311">
+  <link rel="shortcut icon" href="favicon.ico?v=0.10.311">
+  <link rel="icon" type="image/x-icon" href="favicon.ico?v=0.10.311">
+  <link rel="manifest" href="/manifest.webmanifest?v=0.10.311">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=0.10.311">
   <meta name="application-name" content="OpenCompany">
   <meta name="mobile-web-app-capable" content="yes">
-  <link rel="stylesheet" href="style.css?v=0.10.310">
+  <link rel="stylesheet" href="style.css?v=0.10.311">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     .storage-auction-confirm-btn{display:block;margin:14px 0 0 auto;width:auto!important;min-width:125px;padding:9px 18px;border-radius:8px;background:#b91c1c;color:#fff;border:1px solid #991b1b;font-weight:700;cursor:pointer}
@@ -1122,7 +1122,7 @@
       .oc-select-option{min-height:46px;padding:.7rem .8rem}
     }
   
-    /* v0.10.310 – Navigation 20 % breiter auf Basis von v0.10.230 */
+    /* v0.10.311 – Navigation 20 % breiter auf Basis von v0.10.230 */
     .app-shell{
       display:block!important;
       min-height:100dvh!important;
@@ -2436,6 +2436,36 @@
     }
 
     /* Managementsysteme */
+    /* Management dashboard hierarchy */
+    .management-kpi-grid.management-kpi-grid{grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+    .management-kpi-primary{grid-column:span 2;background:#f8fbff;border-color:#cbd9e8;padding:16px}
+    .management-kpi-primary strong{font-size:clamp(19px,1.6vw,25px);font-variant-numeric:tabular-nums}
+    .management-kpi-secondary{background:#fff;padding:12px}
+    .management-kpi-secondary strong{font-size:17px}
+    .management-goal-card{padding:16px;min-width:0}
+    .management-goal-heading,.management-goal-values,.management-goal-footer{display:flex;justify-content:space-between;align-items:center;gap:12px}
+    .management-goal-heading small,.management-goal-values small{display:block;color:#718198;font-size:12px;font-weight:400}
+    .management-goal-heading strong{font-size:15px}
+    .management-goal-percent{color:#284963;font-variant-numeric:tabular-nums}
+    .management-goal-values{align-items:start;margin:14px 0;flex-wrap:wrap}
+    .management-goal-values>div{min-width:0;flex:1}
+    .management-goal-values strong{display:block;margin-top:4px;color:#173654;font-size:18px;overflow-wrap:anywhere;font-variant-numeric:tabular-nums}
+    .management-goal-values .management-goal-negative{color:var(--danger,#c52222)}
+    .management-goal-footer{font-size:12px;color:#60748a;flex-wrap:wrap}
+    .management-goal-card .management-progress{height:10px;margin:12px 0}
+    @media(max-width:680px){
+      .management-kpi-grid.management-kpi-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+      .management-kpi-primary{grid-column:span 1;padding:12px}
+      .management-kpi-primary strong{font-size:19px}
+      .management-goal-values strong{font-size:16px}
+    }
+    @media(max-width:390px){
+      .management-kpi-grid{gap:8px}
+      .management-kpi-card{padding:10px}
+      .management-kpi-primary strong{font-size:17px}
+    }
+
+
     .management-kpi-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
     .management-kpi-card{border:1px solid var(--border);border-radius:10px;padding:12px;background:#fff;min-width:0}
     .management-kpi-card span,.management-kpi-card small{display:block;color:#6b7d90;font-size:12px}
@@ -2565,7 +2595,7 @@
       .management-decision-option{padding:11px!important}
     }
 
-    /* OpenCompany 0.10.310 – sichere Hamburger-Navigation ohne Eingriff in den Login */
+    /* OpenCompany 0.10.311 – sichere Hamburger-Navigation ohne Eingriff in den Login */
     .app-shell{padding-bottom:0!important}
     .main-content{width:100%!important;max-width:1500px!important;margin:0 auto!important;padding-bottom:28px!important}
 
@@ -2721,7 +2751,7 @@
       .navigation-drawer-toggle{width:40px!important;min-width:40px!important;height:40px!important;padding:0 9px!important}
     }
 
-    /* OpenCompany 0.10.310 – stärkere schwarze Rahmen nur an Kartenfeldern */
+    /* OpenCompany 0.10.311 – stärkere schwarze Rahmen nur an Kartenfeldern */
     :where(
       .panel,
       .stat-card,
@@ -3660,7 +3690,7 @@
           <h2>Einstellungen</h2>
           <div class="kv">
             <span>Version</span>
-            <strong>0.10.310</strong>
+            <strong>0.10.311</strong>
           </div>
           <div class="kv settings-language-row">
             <span>Sprache</span>
@@ -3892,7 +3922,7 @@
     if (event.key === 'Escape') closeMainNavigationDrawer();
   });
 </script>
-<script src="guidance.js?v=0.10.310"></script>
+<script src="guidance.js?v=0.10.311"></script>
 <script src="config.js"></script>
 <script>
   const appScript = document.createElement('script');

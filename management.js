@@ -94,37 +94,34 @@ function renderManagementKpis(){
   const operatingResult=Number(m.operating_result||0);
   const cashflow=Number(m.cashflow||0);
   const cards=[
-    {label:'Umsatz',value:money(m.revenue),note:(change>=0?'+':'')+managementNumber(change,1)+' % zur Vorwoche (Mo–So)',noteTone:managementValueTone(change)},
-    {label:'Betriebsergebnis',value:balanceMoney(operatingResult),note:'Diese Kalenderwoche (Mo–So)',valueTone:managementValueTone(operatingResult)},
-    {label:'Gewinnmarge',value:managementNumber(m.profit_margin,1)+' %',note:'Diese Kalenderwoche (Mo–So)',valueTone:managementValueTone(Number(m.profit_margin||0))},
-    {label:'Cashflow',value:balanceMoney(cashflow),note:'Diese Kalenderwoche (Mo–So)',valueTone:managementValueTone(cashflow)},
-    {label:'Verschuldungsgrad',value:managementNumber(m.debt_ratio,1)+' %',note:'Schulden / Unternehmenswert'},
-    {label:'Lagerauslastung',value:managementNumber(m.storage_utilization,1)+' %',note:'Aktuelle Kapazität'},
-    {label:'Produktionsauslastung',value:managementNumber(m.production_utilization,1)+' %',note:'Diese Kalenderwoche (Mo–So)'},
+    {label:'Umsatz',value:money(m.revenue),note:(change>=0?'+':'')+managementNumber(change,1)+' % zur abgeschlossenen Vorwoche',noteTone:managementValueTone(change),primary:true},
+    {label:'Betriebsergebnis',value:balanceMoney(operatingResult),note:'Laufende Kalenderwoche',valueTone:managementValueTone(operatingResult),primary:true},
+    {label:'Gewinnmarge',value:managementNumber(m.profit_margin,1)+' %',note:'Laufende Kalenderwoche',valueTone:managementValueTone(Number(m.profit_margin||0)),primary:true},
+    {label:'Cashflow',value:balanceMoney(cashflow),note:'Laufende Kalenderwoche',valueTone:managementValueTone(cashflow),primary:true},
+    {label:'Verschuldungsgrad',value:managementNumber(m.debt_ratio,1)+' %',note:'Aktuell'},
+    {label:'Lagerauslastung',value:managementNumber(m.storage_utilization,1)+' %',note:'Aktuell'},
+    {label:'Produktionsauslastung',value:managementNumber(m.production_utilization,1)+' %',note:'Diese Kalenderwoche'},
     {label:'Großaufträge',value:num(Number(m.active_large_orders||0)),note:'Aktiv'}
   ];
   root.innerHTML=cards.map(function(card){
     const valueClass=card.valueTone ? ' management-kpi-value-'+card.valueTone : '';
     const noteClass=card.noteTone ? ' management-kpi-change-'+card.noteTone : '';
-    return '<div class="management-kpi-card"><span>'+card.label+'</span><strong class="'+valueClass.trim()+'">'+card.value+'</strong><small class="'+noteClass.trim()+'">'+card.note+'</small></div>';
+    return '<div class="management-kpi-card'+(card.primary?' management-kpi-primary':' management-kpi-secondary')+'"><span>'+card.label+'</span><strong class="'+valueClass.trim()+'">'+card.value+'</strong><small class="'+noteClass.trim()+'">'+card.note+'</small></div>';
   }).join('');
 }
 
 function managementGoalCard(goal,compact){
   const meta=managementGoalMeta(goal.goal_type);
   const pct=Math.max(0,Math.min(100,Number(goal.progress_percent||0)));
+  const remaining=Number(goal.remaining||0);
+  const isNegative=Number(goal.current_value||0)<0&&goal.goal_type==='profit';
+  const label=goal.period_type==='week'?'Wochenziel':goal.period_type==='month'?'Monatsziel':'30-Tage-Ziel';
   let html='<div class="management-goal-card">';
-  html+='<div class="management-goal-head"><div><strong>'+meta.label+'</strong><div class="muted">'+
-    (goal.period_type==='week'?'Diese Woche':goal.period_type==='month'?'Dieser Monat':'30 Tage')+
-    '</div></div><strong>'+managementGoalValue(goal,goal.current_value)+' / '+managementGoalValue(goal,goal.target_value)+'</strong></div>';
-  html+='<div class="management-progress"><span class="'+managementGoalProgressClass(pct)+'" style="width:'+pct+'%"></span></div>';
-  html+='<div class="kv"><span>Fortschritt</span><strong>'+managementNumber(pct,1)+' %</strong></div>';
-  if(goal.status==='completed'){
-    html+='<div class="status success">Ziel erreicht</div>';
-  } else if(!compact){
-    html+='<div class="kv"><span>Noch</span><strong>'+managementGoalValue(goal,goal.remaining)+'</strong></div>';
-    html+='<button type="button" class="ghost" onclick="cancelManagementGoal(\''+goal.id+'\')">Ziel abbrechen</button>';
-  }
+  html+='<div class="management-goal-heading"><div><strong>'+meta.label+'</strong><small>'+label+'</small></div><strong class="management-goal-percent">'+managementNumber(pct,1)+' %</strong></div>';
+  html+='<div class="management-goal-values"><div><small>Aktuell</small><strong'+(isNegative?' class="management-goal-negative"':'')+'>'+managementGoalValue(goal,goal.current_value)+'</strong></div><div><small>Ziel</small><strong>'+managementGoalValue(goal,goal.target_value)+'</strong></div></div>';
+  html+='<div class="management-progress" role="progressbar" aria-label="'+meta.label+'" aria-valuemin="0" aria-valuemax="100" aria-valuenow="'+pct+'"><span class="'+managementGoalProgressClass(pct)+'" style="width:'+pct+'%"></span></div>';
+  html+='<div class="management-goal-footer"><span>'+(pct>=100?'Ziel erreicht':(isNegative?'Negatives Ergebnis · ':'')+'Noch erforderlich: '+managementGoalValue(goal,remaining))+'</span><strong>'+managementNumber(pct,1)+' % erreicht</strong></div>';
+  if(!compact&&goal.status==='active') html+='<button type="button" class="ghost" onclick="cancelManagementGoal(\''+goal.id+'\')">Ziel abbrechen</button>';
   return html+'</div>';
 }
 
