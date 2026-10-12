@@ -8,3 +8,6 @@ Es gibt 110 historische Produktionsjobs mit positivem Stückkostenwert, aber nur
 Die vollständige lesende SQL-Kostenanalyse ist unter `docs/economy-unit-cost-audit.sql` abgelegt. Ihre Kostenvergleiche sind Momentaufnahmen; Qualität, Eigenproduktion, Gebäude, Löhne und Absatzkanal müssen für eine verlässliche Vollkostenmatrix noch getrennt geprüft werden.
 
 **Keine produktiven Wirtschaftswerte wurden geändert.**
+
+## Rezeptintegritaet
+Live-Auswertung: 210 Rezeptpositionen, 93 verschiedene Zielprodukte, keine nicht-positiven Mengen, keine fehlenden Zutatenreferenzen, keine Zyklen in den Produktabhaengigkeiten. Die maximale Produktabhaengigkeitstiefe betraegt drei Stufen. Die rekursive Vollkostenberechnung ist damit strukturell moeglich; sie ist noch nicht implementiert.

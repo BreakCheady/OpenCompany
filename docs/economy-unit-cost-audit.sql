@@ -47,5 +47,8 @@ WHERE j.finished_unit_cost>0 GROUP BY p.name,j.quality_level ORDER BY p.name,j.q
 -- Raw-material mismatch compared with base_cost (verify economic semantics before changing anything).
 SELECT m.name,m.base_cost,min(o.price_per_unit) npc_q1_ask,
  round(min(o.price_per_unit)/nullif(m.base_cost,0),3) ratio
-FROM public.materials m JOIN offers o ON o.material_id=m.id
-WHERE m.status='active' GROUP BY m.id,m.name,m.base_cost ORDER BY ratio,m.name;
+FROM public.materials m JOIN public.market_orders o ON o.material_id=m.id
+JOIN public.companies c ON c.id=o.company_id
+WHERE m.status='active' AND c.company_type='npc' AND o.order_type='sell'
+AND o.quality_level=1 AND o.status IN ('open','partially_filled')
+AND o.remaining_quantity>0 AND (o.expires_at IS NULL OR o.expires_at>now()) GROUP BY m.id,m.name,m.base_cost ORDER BY ratio,m.name;
