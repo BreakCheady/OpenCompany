@@ -4090,6 +4090,23 @@ async function loadCompany({ preserveView='' } = {}) {
   }
 }
 
+// Load all ledger entries so historical day/week/month statements never
+// silently omit older bookings after the first 500 transactions.
+async function loadFinancialLedger(companyId) {
+  const pageSize=1000, records=[];
+  for(let start=0;;start+=pageSize){
+    const page=await sb.from('financial_transactions').select('*')
+      .eq('company_id',companyId)
+      .order('created_at',{ascending:false})
+      .order('id',{ascending:false})
+      .range(start,start+pageSize-1);
+    if(page.error)return {data:[],error:page.error};
+    const rows=page.data||[];
+    records.push(...rows);
+    if(rows.length<pageSize)return {data:records,error:null};
+  }
+}
+
 async function loadGameData() {
   const cid = state.company.id;
   const results = await Promise.all([
@@ -4103,7 +4120,7 @@ async function loadGameData() {
     sb.from('company_buildings').select('*').eq('company_id', cid),
     sb.from('production_jobs').select('*').eq('company_id', cid).order('started_at', {ascending:false}).limit(500),
     sb.from('retail_sale_jobs').select('*').eq('company_id', cid).order('started_at', {ascending:false}).limit(500),
-    sb.from('financial_transactions').select('*').eq('company_id', cid).order('created_at', {ascending:false}).limit(500),
+    loadFinancialLedger(cid),
     sb.rpc('get_market_catalog_summary'),
     sb.rpc('get_market_product_catalog'),
     sb.from('market_orders').select('*, products(name,category), materials(name)').eq('company_id',cid).eq('order_type','sell').in('status',['open','partially_filled']).gt('remaining_quantity',0).order('created_at',{ascending:false}).limit(500),
@@ -7339,10 +7356,8 @@ function renderFinanceSummary() {
   const productionRefunds = sumType('production_refund');
   const retailCancelRefunds = sumType('retail_cancel_refund');
 
-  const productionCosts = jobs.reduce(
-    (sum, j) => sum + Number(j.production_cash_cost || 0),
-    0
-  );
+  // Production is an actual cash ledger expense, not a 500-job UI snapshot.
+  const productionCosts = costType('production');
   const marketBuyCosts = costType('market_buy');
   const contractBuyCosts = costType('contract_buy');
   const freightCosts = costType('freight_cost');
