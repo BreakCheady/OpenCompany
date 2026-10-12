@@ -10078,11 +10078,11 @@ function updateLargeOrdersCountdown() {
   const minutes=Math.floor((totalSeconds%3600)/60);
   const seconds=totalSeconds%60;
   if (hours>0) {
-    el.textContent=`${String(hours).padStart(2,'0')}:${String(minutes).padStart(2,'0')}:${String(seconds).padStart(2,'0')} Stunden`;
+    el.textContent=`${String(hours).padStart(2,'0')}:${String(minutes).padStart(2,'0')}:${String(seconds).padStart(2,'0')}`;
   } else if (minutes>0) {
-    el.textContent=`${String(minutes).padStart(2,'0')}:${String(seconds).padStart(2,'0')} Minuten`;
+    el.textContent=`00:${String(minutes).padStart(2,'0')}:${String(seconds).padStart(2,'0')}`;
   } else {
-    el.textContent=`${seconds} Sekunden`;
+    el.textContent=`00:00:${String(seconds).padStart(2,'0')}`;
   }
 }
 
@@ -10117,6 +10117,7 @@ function renderLargeOrders() {
     const remaining = Math.max(0,Number(order.quantity||0)-Number(order.delivered_quantity||0));
     const deliverable = ownAward ? Math.max(0,Math.floor((Math.min(remaining,largeOrderDeliverableInventory(order,bid))+1e-9)*100)/100) : 0;
     const status = statusMeta(order, ownAward);
+    const bidStatus = ({submitted:'Gebot abgegeben',won:'Zuschlag erhalten',lost:'Nicht berücksichtigt',withdrawn:'Zurückgezogen'})[bid?.status] || bid?.status || '';
 
     let html = '<section class="large-order-card">' +
       '<div class="large-order-card-head">' +
@@ -10124,7 +10125,7 @@ function renderLargeOrders() {
           '<h3>' + largeOrderTypeLabel(order.order_type) + ' · ' + order.customer_name + '</h3>' +
           '<p class="large-order-product">' + order.item_name + '</p>' +
         '</div>' +
-        '<span class="large-order-status ' + status.cls + '">' + status.label + '</span>' +
+        '<span class="large-order-status ' + status.cls + '">' + (ownAward ? 'Zuschlag erhalten' : bidding && bid ? 'Gebot abgegeben' : status.label) + '</span>' +
       '</div>' +
       '<div class="large-order-card-body">' +
         '<div class="large-order-meta">' +
@@ -10148,14 +10149,14 @@ function renderLargeOrders() {
     if (bid) {
       html += '<div class="large-order-own-bid"><span>Dein aktuelles Gebot</span><strong>' +
         money(bid.price_per_unit) + ' / Einheit · Q' + bid.offered_quality + ' · ' +
-        bid.delivery_hours + ' Std. · ' + bid.status + '</strong></div>';
+        bid.delivery_hours + ' Std. · ' + bidStatus + '</strong></div>';
     }
 
     if (bidding) {
       const usageForOrder=largeOrderBidSlotUsage(order.id);
       const canBid=!!bid || usageForOrder.used<3;
       html += '<div class="large-order-section">' +
-        '<h4 class="large-order-section-title">' + (bid ? 'Gebot aktualisieren' : 'Gebot abgeben') + '</h4>' +
+        (canBid ? '<details class="large-order-bid-details"><summary>' + (bid ? 'Gebot bearbeiten' : 'Gebot abgeben') + '</summary>' : '') +
         (!canBid
           ? '<div class="large-order-notice"><span>Keine freien Großauftrags-Slots</span><strong>Du hast bereits 3 aktive Großaufträge bzw. laufende Gebote. Schließe zuerst einen Auftrag ab oder warte auf eine Vergabe.</strong></div>'
           : '<form class="large-order-bid-form" onsubmit="submitLargeCustomerBid(event,\'' + order.id + '\')">' +
@@ -10169,7 +10170,7 @@ function renderLargeOrders() {
               (bid?.delivery_hours || order.delivery_hours) + '" required></label>' +
               '<div class="large-order-form-action"><button type="submit">' +
               (bid ? 'Gebot aktualisieren' : 'Gebot abgeben') + '</button></div>' +
-            '</form>') +
+            '</form></details>') +
       '</div>';
     }
 
@@ -10192,13 +10193,25 @@ function renderLargeOrders() {
     return html + '</div></section>';
   };
 
+  const tenders=active.filter(order=>order.status==='bidding');
+  const awarded=active.filter(order=>order.status==='awarded'&&order.awarded_company_id===state.company?.id);
+  const other=active.filter(order=>order.status==='awarded'&&order.awarded_company_id!==state.company?.id);
   container.innerHTML = '<div class="large-orders-shell">' +
-    '<div class="large-order-notice"><span>Deine Großauftrags-Slots</span><strong>' +
-      num(slotUsage.used) + ' / 3 belegt · ' + num(slotUsage.free) + ' frei</strong></div>' +
+    '<div class="large-order-summary"><div><span>Belegte Slots</span><strong>' +
+      num(slotUsage.used) + ' / 3</strong><small>' + num(slotUsage.free) + ' frei</small></div>' +
+    '<div><span>Nächste Ausschreibungen</span><strong>18:00 Uhr</strong><small>Täglich · Europe/Berlin</small></div></div>' +
+    '<h3 class="large-order-group-title">Ausschreibungen <small>' + num(tenders.length) + '</small></h3>' +
     '<div class="large-orders-list">' +
-    (active.length ? active.map(renderOrder).join("") :
-      '<p class="muted">Aktuell keine offene Großausschreibung.</p>') +
+    (tenders.length ? tenders.map(renderOrder).join("") :
+      '<p class="muted">Aktuell keine offenen Ausschreibungen.</p>') +
     '</div>' +
+    '<h3 class="large-order-group-title">Meine Aufträge <small>' + num(awarded.length) + '</small></h3>' +
+    '<div class="large-orders-list">' +
+    (awarded.length ? awarded.map(renderOrder).join("") :
+      '<p class="muted">Aktuell keine gewonnenen Aufträge zur Auslieferung.</p>') +
+    '</div>' +
+    (other.length ? '<h3 class="large-order-group-title">Bereits vergeben</h3><div class="large-orders-list">' +
+      other.map(renderOrder).join("") + '</div>' : '') +
     '</div>';
 }
 

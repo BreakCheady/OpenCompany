@@ -5,14 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta name="theme-color" content="#0d2d55">
   <title>OpenCompany</title>
-  <link rel="icon" type="image/png" href="favicon.png?v=0.10.312">
-  <link rel="shortcut icon" href="favicon.ico?v=0.10.312">
-  <link rel="icon" type="image/x-icon" href="favicon.ico?v=0.10.312">
-  <link rel="manifest" href="/manifest.webmanifest?v=0.10.312">
-  <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=0.10.312">
+  <link rel="icon" type="image/png" href="favicon.png?v=0.10.313">
+  <link rel="shortcut icon" href="favicon.ico?v=0.10.313">
+  <link rel="icon" type="image/x-icon" href="favicon.ico?v=0.10.313">
+  <link rel="manifest" href="/manifest.webmanifest?v=0.10.313">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=0.10.313">
   <meta name="application-name" content="OpenCompany">
   <meta name="mobile-web-app-capable" content="yes">
-  <link rel="stylesheet" href="style.css?v=0.10.312">
+  <link rel="stylesheet" href="style.css?v=0.10.313">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     .storage-auction-confirm-btn{display:block;margin:14px 0 0 auto;width:auto!important;min-width:125px;padding:9px 18px;border-radius:8px;background:#b91c1c;color:#fff;border:1px solid #991b1b;font-weight:700;cursor:pointer}
@@ -1122,7 +1122,7 @@
       .oc-select-option{min-height:46px;padding:.7rem .8rem}
     }
   
-    /* v0.10.312 – Navigation 20 % breiter auf Basis von v0.10.230 */
+    /* v0.10.313 – Navigation 20 % breiter auf Basis von v0.10.230 */
     .app-shell{
       display:block!important;
       min-height:100dvh!important;
@@ -2446,6 +2446,33 @@
       .unified-metrics-panel .management-kpi-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
       .unified-metrics-panel .management-kpi-primary{grid-column:span 1}
     }
+
+    /* Großaufträge: kompakte, getrennte Arbeitsbereiche */
+    .large-order-summary{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:8px 0 18px}
+    .large-order-summary>div{border:1px solid var(--border);border-radius:12px;padding:14px;background:#f6f9fd;display:grid;gap:3px}
+    .large-order-summary span,.large-order-summary small{color:#64748b;font-size:12px}
+    .large-order-summary strong{font-size:21px;color:#173654}
+    .large-order-group-title{font-size:17px;margin:22px 0 12px;display:flex;align-items:center;gap:10px;color:#173654}
+    .large-order-group-title small{font-size:12px;color:#627a91;background:#edf3fa;border-radius:99px;padding:3px 9px}
+    .large-orders-list{display:grid;gap:12px}
+    .large-order-card{overflow:hidden}
+    .large-order-card-body{padding:14px}
+    .large-order-card .large-order-meta{gap:8px}
+    .large-order-card .large-order-meta-item{padding:9px 11px}
+    .large-order-card .large-order-notice{margin-top:10px;padding:10px 12px}
+    .large-order-bid-details{margin-top:10px}
+    .large-order-bid-details summary{cursor:pointer;list-style:none;border:1px solid #bfd1e6;border-radius:9px;background:#edf5ff;color:#16467a;padding:11px 14px;font-size:13px;font-weight:700;user-select:none}
+    .large-order-bid-details summary::-webkit-details-marker{display:none}
+    .large-order-bid-details summary::after{content:'⌄';float:right}
+    .large-order-bid-details[open] summary::after{content:'⌃'}
+    .large-order-bid-details form{margin-top:12px}
+    @media(max-width:650px){
+      .large-order-summary{gap:8px}
+      .large-order-summary>div{padding:10px}
+      .large-order-summary strong{font-size:18px}
+      .large-order-card-body{padding:11px}
+    }
+
     /* Managementsysteme */
     /* Management dashboard hierarchy */
     .management-kpi-grid.management-kpi-grid{grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
@@ -2606,7 +2633,7 @@
       .management-decision-option{padding:11px!important}
     }
 
-    /* OpenCompany 0.10.312 – sichere Hamburger-Navigation ohne Eingriff in den Login */
+    /* OpenCompany 0.10.313 – sichere Hamburger-Navigation ohne Eingriff in den Login */
     .app-shell{padding-bottom:0!important}
     .main-content{width:100%!important;max-width:1500px!important;margin:0 auto!important;padding-bottom:28px!important}
 
@@ -2762,7 +2789,7 @@
       .navigation-drawer-toggle{width:40px!important;min-width:40px!important;height:40px!important;padding:0 9px!important}
     }
 
-    /* OpenCompany 0.10.312 – stärkere schwarze Rahmen nur an Kartenfeldern */
+    /* OpenCompany 0.10.313 – stärkere schwarze Rahmen nur an Kartenfeldern */
     :where(
       .panel,
       .stat-card,
@@ -3696,7 +3723,7 @@
           <h2>Einstellungen</h2>
           <div class="kv">
             <span>Version</span>
-            <strong>0.10.312</strong>
+            <strong>0.10.313</strong>
           </div>
           <div class="kv settings-language-row">
             <span>Sprache</span>
@@ -3928,7 +3955,7 @@
     if (event.key === 'Escape') closeMainNavigationDrawer();
   });
 </script>
-<script src="guidance.js?v=0.10.312"></script>
+<script src="guidance.js?v=0.10.313"></script>
 <script src="config.js"></script>
 <script>
   const appScript = document.createElement('script');
