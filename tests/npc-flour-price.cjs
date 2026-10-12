@@ -1,0 +1,10 @@
+const assert=require('node:assert/strict');
+const fs=require('node:fs');
+const sql=fs.readFileSync('supabase/migrations/20261012190000_fix_npc_flour_cost_feedback.sql','utf8');
+assert.ok(sql.includes("p_product_name='Mehl' and p_product_category='food_component'"));
+assert.ok(sql.includes("round(p_fallback_recommended_price/2,2)"));
+assert.ok(sql.includes("else coalesce("), 'Other products must retain their established cost basis');
+const price=(base,quality,factor)=>Math.round(base*2*(1+(quality-1)*0.03)*factor*100)/100;
+assert.ok(price(5,1,.82)>=8&&price(5,1,.98)<=10);
+assert.ok(price(5,5,.82)<11.5);
+console.log('Flour NPC cost basis guard verified.');
