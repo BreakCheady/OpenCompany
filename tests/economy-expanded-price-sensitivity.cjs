@@ -1,0 +1,10 @@
+const assert=require('node:assert/strict');
+const fs=require('node:fs');
+const sql=fs.readFileSync('docs/economy-expanded-price-sensitivity.sql','utf8');
+assert.match(sql,/WITH RECURSIVE catalog AS/i);
+assert.match(sql,/JOIN public\.production_recipe_inputs/i);
+assert.match(sql,/private\.operating_cost_rate/i);
+assert.match(sql,/retail_price_factor/i);
+assert.match(sql,/VALUES \(0\.85::numeric\),\(1::numeric\),\(1\.15::numeric\)/i);
+assert.doesNotMatch(sql,/\b(UPDATE|DELETE|INSERT|TRUNCATE|DROP|ALTER)\b/i);
+console.log('Economy deterministic 3x3x3 SQL audit contract passed');
