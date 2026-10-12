@@ -64,7 +64,7 @@ $insert$  elsif p_goal.goal_type='production_quantity' then
       and created_at>=p_goal.starts_at and created_at<least(now(),p_goal.ends_at);
   elsif p_goal.goal_type='research_spend' then
     select abs(coalesce(sum(least(amount,0)),0)) into v from public.financial_transactions
-    where company_id=p_goal.company_id and cost_center='research'
+    where company_id=p_goal.company_id and cost_center='research' and transaction_type='operating_cost'
       and created_at>=p_goal.starts_at and created_at<least(now(),p_goal.ends_at);
   elsif p_goal.goal_type='market_buy_max' then
     select abs(coalesce(sum(least(amount,0)),0)) into v from public.financial_transactions
@@ -74,4 +74,19 @@ $insert$  elsif p_goal.goal_type='production_quantity' then
     select coalesce((private.management_period_metrics(p_goal.company_id,p_goal.starts_at,least(now(),p_goal.ends_at))->>'cashflow')::numeric,0) into v;
   elsif p_goal.goal_type='company_value_growth' then$insert$);
  execute f;
+end $patch$;
+
+-- Upper bounds and averaged utilization goals are evaluated only when the period closes.
+do $patch$
+declare f text;
+begin
+  select pg_get_functiondef('private.goal_is_complete(public.company_goals,numeric)'::regprocedure) into f;
+  f:=replace(f,
+    'when p_goal.goal_type in (''debt_max'',''storage_max'') then',
+    'when p_goal.goal_type in (''production_cost_max'',''market_buy_max'') then now()>=p_goal.ends_at and p_current<=p_goal.target_value'||chr(10)||
+    '    when p_goal.goal_type=''production_utilization'' then now()>=p_goal.ends_at and p_current>=p_goal.target_value'||chr(10)||
+    '    when p_goal.goal_type in (''debt_max'',''storage_max'') then');
+  -- immutable cannot access now(); create a STABLE function instead.
+  f:=replace(f,'IMMUTABLE','STABLE');
+  execute f;
 end $patch$;
