@@ -131,7 +131,7 @@ function managementGoalCard(goal,compact){
 function renderManagementGoals(){
   const all=(state.managementOverview&&state.managementOverview.goals)||[];
   const active=all.filter(function(g){return g.status==='active';});
-  const completed=all.filter(function(g){return g.status==='completed';});
+  // Completed and expired goals remain in the database for PA reporting, not in the UI.
 
   const dashboard=document.getElementById('dashboardCompanyGoals');
   if(dashboard) dashboard.innerHTML=active.length
@@ -139,8 +139,8 @@ function renderManagementGoals(){
     : '<p class="muted">Aktuell ist kein Unternehmensziel aktiv.</p>';
 
   const root=document.getElementById('managementGoals');
-  if(root) root.innerHTML=(active.length||completed.length)
-    ? active.map(function(g){return managementGoalCard(g,false);}).join('')+completed.slice(0,3).map(function(g){return managementGoalCard(g,true);}).join('')
+  if(root) root.innerHTML=active.length
+    ? active.map(function(g){return managementGoalCard(g,false);}).join('')
     : '<p class="muted">Noch keine Unternehmensziele angelegt.</p>';
 
   const submit=document.getElementById('managementGoalSubmit');
