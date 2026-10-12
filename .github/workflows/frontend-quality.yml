@@ -44,3 +44,5 @@ jobs:
           node tests/economy-job-ledger-audit.cjs
           node tests/economy-retail-zero-revenue-guard.cjs
           node tests/economy-expanded-price-sensitivity.cjs
+
+          node tests/economy-live-retail-revenue-sim.cjs
