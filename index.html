@@ -2446,6 +2446,33 @@
       .unified-metrics-panel .management-kpi-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
       .unified-metrics-panel .management-kpi-primary{grid-column:span 1}
     }
+
+    /* Großaufträge: kompakte, getrennte Arbeitsbereiche */
+    .large-order-summary{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:8px 0 18px}
+    .large-order-summary>div{border:1px solid var(--border);border-radius:12px;padding:14px;background:#f6f9fd;display:grid;gap:3px}
+    .large-order-summary span,.large-order-summary small{color:#64748b;font-size:12px}
+    .large-order-summary strong{font-size:21px;color:#173654}
+    .large-order-group-title{font-size:17px;margin:22px 0 12px;display:flex;align-items:center;gap:10px;color:#173654}
+    .large-order-group-title small{font-size:12px;color:#627a91;background:#edf3fa;border-radius:99px;padding:3px 9px}
+    .large-orders-list{display:grid;gap:12px}
+    .large-order-card{overflow:hidden}
+    .large-order-card-body{padding:14px}
+    .large-order-card .large-order-meta{gap:8px}
+    .large-order-card .large-order-meta-item{padding:9px 11px}
+    .large-order-card .large-order-notice{margin-top:10px;padding:10px 12px}
+    .large-order-bid-details{margin-top:10px}
+    .large-order-bid-details summary{cursor:pointer;list-style:none;border:1px solid #bfd1e6;border-radius:9px;background:#edf5ff;color:#16467a;padding:11px 14px;font-size:13px;font-weight:700;user-select:none}
+    .large-order-bid-details summary::-webkit-details-marker{display:none}
+    .large-order-bid-details summary::after{content:'⌄';float:right}
+    .large-order-bid-details[open] summary::after{content:'⌃'}
+    .large-order-bid-details form{margin-top:12px}
+    @media(max-width:650px){
+      .large-order-summary{gap:8px}
+      .large-order-summary>div{padding:10px}
+      .large-order-summary strong{font-size:18px}
+      .large-order-card-body{padding:11px}
+    }
+
     /* Managementsysteme */
     /* Management dashboard hierarchy */
     .management-kpi-grid.management-kpi-grid{grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
