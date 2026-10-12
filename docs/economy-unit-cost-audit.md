@@ -11,3 +11,6 @@ Die vollständige lesende SQL-Kostenanalyse ist unter `docs/economy-unit-cost-au
 
 ## Rezeptintegritaet
 Live-Auswertung: 210 Rezeptpositionen, 93 verschiedene Zielprodukte, keine nicht-positiven Mengen, keine fehlenden Zutatenreferenzen, keine Zyklen in den Produktabhaengigkeiten. Die maximale Produktabhaengigkeitstiefe betraegt drei Stufen. Die rekursive Vollkostenberechnung ist damit strukturell moeglich; sie ist noch nicht implementiert.
+
+## Rekursive Materialkostenanalyse
+Die neue lesende Abfrage docs/economy-recursive-material-costs.sql entfaltet alle Zwischenprodukte bis zu Rohstoffblaettern. 93 Rezeptprodukte, 542 expandierte Positionen, 357 Materialblaetter, maximal vier Ebenen von der Wurzel bis zum Blatt. 93 Produkte besitzen positive rekursive Materialgrundkosten. Ein eindeutig auffaelliger Fall ist Transportcontainer: 38,00 $ Rohstoff-Grundkosten pro Einheit versus 10,00 $ Katalog-Referenzverkaufspreis (vor Personal, Gebaeuden und Vertrieb). Alle anderen Produkte liegen hinsichtlich der blossen Rohstoff-Grundkosten unter ihren Referenzpreisen. Achtung: Grundkosten sind noch kein belegter Produktionsaufwand, und NPC-Bestpreise sind keine Vollkosten.
