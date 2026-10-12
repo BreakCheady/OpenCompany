@@ -1,0 +1,10 @@
+const assert=require('node:assert/strict');
+const fs=require('node:fs');
+const sql=fs.readFileSync('docs/economy-npc-cost-plus-market-pricing.sql','utf8');
+assert.match(sql,/v_material\.base_cost\*1\.25/);
+assert.match(sql,/material_inventories[\s\S]*?average_unit_cost/);
+assert.match(sql,/public\.inventories[\s\S]*?average_unit_cost/);
+assert.match(sql,/public\.production_jobs[\s\S]*?finished_unit_cost/);
+assert.equal((sql.match(/\*1\.20\*100/g)||[]).length,2);
+assert.match(sql,/CREATE OR REPLACE FUNCTION private\.ensure_npc_market_supply/);
+console.log('NPC cost-plus market pricing contracts passed');

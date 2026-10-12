@@ -46,3 +46,5 @@ jobs:
           node tests/economy-expanded-price-sensitivity.cjs
 
           node tests/economy-live-retail-revenue-sim.cjs
+
+          node tests/economy-npc-cost-plus-market-pricing.cjs
