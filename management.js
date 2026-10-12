@@ -127,12 +127,13 @@ function managementGoalCard(goal,compact){
   const pct=Math.max(0,Math.min(100,Number(goal.progress_percent||0)));
   const remaining=Number(goal.remaining||0);
   const isNegative=Number(goal.current_value||0)<0&&goal.goal_type==='profit';
+  const isCostLimit=['production_cost_max','market_buy_max'].includes(goal.goal_type);
   const label=goal.period_type==='week'?'Wochenziel':goal.period_type==='month'?'Monatsziel':'30-Tage-Ziel';
   let html='<div class="management-goal-card">';
   html+='<div class="management-goal-heading"><div><strong>'+meta.label+'</strong><small>'+label+'</small></div><strong class="management-goal-percent">'+managementNumber(pct,1)+' %</strong></div>';
   html+='<div class="management-goal-values"><div><small>Aktuell</small><strong'+(isNegative?' class="management-goal-negative"':'')+'>'+managementGoalValue(goal,goal.current_value)+'</strong></div><div><small>Ziel</small><strong>'+managementGoalValue(goal,goal.target_value)+'</strong></div></div>';
   html+='<div class="management-progress" role="progressbar" aria-label="'+meta.label+'" aria-valuemin="0" aria-valuemax="100" aria-valuenow="'+pct+'"><span class="'+managementGoalProgressClass(pct)+'" style="width:'+pct+'%"></span></div>';
-  html+='<div class="management-goal-footer"><span>'+(pct>=100?'Ziel erreicht':(isNegative?'Negatives Ergebnis · ':'')+'Noch erforderlich: '+managementGoalValue(goal,remaining))+'</span><strong>'+managementNumber(pct,1)+' % erreicht</strong></div>';
+  html+='<div class="management-goal-footer"><span>'+(pct>=100?'Ziel erreicht':(isNegative?'Negatives Ergebnis · ':'')+(isCostLimit?'Verbleibender Spielraum: ':'Noch erforderlich: ')+managementGoalValue(goal,remaining))+'</span><strong>'+managementNumber(pct,1)+(isCostLimit?' % verbraucht':' % erreicht')+'</strong></div>';
   if(!compact&&goal.status==='active') html+='<button type="button" class="ghost" onclick="cancelManagementGoal(\''+goal.id+'\')">Ziel abbrechen</button>';
   return html+'</div>';
 }
