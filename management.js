@@ -59,7 +59,19 @@ function managementGoalMeta(type){
     debt_max:{label:'Verschuldung',unit:'money'},
     storage_max:{label:'Lagerauslastung',unit:'percent'},
     large_orders:{label:'Großaufträge',unit:'count'},
-    research_patents:{label:'Neue Patente',unit:'count'}
+    research_patents:{label:'Neue Patente',unit:'count'},
+    production_quantity:{label:'Produktionsmenge',unit:'count'},
+    retail_revenue:{label:'Einzelhandelsumsatz',unit:'money'},
+    market_revenue:{label:'Warenbörsenumsatz',unit:'money'},
+    cash_min:{label:'Liquiditätsreserve',unit:'money'},
+    profit_margin:{label:'Gewinnmarge',unit:'percent'},
+    production_utilization:{label:'Produktionsauslastung',unit:'percent'},
+    large_order_revenue:{label:'Großauftragsumsatz',unit:'money'},
+    production_cost_max:{label:'Produktionskosten unter',unit:'money'},
+    contract_revenue:{label:'Vertragsumsatz',unit:'money'},
+    research_spend:{label:'Forschungsausgaben',unit:'money'},
+    market_buy_max:{label:'Warenbörseneinkäufe unter',unit:'money'},
+    cashflow:{label:'Positiver Cashflow',unit:'money'}
   })[type] || {label:type,unit:'count'};
 }
 
