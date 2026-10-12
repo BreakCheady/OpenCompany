@@ -5,14 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta name="theme-color" content="#0d2d55">
   <title>OpenCompany</title>
-  <link rel="icon" type="image/png" href="favicon.png?v=0.10.311">
-  <link rel="shortcut icon" href="favicon.ico?v=0.10.311">
-  <link rel="icon" type="image/x-icon" href="favicon.ico?v=0.10.311">
-  <link rel="manifest" href="/manifest.webmanifest?v=0.10.311">
-  <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=0.10.311">
+  <link rel="icon" type="image/png" href="favicon.png?v=0.10.312">
+  <link rel="shortcut icon" href="favicon.ico?v=0.10.312">
+  <link rel="icon" type="image/x-icon" href="favicon.ico?v=0.10.312">
+  <link rel="manifest" href="/manifest.webmanifest?v=0.10.312">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=0.10.312">
   <meta name="application-name" content="OpenCompany">
   <meta name="mobile-web-app-capable" content="yes">
-  <link rel="stylesheet" href="style.css?v=0.10.311">
+  <link rel="stylesheet" href="style.css?v=0.10.312">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     .storage-auction-confirm-btn{display:block;margin:14px 0 0 auto;width:auto!important;min-width:125px;padding:9px 18px;border-radius:8px;background:#b91c1c;color:#fff;border:1px solid #991b1b;font-weight:700;cursor:pointer}
@@ -1122,7 +1122,7 @@
       .oc-select-option{min-height:46px;padding:.7rem .8rem}
     }
   
-    /* v0.10.311 – Navigation 20 % breiter auf Basis von v0.10.230 */
+    /* v0.10.312 – Navigation 20 % breiter auf Basis von v0.10.230 */
     .app-shell{
       display:block!important;
       min-height:100dvh!important;
@@ -2435,6 +2435,17 @@
       .dashboard-demand-chart,.dashboard-demand-chart svg{min-height:200px;height:200px}
     }
 
+    /* One dashboard area for company status and calendar-week KPIs */
+    .unified-metrics-panel{min-width:0}
+    .unified-metrics-panel .stats-grid{margin-bottom:18px}
+    .unified-week-head{padding-top:14px;border-top:1px solid var(--border);margin-bottom:12px}
+    .unified-metrics-panel .management-kpi-grid{grid-template-columns:repeat(4,minmax(0,1fr))}
+    .unified-metrics-panel .management-kpi-primary{grid-column:span 2}
+    .management-dashboard-grid{display:block}
+    @media(max-width:680px){
+      .unified-metrics-panel .management-kpi-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+      .unified-metrics-panel .management-kpi-primary{grid-column:span 1}
+    }
     /* Managementsysteme */
     /* Management dashboard hierarchy */
     .management-kpi-grid.management-kpi-grid{grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
@@ -2595,7 +2606,7 @@
       .management-decision-option{padding:11px!important}
     }
 
-    /* OpenCompany 0.10.311 – sichere Hamburger-Navigation ohne Eingriff in den Login */
+    /* OpenCompany 0.10.312 – sichere Hamburger-Navigation ohne Eingriff in den Login */
     .app-shell{padding-bottom:0!important}
     .main-content{width:100%!important;max-width:1500px!important;margin:0 auto!important;padding-bottom:28px!important}
 
@@ -2751,7 +2762,7 @@
       .navigation-drawer-toggle{width:40px!important;min-width:40px!important;height:40px!important;padding:0 9px!important}
     }
 
-    /* OpenCompany 0.10.311 – stärkere schwarze Rahmen nur an Kartenfeldern */
+    /* OpenCompany 0.10.312 – stärkere schwarze Rahmen nur an Kartenfeldern */
     :where(
       .panel,
       .stat-card,
@@ -2913,7 +2924,9 @@
     <section id="gameView" class="hidden">
       <div id="dashboard" class="view active-view">
         <article class="panel" id="companyGuidance"><div class="panel-head"><div><h2>Dein erster erfolgreicher Verkauf</h2><p class="muted">Freiwilliger Einstieg · Fortschritt wird für deine Firma gespeichert.</p></div></div><div id="guidanceContent"></div></article>
-        <div class="stats-grid">
+        <section class="panel unified-metrics-panel">
+          <div class="panel-head"><div><h2>Unternehmenskennzahlen</h2><p class="muted">Finanz- und Unternehmensstatus · aktuelle Werte</p></div></div>
+          <div class="stats-grid">
           <article class="stat-card ocb-dashboard-card" role="button" tabindex="0" onclick="openOcbShop()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openOcbShop();}" aria-label="OC-Boost-Shop öffnen">
             <span>OC-Boost</span>
             <strong id="statOcb">⚡ 0 OCB</strong>
@@ -2926,18 +2939,11 @@
           <article class="stat-card dashboard-history-card" data-dashboard-history="patent_value" role="button" tabindex="0" aria-label="Patentwert Verlauf der letzten 7 Tage"><span>Patentwert</span><strong id="statPatentValue">–</strong></article>
           <article class="stat-card dashboard-history-card" data-dashboard-history="loan_debt" role="button" tabindex="0" aria-label="Schulden Verlauf der letzten 7 Tage"><span>Schulden</span><strong id="statDebt">–</strong></article>
           <article class="stat-card dashboard-history-card" data-dashboard-history="building_value" role="button" tabindex="0" aria-label="Gebäudewert Verlauf der letzten 7 Tage"><span>Gebäudewert</span><strong id="statBuildingValue">–</strong></article>
-        </div>
-
-        <div class="grid two management-dashboard-grid">
-          <article class="panel">
-            <div class="panel-head">
-              <div>
-                <h2>Management-Kennzahlen</h2>
-                <p class="muted">Geschäftsführer-KPIs der letzten sieben Tage.</p>
-              </div>
-            </div>
-            <div id="managementKpis" class="management-kpi-grid"></div>
-          </article>
+          </div>
+          <div class="panel-head unified-week-head"><div><h2>Wochenkennzahlen</h2><p class="muted">Laufende Kalenderwoche (Montag–Sonntag, Europe/Berlin)</p></div></div>
+          <div id="managementKpis" class="management-kpi-grid"></div>
+        </section>
+        <div class="management-dashboard-grid">
           <article class="panel">
             <div class="panel-head">
               <div>
@@ -3690,7 +3696,7 @@
           <h2>Einstellungen</h2>
           <div class="kv">
             <span>Version</span>
-            <strong>0.10.311</strong>
+            <strong>0.10.312</strong>
           </div>
           <div class="kv settings-language-row">
             <span>Sprache</span>
@@ -3922,7 +3928,7 @@
     if (event.key === 'Escape') closeMainNavigationDrawer();
   });
 </script>
-<script src="guidance.js?v=0.10.311"></script>
+<script src="guidance.js?v=0.10.312"></script>
 <script src="config.js"></script>
 <script>
   const appScript = document.createElement('script');

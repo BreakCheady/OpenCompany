@@ -1,0 +1,14 @@
+const assert=require('node:assert/strict');const fs=require('node:fs');
+const html=fs.readFileSync('index.html','utf8');
+const sql=fs.readFileSync('supabase/migrations/20261012114000_align_weekly_revenue_goal_with_kpi.sql','utf8');
+const start=html.indexOf('<section class="panel unified-metrics-panel">');
+const end=html.indexOf('<div class="management-dashboard-grid">',start);
+assert.ok(start>0&&end>start);
+const panel=html.slice(start,end);
+for(const id of ['statOcb','statCash','statEmployees','statValue','statStorageValue','statPatentValue','statDebt','statBuildingValue','managementKpis'])assert.ok(panel.includes('id="'+id+'"'),id);
+assert.ok(panel.includes('Montag–Sonntag'));
+assert.equal((html.match(/id="managementKpis"/g)||[]).length,1);
+assert.ok(sql.includes("private.management_period_metrics(p_goal.company_id"),'Goal uses same metrics source as management KPI');
+assert.ok(sql.includes("date_trunc(''week''"),'Goal starts on Monday');
+assert.ok(sql.includes("at time zone ''Europe/Berlin''"),'Goal observes local DST');
+console.log('Unified dashboard and calendar-week revenue source checks passed.');
