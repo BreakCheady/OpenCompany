@@ -40,3 +40,4 @@ jobs:
           node tests/unified-management-week.cjs
           node tests/large-order-compact-layout.cjs
           node tests/expanded-company-goals.cjs
+          node tests/economy-cost-audit.cjs
