@@ -90,3 +90,13 @@ begin
   f:=replace(f,'IMMUTABLE','STABLE');
   execute f;
 end $patch$;
+
+-- Let Personal Assistant automatically identify all newly available goal types.
+do $patch$
+declare f text;
+begin
+  select pg_get_functiondef('private.send_management_monday_summary()'::regprocedure) into f;
+  f:=replace(f,'when ''research_patents'' then ''Patente'' else g.goal_type end',
+    'when ''research_patents'' then ''Patente'' when ''production_quantity'' then ''Produktionsmenge'' when ''retail_revenue'' then ''Einzelhandelsumsatz'' when ''market_revenue'' then ''Warenbörsenumsatz'' when ''cash_min'' then ''Liquiditätsreserve'' when ''profit_margin'' then ''Gewinnmarge'' when ''production_utilization'' then ''Produktionsauslastung'' when ''large_order_revenue'' then ''Großauftragsumsatz'' when ''production_cost_max'' then ''Produktionskosten-Obergrenze'' when ''contract_revenue'' then ''Vertragsumsatz'' when ''research_spend'' then ''Forschungsausgaben'' when ''market_buy_max'' then ''Markteinkaufs-Obergrenze'' when ''cashflow'' then ''Cashflow'' else g.goal_type end');
+  execute f;
+end $patch$;
