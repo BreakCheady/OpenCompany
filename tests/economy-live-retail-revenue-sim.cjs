@@ -1,0 +1,10 @@
+const assert=require('node:assert/strict');
+const fs=require('node:fs');
+const sql=fs.readFileSync('docs/economy-live-retail-revenue-sim.sql','utf8');
+assert.match(sql,/private\.retail_effective_unit_revenue_company\s*\(/i);
+assert.match(sql,/private\.retail_average_price\s*\(/i);
+assert.match(sql,/finished_unit_cost/i);
+assert.match(sql,/NONPOSITIVE_BEFORE_OVERHEAD/);
+assert.match(sql,/VALUES \(0\.85::numeric\),\(1::numeric\),\(1\.15::numeric\)/i);
+assert.doesNotMatch(sql,/\b(INSERT|UPDATE|DELETE|TRUNCATE|DROP|ALTER)\s+(INTO|FROM|TABLE|public\.)/i);
+console.log('Database-backed retail simulation SQL contract passed');
