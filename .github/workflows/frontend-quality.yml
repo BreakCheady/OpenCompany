@@ -64,5 +64,6 @@ jobs:
           node tests/six-collapsible-panels.cjs
           node tests/moderation-player-id-message-search.cjs
           node tests/admin-only-silent-log-delete.cjs
+          node tests/moderation-message-date-range.cjs
 
           node tests/economy-npc-cost-plus-market-pricing.cjs

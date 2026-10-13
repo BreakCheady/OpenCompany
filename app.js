@@ -982,7 +982,9 @@ const state = {
   moderationOverview: [],
   moderationMessages: [],
   moderationAccountSearch: '',
-  moderationMessageSearch: ''
+  moderationMessageSearch: '',
+  moderationMessageFrom: '',
+  moderationMessageTo: ''
 };
 
 let presenceTimer = null;
@@ -2270,24 +2272,37 @@ function moderationStatusMeta(row) {
   return { label:'Aktiv', cls:'' };
 }
 
+function moderationMessageRange() {
+  const from = state.moderationMessageFrom ? new Date(state.moderationMessageFrom).toISOString() : null;
+  const to = state.moderationMessageTo ? new Date(state.moderationMessageTo).toISOString() : null;
+  return { from, to };
+}
+async function refreshModerationMessages() {
+  const identifier = String(state.moderationMessageSearch || '').trim().toUpperCase();
+  const {from,to} = moderationMessageRange();
+  const requestKey = JSON.stringify([identifier,from,to]);
+  state.moderationMessages=[];
+  renderModeration();
+  if (!/^[AU][0-9]{5,}$/.test(identifier) || (from && to && from>to)) return;
+  const {data,error} = await sb.rpc('get_moderation_player_messages',{
+    p_identifier:identifier,p_limit:300,p_from:from,p_to:to
+  });
+  if (requestKey!==JSON.stringify([String(state.moderationMessageSearch||'').trim().toUpperCase(),...Object.values(moderationMessageRange())])) return;
+  if (error) {console.error('Moderationsnachrichten:',error);await gameAlert(error.message);return;}
+  state.moderationMessages=data||[];
+  renderModeration();
+}
 async function loadModerationData({ silent=false } = {}) {
   if (!['admin','moderator'].includes(state.moderationRole)) return;
-  const identifier = String(state.moderationMessageSearch || '').trim().toUpperCase();
-  const validIdentifier = /^[AU][0-9]{5,}$/.test(identifier);
-  const [overview,messages] = await Promise.all([
-    sb.rpc('get_moderation_overview'),
-    validIdentifier
-      ? sb.rpc('get_moderation_player_messages',{ p_identifier:identifier,p_limit:150 })
-      : Promise.resolve({data:[],error:null})
-  ]);
-  if (overview.error || messages.error) {
-    console.error('Moderationsdaten:', overview.error || messages.error);
-    if (!silent) await gameAlert((overview.error || messages.error)?.message || 'Moderationsdaten konnten nicht geladen werden.');
+  const overview=await sb.rpc('get_moderation_overview');
+  if (overview.error) {
+    console.error('Moderationsdaten:',overview.error);
+    if (!silent) await gameAlert(overview.error.message||'Moderationsdaten konnten nicht geladen werden.');
     return;
   }
-  state.moderationOverview = overview.data || [];
-  state.moderationMessages = messages.data || [];
+  state.moderationOverview=overview.data||[];
   renderModeration();
+  await refreshModerationMessages();
 }
 
 function renderModeration() {
@@ -2456,20 +2471,15 @@ document.getElementById('moderationAccountSearch')?.addEventListener('input',eve
   renderModeration();
 });
 document.getElementById('moderationMessageSearch')?.addEventListener('input',event=>{
-  state.moderationMessageSearch=event.target.value || '';
-  state.moderationMessages=[];
-  renderModeration();
-  const identifier=state.moderationMessageSearch.trim().toUpperCase();
-  if (/^[AU][0-9]{5,}$/.test(identifier)) {
-    const requested=identifier;
-    sb.rpc('get_moderation_player_messages',{p_identifier:requested,p_limit:150}).then(({data,error})=>{
-      if (requested!==state.moderationMessageSearch.trim().toUpperCase()) return;
-      if(error){console.error('Moderationsnachrichten:',error);return;}
-      state.moderationMessages=data||[];
-      renderModeration();
-    });
-  }
+  state.moderationMessageSearch=event.target.value||'';
+  refreshModerationMessages();
 });
+for (const [id,key] of [['moderationMessageFrom','moderationMessageFrom'],['moderationMessageTo','moderationMessageTo']]) {
+  document.getElementById(id)?.addEventListener('change',event=>{
+    state[key]=event.target.value||'';
+    refreshModerationMessages();
+  });
+}
 
 const PERSONAL_ASSISTANT_COMPANY_ID = '00000000-0000-4000-8000-000000000001';
 
