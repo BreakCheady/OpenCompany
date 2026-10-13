@@ -5789,12 +5789,17 @@ function renderBuildings() {
       }
 
       const click = underConstruction || isStorage ? '' : (isRetail ? `onclick="openRetailBuilding('${building.id}')"` : `onclick="selectBuildingCard('${building.id}')"`);
-      return `<div class="building-card ${selected?'selected':''} ${underConstruction?'under-construction':''} ${isStorage?'storage-building-card':''}" ${click}>
-        <div class="building-card-head"><label class="building-bulk-select" onclick="event.stopPropagation()"><input type="checkbox" data-bulk-building="${building.id}" ${(state.bulkBuildingIds||[]).includes(building.id)?'checked':''} ${building.status!=='active'?'disabled':''}> Gemeinsam auswählen</label><div>
+      const groupIds=state.bulkBuildingIds||[];
+      const groupType=state.buildings.find(b=>b.id===groupIds[0])?.building_type_id;
+      const groupSelected=groupIds.includes(building.id);
+      const groupIncompatible=!!groupType && groupType!==building.building_type_id;
+      return `<div class="building-card ${selected?'selected':''} ${groupSelected?'building-bulk-active':''} ${groupIncompatible?'building-bulk-incompatible':''} ${underConstruction?'under-construction':''} ${isStorage?'storage-building-card':''}" ${click}>
+        <div class="building-card-head"><label class="building-bulk-select ${groupSelected?'is-checked':''}" onclick="event.stopPropagation()" title="${groupIncompatible?'Nur identische Gebäudetypen können gemeinsam ausgewählt werden':'Gebäude zur gemeinsamen Verwaltung auswählen'}"><input type="checkbox" data-bulk-building="${building.id}" ${groupSelected?'checked':''} ${building.status!=='active'||groupIncompatible?'disabled':''}><span>${groupSelected?'Ausgewählt':'Gemeinsam auswählen'}</span></label><div>
           <div class="building-card-title">${bt.name} #${number}</div>
           <div class="building-card-meta">Level ${level} · ${buildingCategoryLabel(bt.building_category)}</div>
           <div class="building-card-meta">${translateUiString('Unterhalt / Tag')}: ${money(buildingMaintenanceCost(bt.building_category, level))}</div>
         </div></div>
+        ${groupSelected?'<span class="building-bulk-chip">In Auswahl</span>':''}
         ${statusHtml}
         ${jobHtml}
         ${constructionHtml}
@@ -12297,6 +12302,28 @@ function renderBulkBuildingActions(){
   const retail=ensureBatchBox('retailBatchSummary',document.getElementById('retailSaleDetails'));
   if(prod)prod.innerHTML='';
   if(retail)retail.innerHTML='';
+  const cards=document.getElementById('buildingCards');
+  let toolbar=document.getElementById('buildingBulkToolbar');
+  if(cards&&!toolbar){
+    toolbar=document.createElement('div');
+    toolbar.id='buildingBulkToolbar';
+    toolbar.className='building-bulk-toolbar';
+    cards.parentNode.insertBefore(toolbar,cards);
+  }
+  if(toolbar){
+    if(!buildings.length){toolbar.hidden=true;toolbar.innerHTML='';}
+    else {
+      toolbar.hidden=false;
+      const type=state.buildingTypes.find(t=>t.id===buildings[0].building_type_id);
+      toolbar.innerHTML='<div class="building-bulk-toolbar-info"><strong>'+buildings.length+' × '+escapeChatText(type?.name||'Gebäude')+' ausgewählt</strong><span>Gemeinsame Verwaltung · nur identische Gebäudetypen</span></div><button type="button" class="ghost building-bulk-clear">Auswahl aufheben</button>';
+      toolbar.querySelector('.building-bulk-clear')?.addEventListener('click',()=>{
+        state.bulkBuildingIds=[];
+        renderBuildings();
+        renderProductionRecipe();
+        renderRetailSale();
+      });
+    }
+  }
   if(buildings.length<2)return;
   if(['production','research'].includes(category)&&prod){
     const hours=bulkProductionDuration();

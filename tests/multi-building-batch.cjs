@@ -13,3 +13,10 @@ assert(app.includes("sb.rpc('claim_retail_revenue'"));
 assert(app.includes('event.stopImmediatePropagation()'));
 assert(html.includes('.building-batch-summary'));
 console.log('Multi-building selection and batch operations checks OK');
+
+assert(app.includes('building-bulk-incompatible'));
+assert(app.includes('building-bulk-active'));
+assert(app.includes('buildingBulkToolbar'));
+assert(app.includes('building-bulk-clear'));
+assert(app.includes("state.bulkBuildingIds=[]"));
+assert(html.includes('.building-bulk-toolbar'));

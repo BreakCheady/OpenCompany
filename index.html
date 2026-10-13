@@ -5,14 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta name="theme-color" content="#0d2d55">
   <title>OpenCompany</title>
-  <link rel="icon" type="image/png" href="favicon.png?v=0.10.361">
-  <link rel="shortcut icon" href="favicon.ico?v=0.10.361">
-  <link rel="icon" type="image/x-icon" href="favicon.ico?v=0.10.361">
-  <link rel="manifest" href="/manifest.webmanifest?v=0.10.361">
-  <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=0.10.361">
+  <link rel="icon" type="image/png" href="favicon.png?v=0.10.362">
+  <link rel="shortcut icon" href="favicon.ico?v=0.10.362">
+  <link rel="icon" type="image/x-icon" href="favicon.ico?v=0.10.362">
+  <link rel="manifest" href="/manifest.webmanifest?v=0.10.362">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=0.10.362">
   <meta name="application-name" content="OpenCompany">
   <meta name="mobile-web-app-capable" content="yes">
-  <link rel="stylesheet" href="style.css?v=0.10.361">
+  <link rel="stylesheet" href="style.css?v=0.10.362">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     .storage-auction-confirm-btn{display:block;margin:14px 0 0 auto;width:auto!important;min-width:125px;padding:9px 18px;border-radius:8px;background:#b91c1c;color:#fff;border:1px solid #991b1b;font-weight:700;cursor:pointer}
@@ -1122,7 +1122,7 @@
       .oc-select-option{min-height:46px;padding:.7rem .8rem}
     }
   
-    /* v0.10.361 – Navigation 20 % breiter auf Basis von v0.10.230 */
+    /* v0.10.362 – Navigation 20 % breiter auf Basis von v0.10.230 */
     .app-shell{
       display:block!important;
       min-height:100dvh!important;
@@ -2633,7 +2633,7 @@
       .management-decision-option{padding:11px!important}
     }
 
-    /* OpenCompany 0.10.361 – sichere Hamburger-Navigation ohne Eingriff in den Login */
+    /* OpenCompany 0.10.362 – sichere Hamburger-Navigation ohne Eingriff in den Login */
     .app-shell{padding-bottom:0!important}
     .main-content{width:100%!important;max-width:1500px!important;margin:0 auto!important;padding-bottom:28px!important}
 
@@ -2789,7 +2789,7 @@
       .navigation-drawer-toggle{width:40px!important;min-width:40px!important;height:40px!important;padding:0 9px!important}
     }
 
-    /* OpenCompany 0.10.361 – stärkere schwarze Rahmen nur an Kartenfeldern */
+    /* OpenCompany 0.10.362 – stärkere schwarze Rahmen nur an Kartenfeldern */
     :where(
       .panel,
       .stat-card,
@@ -2865,6 +2865,24 @@
 .building-batch-summary p{margin:8px 0}
 .building-batch-summary .table-wrap{max-height:280px;overflow:auto}
 .building-batch-buttons{display:flex;flex-wrap:wrap;gap:9px;margin-top:12px}
+</style>
+<style>
+/* Building multi-selection: compact, clearly grouped controls */
+.building-card{position:relative;transition:border-color .16s ease,box-shadow .16s ease,background .16s ease,opacity .16s ease}
+.building-card.building-bulk-active{border:2px solid var(--accent);background:color-mix(in srgb,var(--accent) 5%,var(--panel));box-shadow:0 2px 10px rgba(25,118,237,.10)}
+.building-card.building-bulk-incompatible{opacity:.48}
+.building-bulk-select{display:inline-flex;align-items:center;gap:8px;padding:7px 9px;border:1px solid var(--border);border-radius:9px;background:var(--panel);margin-bottom:10px;line-height:1.2;font-size:.79rem;max-width:100%;white-space:normal}
+.building-bulk-select.is-checked{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 10%,var(--panel));color:var(--accent-dark);font-weight:700}
+.building-bulk-select input{flex-shrink:0;cursor:pointer}
+.building-bulk-select:has(input:disabled){cursor:not-allowed}
+.building-bulk-chip{position:absolute;top:9px;right:10px;background:var(--accent);color:#fff;padding:3px 8px;border-radius:999px;font-size:.69rem;font-weight:700}
+.building-bulk-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:13px 16px;margin:12px 0;border:1px solid var(--accent);border-radius:12px;background:color-mix(in srgb,var(--accent) 7%,var(--panel))}
+.building-bulk-toolbar[hidden]{display:none!important}
+.building-bulk-toolbar-info{display:flex;flex-direction:column;gap:4px;min-width:0}
+.building-bulk-toolbar-info strong{font-size:1rem}
+.building-bulk-toolbar-info span{color:var(--muted);font-size:.81rem}
+.building-bulk-toolbar .building-bulk-clear{white-space:nowrap}
+@media(max-width:640px){.building-bulk-chip{position:static;display:inline-block;margin-bottom:8px}.building-bulk-toolbar{align-items:stretch}.building-bulk-toolbar button{width:100%}}
 </style>
 </head>
 <body>
@@ -3738,7 +3756,7 @@
           <h2>Einstellungen</h2>
           <div class="kv">
             <span>Version</span>
-            <strong>0.10.361</strong>
+            <strong>0.10.362</strong>
           </div>
           <div class="kv settings-language-row">
             <span>Sprache</span>
@@ -3970,7 +3988,7 @@
     if (event.key === 'Escape') closeMainNavigationDrawer();
   });
 </script>
-<script src="guidance.js?v=0.10.361"></script>
+<script src="guidance.js?v=0.10.362"></script>
 <script src="config.js"></script>
 <script>
   const appScript = document.createElement('script');
