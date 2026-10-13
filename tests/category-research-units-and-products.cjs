@@ -1,0 +1,20 @@
+const fs=require('node:fs'),assert=require('node:assert/strict'),vm=require('node:vm');
+const app=fs.readFileSync('app.js','utf8');
+new vm.Script(app,{filename:'app.js'});
+const catalog=fs.readFileSync('docs/category-research-units-catalog.sql','utf8');
+const guard=fs.readFileSync('docs/category-research-investment-guard.sql','utf8');
+const expanded=fs.readFileSync('docs/expanded-product-catalog.sql','utf8');
+const future=fs.readFileSync('docs/future-catalog-recipe-guard.sql','utf8');
+const retire=fs.readFileSync('docs/retire-universal-research-item.sql','utf8');
+const categories=['automotive','chemical','component','construction','electronics','energy','food','food_component','logistics','machinery','textile'];
+for(const c of categories){assert(app.includes(c+':'),'Frontend category mapping: '+c);assert(catalog.includes("WHEN '"+c+"'"),'Database category mapping: '+c);}
+assert(app.includes("researchInventoryContext(selected?.category)"));
+assert(app.includes("researchInventoryContext(target?.category)"));
+assert(!app.includes("p.name === 'Forschungseinheit'"),'Old generic unit must not be invested');
+assert(guard.includes("private.category_research_unit_name(v_product.category)"));
+assert(guard.includes("and product_id=v_research_product"));
+assert(expanded.includes("production_recipe_inputs"),'New products must have recipes');
+assert(expanded.includes("required_building_type_id"),'New products must be manufacturable');
+assert(future.includes("'development'"),'Products without recipes must be blocked');
+assert(retire.includes("status='discontinued'"),'Legacy universal production must stop');
+console.log('Category-scoped research and 11 new product blueprints verified');

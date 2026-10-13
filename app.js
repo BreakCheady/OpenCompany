@@ -7769,8 +7769,15 @@ window.repayBondInvestment = async function(investmentId) {
   if (error) gameAlert(error.message); else await loadCompany();
 };
 
-function researchInventoryContext() {
-  const product = state.products.find(p => p.category === 'research' && p.name === 'Forschungseinheit');
+const RESEARCH_UNITS_BY_CATEGORY=Object.freeze({
+  automotive:'Fahrzeug-Forschung',chemical:'Chemie-Forschung',component:'Komponenten-Forschung',
+  construction:'Bau-Forschung',electronics:'Elektronik-Forschung',energy:'Energie-Forschung',
+  food:'Lebensmittel-Forschung',food_component:'Lebensmittelzutaten-Forschung',
+  logistics:'Logistik-Forschung',machinery:'Maschinenbau-Forschung',textile:'Textil-Forschung'
+});
+function researchInventoryContext(category) {
+  const unitName=RESEARCH_UNITS_BY_CATEGORY[category]||null;
+  const product = state.products.find(p => p.category === 'research' && p.name === unitName);
   const summary = product ? inventoryLotSummary(productInventoryLots(product.id), 1) : {quantity:0,averageUnitCost:0};
   return { product, quantity:summary.quantity, averageUnitCost:summary.averageUnitCost };
 }
@@ -7793,7 +7800,6 @@ function researchInvestmentValue(quantity, researchProduct) {
 }
 
 function renderResearch() {
-  const ctx = researchInventoryContext();
   const productInput = document.getElementById('researchProduct');
   const searchInput = document.getElementById('researchProductSearch');
   const qtyInput = document.getElementById('researchInvestmentAmount');
@@ -7803,7 +7809,7 @@ function renderResearch() {
   const maxBtn = document.getElementById('researchInvestmentMaxBtn');
   if (!productInput || !searchInput || !qtyInput || !preview || !submit || !table) return;
 
-  const researchProducts = [...state.products].sort((a,b)=>
+  const researchProducts = [...state.products].filter(p=>p.category!=='research').sort((a,b)=>
     researchCategory(a).localeCompare(researchCategory(b),uiLocale()) ||
     a.name.localeCompare(b.name,uiLocale())
   );
@@ -7824,6 +7830,8 @@ function renderResearch() {
   productInput.value = selectedId;
 
   const selected = researchProducts.find(product => product.id === selectedId) || null;
+  const ctx=researchInventoryContext(selected?.category);
+  const categoryUnit=RESEARCH_UNITS_BY_CATEGORY[selected?.category]||'Forschungseinheit';
   const quality=productQuality(selected);
   const requirement=researchRequirement(quality);
   const progress=Number(selected?.research_units_progress||0);
@@ -7845,7 +7853,7 @@ function renderResearch() {
   const patentMax=investmentValue*1.10;
   valid = valid && !!researchBuilding && Number(state.company?.cash_balance || 0) >= researchOperatingCost;
 
-  document.getElementById('researchUnitsAvailable').textContent=`${num(availableWhole)} Forschungseinheiten`;
+  document.getElementById('researchUnitsAvailable').textContent=`${num(availableWhole)} ${categoryUnit}`;
   document.getElementById('researchUnitAverageCost').textContent=money(ctx.averageUnitCost);
   preview.innerHTML=selected ? `
     <div class="kv"><span>Produkt</span><strong>${selected.name}</strong></div>
@@ -11688,7 +11696,8 @@ researchInvestmentAmount?.addEventListener('input', () => {
 });
 
 researchInvestmentMaxBtn?.addEventListener('click', () => {
-  const ctx = researchInventoryContext();
+  const selected=state.products.find(p=>p.id===researchProduct?.value);
+  const ctx = researchInventoryContext(selected?.category);
   researchInvestmentAmount.value = String(Math.max(0, Math.floor(ctx.quantity)));
   renderResearch();
 });
@@ -11696,8 +11705,8 @@ researchInvestmentMaxBtn?.addEventListener('click', () => {
 if (researchInvestmentForm) {
   researchInvestmentForm.addEventListener('submit', async e => {
     e.preventDefault();
-    const ctx = researchInventoryContext();
     const target = state.products.find(p => p.id === researchProduct?.value);
+    const ctx = researchInventoryContext(target?.category);
     const quantity = Math.max(0, Math.floor(Number(researchInvestmentAmount.value || 0)));
     if (!ctx.product || !target || quantity < 1 || quantity > Math.floor(ctx.quantity)) {
       renderResearch();

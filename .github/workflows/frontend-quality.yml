@@ -55,5 +55,6 @@ jobs:
           node tests/storage-zero-residue-visibility.cjs
           node tests/large-order-delivery-deadline.cjs
           node tests/large-order-card-hierarchy.cjs
+          node tests/category-research-units-and-products.cjs
 
           node tests/economy-npc-cost-plus-market-pricing.cjs
