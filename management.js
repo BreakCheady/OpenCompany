@@ -359,7 +359,16 @@ function renderManagementDecisions(){
     html+='<div class="management-decision-head"><div class="management-decision-badges">'+
       '<span class="management-decision-level">'+managementEscape(managementDecisionLevelLabel(d.decision_level))+'</span>'+
       '<span class="management-decision-severity">'+managementEscape(managementDecisionSeverityLabel(d.severity))+'</span>'+
-      '</div><span class="management-decision-deadline">'+managementEscape(managementDecisionRemaining(d.expires_at))+'</span></div>';
+      '</div></div>';
+    const dueMs=new Date(d.expires_at).getTime()-Date.now();
+    const dueMinutes=Math.max(0,Math.ceil(dueMs/60000));
+    const dueLabel=dueMs<=0?'Frist abgelaufen':dueMinutes>=1440
+      ?Math.floor(dueMinutes/1440)+' Tg. '+Math.floor((dueMinutes%1440)/60)+' Std. verbleibend'
+      :dueMinutes>=60?Math.floor(dueMinutes/60)+' Std. '+dueMinutes%60+' Min. verbleibend'
+      :dueMinutes+' Min. verbleibend';
+    const dueClass=dueMs<=0?'complaint-deadline-expired':dueMs<=3600000
+      ?'complaint-deadline-urgent':dueMs<=21600000?'complaint-deadline-soon':'complaint-deadline-normal';
+    html+='<div class="complaint-deadline management-decision-timebox '+dueClass+'" role="status"><span class="complaint-deadline-label">ENTSCHEIDUNGSFRIST</span><strong>'+managementEscape(dueLabel)+'</strong><span class="complaint-deadline-date">Bis '+managementEscape(new Date(d.expires_at).toLocaleString('de-DE'))+'</span></div>';
     const situation=(d.description||'').trim();
     const context=Object.entries(d.context||{}).filter(function(entry){return entry[0]!=='order_id' && entry[0]!=='affected_manager_id' && entry[1]!==null && entry[1]!==undefined;});
     const contextCause=context.slice(0,2).map(function(entry){
