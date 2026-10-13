@@ -18,13 +18,12 @@ begin
   left join public.products p on p.id=o.product_id
   where o.order_type='sell' and o.status in ('open','partially_filled')
     and c.company_type='player' and cb.unit_cost>0
-    and o.price_per_unit<=greatest(cb.npc_max_price,
-       (case when o.material_id is not null
+    and o.price_per_unit<=(case when o.material_id is not null
          then private.market_balanced_quality_price(m.base_cost*private.quality_multiplier(o.quality_level),m.base_cost,o.quality_level)
          else private.market_balanced_quality_price(
            private.simulated_product_quality_unit_cost(p.name,o.quality_level),
            private.simulated_product_quality_unit_cost(p.name,1),o.quality_level)
-       end)*1.10)
+       end)*1.02
   order by random() limit 8
  loop
   if v_order.product_id is not null then
