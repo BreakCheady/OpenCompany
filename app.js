@@ -5210,12 +5210,22 @@ function renderOperationsHealth() {
         const replacement=Math.max(0,Number(c.replacement_cost||0));
         const stock=Number(c.replacement_stock||0);
         const quantity=Number(c.quantity||0);
+        const deadlineTime=new Date(c.expires_at).getTime();
+        const remainingMs=deadlineTime-Date.now();
+        const remainingMinutes=Math.max(0,Math.ceil(remainingMs/60000));
+        const remainingLabel=remainingMs<=0?'Frist abgelaufen':remainingMinutes>=1440
+          ?Math.floor(remainingMinutes/1440)+' Tg. '+Math.floor((remainingMinutes%1440)/60)+' Std. verbleibend'
+          :remainingMinutes>=60?Math.floor(remainingMinutes/60)+' Std. '+remainingMinutes%60+' Min. verbleibend'
+          :remainingMinutes+' Min. verbleibend';
+        const deadlineClass=remainingMs<=0?'complaint-deadline-expired':remainingMs<=3600000
+          ?'complaint-deadline-urgent':remainingMs<=21600000?'complaint-deadline-soon':'complaint-deadline-normal';
         const canReplace=stock>=quantity&&quantity>0;
         const stockState=canReplace?'complaint-impact-info':'complaint-impact-negative';
         return '<div class="complaint-card">'
           +'<div class="complaint-heading"><strong>Reklamation: '+product+'</strong><span class="complaint-badge">Q'+Number(c.quality)+' · '+num(quantity)+' Einheiten</span></div>'
           +'<p class="complaint-situation">'+escaped(c.situation||'Ein Kunde beanstandet einen Teil deiner im Handelsgeschäft verkauften Ware.')+'</p>'
-          +'<div class="complaint-meta"><span>Handelsverkauf</span><span>Antwortfrist: '+new Date(c.expires_at).toLocaleString(uiLocale())+'</span></div>'
+          +'<div class="complaint-meta"><span>Handelsverkauf</span></div>'
+          +'<div class="complaint-deadline '+deadlineClass+'" role="status"><span class="complaint-deadline-label">Antwortfrist</span><strong>'+escaped(remainingLabel)+'</strong><span class="complaint-deadline-date">Bis '+new Date(c.expires_at).toLocaleString(uiLocale())+'</span></div>'
           +'<div class="complaint-impact-grid">'
           +'<div class="complaint-impact complaint-impact-negative"><span>Erstattung</span><strong>−'+money(refund)+'</strong></div>'
           +'<div class="complaint-impact complaint-impact-warning"><span>Ersatzlieferung (Lagerwert)</span><strong>−'+money(replacement)+'</strong></div>'
