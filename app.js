@@ -7770,10 +7770,11 @@ window.repayBondInvestment = async function(investmentId) {
 };
 
 const RESEARCH_UNITS_BY_CATEGORY=Object.freeze({
-  automotive:'Fahrzeug-Forschung',chemical:'Chemie-Forschung',component:'Komponenten-Forschung',
-  construction:'Bau-Forschung',electronics:'Elektronik-Forschung',energy:'Energie-Forschung',
-  food:'Lebensmittel-Forschung',food_component:'Lebensmittelzutaten-Forschung',
-  logistics:'Logistik-Forschung',machinery:'Maschinenbau-Forschung',textile:'Textil-Forschung'
+  automotive:'Automobil-Forschung',machinery:'Automobil-Forschung',logistics:'Automobil-Forschung',
+  chemical:'Chemie-Forschung',component:'Elektronik-Forschung',electronics:'Elektronik-Forschung',
+  construction:'Bau-Forschung',energy:'Energie-Forschung',
+  food:'Lebensmittel-Forschung',food_component:'Lebensmittel-Forschung',
+  textile:'Textil-Forschung'
 });
 function researchInventoryContext(category) {
   const unitName=RESEARCH_UNITS_BY_CATEGORY[category]||null;
