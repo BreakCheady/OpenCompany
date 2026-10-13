@@ -2272,9 +2272,13 @@ function moderationStatusMeta(row) {
 
 async function loadModerationData({ silent=false } = {}) {
   if (!['admin','moderator'].includes(state.moderationRole)) return;
+  const identifier = String(state.moderationMessageSearch || '').trim().toUpperCase();
+  const validIdentifier = /^[AC][0-9]{5,}$/.test(identifier);
   const [overview,messages] = await Promise.all([
     sb.rpc('get_moderation_overview'),
-    sb.rpc('get_moderation_messages',{ p_limit:150 })
+    validIdentifier
+      ? sb.rpc('get_moderation_player_messages',{ p_identifier:identifier,p_limit:150 })
+      : Promise.resolve({data:[],error:null})
   ]);
   if (overview.error || messages.error) {
     console.error('Moderationsdaten:', overview.error || messages.error);
@@ -2346,11 +2350,9 @@ function renderModeration() {
     }).join('') : '<p class="muted">Keine passenden Accounts gefunden.</p>';
   }
 
-  const messageSearch = String(state.moderationMessageSearch || '').trim().toLocaleLowerCase(uiLocale());
-  const messages = (state.moderationMessages || []).filter(row => {
-    const haystack = [row.sender_company_name,row.body,row.room_name,row.recipient_company_name].filter(Boolean).join(' ').toLocaleLowerCase(uiLocale());
-    return !messageSearch || haystack.includes(messageSearch);
-  });
+  const messageSearch = String(state.moderationMessageSearch || '').trim().toUpperCase();
+  const validMessageSearch = /^[AC][0-9]{5,}$/.test(messageSearch);
+  const messages = validMessageSearch ? (state.moderationMessages || []) : [];
   const messageRoot = document.getElementById('moderationMessages');
   if (messageRoot) {
     messageRoot.innerHTML = messages.length ? messages.map(row => {
@@ -2362,7 +2364,7 @@ function renderModeration() {
         '<div class="moderation-message-body">' + escapeChatText(row.body || '') + '</div>' +
         '<div class="moderation-actions"><button type="button" class="moderation-danger" data-mod-delete-message="' + row.id + '">Nachricht löschen</button></div>' +
       '</section>';
-    }).join('') : '<p class="muted">Keine passenden Nachrichten gefunden.</p>';
+    }).join('') : '<p class="muted">' + (validMessageSearch ? 'Keine passenden Spielernachrichten gefunden.' : 'Account-ID (A…) oder Unternehmens-ID (C…) eingeben, um Spielernachrichten anzuzeigen.') + '</p>';
   }
 
   root.querySelectorAll('[data-mod-timeout]').forEach(btn => btn.addEventListener('click',()=>moderationTimeoutAccount(btn.dataset.modTimeout)));
@@ -2455,7 +2457,18 @@ document.getElementById('moderationAccountSearch')?.addEventListener('input',eve
 });
 document.getElementById('moderationMessageSearch')?.addEventListener('input',event=>{
   state.moderationMessageSearch=event.target.value || '';
+  state.moderationMessages=[];
   renderModeration();
+  const identifier=state.moderationMessageSearch.trim().toUpperCase();
+  if (/^[AC][0-9]{5,}$/.test(identifier)) {
+    const requested=identifier;
+    sb.rpc('get_moderation_player_messages',{p_identifier:requested,p_limit:150}).then(({data,error})=>{
+      if (requested!==state.moderationMessageSearch.trim().toUpperCase()) return;
+      if(error){console.error('Moderationsnachrichten:',error);return;}
+      state.moderationMessages=data||[];
+      renderModeration();
+    });
+  }
 });
 
 const PERSONAL_ASSISTANT_COMPANY_ID = '00000000-0000-4000-8000-000000000001';

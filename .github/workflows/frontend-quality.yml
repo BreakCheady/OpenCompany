@@ -62,5 +62,6 @@ jobs:
           node tests/special-q1-freight-prices.cjs
           node tests/npc-market-offer-quantities.cjs
           node tests/six-collapsible-panels.cjs
+          node tests/moderation-player-id-message-search.cjs
 
           node tests/economy-npc-cost-plus-market-pricing.cjs
