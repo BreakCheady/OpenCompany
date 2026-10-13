@@ -2739,9 +2739,10 @@ function renderChatMessages() {
     const body = escapeChatText(message.body).replace(/\n/g,'<br>');
     const edited = message.edited_at ? '<span class="chat-message-edited">(bearbeitet)</span>' : '';
     const canModerate = state.moderationRole === 'admin' || state.moderationRole === 'moderator';
-    const actions = (own || canModerate) ? `
+    const canDelete = target.isLog ? state.moderationRole === 'admin' : (own || canModerate);
+    const actions = canDelete ? `
       <div class="chat-message-actions">
-        ${own ? `<button type="button" class="chat-message-action" data-chat-edit="${message.id}" title="Nachricht bearbeiten" aria-label="Nachricht bearbeiten">✎</button>` : ''}
+        ${own && !target.isLog ? `<button type="button" class="chat-message-action" data-chat-edit="${message.id}" title="Nachricht bearbeiten" aria-label="Nachricht bearbeiten">✎</button>` : ''}
         <button type="button" class="chat-message-action chat-message-delete" data-chat-delete="${message.id}" title="${own ? 'Nachricht löschen' : 'Nachricht moderativ löschen'}" aria-label="Nachricht löschen">🗑</button>
       </div>` : '';
     return `
@@ -2883,13 +2884,14 @@ async function deleteChatMessage(messageId) {
   const message = state.chatMessages.find(item => item.id === messageId);
   if (!message) return;
   const own = message.sender_company_id === state.company?.id;
+  const isLog = selectedChatTarget()?.isLog === true;
   const canModerate = state.moderationRole === 'admin' || state.moderationRole === 'moderator';
-  if (!own && !canModerate) return;
+  if (isLog ? state.moderationRole !== 'admin' : (!own && !canModerate)) return;
 
-  if (!await gameConfirm(own ? 'Diese Chatnachricht wirklich löschen?' : 'Diese Nachricht moderativ für alle löschen?')) return;
+  if (!await gameConfirm(isLog ? 'Diesen Protokolleintrag endgültig entfernen?' : own ? 'Diese Chatnachricht wirklich löschen?' : 'Diese Nachricht moderativ für alle löschen?')) return;
 
   let error = null;
-  if (own) {
+  if (own && !isLog) {
     ({ error } = await sb
       .from('chat_messages')
       .update({ deleted_at:new Date().toISOString() })
