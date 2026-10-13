@@ -10106,9 +10106,9 @@ function updateLargeOrdersCountdown() {
   if (hours>0) {
     if(el)el.textContent=`${String(hours).padStart(2,'0')}:${String(minutes).padStart(2,'0')}:${String(seconds).padStart(2,'0')}`;
   } else if (minutes>0) {
-    el.textContent=`00:${String(minutes).padStart(2,'0')}:${String(seconds).padStart(2,'0')}`;
+    if(el)el.textContent=`00:${String(minutes).padStart(2,'0')}:${String(seconds).padStart(2,'0')}`;
   } else {
-    el.textContent=`00:00:${String(seconds).padStart(2,'0')}`;
+    if(el)el.textContent=`00:00:${String(seconds).padStart(2,'0')}`;
   }
   document.querySelectorAll('[data-large-order-deadline]').forEach(box=>{
     const deadline=new Date(box.dataset.largeOrderDeadline).getTime();
@@ -10256,6 +10256,7 @@ function renderLargeOrders() {
     (other.length ? '<h3 class="large-order-group-title">Bereits vergeben</h3><div class="large-orders-list">' +
       other.map(renderOrder).join("") + '</div>' : '') +
     '</div>';
+  updateLargeOrdersCountdown();
 }
 
 window.submitLargeCustomerBid = async function(event, orderId) {
