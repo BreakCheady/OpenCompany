@@ -3990,7 +3990,7 @@
       if(!view) continue;
       const panel=[...view.querySelectorAll('article.panel')].find(el=>{
         const h=el.querySelector(':scope > .panel-head h2');
-        return h && h.textContent.replace(/\\s+/g,' ').trim().startsWith(heading);
+        return h && h.textContent.replace(/\s+/g,' ').trim().startsWith(heading);
       });
       if(!panel || panel.classList.contains('oc-collapsible-panel'))continue;
       const header=panel.querySelector(':scope > .panel-head');
