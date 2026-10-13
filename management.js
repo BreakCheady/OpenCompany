@@ -200,9 +200,9 @@ function renderManagementManagers(){
       html+='<div class="manager-name">'+manager.manager_name+'</div>';
       html+='<div class="muted">'+manager.age+' Jahre · '+money(Number(manager.weekly_salary||0))+' / Tag</div>';
       html+='<div class="manager-stats">';
-      html+='<div class="manager-stat"><span>Kompetenz</span><strong>'+manager.competence+'</strong>'+managerDeltaBadge(manager.competence,previous?.competence,0)</div>';
-      html+='<div class="manager-stat"><span>Erfahrung</span><strong>'+manager.experience+'</strong>'+managerDeltaBadge(manager.experience,previous?.experience,0)</div>';
-      html+='<div class="manager-stat"><span>Motivation</span><strong>'+manager.motivation+'</strong>'+managerDeltaBadge(manager.motivation,previous?.motivation,0)</div></div>';
+      html+='<div class="manager-stat"><span>Kompetenz</span><strong>'+manager.competence+'</strong>'+managerDeltaBadge(manager.competence,previous?.competence,0)+'</div>';
+      html+='<div class="manager-stat"><span>Erfahrung</span><strong>'+manager.experience+'</strong>'+managerDeltaBadge(manager.experience,previous?.experience,0)+'</div>';
+      html+='<div class="manager-stat"><span>Motivation</span><strong>'+manager.motivation+'</strong>'+managerDeltaBadge(manager.motivation,previous?.motivation,0)+'</div></div>';
       if(training){
         html+='<div class="manager-training-note">Training aktiv · '+managementRemainingText(manager.training_ends_at)+' · Buffs pausiert</div>';
       } else {
