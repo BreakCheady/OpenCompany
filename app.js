@@ -2273,7 +2273,7 @@ function moderationStatusMeta(row) {
 async function loadModerationData({ silent=false } = {}) {
   if (!['admin','moderator'].includes(state.moderationRole)) return;
   const identifier = String(state.moderationMessageSearch || '').trim().toUpperCase();
-  const validIdentifier = /^[AC][0-9]{5,}$/.test(identifier);
+  const validIdentifier = /^[AU][0-9]{5,}$/.test(identifier);
   const [overview,messages] = await Promise.all([
     sb.rpc('get_moderation_overview'),
     validIdentifier
@@ -2351,7 +2351,7 @@ function renderModeration() {
   }
 
   const messageSearch = String(state.moderationMessageSearch || '').trim().toUpperCase();
-  const validMessageSearch = /^[AC][0-9]{5,}$/.test(messageSearch);
+  const validMessageSearch = /^[AU][0-9]{5,}$/.test(messageSearch);
   const messages = validMessageSearch ? (state.moderationMessages || []) : [];
   const messageRoot = document.getElementById('moderationMessages');
   if (messageRoot) {
@@ -2364,7 +2364,7 @@ function renderModeration() {
         '<div class="moderation-message-body">' + escapeChatText(row.body || '') + '</div>' +
         '<div class="moderation-actions"><button type="button" class="moderation-danger" data-mod-delete-message="' + row.id + '">Nachricht löschen</button></div>' +
       '</section>';
-    }).join('') : '<p class="muted">' + (validMessageSearch ? 'Keine passenden Spielernachrichten gefunden.' : 'Account-ID (A…) oder Unternehmens-ID (C…) eingeben, um Spielernachrichten anzuzeigen.') + '</p>';
+    }).join('') : '<p class="muted">' + (validMessageSearch ? 'Keine passenden Spielernachrichten gefunden.' : 'Account-ID (A…) oder Unternehmens-ID (U…) eingeben, um Spielernachrichten anzuzeigen.') + '</p>';
   }
 
   root.querySelectorAll('[data-mod-timeout]').forEach(btn => btn.addEventListener('click',()=>moderationTimeoutAccount(btn.dataset.modTimeout)));
@@ -2460,7 +2460,7 @@ document.getElementById('moderationMessageSearch')?.addEventListener('input',eve
   state.moderationMessages=[];
   renderModeration();
   const identifier=state.moderationMessageSearch.trim().toUpperCase();
-  if (/^[AC][0-9]{5,}$/.test(identifier)) {
+  if (/^[AU][0-9]{5,}$/.test(identifier)) {
     const requested=identifier;
     sb.rpc('get_moderation_player_messages',{p_identifier:requested,p_limit:150}).then(({data,error})=>{
       if (requested!==state.moderationMessageSearch.trim().toUpperCase()) return;
