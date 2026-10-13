@@ -164,7 +164,7 @@ function managerDeltaBadge(now,previous,digits){
   if(Math.abs(change)<(digits?0.049:0.5))return '';
   const up=change>0;
   // All perk values are beneficial magnitudes, including cost savings.
-  return '<span class="manager-delta '+(up?'manager-delta-up':'manager-delta-down')+'" title="'+(up?'Verbesserung':'Verschlechterung')+'">'+(up?'▲ +':'▼ −')+managementNumber(Math.abs(change),digits)+(digits?' PP':'')+'</span>';
+  return '<span class="manager-delta '+(up?'manager-delta-up':'manager-delta-down')+'" title="'+(up?'Verbesserung':'Verschlechterung')+'">'+(up?'▲ +':'▼ −')+managementNumber(Math.abs(change),digits)+'</span>';
 }
 function managerSnapshotKey(manager){return 'opencompany.manager.snapshot.'+String(state.company?.id||'unknown')+'.'+String(manager.id);}
 function managerPreviousSnapshot(manager){
