@@ -935,6 +935,7 @@ const state = {
   ocbStatus: { balance: 0, today: { login:false, production:false, retail:false, earned:0, maximum:20 } },
   selectedMarketOrderIds: [],
   selectedBuildingId: null,
+  bulkBuildingIds: [],
   selectedRetailBuildingId: null,
   buildingOverviewFilter: 'all',
   openDashboardAfterLogin: false,
@@ -5789,7 +5790,7 @@ function renderBuildings() {
 
       const click = underConstruction || isStorage ? '' : (isRetail ? `onclick="openRetailBuilding('${building.id}')"` : `onclick="selectBuildingCard('${building.id}')"`);
       return `<div class="building-card ${selected?'selected':''} ${underConstruction?'under-construction':''} ${isStorage?'storage-building-card':''}" ${click}>
-        <div class="building-card-head"><div>
+        <div class="building-card-head"><label class="building-bulk-select" onclick="event.stopPropagation()"><input type="checkbox" data-bulk-building="${building.id}" ${(state.bulkBuildingIds||[]).includes(building.id)?'checked':''} ${building.status!=='active'?'disabled':''}> Gemeinsam auswählen</label><div>
           <div class="building-card-title">${bt.name} #${number}</div>
           <div class="building-card-meta">Level ${level} · ${buildingCategoryLabel(bt.building_category)}</div>
           <div class="building-card-meta">${translateUiString('Unterhalt / Tag')}: ${money(buildingMaintenanceCost(bt.building_category, level))}</div>
@@ -5804,6 +5805,29 @@ function renderBuildings() {
 
   const cards = document.getElementById('buildingCards');
   if (cards) cards.innerHTML = html || '<div class="production-building-empty">In dieser Kategorie sind noch keine Gebäude vorhanden.</div>';
+  cards?.querySelectorAll('[data-bulk-building]').forEach(input=>input.addEventListener('change',event=>{
+    const id=event.target.dataset.bulkBuilding;
+    const building=state.buildings.find(b=>b.id===id);
+    if(!building)return;
+    const previous=(state.bulkBuildingIds||[]).map(bid=>state.buildings.find(b=>b.id===bid)).filter(Boolean);
+    if(event.target.checked){
+      if(previous.length && previous[0].building_type_id!==building.building_type_id) {
+        state.bulkBuildingIds=[];
+      }
+      state.bulkBuildingIds.push(id);
+      if(['production','research'].includes(state.buildingTypes.find(t=>t.id===building.building_type_id)?.building_category)){
+        state.selectedBuildingId=id;
+        state.selectedRetailBuildingId=null;
+        updateProductionProductsForSelectedBuilding();
+      }else if(state.buildingTypes.find(t=>t.id===building.building_type_id)?.building_category==='retail'){
+        state.selectedBuildingId=id;
+        state.selectedRetailBuildingId=id;
+      }
+    } else state.bulkBuildingIds=state.bulkBuildingIds.filter(bid=>bid!==id);
+    renderBuildings();
+    renderProductionRecipe();
+    renderRetailSale();
+  }));
 
   document.querySelectorAll('.building-overview-filter').forEach(button => {
     button.classList.toggle('active', button.dataset.buildingFilter === filter);
