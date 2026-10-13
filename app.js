@@ -12426,11 +12426,38 @@ const originalBatchRenderProduction=renderProductionRecipe;
 renderProductionRecipe=function(...args){
   const result=originalBatchRenderProduction(...args);
   renderBulkBuildingActions();
+  const multiple=bulkSelectedBuildings().length>1&&['production','research'].includes(bulkBuildingCategory(bulkSelectedBuildings()));
+  const recipe=document.getElementById('productionRecipe');
+  if(recipe)recipe.style.display=multiple?'none':'';
+  const button=document.getElementById('productionStartBtn');
+  if(button&&multiple){
+    button.textContent='Produktion gemeinsam starten';
+    button.disabled=false;
+    button.style.removeProperty('background');
+    button.style.removeProperty('border-color');
+    button.style.removeProperty('color');
+  }
   return result;
 };
 const originalBatchRenderRetail=renderRetailSale;
 renderRetailSale=function(...args){
   const result=originalBatchRenderRetail(...args);
   renderBulkBuildingActions();
+  if(bulkSelectedBuildings().length>1&&bulkBuildingCategory(bulkSelectedBuildings())==='retail'){
+    const button=document.getElementById('retailSaleBtn');
+    if(button){button.textContent='Verkauf gemeinsam starten';button.disabled=false;}
+  }
   return result;
 };
+document.getElementById('productionForm')?.addEventListener('submit',event=>{
+  const buildings=bulkSelectedBuildings();
+  if(buildings.length<=1||!['production','research'].includes(bulkBuildingCategory(buildings)))return;
+  event.preventDefault();event.stopImmediatePropagation();
+  bulkStartProduction();
+},true);
+document.getElementById('retailSaleForm')?.addEventListener('submit',event=>{
+  const buildings=bulkSelectedBuildings();
+  if(buildings.length<=1||bulkBuildingCategory(buildings)!=='retail')return;
+  event.preventDefault();event.stopImmediatePropagation();
+  bulkStartRetail();
+},true);
