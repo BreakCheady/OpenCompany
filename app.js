@@ -12337,7 +12337,6 @@ function renderBulkBuildingActions(){
     const claimable=jobs.reduce((sum,j)=>sum+productionClaimableQuantity(j),0);
     const rows=inputs.map(i=>'<tr><td>'+escapeChatText(i.name)+' · Q'+i.quality+'</td><td>'+num(i.required)+' '+escapeChatText(i.unit)+'</td><td>'+num(i.available)+'</td></tr>').join('');
     prod.innerHTML='<strong>'+buildings.length+' identische Gebäude ausgewählt</strong>'
-      +'<p>Gemeinsame Dauer: '+formatProductionDuration(hours)+' · Gesamtproduktion: '+num(total)+' Einheiten · '+free.length+' freie Gebäude</p>'
       +(inputs.length?'<div class="table-wrap"><table><thead><tr><th>Rohstoff</th><th>Gesamtbedarf</th><th>Lager</th></tr></thead><tbody>'+rows+'</tbody></table></div>':'')
       +'<p><strong>Einsammelbar: '+num(claimable)+' Einheiten</strong></p>'
       +'<div class="building-batch-buttons"><button type="button" id="bulkProductionStart" '+(!ready?'disabled':'')+'>Produktion gemeinsam starten ('+free.length+')</button>'
