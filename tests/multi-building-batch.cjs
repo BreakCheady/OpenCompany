@@ -24,3 +24,7 @@ assert(html.includes('.building-bulk-toolbar'));
 assert(app.includes('building-card-selection-row'));
 assert(app.includes('</span></label></div><div class="building-card-head">'));
 assert(html.includes('.building-card .building-card-head{display:block;width:100%'));
+
+assert(html.includes('#productionBatchSummary:not(:empty),#retailBatchSummary:not(:empty)'));
+assert(html.includes('background:#fff8d8'));
+assert(html.includes('border:2px solid #e4b928'));
