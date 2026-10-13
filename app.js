@@ -7809,7 +7809,7 @@ function renderResearch() {
   const maxBtn = document.getElementById('researchInvestmentMaxBtn');
   if (!productInput || !searchInput || !qtyInput || !preview || !submit || !table) return;
 
-  const researchProducts = [...state.products].filter(p=>p.category!=='research').sort((a,b)=>
+  const researchProducts = [...state.products].filter(p=>p.category!=='research' && p.status==='active').sort((a,b)=>
     researchCategory(a).localeCompare(researchCategory(b),uiLocale()) ||
     a.name.localeCompare(b.name,uiLocale())
   );
