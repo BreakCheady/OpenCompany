@@ -3308,3 +3308,13 @@ body.dashboard-history-open{
 .complaint-btn-reject{border:1px solid #94a3b8!important;color:#334155!important;background:#fff!important}
 .complaint-actions button:disabled{opacity:.5;cursor:not-allowed}
 @media(max-width:640px){.complaint-impact-grid{grid-template-columns:1fr}.complaint-card{padding:12px}}
+
+
+/* Reklamationsfrist: klar erkennbare Restzeit und Dringlichkeit */
+.complaint-deadline{display:flex;align-items:center;flex-wrap:wrap;gap:6px 12px;margin:0 0 14px;padding:10px 13px;border-radius:10px;border:1px solid #93c5fd;background:#eff6ff;color:#1e40af;font-variant-numeric:tabular-nums}
+.complaint-deadline-label{font-size:.83rem;font-weight:600;text-transform:uppercase;letter-spacing:.035em}
+.complaint-deadline strong{font-size:1.04rem;font-weight:750}
+.complaint-deadline-date{margin-left:auto;font-size:.84rem}
+.complaint-deadline-soon{background:#fffbeb;border-color:#fcd34d;color:#92400e}
+.complaint-deadline-urgent,.complaint-deadline-expired{background:#fef2f2;border-color:#fca5a5;color:#b91c1c}
+@media(max-width:640px){.complaint-deadline-date{margin-left:0;width:100%}}
