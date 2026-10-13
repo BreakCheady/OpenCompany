@@ -3330,3 +3330,29 @@ body.dashboard-history-open{
 .manager-delta-down{background:#fee2e2;color:#991b1b}
 .manager-stat .manager-delta{margin:4px auto 0}
 .manager-perks .manager-delta{margin-left:5px}
+
+
+/* Großaufträge: clear visual hierarchy and distinct contract/tender surfaces */
+.large-orders-list{display:grid;gap:18px}
+.large-order-card{border:1px solid #cbd5e1;border-radius:14px;overflow:hidden;background:var(--card-bg,#fff);box-shadow:0 3px 12px rgba(15,23,42,.055);margin:0}
+.large-order-card-tender{border-color:#93c5fd;border-left:4px solid #3b82f6}
+.large-order-card-awarded{border-color:#86efac;border-left:4px solid #16a34a}
+.large-order-card-other{border-left:4px solid #94a3b8}
+.large-order-card .large-order-card-head{padding:16px 18px;background:rgba(59,130,246,.085);border-bottom:1px solid rgba(59,130,246,.22);gap:12px}
+.large-order-card-awarded .large-order-card-head{background:rgba(22,163,74,.09);border-bottom-color:rgba(22,163,74,.25)}
+.large-order-card-other .large-order-card-head{background:rgba(100,116,139,.07);border-bottom-color:rgba(100,116,139,.18)}
+.large-order-card .large-order-card-body{padding:16px 18px}
+.large-order-card .large-order-product{font-size:1.18rem;font-weight:750;line-height:1.4;margin:7px 0 0;color:var(--text,#0f172a)}
+.large-order-quality-pill{display:inline-flex;vertical-align:middle;padding:3px 9px;border-radius:999px;background:rgba(59,130,246,.12);color:#1d4ed8;font-size:.75rem;font-weight:750;white-space:nowrap}
+.large-order-card-awarded .large-order-quality-pill{background:rgba(22,163,74,.13);color:#166534}
+.large-order-card .large-order-meta{gap:10px;margin-bottom:14px}
+.large-order-card .large-order-meta-item{border-radius:9px}
+.large-order-card .large-order-section{padding-top:15px;margin-top:15px;border-top:1px solid rgba(100,116,139,.18)}
+.large-order-progress-summary{margin:12px 0 15px;padding:12px 14px;border:1px solid #bbf7d0;border-radius:11px;background:rgba(22,163,74,.045)}
+.large-order-progress-heading{display:flex;justify-content:space-between;align-items:center;gap:10px;font-size:.89rem;margin-bottom:8px}
+.large-order-progress-heading strong{font-weight:750;font-variant-numeric:tabular-nums;color:#166534}
+.large-order-progress-track{height:10px;overflow:hidden;background:#e2e8f0;border-radius:999px}
+.large-order-progress-fill{height:100%;background:#16a34a;border-radius:inherit;transition:width .3s ease}
+.large-order-group-title{margin-top:28px;margin-bottom:13px;padding-left:12px;border-left:4px solid #3b82f6}
+.large-order-group-title:has(+ .large-orders-list .large-order-card-awarded){border-left-color:#16a34a}
+@media(max-width:640px){.large-order-card .large-order-card-head,.large-order-card .large-order-card-body{padding:12px}.large-orders-list{gap:13px}}

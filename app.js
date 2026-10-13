@@ -10159,11 +10159,11 @@ function renderLargeOrders() {
     const status = statusMeta(order, ownAward);
     const bidStatus = ({submitted:'Gebot abgegeben',won:'Zuschlag erhalten',lost:'Nicht berücksichtigt',withdrawn:'Zurückgezogen'})[bid?.status] || bid?.status || '';
 
-    let html = '<section class="large-order-card">' +
+    let html = '<section class="large-order-card '+(ownAward?'large-order-card-awarded':order.status==='bidding'?'large-order-card-tender':'large-order-card-other')+'">' +
       '<div class="large-order-card-head">' +
         '<div class="large-order-heading">' +
           '<h3>' + largeOrderTypeLabel(order.order_type) + ' · ' + order.customer_name + '</h3>' +
-          '<p class="large-order-product">' + order.item_name + '</p>' +
+          '<p class="large-order-product">' + order.item_name + ' <span class="large-order-quality-pill">Q' + Number(order.minimum_quality||1) + '</span></p>' +
         '</div>' +
         '<span class="large-order-status ' + status.cls + '">' + (ownAward ? 'Zuschlag erhalten' : bidding && bid ? 'Gebot abgegeben' : status.label) + '</span>' +
       '</div>' +
@@ -10217,6 +10217,8 @@ function renderLargeOrders() {
     if (ownAward) {
       html += '<div class="large-order-section">' +
         '<h4 class="large-order-section-title">Auftrag ausliefern</h4>' +
+        '<div class="large-order-progress-summary"><div class="large-order-progress-heading"><span>Lieferfortschritt</span><strong>'+num(Math.min(100,Math.max(0,Number(order.delivered_quantity||0)/Math.max(1,Number(order.quantity||1))*100)))+' %</strong></div>' +
+          '<div class="large-order-progress-track" role="progressbar" aria-valuenow="'+Math.min(100,Math.max(0,Math.round(Number(order.delivered_quantity||0)/Math.max(1,Number(order.quantity||1))*100)))+'" aria-valuemin="0" aria-valuemax="100"><div class="large-order-progress-fill" style="width:'+Math.min(100,Math.max(0,Number(order.delivered_quantity||0)/Math.max(1,Number(order.quantity||1))*100))+'%"></div></div></div>' +
         '<div class="large-order-delivery-progress">' +
           '<div><span>Geliefert</span><strong>' + num(order.delivered_quantity) + ' / ' + num(order.quantity) + '</strong></div>' +
           '<div><span>Lieferbar aus Lager</span><strong>' + num(deliverable) + ' / ' + num(remaining) + '</strong></div>' +
