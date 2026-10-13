@@ -65,5 +65,6 @@ jobs:
           node tests/moderation-player-id-message-search.cjs
           node tests/admin-only-silent-log-delete.cjs
           node tests/moderation-message-date-range.cjs
+          node tests/multi-building-batch.cjs
 
           node tests/economy-npc-cost-plus-market-pricing.cjs
