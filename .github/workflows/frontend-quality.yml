@@ -53,5 +53,6 @@ jobs:
           node tests/management-deadline-display.cjs
           node tests/management-manager-delta.cjs
           node tests/storage-zero-residue-visibility.cjs
+          node tests/large-order-delivery-deadline.cjs
 
           node tests/economy-npc-cost-plus-market-pricing.cjs
