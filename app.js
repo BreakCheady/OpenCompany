@@ -10097,19 +10097,33 @@ function nextLargeOrderGenerationDate(now=new Date()) {
 
 function updateLargeOrdersCountdown() {
   const el=document.getElementById('largeOrdersCountdown');
-  if(!el) return;
+
   const diff=Math.max(0,nextLargeOrderGenerationDate().getTime()-Date.now());
   const totalSeconds=Math.floor(diff/1000);
   const hours=Math.floor(totalSeconds/3600);
   const minutes=Math.floor((totalSeconds%3600)/60);
   const seconds=totalSeconds%60;
   if (hours>0) {
-    el.textContent=`${String(hours).padStart(2,'0')}:${String(minutes).padStart(2,'0')}:${String(seconds).padStart(2,'0')}`;
+    if(el)el.textContent=`${String(hours).padStart(2,'0')}:${String(minutes).padStart(2,'0')}:${String(seconds).padStart(2,'0')}`;
   } else if (minutes>0) {
     el.textContent=`00:${String(minutes).padStart(2,'0')}:${String(seconds).padStart(2,'0')}`;
   } else {
     el.textContent=`00:00:${String(seconds).padStart(2,'0')}`;
   }
+  document.querySelectorAll('[data-large-order-deadline]').forEach(box=>{
+    const deadline=new Date(box.dataset.largeOrderDeadline).getTime();
+    if(!Number.isFinite(deadline))return;
+    const remaining=deadline-Date.now();
+    const minutes=Math.max(0,Math.ceil(remaining/60000));
+    const label=remaining<=0?'Frist abgelaufen':minutes>=1440
+      ?Math.floor(minutes/1440)+' Tg. '+Math.floor((minutes%1440)/60)+' Std. verbleibend'
+      :minutes>=60?Math.floor(minutes/60)+' Std. '+minutes%60+' Min. verbleibend'
+      :minutes+' Min. verbleibend';
+    box.classList.remove('complaint-deadline-normal','complaint-deadline-soon','complaint-deadline-urgent','complaint-deadline-expired');
+    box.classList.add(remaining<=0?'complaint-deadline-expired':remaining<=3600000?'complaint-deadline-urgent':remaining<=21600000?'complaint-deadline-soon':'complaint-deadline-normal');
+    const value=box.querySelector('[data-large-order-remaining]');
+    if(value)value.textContent=label;
+  });
 }
 
 function startLargeOrdersCountdown() {
@@ -10206,8 +10220,11 @@ function renderLargeOrders() {
         '<div class="large-order-delivery-progress">' +
           '<div><span>Geliefert</span><strong>' + num(order.delivered_quantity) + ' / ' + num(order.quantity) + '</strong></div>' +
           '<div><span>Lieferbar aus Lager</span><strong>' + num(deliverable) + ' / ' + num(remaining) + '</strong></div>' +
-          '<div><span>Deadline</span><strong>' + new Date(order.delivery_deadline).toLocaleString(uiLocale()) + '</strong></div>' +
+          
         '</div>' +
+        '<div class="complaint-deadline large-order-deadline-box" data-large-order-deadline="' + order.delivery_deadline + '" role="status">' +
+          '<span class="complaint-deadline-label">LIEFERFRIST</span><strong data-large-order-remaining>Wird berechnet …</strong>' +
+          '<span class="complaint-deadline-date">Bis ' + new Date(order.delivery_deadline).toLocaleString(uiLocale()) + '</span></div>' +
         '<form class="large-order-delivery-form" onsubmit="deliverLargeCustomerOrder(event,\'' + order.id + '\',' + deliverable + ')">' +
           '<label><span>Teillieferung</span><input id="largeDeliveryQty-' + order.id +
           '" type="number" min="0.01" max="' + deliverable + '" step="0.01" value="' + deliverable + '" ' + (deliverable>0?'required':'disabled') + '></label>' +
