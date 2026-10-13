@@ -19,7 +19,7 @@ SELECT round(sum(b.qty*(
  + coalesce((SELECT sum(i.quantity_per_unit*m.base_cost*private.quality_multiplier(greatest(1,b.stage_quality-1)))
  FROM public.production_recipe_inputs i JOIN public.materials m ON m.id=i.material_id
  WHERE i.product_id=b.product_id),0)
- )*(1+private.operating_cost_rate(t.code,t.building_category))),4)
+ )*private.economy_production_cost_factor()*(1+private.operating_cost_rate(t.code,t.building_category))),4)
 FROM chain b JOIN public.products p ON p.id=b.product_id
 LEFT JOIN public.building_types t ON t.id=p.required_building_type_id
 $function$;
