@@ -1,0 +1,15 @@
+const assert=require('node:assert/strict');
+const fs=require('node:fs');const vm=require('node:vm');
+const app=fs.readFileSync('app.js','utf8'),html=fs.readFileSync('index.html','utf8');
+new vm.Script(app,{filename:'app.js'});
+assert(app.includes('data-bulk-building='));
+assert(app.includes('previous[0].building_type_id!==building.building_type_id'));
+assert(app.includes('function bulkProductionPlans('));
+assert(app.includes('function bulkAggregatedIngredients('));
+assert(app.includes("sb.rpc('start_production_on_building_v2'"));
+assert(app.includes("sb.rpc('start_retail_sale_on_building_v2'"));
+assert(app.includes("sb.rpc('claim_production_output'"));
+assert(app.includes("sb.rpc('claim_retail_revenue'"));
+assert(app.includes('event.stopImmediatePropagation()'));
+assert(html.includes('.building-batch-summary'));
+console.log('Multi-building selection and batch operations checks OK');
