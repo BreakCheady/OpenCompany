@@ -12290,10 +12290,10 @@ function renderBulkBuildingActions(){
   if(['production','research'].includes(category)&&prod){
     const hours=bulkProductionDuration();
     const plans=hours>0&&hours<=24?bulkProductionPlans(buildings,hours):[];
-    const inputs=bulkAggregatedIngredients(plans);
-    const materialsOk=inputs.every(i=>i.required<=i.available+1e-9);
     const free=plans.filter(p=>p.plan.building&&!p.plan.runningJob&&p.plan.outputQty>=1);
-    const total=plans.reduce((sum,p)=>sum+Number(p.plan.outputQty||0),0);
+    const inputs=bulkAggregatedIngredients(free);
+    const materialsOk=inputs.every(i=>i.required<=i.available+1e-9);
+    const total=free.reduce((sum,p)=>sum+Number(p.plan.outputQty||0),0);
     const ready=free.length&&materialsOk&&hours>0&&hours<=24;
     const jobs=state.productionJobs.filter(j=>j.status==='running'&&buildings.some(b=>b.id===j.building_id));
     const claimable=jobs.reduce((sum,j)=>sum+productionClaimableQuantity(j),0);
