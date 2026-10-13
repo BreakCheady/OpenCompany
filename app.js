@@ -1171,7 +1171,7 @@ function retailBreakEvenPrice(unitCost, extraCostPerUnit = 0, category = null) {
 }
 
 function transportContainerFreight(quantity) {
-  const requested = Math.max(0, Number(quantity || 0));
+  const requested = Math.ceil(Math.max(0, Number(quantity || 0))/2);
   const container = state.products.find(product => product.name === 'Transportcontainer');
   if (!container || requested <= 0) {
     return { required: requested, available: 0, cost: 0, sufficient: requested <= 0 };
@@ -6560,7 +6560,9 @@ function renderMarketProductPage() {
     sellBtn.textContent=marketCanSellItem(item)?'Verkaufsorder erstellen':'Kein Bestand zum Verkaufen';
   }
 
+  const singleQualityItem=item.type==='product' && (item.category==='research' || item.name==='Transportcontainer');
   document.querySelectorAll('.market-quality-btn').forEach(btn=>{
+    btn.hidden=singleQualityItem && !['all','1'].includes(btn.dataset.quality);
     const filter=state.marketQualityFilter;
     const selected=btn.dataset.quality;
     const active=selected==='all' ? filter==='all' : Array.isArray(filter) && filter.includes(selected);
@@ -7810,7 +7812,7 @@ function renderResearch() {
   const maxBtn = document.getElementById('researchInvestmentMaxBtn');
   if (!productInput || !searchInput || !qtyInput || !preview || !submit || !table) return;
 
-  const researchProducts = [...state.products].filter(p=>p.category!=='research' && p.status==='active').sort((a,b)=>
+  const researchProducts = [...state.products].filter(p=>p.category!=='research' && p.name!=='Transportcontainer' && p.status==='active').sort((a,b)=>
     researchCategory(a).localeCompare(researchCategory(b),uiLocale()) ||
     a.name.localeCompare(b.name,uiLocale())
   );

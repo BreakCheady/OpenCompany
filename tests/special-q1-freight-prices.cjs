@@ -1,0 +1,14 @@
+const a=require('node:assert/strict'),f=require('node:fs'),vm=require('node:vm');
+const app=f.readFileSync('app.js','utf8');new vm.Script(app,{filename:'app.js'});
+const t=p=>f.readFileSync(p,'utf8');
+a(app.includes('Math.ceil(Math.max(0, Number(quantity || 0))/2)'));
+a(app.includes("p.name!=='Transportcontainer'"));
+a(app.includes('btn.hidden=singleQualityItem'));
+a(t('docs/half-freight-containers.sql').includes('ceil(greatest(coalesce(p_quantity,0),0)/2)'));
+a(t('docs/special-q1-price-bands.sql').includes('NEW.quality_level:=1'));
+a(t('docs/special-q1-price-bands.sql').includes('random()::numeric*3'));
+a(t('docs/special-q1-price-bands.sql').includes('random()::numeric*4'));
+a(t('docs/special-q1-npc-market-supply.sql').includes("v_catalog.name='Transportcontainer' then 1 else 5"));
+a(t('docs/special-q1-research-market-supply.sql').includes('FOR v_q IN 1..1 LOOP'));
+for(const n of ['trg_q1_only_trade','trg_q1_only_stock','trg_block_special_quality_upgrades'])a(t('docs/special-q1-quality-guards.sql').includes(n));
+console.log('Q1 special goods and 1:2 container usage: OK');
