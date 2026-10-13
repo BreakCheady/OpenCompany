@@ -1,3 +1,5 @@
+-- Maintain 10 NPC sell offers per material/product quality: 220-280 each (2,200-2,800 aggregate).
+-- Q1-only research and Transportcontainer: 10 offers, 1,100-1,500 units each (11,000-15,000 aggregate).
 -- Baseline v0.10.349; modify ONLY NPC offer counts/quantities for research and Transportcontainer.
 -- Ordinary raw materials and products retain the exact v0.10.349 logic.
 CREATE OR REPLACE FUNCTION private.ensure_npc_market_supply()
@@ -48,7 +50,7 @@ begin
         and o.status in ('open','partially_filled') and coalesce(o.remaining_quantity,0)>0
         and (o.expires_at is null or o.expires_at>now());
 
-      v_needed:=greatest(0,4-v_existing);
+      v_needed:=greatest(0,10-v_existing);
       for v_i in 1..v_needed loop
         v_profile_company_id:=null;
         select mp.company_id,mp.volume_factor,mp.price_factor
@@ -61,7 +63,7 @@ begin
         limit 1;
 
         exit when v_profile_company_id is null;
-        v_qty:=greatest(50,floor((180::numeric+random()::numeric*821)*coalesce(v_volume_factor,1)));
+        v_qty:=floor(220::numeric+random()::numeric*61);
         while exists(
           select 1 from public.market_orders o join public.companies c on c.id=o.company_id
           where c.company_type='npc' and o.material_id=v_material.id and o.quality_level=v_quality
@@ -105,7 +107,7 @@ begin
         and o.status in ('open','partially_filled') and coalesce(o.remaining_quantity,0)>0
         and (o.expires_at is null or o.expires_at>now());
 
-      v_needed:=greatest(0,(case when v_catalog.category='research' or v_catalog.name='Transportcontainer' then 10 else 4 end)-v_existing);
+      v_needed:=greatest(0,(case when v_catalog.category='research' or v_catalog.name='Transportcontainer' then 10 else 10 end)-v_existing);
       for v_i in 1..v_needed loop
         v_product_id:=null; v_profile_company_id:=null;
         select p.id,mp.company_id,mp.volume_factor,mp.price_factor
@@ -121,9 +123,9 @@ begin
 
         exit when v_product_id is null or v_profile_company_id is null;
         v_qty:=case when v_catalog.name='Transportcontainer'
-          then floor(220::numeric+random()::numeric*61)
-          when v_catalog.category='research' then floor(220::numeric+random()::numeric*61)
-          else greatest(10,floor((25::numeric+random()::numeric*226)*coalesce(v_volume_factor,1))) end;
+          then floor(1100::numeric+random()::numeric*401)
+          when v_catalog.category='research' then floor(1100::numeric+random()::numeric*401)
+          else floor(220::numeric+random()::numeric*61) end;
 
         while exists(
           select 1 from public.market_orders o
@@ -188,7 +190,7 @@ BEGIN
  ORDER BY random()/greatest(ip.activity_weight,0.1) LIMIT 1;
  IF v_product IS NULL THEN EXIT; END IF;
  INSERT INTO public.market_orders(company_id,product_id,order_type,quantity,remaining_quantity,price_per_unit,status,expires_at,quality_level)
- VALUES(v_company,v_product,'sell',230+v_i,230+v_i,1,'open',v_expires,v_q);
+ VALUES(v_company,v_product,'sell',1200+v_i*10,1200+v_i*10,1,'open',v_expires,v_q);
  v_n:=v_n+1;
  END LOOP;
  END LOOP;
