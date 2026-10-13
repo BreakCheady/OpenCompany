@@ -52,6 +52,7 @@ jobs:
           node tests/complaints-deadline-display.cjs
           node tests/management-deadline-display.cjs
           node tests/management-manager-delta.cjs
+          node tests/management-decision-stay.cjs
           node tests/storage-zero-residue-visibility.cjs
           node tests/large-order-delivery-deadline.cjs
           node tests/large-order-card-hierarchy.cjs

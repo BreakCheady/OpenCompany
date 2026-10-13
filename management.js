@@ -638,7 +638,7 @@ window.handleManagementDecision=async function(id,action,view){
   const result=await sb.rpc('resolve_management_decision',{p_company_id:state.company.id,p_decision_id:id,p_action:action});
   if(result.error){await gameAlert(result.error.message);await refreshManagementOverview();return;}
   await refreshManagementOverview();
-  if(view) activateView(view);
+  // Eine beantwortete Entscheidung lässt den Management-Tab geöffnet.
 };
 
 setInterval(function(){
