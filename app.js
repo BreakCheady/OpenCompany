@@ -5210,16 +5210,21 @@ function renderOperationsHealth() {
         const replacement=Math.max(0,Number(c.replacement_cost||0));
         const stock=Number(c.replacement_stock||0);
         const quantity=Number(c.quantity||0);
-        return '<div class="panel" style="margin-top:8px"><strong>Reklamation: '+product+' · Q'+Number(c.quality)+'</strong> · '
-          +num(quantity)+' Einheiten'
-          +'<p class="muted" style="margin:8px 0">'+escaped(c.situation||'Ein Kunde beanstandet einen Teil deiner im Handelsgeschäft verkauften Ware.')+'</p>'
-          +'<div class="muted">Ausgang: Verkauf im Handelsgeschäft · Antwortfrist: '+new Date(c.expires_at).toLocaleString(uiLocale())+'</div>'
-          +'<div class="muted" style="margin-top:5px">Erstattung: <strong>'+money(refund)+'</strong> · Ersatzlieferung: <strong>'+money(replacement)+'</strong> (Lagerwert; Bestand: '+num(stock)+' Einheiten)</div>'
-          +'<div class="muted">Ablehnen: keine unmittelbare Auszahlung, aber Kundenzufriedenheit und Kundenbindung sinken.</div>'
-          +'<div class="retail-actions">'
-          +'<button type="button" class="ghost" data-complaint-id="'+escaped(c.id)+'" data-complaint-action="refund">Erstatten ('+money(refund)+')</button>'
-          +'<button type="button" class="ghost" data-complaint-id="'+escaped(c.id)+'" data-complaint-action="replacement">Ersatz liefern ('+num(quantity)+' Stk.)</button>'
-          +'<button type="button" class="ghost" data-complaint-id="'+escaped(c.id)+'" data-complaint-action="reject">Ablehnen</button>'
+        const canReplace=stock>=quantity&&quantity>0;
+        const stockState=canReplace?'complaint-impact-info':'complaint-impact-negative';
+        return '<div class="complaint-card">'
+          +'<div class="complaint-heading"><strong>Reklamation: '+product+'</strong><span class="complaint-badge">Q'+Number(c.quality)+' · '+num(quantity)+' Einheiten</span></div>'
+          +'<p class="complaint-situation">'+escaped(c.situation||'Ein Kunde beanstandet einen Teil deiner im Handelsgeschäft verkauften Ware.')+'</p>'
+          +'<div class="complaint-meta"><span>Handelsverkauf</span><span>Antwortfrist: '+new Date(c.expires_at).toLocaleString(uiLocale())+'</span></div>'
+          +'<div class="complaint-impact-grid">'
+          +'<div class="complaint-impact complaint-impact-negative"><span>Erstattung</span><strong>−'+money(refund)+'</strong></div>'
+          +'<div class="complaint-impact complaint-impact-warning"><span>Ersatzlieferung (Lagerwert)</span><strong>−'+money(replacement)+'</strong></div>'
+          +'<div class="complaint-impact '+stockState+'"><span>Verfügbarer Bestand</span><strong>'+num(stock)+' Einheiten</strong></div>'
+          +'<div class="complaint-impact complaint-impact-neutral"><span>Ablehnen</span><strong>Kundenzufriedenheit sinkt</strong></div>'
+          +'</div><div class="complaint-actions">'
+          +'<button type="button" class="ghost complaint-btn-refund" data-complaint-id="'+escaped(c.id)+'" data-complaint-action="refund">Erstatten (−'+money(refund)+')</button>'
+          +'<button type="button" class="ghost complaint-btn-replacement" data-complaint-id="'+escaped(c.id)+'" data-complaint-action="replacement"'+(canReplace?'':' disabled title="Nicht genügend geeigneter Lagerbestand"')+'>'+(canReplace?'Ersatz liefern ('+num(quantity)+' Stk.)':'Ersatz nicht verfügbar')+'</button>'
+          +'<button type="button" class="ghost complaint-btn-reject" data-complaint-id="'+escaped(c.id)+'" data-complaint-action="reject">Ablehnen</button>'
           +'</div></div>';
       }).join(''):'<p class="muted">Keine offenen Reklamationen aus Handelsverkäufen.</p>';
       complaintsRoot.querySelectorAll('[data-complaint-action]').forEach(btn=>btn.addEventListener('click',async()=>{
