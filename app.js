@@ -5794,12 +5794,12 @@ function renderBuildings() {
       const groupSelected=groupIds.includes(building.id);
       const groupIncompatible=!!groupType && groupType!==building.building_type_id;
       return `<div class="building-card ${selected?'selected':''} ${groupSelected?'building-bulk-active':''} ${groupIncompatible?'building-bulk-incompatible':''} ${underConstruction?'under-construction':''} ${isStorage?'storage-building-card':''}" ${click}>
-        <div class="building-card-head"><label class="building-bulk-select ${groupSelected?'is-checked':''}" onclick="event.stopPropagation()" title="${groupIncompatible?'Nur identische Gebäudetypen können gemeinsam ausgewählt werden':'Gebäude zur gemeinsamen Verwaltung auswählen'}"><input type="checkbox" data-bulk-building="${building.id}" ${groupSelected?'checked':''} ${building.status!=='active'||groupIncompatible?'disabled':''}><span>${groupSelected?'Ausgewählt':'Gemeinsam auswählen'}</span></label><div>
+        <div class="building-card-selection-row"><label class="building-bulk-select ${groupSelected?'is-checked':''}" onclick="event.stopPropagation()" title="${groupIncompatible?'Nur identische Gebäudetypen können gemeinsam ausgewählt werden':'Gebäude zur gemeinsamen Verwaltung auswählen'}"><input type="checkbox" data-bulk-building="${building.id}" ${groupSelected?'checked':''} ${building.status!=='active'||groupIncompatible?'disabled':''}><span>${groupSelected?'Ausgewählt':'Gemeinsam auswählen'}</span></label></div><div class="building-card-head"><div>
           <div class="building-card-title">${bt.name} #${number}</div>
           <div class="building-card-meta">Level ${level} · ${buildingCategoryLabel(bt.building_category)}</div>
           <div class="building-card-meta">${translateUiString('Unterhalt / Tag')}: ${money(buildingMaintenanceCost(bt.building_category, level))}</div>
         </div></div>
-        ${groupSelected?'<span class="building-bulk-chip">In Auswahl</span>':''}
+        
         ${statusHtml}
         ${jobHtml}
         ${constructionHtml}

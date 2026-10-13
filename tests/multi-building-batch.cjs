@@ -20,3 +20,7 @@ assert(app.includes('buildingBulkToolbar'));
 assert(app.includes('building-bulk-clear'));
 assert(app.includes("state.bulkBuildingIds=[]"));
 assert(html.includes('.building-bulk-toolbar'));
+
+assert(app.includes('building-card-selection-row'));
+assert(app.includes('</span></label></div><div class="building-card-head">'));
+assert(html.includes('.building-card .building-card-head{display:block;width:100%'));
