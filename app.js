@@ -6560,7 +6560,9 @@ function renderMarketProductPage() {
     sellBtn.textContent=marketCanSellItem(item)?'Verkaufsorder erstellen':'Kein Bestand zum Verkaufen';
   }
 
+  const singleQualityItem=item.type==='product' && (item.category==='research' || item.name==='Transportcontainer');
   document.querySelectorAll('.market-quality-btn').forEach(btn=>{
+    btn.hidden=singleQualityItem && !['all','1'].includes(btn.dataset.quality);
     const filter=state.marketQualityFilter;
     const selected=btn.dataset.quality;
     const active=selected==='all' ? filter==='all' : Array.isArray(filter) && filter.includes(selected);
