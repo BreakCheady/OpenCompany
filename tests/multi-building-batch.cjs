@@ -32,3 +32,9 @@ assert(html.includes('border:2px solid #e4b928'));
 assert(html.includes('#productionBatchSummary p:has(> strong),#retailBatchSummary p:has(> strong)'));
 assert(html.includes('color:var(--success,#00a63c)!important;font-weight:700'));
 assert(html.includes('.building-batch-buttons button:not(:disabled)'));
+
+assert(app.includes('data-bulk-buy-index'));
+assert(app.includes('buyAggregatedProductionInput(item)'));
+assert(app.includes('purchaseProductionInputShortfall(actual)'));
+assert(app.includes('bulkAggregatedIngredients(free)'));
+assert(app.includes('fetchMarketOrdersForProductionInput(input)'));
