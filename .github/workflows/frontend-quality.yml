@@ -47,5 +47,6 @@ jobs:
 
           node tests/economy-live-retail-revenue-sim.cjs
           node tests/economy-deterministic-quality-system.cjs
+          node tests/retail-complaints-management-story.cjs
 
           node tests/economy-npc-cost-plus-market-pricing.cjs
