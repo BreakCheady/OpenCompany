@@ -157,6 +157,27 @@ function renderManagementGoals(){
   if(submit) submit.disabled=active.length>=3;
 }
 
+const managerSnapshots=new Map();
+function managerDeltaBadge(now,previous,digits){
+  if(previous==null || !Number.isFinite(Number(previous)))return '';
+  const change=Number(now)-Number(previous);
+  if(Math.abs(change)<(digits?0.049:0.5))return '';
+  const up=change>0;
+  // All perk values are beneficial magnitudes, including cost savings.
+  return '<span class="manager-delta '+(up?'manager-delta-up':'manager-delta-down')+'" title="'+(up?'Verbesserung':'Verschlechterung')+'">'+(up?'▲ +':'▼ −')+managementNumber(Math.abs(change),digits)+(digits?' PP':'')+'</span>';
+}
+function managerSnapshotKey(manager){return 'opencompany.manager.snapshot.'+String(state.company?.id||'unknown')+'.'+String(manager.id);}
+function managerPreviousSnapshot(manager){
+  const key=managerSnapshotKey(manager);
+  if(managerSnapshots.has(key))return managerSnapshots.get(key);
+  try{const saved=localStorage.getItem(key);return saved?JSON.parse(saved):null;}catch(_){return null;}
+}
+function managerRememberSnapshot(manager,snapshot){
+  const key=managerSnapshotKey(manager);
+  managerSnapshots.set(key,snapshot);
+  try{localStorage.setItem(key,JSON.stringify(snapshot));}catch(_){}
+}
+
 function renderManagementManagers(){
   const root=document.getElementById('managementManagers');
   if(!root) return;
@@ -172,22 +193,25 @@ function renderManagementManagers(){
     if(manager){
       const primary=managementPerkValue(manager,meta.primaryCap);
       const secondary=managementPerkValue(manager,meta.secondaryCap);
+      const previous=managerPreviousSnapshot(manager);
+      const snapshot={competence:Number(manager.competence),experience:Number(manager.experience),motivation:Number(manager.motivation),primary,secondary};
       const training=manager.status==='training';
       let html='<div class="management-manager-card"><h3>'+meta.label+'</h3>';
       html+='<div class="manager-name">'+manager.manager_name+'</div>';
       html+='<div class="muted">'+manager.age+' Jahre · '+money(Number(manager.weekly_salary||0))+' / Tag</div>';
       html+='<div class="manager-stats">';
-      html+='<div class="manager-stat"><span>Kompetenz</span><strong>'+manager.competence+'</strong></div>';
-      html+='<div class="manager-stat"><span>Erfahrung</span><strong>'+manager.experience+'</strong></div>';
-      html+='<div class="manager-stat"><span>Motivation</span><strong>'+manager.motivation+'</strong></div></div>';
+      html+='<div class="manager-stat"><span>Kompetenz</span><strong>'+manager.competence+'</strong>'+managerDeltaBadge(manager.competence,previous?.competence,0)+'</div>';
+      html+='<div class="manager-stat"><span>Erfahrung</span><strong>'+manager.experience+'</strong>'+managerDeltaBadge(manager.experience,previous?.experience,0)+'</div>';
+      html+='<div class="manager-stat"><span>Motivation</span><strong>'+manager.motivation+'</strong>'+managerDeltaBadge(manager.motivation,previous?.motivation,0)+'</div></div>';
       if(training){
         html+='<div class="manager-training-note">Training aktiv · '+managementRemainingText(manager.training_ends_at)+' · Buffs pausiert</div>';
       } else {
-        html+='<div class="manager-perks"><span>'+meta.primary+': <strong>'+managementNumber(primary,1)+' %</strong></span>';
-        html+='<span>'+meta.secondary+': <strong>'+managementNumber(secondary,1)+' %</strong></span></div>';
+        html+='<div class="manager-perks"><span>'+meta.primary+': <strong>'+managementNumber(primary,1)+' %</strong>'+managerDeltaBadge(primary,previous?.primary,1)+'</span>';
+        html+='<span>'+meta.secondary+': <strong>'+managementNumber(secondary,1)+' %</strong>'+managerDeltaBadge(secondary,previous?.secondary,1)+'</span></div>';
         html+='<button type="button" class="ghost" onclick="startManagerTraining(\''+manager.id+'\')">8 Std. trainieren</button>';
       }
       html+='<button type="button" class="ghost" onclick="dismissCompanyManager(\''+manager.id+'\')">Entlassen</button>';
+      managerRememberSnapshot(manager,snapshot);
       return html+'</div>';
     }
 
