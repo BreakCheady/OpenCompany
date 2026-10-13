@@ -3285,3 +3285,26 @@ body.dashboard-history-open{
   #productionMachineHealth .machine-maintenance-row select { grid-column:1; }
   #productionMachineHealth .machine-maintenance-row button { grid-column:2; }
 }
+
+
+/* Reklamationen – sichtbare Kosten und klare Handlungsfolgen */
+.complaint-card{margin-top:10px;padding:16px;border:1px solid var(--border,#d5dae2);border-radius:14px;background:var(--card-bg,var(--panel-bg,#fff))}
+.complaint-heading{display:flex;align-items:center;flex-wrap:wrap;gap:8px 12px}
+.complaint-heading strong{font-size:1.06rem}
+.complaint-badge{display:inline-flex;padding:4px 9px;border-radius:999px;background:rgba(72,111,170,.11);color:var(--text,#24344d);font-size:.81rem;font-weight:600}
+.complaint-situation{margin:10px 0;color:var(--text,#334155);line-height:1.55}
+.complaint-meta{display:flex;flex-wrap:wrap;gap:5px 16px;color:var(--muted,#64748b);font-size:.88rem;margin-bottom:12px}
+.complaint-impact-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;margin:12px 0 14px}
+.complaint-impact{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px 12px;padding:10px 12px;border:1px solid;border-radius:10px;font-size:.89rem}
+.complaint-impact strong{font-size:1rem;font-weight:700;font-variant-numeric:tabular-nums}
+.complaint-impact-negative{border-color:#fca5a5;background:#fff1f2;color:#991b1b}
+.complaint-impact-warning{border-color:#fdba74;background:#fff7ed;color:#9a3412}
+.complaint-impact-info{border-color:#93c5fd;background:#eff6ff;color:#1e40af}
+.complaint-impact-neutral{border-color:#d1d5db;background:#f8fafc;color:#475569}
+.complaint-actions{display:flex;flex-wrap:wrap;gap:9px}
+.complaint-actions button{font-weight:650}
+.complaint-btn-refund{border:1px solid #dc2626!important;color:#b91c1c!important;background:#fff!important}
+.complaint-btn-replacement{border:1px solid #ea580c!important;color:#9a3412!important;background:#fff!important}
+.complaint-btn-reject{border:1px solid #94a3b8!important;color:#334155!important;background:#fff!important}
+.complaint-actions button:disabled{opacity:.5;cursor:not-allowed}
+@media(max-width:640px){.complaint-impact-grid{grid-template-columns:1fr}.complaint-card{padding:12px}}
