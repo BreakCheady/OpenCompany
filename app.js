@@ -10945,9 +10945,18 @@ window.buyMissingProductionInput = async function(kind, itemId) {
     (kind === 'material' && i.material_id === itemId) ||
     (kind === 'product' && i.component_product_id === itemId)
   );
-
-  if (!input) return;
-
+  if (input) await purchaseProductionInputShortfall(input);
+};
+async function buyAggregatedProductionInput(input) {
+  const buildings=bulkSelectedBuildings();
+  if(buildings.length<2||!['production','research'].includes(bulkBuildingCategory(buildings)))return;
+  const hours=bulkProductionDuration();
+  if(!(hours>0&&hours<=24))return;
+  const free=bulkProductionPlans(buildings,hours).filter(({plan})=>plan.building&&!plan.runningJob&&plan.outputQty>=1);
+  const actual=bulkAggregatedIngredients(free).find(i=>(i.material_id||i.component_product_id)===(input.material_id||input.component_product_id)&&i.minQuality===input.minQuality);
+  if(actual)await purchaseProductionInputShortfall(actual);
+}
+async function purchaseProductionInputShortfall(input) {
   let missing = Math.max(0, Number(input.required || 0) - Number(input.available || 0));
   if (missing <= 1e-9) {
     renderProductionRecipe();
@@ -11018,7 +11027,7 @@ window.buyMissingProductionInput = async function(kind, itemId) {
   }
 
   await loadCompany();
-};
+}
 
 window.claimProductionOutput = async function(jobId) {
   const job = state.productionJobs.find(j => j.id === jobId);
@@ -12278,7 +12287,7 @@ function bulkAggregatedIngredients(plans){
   for(const {plan} of plans){
     for(const inp of plan.inputs){
       const key=[inp.material_id||inp.component_product_id,inp.minQuality].join(':');
-      if(!items.has(key))items.set(key,{name:inp.name,unit:inp.unit||'',quality:inp.minQuality,required:0,available:inp.available});
+      if(!items.has(key))items.set(key,{name:inp.name,unit:inp.unit||'',quality:inp.minQuality,minQuality:inp.minQuality,material_id:inp.material_id||null,component_product_id:inp.component_product_id||null,required:0,available:inp.available});
       items.get(key).required+=Number(inp.required||0);
     }
   }
@@ -12335,13 +12344,17 @@ function renderBulkBuildingActions(){
     const ready=free.length&&materialsOk&&hours>0&&hours<=24;
     const jobs=state.productionJobs.filter(j=>j.status==='running'&&buildings.some(b=>b.id===j.building_id));
     const claimable=jobs.reduce((sum,j)=>sum+productionClaimableQuantity(j),0);
-    const rows=inputs.map(i=>'<tr><td>'+escapeChatText(i.name)+' · Q'+i.quality+'</td><td>'+num(i.required)+' '+escapeChatText(i.unit)+'</td><td>'+num(i.available)+'</td></tr>').join('');
+    const rows=inputs.map((i,index)=>'<tr><td>'+escapeChatText(i.name)+' · Q'+i.quality+'</td><td>'+num(i.required)+' '+escapeChatText(i.unit)+'</td><td>'+num(i.available)+'</td><td>'+(i.required>i.available+1e-9?'<button type="button" class="production-buy-input-btn" data-bulk-buy-index="'+index+'">Kaufen ('+num(Math.max(0,i.required-i.available))+')</button>':'–')+'</td></tr>').join('');
     prod.innerHTML='<strong>'+buildings.length+' identische Gebäude ausgewählt</strong>'
-      +(inputs.length?'<div class="table-wrap"><table><thead><tr><th>Rohstoff</th><th>Gesamtbedarf</th><th>Lager</th></tr></thead><tbody>'+rows+'</tbody></table></div>':'')
+      +(inputs.length?'<div class="table-wrap"><table><thead><tr><th>Rohstoff</th><th>Gesamtbedarf</th><th>Lager</th><th>Aktion</th></tr></thead><tbody>'+rows+'</tbody></table></div>':'')
       +'<p><strong>Einsammelbar: '+num(claimable)+' Einheiten</strong></p>'
       +'<div class="building-batch-buttons"><button type="button" id="bulkProductionStart" '+(!ready?'disabled':'')+'>Produktion gemeinsam starten ('+free.length+')</button>'
       +'<button type="button" id="bulkProductionCollect" '+(claimable<=0?'disabled':'')+'>Alle Waren einsammeln</button></div>'
       +(materialsOk?'':'<p class="muted">Für den gemeinsamen Start fehlen Rohstoffe im Lager.</p>');
+    prod.querySelectorAll('[data-bulk-buy-index]').forEach(button=>button.addEventListener('click',()=>{
+      const item=inputs[Number(button.dataset.bulkBuyIndex)];
+      if(item)buyAggregatedProductionInput(item);
+    }));
     document.getElementById('bulkProductionStart')?.addEventListener('click',bulkStartProduction);
     document.getElementById('bulkProductionCollect')?.addEventListener('click',bulkCollectProduction);
   }
