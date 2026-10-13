@@ -13,10 +13,10 @@ WITH catalog AS (
 )
 SELECT p.name,p.quality_level,building.level AS building_level,
  private.building_level_multiplier(building.level) building_multiplier,
- floor(p.base_production_rate*private.building_level_multiplier(building.level)) units_per_hour,
- p.unit_cost,p.market_price,
+ (floor(greatest(0.01,floor(p.base_production_rate*private.building_level_multiplier(building.level))*private.economy_production_output_factor())*24)/24) units_per_hour,
+ 24 AS production_hours,p.unit_cost,p.market_price,
  round((p.market_price*0.95-p.unit_cost),4) profit_per_unit_after_fee,
  round((p.market_price*0.95-p.unit_cost)*
-  floor(p.base_production_rate*private.building_level_multiplier(building.level)),4) profit_per_hour_after_fee
+  (floor(greatest(0.01,floor(p.base_production_rate*private.building_level_multiplier(building.level))*private.economy_production_output_factor())*24)/24),4) profit_per_hour_after_fee
 FROM prices p CROSS JOIN generate_series(1,5) building(level)
 ORDER BY p.name,p.quality_level,building.level;
