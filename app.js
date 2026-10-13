@@ -5824,6 +5824,17 @@ function renderBuildings() {
         state.selectedRetailBuildingId=id;
       }
     } else state.bulkBuildingIds=state.bulkBuildingIds.filter(bid=>bid!==id);
+    const selectedGroup=(state.bulkBuildingIds||[]).map(bid=>state.buildings.find(b=>b.id===bid)).filter(Boolean);
+    if(selectedGroup.length){
+      const groupCategory=state.buildingTypes.find(t=>t.id===selectedGroup[0].building_type_id)?.building_category;
+      const inUse=(b)=>groupCategory==='retail'
+        ? state.retailSaleJobs.some(j=>j.building_id===b.id&&j.status==='running')
+        : state.productionJobs.some(j=>j.building_id===b.id&&j.status==='running');
+      const preferred=selectedGroup.find(b=>!inUse(b))||selectedGroup[0];
+      state.selectedBuildingId=preferred.id;
+      state.selectedRetailBuildingId=groupCategory==='retail'?preferred.id:null;
+      if(['production','research'].includes(groupCategory))updateProductionProductsForSelectedBuilding();
+    }
     renderBuildings();
     renderProductionRecipe();
     renderRetailSale();
