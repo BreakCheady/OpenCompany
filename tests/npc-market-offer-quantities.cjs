@@ -1,0 +1,11 @@
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const sql = fs.readFileSync('docs/npc-market-offer-quantities-2000-3000.sql', 'utf8');
+assert(sql.includes('CREATE OR REPLACE FUNCTION private.ensure_npc_market_supply()'));
+assert(sql.includes('CREATE OR REPLACE FUNCTION private.ensure_research_market_supply()'));
+assert.equal((sql.match(/floor\(2000::numeric\+random\(\)::numeric\*1001\)/g) || []).length,3);
+assert(sql.includes('2300+v_i*10,2300+v_i*10'));
+assert(sql.includes('v_needed:=greatest(0,4-v_existing)'));
+assert(sql.includes('private.market_quality_price_floor'));
+assert(sql.includes("when v_catalog.category='research' or v_catalog.name='Transportcontainer' then 1 else 5"));
+console.log('NPC sell-offer volume and pricing/quality regression checks: OK');
