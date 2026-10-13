@@ -3322,3 +3322,11 @@ body.dashboard-history-open{
 /* Management decisions reuse complaint urgency banner */
 .management-decision-timebox{margin:10px 0 13px}
 .management-decision-timebox .complaint-deadline-label{white-space:nowrap}
+
+
+/* Führungskräfte: sichtbare Änderungen an Attributen und Perks */
+.manager-delta{display:inline-flex;align-items:center;gap:3px;padding:3px 7px;margin-left:6px;border-radius:999px;white-space:nowrap;font-size:.76rem;font-weight:750;font-variant-numeric:tabular-nums;vertical-align:middle}
+.manager-delta-up{background:#dcfce7;color:#166534}
+.manager-delta-down{background:#fee2e2;color:#991b1b}
+.manager-stat .manager-delta{margin:4px auto 0}
+.manager-perks .manager-delta{margin-left:5px}
