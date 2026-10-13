@@ -360,7 +360,19 @@ function renderManagementDecisions(){
       '<span class="management-decision-level">'+managementEscape(managementDecisionLevelLabel(d.decision_level))+'</span>'+
       '<span class="management-decision-severity">'+managementEscape(managementDecisionSeverityLabel(d.severity))+'</span>'+
       '</div><span class="management-decision-deadline">'+managementEscape(managementDecisionRemaining(d.expires_at))+'</span></div>';
-    html+='<h3>'+managementEscape(d.title)+'</h3><p>'+managementEscape(d.description)+'</p>';
+    const situation=(d.description||'').trim();
+    const context=Object.entries(d.context||{}).filter(function(entry){return entry[0]!=='order_id' && entry[0]!=='affected_manager_id' && entry[1]!==null && entry[1]!==undefined;});
+    const contextCause=context.slice(0,2).map(function(entry){
+      const meta=MANAGEMENT_CONTEXT_META[entry[0]];
+      return (meta?meta[0]:entry[0])+': '+managementContextValue(entry[0],entry[1]);
+    }).join(' · ');
+    html+='<h3>'+managementEscape(d.title)+'</h3>';
+    html+='<p><strong>Situation:</strong> '+managementEscape(situation||'In deinem Unternehmen besteht Handlungsbedarf.')+'</p>';
+    html+='<p class="muted"><strong>Warum jetzt?</strong> '+managementEscape(contextCause
+      ?'Die aktuellen Unternehmenskennzahlen zeigen: '+contextCause+'.'
+      :(d.parent_decision_id
+        ?'Diese Situation ist eine Folge einer früheren Managemententscheidung.'
+        :'Die hinterlegten Bedingungen dieser Entscheidungsvorlage wurden durch die aktuelle Unternehmenslage ausgelöst.'))+'</p>';
     html+=managementDecisionContextHtml(d.context);
     html+=managementDecisionAdviceHtml(d.manager_advice);
     html+='<div class="management-decision-options">'+
