@@ -935,6 +935,7 @@ const state = {
   ocbStatus: { balance: 0, today: { login:false, production:false, retail:false, earned:0, maximum:20 } },
   selectedMarketOrderIds: [],
   selectedBuildingId: null,
+  bulkBuildingIds: [],
   selectedRetailBuildingId: null,
   buildingOverviewFilter: 'all',
   openDashboardAfterLogin: false,
@@ -5789,7 +5790,7 @@ function renderBuildings() {
 
       const click = underConstruction || isStorage ? '' : (isRetail ? `onclick="openRetailBuilding('${building.id}')"` : `onclick="selectBuildingCard('${building.id}')"`);
       return `<div class="building-card ${selected?'selected':''} ${underConstruction?'under-construction':''} ${isStorage?'storage-building-card':''}" ${click}>
-        <div class="building-card-head"><div>
+        <div class="building-card-head"><label class="building-bulk-select" onclick="event.stopPropagation()"><input type="checkbox" data-bulk-building="${building.id}" ${(state.bulkBuildingIds||[]).includes(building.id)?'checked':''} ${building.status!=='active'?'disabled':''}> Gemeinsam auswählen</label><div>
           <div class="building-card-title">${bt.name} #${number}</div>
           <div class="building-card-meta">Level ${level} · ${buildingCategoryLabel(bt.building_category)}</div>
           <div class="building-card-meta">${translateUiString('Unterhalt / Tag')}: ${money(buildingMaintenanceCost(bt.building_category, level))}</div>
@@ -5804,6 +5805,40 @@ function renderBuildings() {
 
   const cards = document.getElementById('buildingCards');
   if (cards) cards.innerHTML = html || '<div class="production-building-empty">In dieser Kategorie sind noch keine Gebäude vorhanden.</div>';
+  cards?.querySelectorAll('[data-bulk-building]').forEach(input=>input.addEventListener('change',event=>{
+    const id=event.target.dataset.bulkBuilding;
+    const building=state.buildings.find(b=>b.id===id);
+    if(!building)return;
+    const previous=(state.bulkBuildingIds||[]).map(bid=>state.buildings.find(b=>b.id===bid)).filter(Boolean);
+    if(event.target.checked){
+      if(previous.length && previous[0].building_type_id!==building.building_type_id) {
+        state.bulkBuildingIds=[];
+      }
+      state.bulkBuildingIds.push(id);
+      if(['production','research'].includes(state.buildingTypes.find(t=>t.id===building.building_type_id)?.building_category)){
+        state.selectedBuildingId=id;
+        state.selectedRetailBuildingId=null;
+        updateProductionProductsForSelectedBuilding();
+      }else if(state.buildingTypes.find(t=>t.id===building.building_type_id)?.building_category==='retail'){
+        state.selectedBuildingId=id;
+        state.selectedRetailBuildingId=id;
+      }
+    } else state.bulkBuildingIds=state.bulkBuildingIds.filter(bid=>bid!==id);
+    const selectedGroup=(state.bulkBuildingIds||[]).map(bid=>state.buildings.find(b=>b.id===bid)).filter(Boolean);
+    if(selectedGroup.length){
+      const groupCategory=state.buildingTypes.find(t=>t.id===selectedGroup[0].building_type_id)?.building_category;
+      const inUse=(b)=>groupCategory==='retail'
+        ? state.retailSaleJobs.some(j=>j.building_id===b.id&&j.status==='running')
+        : state.productionJobs.some(j=>j.building_id===b.id&&j.status==='running');
+      const preferred=selectedGroup.find(b=>!inUse(b))||selectedGroup[0];
+      state.selectedBuildingId=preferred.id;
+      state.selectedRetailBuildingId=groupCategory==='retail'?preferred.id:null;
+      if(['production','research'].includes(groupCategory))updateProductionProductsForSelectedBuilding();
+    }
+    renderBuildings();
+    renderProductionRecipe();
+    renderRetailSale();
+  }));
 
   document.querySelectorAll('.building-overview-filter').forEach(button => {
     button.classList.toggle('active', button.dataset.buildingFilter === filter);
@@ -12195,3 +12230,245 @@ document.addEventListener('keydown', event => {
     closeDashboardHistory();
   }
 });
+
+
+/* Same-type building batch controls. Individual RPCs remain authoritative. */
+function bulkSelectedBuildings(){
+  const valid=(state.bulkBuildingIds||[]).map(id=>state.buildings.find(b=>b.id===id))
+    .filter(b=>b&&b.status==='active');
+  const type=valid[0]?.building_type_id;
+  return valid.filter(b=>b.building_type_id===type);
+}
+function bulkBuildingCategory(buildings){
+  return state.buildingTypes.find(t=>t.id===buildings[0]?.building_type_id)?.building_category;
+}
+function bulkProductionPlans(buildings,hours){
+  const original=state.selectedBuildingId;
+  const plans=[];
+  try{
+    for(const b of buildings){
+      state.selectedBuildingId=b.id;
+      const ctx=currentProductionContext();
+      const units=Math.floor(ctx.unitsPerHour*hours*10000)/10000;
+      const plan=productionPlan(units);
+      plans.push({building:b,plan});
+    }
+  }finally{state.selectedBuildingId=original;}
+  return plans;
+}
+function bulkProductionDuration(){
+  const input=document.getElementById('productionUnits');
+  const base=state.selectedBuildingId;
+  const selected=bulkSelectedBuildings();
+  const chosen=selected.find(b=>b.id===base)||selected[0];
+  if(!chosen)return 0;
+  const prev=state.selectedBuildingId;
+  try{
+    state.selectedBuildingId=chosen.id;
+    return productionPlan().hours;
+  }finally{state.selectedBuildingId=prev;}
+}
+function bulkAggregatedIngredients(plans){
+  const items=new Map();
+  for(const {plan} of plans){
+    for(const inp of plan.inputs){
+      const key=[inp.material_id||inp.component_product_id,inp.minQuality].join(':');
+      if(!items.has(key))items.set(key,{name:inp.name,unit:inp.unit||'',quality:inp.minQuality,required:0,available:inp.available});
+      items.get(key).required+=Number(inp.required||0);
+    }
+  }
+  return [...items.values()];
+}
+function ensureBatchBox(id,anchor){
+  if(!anchor)return null;
+  let el=document.getElementById(id);
+  if(!el){
+    el=document.createElement('div');
+    el.id=id;
+    el.className='building-batch-summary';
+    anchor.insertAdjacentElement('afterend',el);
+  }
+  return el;
+}
+function renderBulkBuildingActions(){
+  const buildings=bulkSelectedBuildings();
+  const category=bulkBuildingCategory(buildings);
+  const prod=ensureBatchBox('productionBatchSummary',document.getElementById('productionRequirement'));
+  const retail=ensureBatchBox('retailBatchSummary',document.getElementById('retailSaleDetails'));
+  if(prod)prod.innerHTML='';
+  if(retail)retail.innerHTML='';
+  if(buildings.length<2)return;
+  if(['production','research'].includes(category)&&prod){
+    const hours=bulkProductionDuration();
+    const plans=hours>0&&hours<=24?bulkProductionPlans(buildings,hours):[];
+    const free=plans.filter(p=>p.plan.building&&!p.plan.runningJob&&p.plan.outputQty>=1);
+    const inputs=bulkAggregatedIngredients(free);
+    const materialsOk=inputs.every(i=>i.required<=i.available+1e-9);
+    const total=free.reduce((sum,p)=>sum+Number(p.plan.outputQty||0),0);
+    const ready=free.length&&materialsOk&&hours>0&&hours<=24;
+    const jobs=state.productionJobs.filter(j=>j.status==='running'&&buildings.some(b=>b.id===j.building_id));
+    const claimable=jobs.reduce((sum,j)=>sum+productionClaimableQuantity(j),0);
+    const rows=inputs.map(i=>'<tr><td>'+escapeChatText(i.name)+' · Q'+i.quality+'</td><td>'+num(i.required)+' '+escapeChatText(i.unit)+'</td><td>'+num(i.available)+'</td></tr>').join('');
+    prod.innerHTML='<strong>'+buildings.length+' identische Gebäude ausgewählt</strong>'
+      +'<p>Gemeinsame Dauer: '+formatProductionDuration(hours)+' · Gesamtproduktion: '+num(total)+' Einheiten · '+free.length+' freie Gebäude</p>'
+      +(inputs.length?'<div class="table-wrap"><table><thead><tr><th>Rohstoff</th><th>Gesamtbedarf</th><th>Lager</th></tr></thead><tbody>'+rows+'</tbody></table></div>':'')
+      +'<p><strong>Einsammelbar: '+num(claimable)+' Einheiten</strong></p>'
+      +'<div class="building-batch-buttons"><button type="button" id="bulkProductionStart" '+(!ready?'disabled':'')+'>Produktion gemeinsam starten ('+free.length+')</button>'
+      +'<button type="button" id="bulkProductionCollect" '+(claimable<=0?'disabled':'')+'>Alle Waren einsammeln</button></div>'
+      +(materialsOk?'':'<p class="muted">Für den gemeinsamen Start fehlen Rohstoffe im Lager.</p>');
+    document.getElementById('bulkProductionStart')?.addEventListener('click',bulkStartProduction);
+    document.getElementById('bulkProductionCollect')?.addEventListener('click',bulkCollectProduction);
+  }
+  if(category==='retail'&&retail){
+    const jobs=state.retailSaleJobs.filter(j=>j.status==='running'&&buildings.some(b=>b.id===j.building_id));
+    const total=jobs.reduce((sum,j)=>sum+retailSaleProgress(j).claimableRevenue,0);
+    retail.innerHTML='<strong>'+buildings.length+' identische Verkaufsgebäude ausgewählt</strong>'
+      +'<p><strong>Einsammelbare Erlöse: '+money(total)+'</strong></p>'
+      +'<div class="building-batch-buttons"><button type="button" id="bulkRetailStart">Verkauf gemeinsam starten</button>'
+      +'<button type="button" id="bulkRetailCollect" '+(total<=0?'disabled':'')+'>Alle Erlöse einsammeln</button></div>';
+    document.getElementById('bulkRetailStart')?.addEventListener('click',bulkStartRetail);
+    document.getElementById('bulkRetailCollect')?.addEventListener('click',bulkCollectRetail);
+  }
+}
+async function bulkStartProduction(){
+  const buildings=bulkSelectedBuildings();
+  if(buildings.length<2||!['production','research'].includes(bulkBuildingCategory(buildings)))return;
+  const hours=bulkProductionDuration();
+  if(!(hours>0&&hours<=24))return gameAlert('Bitte eine gültige Produktionsdauer bis 24 Stunden eingeben.');
+  const plans=bulkProductionPlans(buildings,hours).filter(({plan})=>plan.building&&!plan.runningJob&&plan.outputQty>=1);
+  const ingredients=bulkAggregatedIngredients(plans);
+  if(ingredients.some(i=>i.required>i.available+1e-9))return gameAlert('Nicht genug Rohstoffe für alle ausgewählten Fabriken vorhanden.');
+  if(!plans.length)return gameAlert('Keine freie Fabrik zur Produktion verfügbar.');
+  if(!await gameConfirm('Produktion in '+plans.length+' Gebäuden mit derselben Dauer starten?'))return;
+  const errors=[];let started=0;
+  for(const {building,plan} of plans){
+    const {error}=await sb.rpc('start_production_on_building_v2',{
+      p_company_id:state.company.id,p_building_id:building.id,
+      p_product_id:document.getElementById('productionProduct').value,
+      p_hours:plan.hours,p_input_text:formatProductionUnitsInput(plan.outputQty),
+      p_start_snapshot:{
+        productionMode:document.getElementById('productionMachineMode')?.value||'normal',
+        outputQty:plan.outputQty,hours:plan.hours,procurementCost:plan.procurementCost,
+        baseProductionCost:plan.baseProductionCost,personnelCost:plan.personnelCost,
+        operatingCost:plan.operatingCost,operatingCostRate:plan.operatingRate,
+        operatingEfficiencyFactor:plan.operatingEfficiency,operatingCostBasis:plan.operatingCostBasis,
+        productionCost:plan.productionCost
+      }
+    });
+    if(error)errors.push('#'+buildingDisplayNumber(building)+': '+error.message);else started++;
+  }
+  await loadCompany();
+  if(errors.length)await gameAlert(started+' Produktionen gestartet. Nicht gestartet: '+errors.join('; '));
+}
+async function bulkCollectProduction(){
+  const buildings=bulkSelectedBuildings();
+  const jobs=state.productionJobs.filter(j=>j.status==='running'&&buildings.some(b=>b.id===j.building_id)&&productionClaimableQuantity(j)>0);
+  if(!jobs.length)return;
+  let collected=0;const errors=[];
+  for(const job of jobs){
+    const {data,error}=await sb.rpc('claim_production_output',{p_company_id:state.company.id,p_job_id:job.id});
+    if(error)errors.push(error.message);else collected+=Number(data||0);
+  }
+  await loadCompany();
+  if(errors.length)await gameAlert(num(collected)+' Einheiten eingesammelt. Fehler: '+errors.join('; '));
+}
+async function bulkCollectRetail(){
+  const buildings=bulkSelectedBuildings();
+  const jobs=state.retailSaleJobs.filter(j=>j.status==='running'&&buildings.some(b=>b.id===j.building_id)&&retailSaleProgress(j).claimableUnits>0);
+  if(!jobs.length)return;
+  const errors=[];let collected=0;
+  for(const job of jobs){
+    const {data,error}=await sb.rpc('claim_retail_revenue',{p_company_id:state.company.id,p_job_id:job.id});
+    if(error)errors.push(error.message);else collected+=Number(data||0);
+  }
+  await loadCompany();
+  if(errors.length)await gameAlert('Erlöse eingesammelt: '+money(collected)+' · Fehler: '+errors.join('; '));
+}
+async function bulkStartRetail(){
+  const buildings=bulkSelectedBuildings();
+  if(buildings.length<2||bulkBuildingCategory(buildings)!=='retail')return;
+  const original=state.selectedRetailBuildingId;
+  const ctx=retailSaleContext();
+  const quantity=Number(document.getElementById('retailQty')?.value||0);
+  const rate=ctx.unitsPerHour>0?ctx.unitsPerHour:await fetchRetailSaleRate(state.company.id,original,ctx.product?.id,true);
+  const hours=quantity/rate;
+  if(!ctx.product||!(hours>0&&hours<=24))return gameAlert('Bitte Produkt und gültige Verkaufsdauer bis 24 Stunden wählen.');
+  const plans=[];
+  try{
+    for(const b of buildings){
+      if(state.retailSaleJobs.some(j=>j.building_id===b.id&&j.status==='running'))continue;
+      state.selectedRetailBuildingId=b.id;
+      const item=retailSaleContext();
+      if(!item.building)continue;
+      const currentRate=await fetchRetailSaleRate(state.company.id,b.id,ctx.product.id,true);
+      const units=Math.floor(hours*currentRate);
+      if(units>0)plans.push({building:b,ctx:item,quantity:units,rate:currentRate,hours:units/currentRate});
+    }
+  }finally{state.selectedRetailBuildingId=original;}
+  const total=plans.reduce((sum,p)=>sum+p.quantity,0);
+  if(!plans.length||total>ctx.available)return gameAlert('Nicht genügend Waren für alle ausgewählten Verkaufsgebäude oder keine freien Gebäude.');
+  if(!await gameConfirm('Verkauf in '+plans.length+' Gebäuden gemeinsam starten? Gesamtmenge: '+num(total)))return;
+  const errors=[];let started=0;
+  for(const {building,ctx:item,quantity:q,rate:r,hours:h} of plans){
+    const metrics=retailBreakEvenMetrics(item,q);
+    const {error}=await sb.rpc('start_retail_sale_on_building_v2',{
+      p_company_id:state.company.id,p_building_id:building.id,p_product_id:item.product.id,
+      p_quality:item.quality,p_quantity:q,p_unit_price:item.price,
+      p_input_text:String(q),p_start_snapshot:{
+        quantity:q,quality:item.quality,hours:h,unitPrice:item.price,referencePrice:item.referencePrice,
+        demandFactor:item.demandFactor,totalValue:item.price*q,available:item.available,
+        unitsPerHour:r,buildingTypeName:item.buildingType?.name||'',
+        operatingCost:metrics.operatingCost,operatingBreakEven:metrics.operatingBreakEven,
+        fullBreakEven:metrics.fullBreakEven
+      }
+    });
+    if(error)errors.push('#'+buildingDisplayNumber(building)+': '+error.message);else started++;
+  }
+  await loadCompany();
+  if(errors.length)await gameAlert(started+' Verkäufe gestartet. Nicht gestartet: '+errors.join('; '));
+}
+const originalBatchRenderBuildings=renderBuildings;
+renderBuildings=function(...args){
+  const result=originalBatchRenderBuildings(...args);
+  renderBulkBuildingActions();
+  return result;
+};
+const originalBatchRenderProduction=renderProductionRecipe;
+renderProductionRecipe=function(...args){
+  const result=originalBatchRenderProduction(...args);
+  renderBulkBuildingActions();
+  const multiple=bulkSelectedBuildings().length>1&&['production','research'].includes(bulkBuildingCategory(bulkSelectedBuildings()));
+  const recipe=document.getElementById('productionRecipe');
+  if(recipe)recipe.style.display=multiple?'none':'';
+  const button=document.getElementById('productionStartBtn');
+  if(button&&multiple){
+    button.textContent='Produktion gemeinsam starten';
+    button.disabled=false;
+    button.style.removeProperty('background');
+    button.style.removeProperty('border-color');
+    button.style.removeProperty('color');
+  }
+  return result;
+};
+const originalBatchRenderRetail=renderRetailSale;
+renderRetailSale=function(...args){
+  const result=originalBatchRenderRetail(...args);
+  renderBulkBuildingActions();
+  if(bulkSelectedBuildings().length>1&&bulkBuildingCategory(bulkSelectedBuildings())==='retail'){
+    const button=document.getElementById('retailSaleBtn');
+    if(button){button.textContent='Verkauf gemeinsam starten';button.disabled=false;}
+  }
+  return result;
+};
+document.getElementById('productionForm')?.addEventListener('submit',event=>{
+  const buildings=bulkSelectedBuildings();
+  if(buildings.length<=1||!['production','research'].includes(bulkBuildingCategory(buildings)))return;
+  event.preventDefault();event.stopImmediatePropagation();
+  bulkStartProduction();
+},true);
+document.getElementById('retailSaleForm')?.addEventListener('submit',event=>{
+  const buildings=bulkSelectedBuildings();
+  if(buildings.length<=1||bulkBuildingCategory(buildings)!=='retail')return;
+  event.preventDefault();event.stopImmediatePropagation();
+  bulkStartRetail();
+},true);
