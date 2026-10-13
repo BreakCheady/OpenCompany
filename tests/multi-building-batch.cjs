@@ -28,3 +28,7 @@ assert(html.includes('.building-card .building-card-head{display:block;width:100
 assert(html.includes('#productionBatchSummary:not(:empty),#retailBatchSummary:not(:empty)'));
 assert(html.includes('background:#fff8d8'));
 assert(html.includes('border:2px solid #e4b928'));
+
+assert(html.includes('#productionBatchSummary p:has(> strong),#retailBatchSummary p:has(> strong)'));
+assert(html.includes('color:#008f3d;font-weight:700'));
+assert(html.includes('.building-batch-buttons button:not(:disabled)'));
