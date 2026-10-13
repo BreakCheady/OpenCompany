@@ -11027,7 +11027,7 @@ async function purchaseProductionInputShortfall(input) {
   }
 
   await loadCompany();
-};
+}
 
 window.claimProductionOutput = async function(jobId) {
   const job = state.productionJobs.find(j => j.id === jobId);
