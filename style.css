@@ -3318,3 +3318,7 @@ body.dashboard-history-open{
 .complaint-deadline-soon{background:#fffbeb;border-color:#fcd34d;color:#92400e}
 .complaint-deadline-urgent,.complaint-deadline-expired{background:#fef2f2;border-color:#fca5a5;color:#b91c1c}
 @media(max-width:640px){.complaint-deadline-date{margin-left:0;width:100%}}
+
+/* Management decisions reuse complaint urgency banner */
+.management-decision-timebox{margin:10px 0 13px}
+.management-decision-timebox .complaint-deadline-label{white-space:nowrap}
