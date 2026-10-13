@@ -5203,14 +5203,25 @@ function renderOperationsHealth() {
     const complaintsRoot=document.getElementById('customerComplaintsList');
     if(complaintsRoot){
       const cases=health.complaints||[];
-      complaintsRoot.innerHTML=cases.length?cases.map(c=>
-        '<div class="panel" style="margin-top:8px"><strong>Reklamation · Q'+Number(c.quality)+'</strong> · '
-        +num(c.quantity)+' Einheiten <div class="muted">Antwortfrist: '
-        +new Date(c.expires_at).toLocaleString(uiLocale())+'</div><div class="retail-actions">'
-        +'<button type="button" class="ghost" data-complaint-id="'+c.id+'" data-complaint-action="refund">Erstatten</button>'
-        +'<button type="button" class="ghost" data-complaint-id="'+c.id+'" data-complaint-action="replacement">Ersatz liefern</button>'
-        +'<button type="button" class="ghost" data-complaint-id="'+c.id+'" data-complaint-action="reject">Ablehnen</button>'
-        +'</div></div>').join(''):'<p class="muted">Keine offenen Reklamationen.</p>';
+      complaintsRoot.innerHTML=cases.length?cases.map(c=>{
+        const escaped=value=>String(value??'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'","&#39;");
+        const product=escaped(c.product_name||'Produkt');
+        const refund=Math.max(0,Number(c.refund_cost||0));
+        const replacement=Math.max(0,Number(c.replacement_cost||0));
+        const stock=Number(c.replacement_stock||0);
+        const quantity=Number(c.quantity||0);
+        return '<div class="panel" style="margin-top:8px"><strong>Reklamation: '+product+' · Q'+Number(c.quality)+'</strong> · '
+          +num(quantity)+' Einheiten'
+          +'<p class="muted" style="margin:8px 0">'+escaped(c.situation||'Ein Kunde beanstandet einen Teil deiner im Handelsgeschäft verkauften Ware.')+'</p>'
+          +'<div class="muted">Ausgang: Verkauf im Handelsgeschäft · Antwortfrist: '+new Date(c.expires_at).toLocaleString(uiLocale())+'</div>'
+          +'<div class="muted" style="margin-top:5px">Erstattung: <strong>'+money(refund)+'</strong> · Ersatzlieferung: <strong>'+money(replacement)+'</strong> (Lagerwert; Bestand: '+num(stock)+' Einheiten)</div>'
+          +'<div class="muted">Ablehnen: keine unmittelbare Auszahlung, aber Kundenzufriedenheit und Kundenbindung sinken.</div>'
+          +'<div class="retail-actions">'
+          +'<button type="button" class="ghost" data-complaint-id="'+escaped(c.id)+'" data-complaint-action="refund">Erstatten ('+money(refund)+')</button>'
+          +'<button type="button" class="ghost" data-complaint-id="'+escaped(c.id)+'" data-complaint-action="replacement">Ersatz liefern ('+num(quantity)+' Stk.)</button>'
+          +'<button type="button" class="ghost" data-complaint-id="'+escaped(c.id)+'" data-complaint-action="reject">Ablehnen</button>'
+          +'</div></div>';
+      }).join(''):'<p class="muted">Keine offenen Reklamationen aus Handelsverkäufen.</p>';
       complaintsRoot.querySelectorAll('[data-complaint-action]').forEach(btn=>btn.addEventListener('click',async()=>{
         const action=btn.dataset.complaintAction;
         if(!await gameConfirm('Reklamation '+(action==='refund'?'erstatten':action==='replacement'?'durch Ersatzlieferung bearbeiten':'ablehnen')+'?'))return;
