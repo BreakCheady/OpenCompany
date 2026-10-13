@@ -8146,13 +8146,13 @@ function renderStorage() {
   const type = state.storageTypeFilter || 'all';
 
   const materialRows = state.materialInventory
-    .filter(inv => Number(inv.quantity || 0) > 0)
+    .filter(inv => Number(inv.quantity || 0) > 1e-8)
     .map(inv => {
       const material = state.materials.find(m => m.id === inv.material_id);
       return { type:'material', name:material?.name || '–', quality:Number(inv.quality_level||1), quantity:Number(inv.quantity||0), unit:material?.unit || '–', averageCost:Number(inv.average_unit_cost||0) };
     });
   const productRows = state.inventory
-    .filter(inv => Number(inv.quantity || 0) > 0)
+    .filter(inv => Number(inv.quantity || 0) > 1e-8)
     .map(inv => ({ type:'product', name:inv.products?.name || state.products.find(p=>p.id===inv.product_id)?.name || '–', quality:Number(inv.quality_level||1), quantity:Number(inv.quantity||0), unit:'Stück', averageCost:Number(inv.average_unit_cost||0) }));
 
   const rows=[...materialRows,...productRows]
