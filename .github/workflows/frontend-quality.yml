@@ -50,6 +50,7 @@ jobs:
           node tests/retail-complaints-management-story.cjs
           node tests/complaints-visual-impact.cjs
           node tests/complaints-deadline-display.cjs
+          node tests/customer-complaint-quantity-range.cjs
           node tests/management-deadline-display.cjs
           node tests/management-manager-delta.cjs
           node tests/management-decision-stay.cjs
