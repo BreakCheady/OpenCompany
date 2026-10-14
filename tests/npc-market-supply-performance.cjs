@@ -1,0 +1,15 @@
+const fs=require('node:fs');const assert=require('node:assert/strict');
+const sql=fs.readFileSync('supabase/migrations/20261014073000_npc_market_supply_performance.sql','utf8');
+assert.equal((sql.match(/CREATE INDEX IF NOT EXISTS/g)||[]).length,4);
+assert(sql.includes("idx_npc_active_sell_material_quality"));
+assert(sql.includes("idx_npc_active_sell_product_quality"));
+assert(sql.includes("v_needed>0"));
+assert(sql.includes("into v_price_floor"));
+assert.equal((sql.match(/exception when others/g)||[]).length,2);
+assert(sql.includes("v_count:=v_before_item"));
+assert(sql.includes("v_price:=greatest(v_price,private.market_quality_price_floor"));
+assert(sql.includes("v_qty:=case when v_catalog.name='Transportcontainer'"));
+assert(sql.includes("v_qty:=floor(220::numeric+random()::numeric*61)"));
+assert.equal((sql.match(/private.npc_product_cost_basis\(/g)||[]).length,2);
+assert(!sql.includes("canceling statement due to statement timeout"));
+console.log('NPC market supply migration regression checks passed');
