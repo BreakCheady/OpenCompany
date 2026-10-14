@@ -52,7 +52,7 @@ BEGIN
  END IF;
  NEW.price_per_unit:=private.market_balanced_quality_price(v_cost,v_base,NEW.quality_level);
  RETURN NEW;
-END $function$
+END $function$;
 
 CREATE OR REPLACE FUNCTION private.ensure_npc_market_supply()
  RETURNS integer
@@ -246,5 +246,5 @@ begin
 
   delete from private.npc_market_quote_cost_cache where transaction_id=pg_current_xact_id()::text;
   return v_count;
-end $function$
+end $function$;
 
