@@ -11210,6 +11210,26 @@ document.querySelectorAll('.market-index-range-btn').forEach(button => {
 });
 
 // Market
+// Net-zero break-even after marketplace commission and delivery costs.
+function marketOrderBreakEven(unitCost,qty,freightCost){
+  if(!(qty>0) || !(unitCost>0)) return 0;
+  const fee=effectiveMarketFeeRate(),total=qty*unitCost+Number(freightCost||0);
+  let result=Math.ceil(total/(qty*(1-fee))*100-1e-9)/100;
+  while(result*qty-Math.round(result*qty*fee*100)/100+1e-7<total)
+    result=Math.round((result+0.01)*100)/100;
+  return result;
+}
+function marketSellReferencePrice(type,item,quality,unitCost,breakEven){
+  const ids=new Set((state.allProducts||[]).filter(p=>item && p.name===item.name && p.category===item.category).map(p=>p.id));
+  if(item)ids.add(item.id);
+  const offers=(state.marketOrders||[]).filter(o=>o.order_type==='sell'
+    && ['open','partially_filled'].includes(o.status)
+    && Number(o.remaining_quantity||0)>0 && Number(o.quality_level||1)===quality
+    && (type==='material'?o.material_id===item?.id:ids.has(o.product_id)))
+    .map(o=>Number(o.price_per_unit)).filter(v=>v>0).sort((a,b)=>a-b);
+  const marketPrice=offers.length?offers[Math.floor((offers.length-1)/2)]:Infinity;
+  return Math.ceil(Math.max(breakEven*1.2,Math.min(unitCost*GAME_RULES.pricing.playerRecommendedCostMultiplier,marketPrice))*100)/100;
+}
 function sellOrderContext() {
   const type = document.getElementById('sellItemType')?.value || 'product';
   const itemId = document.getElementById('sellProduct')?.value;
@@ -11221,21 +11241,21 @@ function sellOrderContext() {
     const item = state.materials.find(m => m.id === itemId);
     const lot = materialInventoryLots(itemId).find(l => Number(l.quality_level || 1) === quality);
     const unitCost = Number(lot?.average_unit_cost || 0);
-    const referencePrice = unitCost * GAME_RULES.pricing.playerRecommendedCostMultiplier;
-    const minimumPrice = unitCost * GAME_RULES.pricing.marketMinCostMultiplier;
     const freight = transportContainerFreight(quantity);
+    const minimumPrice = marketOrderBreakEven(unitCost,quantity,freight.cost);
+    const referencePrice = marketSellReferencePrice(type,item,quality,unitCost,minimumPrice);
     return { type, item, lot, quality, quantity, price, unitCost, referencePrice, minimumPrice, freight };
   }
 
   const item = state.products.find(p => p.id === itemId);
   const lot = productLot(itemId, quality);
   const unitCost = Number(lot?.average_unit_cost || 0);
-  const referencePrice = unitCost * GAME_RULES.pricing.playerRecommendedCostMultiplier;
-  const minimumPrice = unitCost * GAME_RULES.pricing.marketMinCostMultiplier;
   const isTransportContainer = item?.name === 'Transportcontainer';
   const freight = isTransportContainer
     ? { required: 0, available: 0, cost: 0, sufficient: true, exempt: true }
     : transportContainerFreight(quantity);
+  const minimumPrice = marketOrderBreakEven(unitCost,quantity,freight.cost);
+  const referencePrice = marketSellReferencePrice(type,item,quality,unitCost,minimumPrice);
   return { type, item, lot, quality, quantity, price, unitCost, referencePrice, minimumPrice, freight, isTransportContainer };
 }
 
@@ -11262,7 +11282,7 @@ function renderSellOrderPreview() {
 
   preview.innerHTML = `
     <div class="kv"><span>Vorgeschlagener Preis</span><strong>${money(ctx.referencePrice)} / Einheit</strong></div>
-    <div class="kv"><span>Mindestpreis</span><strong>${money(ctx.minimumPrice)} / Einheit</strong></div>
+    <div class="kv"><span>Wirtschaftliche Gewinnschwelle</span><strong>${money(ctx.minimumPrice)} / Einheit</strong></div>
     <div class="kv"><span>Gewählter Orderpreis</span><strong>${money(ctx.price)} / Einheit</strong></div>
     <div class="kv"><span>Bruttoerlös</span><strong>${money(gross)}</strong></div>
     <div class="kv"><span>${translateUiString(costLabel)}</span><strong class="retail-cancel-fee">${totalCost > 0 ? `-${money(totalCost)}` : money(0)}</strong></div>
