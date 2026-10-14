@@ -1,0 +1,14 @@
+const fs=require('node:fs');const assert=require('node:assert/strict');
+const sql=fs.readFileSync('supabase/migrations/20261014103000_npc_market_transaction_cost_cache.sql','utf8');
+assert(sql.includes('CREATE TABLE IF NOT EXISTS private.npc_market_quote_cost_cache'));
+assert(sql.includes('PRIMARY KEY(transaction_id,product_name,quality_level)'));
+assert(sql.includes('pg_current_xact_id()::text'));
+assert(sql.includes('private.simulated_product_quality_unit_cost(v_catalog.name,1)'));
+assert(sql.includes('private.simulated_product_quality_unit_cost(v_catalog.name,v_quality)'));
+assert(sql.includes('if not found then'));
+assert(sql.includes('delete from private.npc_market_quote_cost_cache where transaction_id=pg_current_xact_id()::text'));
+assert(sql.includes('private.market_balanced_quality_price(v_cost,v_base,NEW.quality_level)'));
+assert(sql.includes("v_catalog.category<>'research'"));
+assert(sql.includes("v_catalog.name<>'Transportcontainer'"));
+assert.equal((sql.match(/CREATE OR REPLACE FUNCTION/g)||[]).length,2);
+console.log('NPC quote transaction cache regression checks passed');
