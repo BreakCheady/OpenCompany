@@ -66,6 +66,7 @@ jobs:
           node tests/npc-market-offer-quantities.cjs
           node tests/npc-market-supply-performance.cjs
           node tests/npc-market-quote-cache.cjs
+          node tests/npc-offer-snapshot-finance-budget.cjs
           node tests/six-collapsible-panels.cjs
           node tests/moderation-player-id-message-search.cjs
           node tests/admin-only-silent-log-delete.cjs
