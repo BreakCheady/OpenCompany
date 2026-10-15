@@ -69,6 +69,7 @@ jobs:
           node tests/npc-offer-snapshot-finance-budget.cjs
           node tests/market-economic-break-even.cjs
           node tests/npc-quote-purchase-feedback.cjs
+          node tests/npc-full-catalog-stable-prices.cjs
           node tests/npc-market-stable-catalog-prices.cjs
           node tests/six-collapsible-panels.cjs
           node tests/moderation-player-id-message-search.cjs
