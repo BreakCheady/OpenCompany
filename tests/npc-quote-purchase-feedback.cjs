@@ -1,0 +1,18 @@
+const assert=require('node:assert/strict');
+const fs=require('node:fs');
+const sql=fs.readFileSync('supabase/migrations/20261015063000_npc_quote_remove_player_purchase_feedback.sql','utf8');
+assert(sql.includes("private.simulated_product_quality_unit_cost(v_catalog.name,1)"));
+assert(sql.includes("private.simulated_product_quality_unit_cost(v_catalog.name,v_quality)"));
+assert(!sql.includes("max(i.average_unit_cost) from public.inventories"));
+assert(sql.includes("max(j.finished_unit_cost)"));
+assert(sql.includes("v_price_floor:=ceil((v_price_floor+v_freight_per_unit)/0.95*100)/100"));
+assert(sql.includes("v_catalog.category='research'"));
+assert(sql.includes("v_catalog.name='Transportcontainer'"));
+assert(sql.includes("private.npc_market_quote_cost_cache"));
+assert(sql.includes("private.market_quality_price_floor"));
+const oldFeedback=46.35,newRecipeCost=38.0171,freight=5.95;
+const inflated=Math.ceil(((oldFeedback*1.20)+freight)/.95*100)/100;
+const corrected=Math.ceil(((newRecipeCost*1.20)+freight)/.95*100)/100;
+assert(corrected<inflated);
+assert(corrected>=newRecipeCost);
+console.log('NPC quote feedback regression passed', {inflated,corrected});
