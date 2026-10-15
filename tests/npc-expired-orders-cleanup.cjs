@@ -1,0 +1,12 @@
+const assert=require('node:assert/strict');const fs=require('node:fs');
+const sql=fs.readFileSync('supabase/migrations/20261015070000_expired_npc_market_order_maintenance.sql','utf8');
+assert(sql.includes("c.company_type='npc'"));
+assert(sql.includes("o.status='expired'"));
+assert(sql.includes("o.created_at < now()-interval '1 hour'"));
+assert(sql.includes('NOT EXISTS (SELECT 1 FROM public.market_trades'));
+assert(sql.includes('NOT EXISTS (SELECT 1 FROM private.market_order_product_cost_basis'));
+assert(sql.includes('LIMIT greatest(0,least(coalesce(p_limit,20000),50000))'));
+assert(sql.includes('DELETE FROM public.market_orders o USING candidates v'));
+assert(sql.includes('opencompany-expired-npc-orders-cleanup'));
+assert(sql.includes('5,20,35,50 * * * *'));
+console.log('NPC history cleanup safeguards verified');
