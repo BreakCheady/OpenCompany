@@ -1,0 +1,17 @@
+const assert=require('node:assert/strict');
+const fs=require('node:fs');
+const sql=fs.readFileSync('supabase/migrations/20261015103000_npc_price_catalog_stable_costs.sql','utf8');
+assert.match(sql,/v_price_floor:=ceil\(\(greatest\(v_material\.base_cost,0\.01\)/);
+assert.match(sql,/private\.quality_multiplier\(v_quality\)/);
+assert.match(sql,/private\.simulated_product_quality_unit_cost\(v_catalog\.name,v_quality\)/);
+assert(!sql.includes('max(j.finished_unit_cost)'),'Single historical job outliers must not set all NPC prices');
+assert(!sql.includes('max(i.average_unit_cost),v_material.base_cost'),'Player raw stock must not reprice NPC raw quotes');
+assert(!sql.includes('max(i.average_unit_cost) from public.inventories'),'Player acquired products must not reprice NPC products');
+assert.match(sql,/v_price_floor:=ceil\(\(v_price_floor\+v_freight_per_unit\)\/0\.95\*100\)\/100/);
+assert.match(sql,/v_catalog\.category='research'/);
+assert.match(sql,/v_catalog\.name='Transportcontainer'/);
+assert.match(sql,/private\.npc_market_quote_cost_cache/);
+assert.match(sql,/private\.market_quality_price_floor/);
+assert.match(sql,/v_price:=greatest\(/);
+assert.match(sql,/status='expired'/);
+console.log('Stable NPC cost basis regression checks passed');
