@@ -1,0 +1,18 @@
+const assert=require('node:assert/strict');
+const fs=require('node:fs');
+const sql=fs.readFileSync('supabase/migrations/20261015103000_npc_price_catalog_stable_costs.sql','utf8');
+assert(sql.includes("CREATE OR REPLACE FUNCTION private.ensure_npc_market_supply()"));
+assert(sql.includes('greatest(v_material.base_cost,0.01)'));
+assert(sql.includes('private.quality_multiplier(v_quality)'));
+assert(!sql.includes("max(i.average_unit_cost),v_material.base_cost"));
+assert(!sql.includes("max(j.finished_unit_cost)"));
+assert(sql.includes('private.simulated_product_quality_unit_cost(v_catalog.name,v_quality)'));
+assert(sql.includes('private.simulated_product_quality_unit_cost(v_catalog.name,1)'));
+assert(sql.includes("v_price_floor:=ceil((v_price_floor+v_freight_per_unit)/0.95*100)/100"));
+assert(sql.includes("v_catalog.category='research'"));
+assert(sql.includes("v_catalog.name='Transportcontainer'"));
+assert(sql.includes("private.market_quality_price_floor(v_price/1.20,v_quality)"));
+assert(sql.includes('private.npc_market_quote_cost_cache'));
+assert.equal((sql.match(/while v_price=any\(v_used_prices\)/g)||[]).length,2);
+assert.equal((sql.match(/while v_qty=any\(v_used_qty\)/g)||[]).length,2);
+console.log('NPC catalog-wide stable recipe/material costs regression passed');
