@@ -1,0 +1,59 @@
+name: Android signed release (manual)
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Configure Android SDK
+        run: |
+          echo "ANDROID_HOME=$ANDROID_SDK_ROOT" >> "$GITHUB_ENV"
+          yes | "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
+          "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" --install "platforms;android-36" "build-tools;35.0.0"
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.11.1'
+      - name: Check signing secrets
+        env:
+          KEYSTORE_B64: ${{ secrets.OC_RELEASE_KEYSTORE_B64 }}
+          STORE_PASSWORD: ${{ secrets.OC_RELEASE_STORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.OC_RELEASE_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.OC_RELEASE_KEY_PASSWORD }}
+        run: |
+          test -n "$KEYSTORE_B64" && test -n "$STORE_PASSWORD" && test -n "$KEY_ALIAS" && test -n "$KEY_PASSWORD" || {
+            echo "::error::Permanent release signing secrets are not configured."
+            exit 1
+          }
+      - name: Build signed APK and Play Store bundle
+        working-directory: android
+        env:
+          KEYSTORE_B64: ${{ secrets.OC_RELEASE_KEYSTORE_B64 }}
+          OC_RELEASE_STORE_PASSWORD: ${{ secrets.OC_RELEASE_STORE_PASSWORD }}
+          OC_RELEASE_KEY_ALIAS: ${{ secrets.OC_RELEASE_KEY_ALIAS }}
+          OC_RELEASE_KEY_PASSWORD: ${{ secrets.OC_RELEASE_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          TEMP_KEYSTORE="$(mktemp "${RUNNER_TEMP}/opencompany-release-XXXXXX.jks")"
+          trap 'rm -f "$TEMP_KEYSTORE"' EXIT
+          printf '%s' "$KEYSTORE_B64" | base64 --decode > "$TEMP_KEYSTORE"
+          echo "::add-mask::$TEMP_KEYSTORE"
+          export OC_RELEASE_KEYSTORE_FILE="$TEMP_KEYSTORE"
+          gradle --no-daemon :app:assembleRelease :app:bundleRelease :app:lintRelease
+          test -s app/build/outputs/apk/release/app-release.apk
+          test -s app/build/outputs/bundle/release/app-release.aab
+      - name: Upload signed release artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: OpenCompany-Signed-Release
+          path: |
+            android/app/build/outputs/apk/release/app-release.apk
+            android/app/build/outputs/bundle/release/app-release.aab
+          if-no-files-found: error
+          retention-days: 7
