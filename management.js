@@ -28,6 +28,13 @@ function managementScore(manager){
   return manager ? (Number(manager.competence||0)+Number(manager.experience||0)+Number(manager.motivation||0))/3 : 0;
 }
 
+function managementTrainingOffer(manager){
+  const score=managementScore(manager);
+  if(score<36) return {cost:10000,hours:8};
+  if(score<76) return {cost:25000,hours:6};
+  return {cost:50000,hours:4};
+}
+
 function managementPerkValue(manager,cap){
   return managementScore(manager)/100*Number(cap||0);
 }
@@ -208,7 +215,8 @@ function renderManagementManagers(){
       } else {
         html+='<div class="manager-perks"><span>'+meta.primary+': <strong>'+managementNumber(primary,1)+' %</strong>'+managerDeltaBadge(primary,previous?.primary,1)+'</span>';
         html+='<span>'+meta.secondary+': <strong>'+managementNumber(secondary,1)+' %</strong>'+managerDeltaBadge(secondary,previous?.secondary,1)+'</span></div>';
-        html+='<button type="button" class="ghost" onclick="startManagerTraining(\''+manager.id+'\')">8 Std. trainieren</button>';
+        const offer=managementTrainingOffer(manager);
+        html+='<button type="button" class="ghost" onclick="startManagerTraining(\''+manager.id+'\')">'+offer.hours+' Std. trainieren · '+money(offer.cost)+'</button>';
       }
       html+='<button type="button" class="ghost" onclick="dismissCompanyManager(\''+manager.id+'\')">Entlassen</button>';
       managerRememberSnapshot(manager,snapshot);
@@ -581,7 +589,10 @@ window.rejectManagerCandidate=async function(id){
 };
 
 window.startManagerTraining=async function(id){
-  const ok=await gameConfirm('Training starten? Es dauert 8 Stunden. Währenddessen wirken die Buffs dieses Managers nicht.');
+  const manager=((state.managementOverview&&state.managementOverview.managers)||[]).find(function(m){return m.id===id;});
+  if(!manager){await gameAlert('Manager nicht gefunden. Bitte die Übersicht aktualisieren.');return;}
+  const offer=managementTrainingOffer(manager);
+  const ok=await gameConfirm('Training für '+money(offer.cost)+' starten? Dauer: '+offer.hours+' Stunden. Währenddessen wirken die Buffs dieses Managers nicht.');
   if(!ok) return;
   const result=await sb.rpc('start_manager_training',{p_company_id:state.company.id,p_manager_id:id});
   if(result.error){await gameAlert(result.error.message);return;}
