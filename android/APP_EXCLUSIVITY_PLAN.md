@@ -134,6 +134,20 @@ festlegen und einen unabhängig verifizierenden Backend-Dienst aufbauen.
   echte Plattform-Verifikation, negativer Replay-Test, API/RLS-Autorisierung
   und vollständige Spielzugriffsprüfung vor einem produktiven Cutover.
 
+## Staging-Challenge-Backend (2026-10-18)
+
+Im **ausschließlich getrennten** Projekt `htykwmeavqhmukgvkuho` wurden angelegt:
+
+- Schema `app_security` mit RLS-geschützter Tabelle `challenges`.
+- Ablauf nach 120 Sekunden und Einmalverwendung über atomisches `UPDATE ... WHERE consumed_at IS NULL`.
+- RPCs `issue_test_challenge` und `consume_test_challenge`: Ausführung nur für `service_role`, nicht für `anon` oder `authenticated`.
+- Aktiv bereitgestellte Edge Function `app-challenge-test` mit `verify_jwt=true`, die zusätzlich ein JWT gegen Supabase Auth prüft, einen zufälligen Nonce erzeugt und seinen SHA-256-Hash speichert.
+- Keine Berechtigung für produktives Gameplay; `gameAccessGranted=false`.
+
+Die Datenbankprüfung ergab: `first_accepted=true`, `replay_accepted=false` für dieselbe Challenge. Die temporäre Test-Hilfsfunktion wurde anschließend gelöscht. Rollenprüfung: `anon=false`, `authenticated=false`, `service_role=true` für die Ausstellung.
+
+**Noch offen:** HTTP-End-to-End-Prüfung mit gültigem Staging-JWT; der reine Deploymentstatus bestätigt keine erfolgreiche Anfrage. Ebenfalls offen: Ratenbegrenzung und Aufräumen abgelaufener Challenges, echter Plattformnachweis, sicherer Session-Austausch und die durchgängige Autorisierung der Spiel-RPCs/RLS. **Kein Produktions-Cutover.**
+
 ## Rollout-Status
 
 - [x] Separater Info-/Download-Seitenentwurf unter `/app-info/`; bestehendes Spiel unter `/` unverändert
