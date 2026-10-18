@@ -77,6 +77,23 @@ benötigen getrennte Prüfungen.
 - Vorhandene `anon`- und `authenticated`-Berechtigungen werden bis zum
   getesteten Umschaltpunkt nicht entzogen.
 
+## Passive Android-Identitätsdiagnostik (Version 0.1.4)
+
+Die Klasse `android/app/src/main/java/com/opencompany/game/security/AppIdentity.java`
+kann den installierten Paketnamen und den SHA-256-Fingerabdruck des lokalen
+Signaturzertifikats ermitteln. Sie wird derzeit **nicht** vom Spieleinstieg
+aufgerufen und verändert keine Autorisierung.
+
+Ein lokaler Fingerabdruck ist **kein** kryptografischer Beleg für den
+Server, dass der Aufruf aus einer unveränderten Original-App stammt:
+modifizierte Clients könnten Werte fälschen. Auch die Zertifikatsprüfung
+allein schützt keinen Supabase-Endpunkt.
+
+Nächster Schritt ist eine plattformgestützte, serverseitig validierte
+Integritätsprüfung mit Challenge, Replay-Schutz und gebundener Sitzung.
+Für APK-Verteilung außerhalb Google Play muss vor Aktivierung der
+unterstützte Vertrauensnachweis geklärt werden.
+
 ## Rollout-Status
 
 - [x] Separater Info-/Download-Seitenentwurf unter `/app-info/`; bestehendes Spiel unter `/` unverändert
