@@ -94,6 +94,29 @@ Integritätsprüfung mit Challenge, Replay-Schutz und gebundener Sitzung.
 Für APK-Verteilung außerhalb Google Play muss vor Aktivierung der
 unterstützte Vertrauensnachweis geklärt werden.
 
+## Isolierte Attestierungsrichtlinie (noch nicht aktiviert)
+
+Unter `android/security/attestation-policy.mjs` liegt jetzt eine **nicht deployte**,
+standardmäßig restriktive Prüfregel mit negativen Tests in
+`android/security/attestation-policy.test.mjs`.
+
+Lokaler Aufruf: `node --test android/security/attestation-policy.test.mjs`.
+Sie prüft Merkmale eines **bereits durch einen vertrauenswürdigen Dienst
+verifizierten** Integritätsurteils: Paketkennung, Signaturfingerabdruck,
+Challenge, Ablauf, Wiederverwendung und App-/Gerätestatus.
+
+**Sicherheitsgrenze:** Diese JavaScript-Funktion validiert **keine**
+Play-Integrity-Tokens, deren Signatur oder Google-Antwort. Sie darf nicht
+mit einer vom Client selbst gesendeten JSON-`verdict` aufgerufen und nie
+allein für die Freigabe von Supabase-Daten verwendet werden.
+
+Die APK wird derzeit außerhalb Google Play bereitgestellt.
+Das verlangte `PLAY_RECOGNIZED`-Urteil könnte für diese Distribution
+nicht erfüllt werden. Es gibt daher **absichtlich keine Aktivierung**
+und weiterhin kein App-Zugriffstoken. Vor dem Einsatz müssen wir
+den Verteilungsweg (einschließlich Play-App-Signing-Schlüssel)
+festlegen und einen unabhängig verifizierenden Backend-Dienst aufbauen.
+
 ## Rollout-Status
 
 - [x] Separater Info-/Download-Seitenentwurf unter `/app-info/`; bestehendes Spiel unter `/` unverändert
