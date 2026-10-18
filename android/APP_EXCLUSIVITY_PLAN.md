@@ -148,6 +148,18 @@ Die Datenbankprüfung ergab: `first_accepted=true`, `replay_accepted=false` für
 
 **Noch offen:** HTTP-End-to-End-Prüfung mit gültigem Staging-JWT; der reine Deploymentstatus bestätigt keine erfolgreiche Anfrage. Ebenfalls offen: Ratenbegrenzung und Aufräumen abgelaufener Challenges, echter Plattformnachweis, sicherer Session-Austausch und die durchgängige Autorisierung der Spiel-RPCs/RLS. **Kein Produktions-Cutover.**
 
+## Staging-Schutz gegen Challenge-Missbrauch (2026-10-18)
+
+Im isolierten Testprojekt wurden folgende Maßnahmen implementiert:
+
+- Ausgabe auf maximal fünf Challenges pro Nutzer innerhalb einer Minute begrenzt (Datenbankfunktion).
+- Neue serverseitige Bereinigungsfunktion für abgelaufene Challenges; sie wird noch nicht automatisch zeitgesteuert aufgerufen.
+- Challenge-Endpunkt Version 2 antwortet bei erkannten Limits mit HTTP 429.
+- Die Edge Function prüft den exakten Hostnamen des Testprojekts.
+- Die SQL-Testdatei `android/security/staging-challenge-tests.sql` testet Limit, einmalige Verwendung und Rollenrechte in einer zurückgerollten Transaktion.
+- SQL-Test ohne Fehlermeldung ausgeführt. Direkte Rollenprüfung: `anon=false`, `authenticated=false`, `service_role=true` für Challenge-Ausstellung.
+- Kein echter Android-Attestierungsnachweis; keine produktive App-Sitzungsfreigabe.
+
 ## Rollout-Status
 
 - [x] Separater Info-/Download-Seitenentwurf unter `/app-info/`; bestehendes Spiel unter `/` unverändert
