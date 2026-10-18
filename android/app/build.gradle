@@ -6,8 +6,8 @@ android {
     applicationId 'com.opencompany.game'
     minSdk 24
     targetSdk 35
-    versionCode 2
-    versionName '0.1.1'
+    versionCode 3
+    versionName '0.1.2'
   }
   // Release signing is enabled only when the operator supplies a permanent key.
   def releaseStoreFile = System.getenv('OC_RELEASE_KEYSTORE_FILE')
