@@ -40,6 +40,16 @@ Stand: 2026-10-18. **Die Produktivseite und ihre bestehenden Supabase-Rechte ble
 - Erst nach Abnahme öffentlichen Root-Einstieg `/` auf Informations-/Downloadseite umstellen. Die TWA darf dann **nicht** mehr die öffentliche Root-URL als Spiel-Einstieg benötigen.
 - Notfall-Rollback und Admin-Zugriff vor der Aktivierung definieren.
 
+## Erste read-only Bestandsaufnahme der Produktivdatenbank (2026-10-18)
+
+Gezählt im Supabase-Projekt `vprlmimcppdurywmgqat`:
+
+- 61 Tabellen im Schema `public`; alle 61 mit aktiviertem RLS.
+- 66 bestehende RLS-Richtlinien.
+- 116 Funktionen im Schema `public`, darunter 47 `SECURITY DEFINER`-Funktionen.
+
+Diese Zahlen **sagen nichts darüber aus**, ob vorhandene Policies Zugriffe allein aus dem Webbrowser erlauben. Die 47 erweiterten Funktionen und die tatsächlichen Zugriffsrollen/GRANTs müssen einzeln analysiert werden. Es wurden bei dieser Bestandsaufnahme keine Policies oder Daten geändert.
+
 ## Rollout-Status
 
 - [x] Separater Info-/Download-Seitenentwurf unter `/app-info/`; bestehendes Spiel unter `/` unverändert
