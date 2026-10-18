@@ -12,7 +12,7 @@ Deno.serve(async (request: Request) => {
   if (request.method !== "POST") return send({ error: "method_not_allowed" }, 405);
   const baseUrl = Deno.env.get("SUPABASE_URL") ?? "";
   const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
-  if (!baseUrl.includes(PROJECT_REF + ".supabase.co") || !serviceKey) {
+  if (new URL(baseUrl).hostname !== PROJECT_REF + ".supabase.co" || !serviceKey) {
     return send({ error: "staging_only" }, 503);
   }
   const header = request.headers.get("Authorization") ?? "";
@@ -32,6 +32,6 @@ Deno.serve(async (request: Request) => {
     p_user_id: auth.user.id,
     p_nonce_hash: nonceHash
   });
-  if (error) return send({ error: "challenge_unavailable" }, 503);
+  if (error) return send({ error: error.message?.includes("rate_limited") ? "rate_limited" : "challenge_unavailable" }, error.message?.includes("rate_limited") ? 429 : 503);
   return send({ nonce, expiresInSeconds: 120, gameAccessGranted: false });
 });
