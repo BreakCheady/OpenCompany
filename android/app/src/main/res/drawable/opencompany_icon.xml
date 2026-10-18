@@ -1,7 +1,17 @@
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
- android:width="108dp" android:height="108dp"
- android:viewportWidth="108" android:viewportHeight="108">
- <path android:fillColor="#0D2D55" android:pathData="M0,0h108v108h-108z"/>
- <path android:fillColor="#FFFFFF" android:pathData="M22,34h64v12h-64zM22,53h64v12h-64zM22,72h40v12h-40z"/>
- <path android:fillColor="#2DB7C8" android:pathData="M69,72h17v12h-17z"/>
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Official OpenCompany blue/charcoal OC monogram adapted to the Android launcher icon. -->
+    <path android:fillColor="#FFFFFF" android:pathData="M0,0h108v108h-108z"/>
+    <!-- Charcoal C, open to the right -->
+    <path android:fillColor="#3C4657"
+        android:pathData="M89,30 C81,20 68,17 57,22 C44,27 37,39 37,53 C37,68 45,81 58,86 C70,91 82,88 90,78 L81,69 C76,75 70,77 63,74 C56,71 52,63 52,54 C52,45 56,37 63,34 C70,31 76,33 81,39 Z"/>
+    <!-- Blue O as a thick ring -->
+    <path android:fillColor="#168EF0" android:fillType="evenOdd"
+        android:pathData="M44,20 C25,20 12,34 12,53 C12,72 25,87 44,87 C63,87 76,72 76,53 C76,34 63,20 44,20 Z M44,35 C54,35 61,43 61,53 C61,64 54,72 44,72 C34,72 27,64 27,53 C27,43 34,35 44,35 Z"/>
+    <!-- C overlays O in the bottom right, matching the official interlocking mark -->
+    <path android:fillColor="#3C4657"
+        android:pathData="M62,41 C59,45 57,49 57,54 C57,64 63,72 72,73 C77,74 80,72 84,69 L92,78 C85,86 75,89 64,86 C51,83 43,71 43,54 C43,44 48,34 56,28 Z"/>
 </vector>
