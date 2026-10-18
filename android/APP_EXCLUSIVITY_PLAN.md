@@ -50,6 +50,33 @@ Gezählt im Supabase-Projekt `vprlmimcppdurywmgqat`:
 
 Diese Zahlen **sagen nichts darüber aus**, ob vorhandene Policies Zugriffe allein aus dem Webbrowser erlauben. Die 47 erweiterten Funktionen und die tatsächlichen Zugriffsrollen/GRANTs müssen einzeln analysiert werden. Es wurden bei dieser Bestandsaufnahme keine Policies oder Daten geändert.
 
+
+## Migrationswerkzeug und technische Entscheidung
+
+Die Datei `android/tools/audit-frontend-access.mjs` erstellt ein **lesendes, reproduzierbares**
+Inventar der im Frontend ausdrücklich benannten Supabase-Aufrufe:
+
+```sh
+node android/tools/audit-frontend-access.mjs > frontend-access-audit.json
+```
+
+Das Ergebnis umfasst RPC-Aufrufe und `.from()`-Referenzen aus `app.js`,
+`management.js` und `guidance.js`. Es ist **kein** vollständiger Autorisierungsnachweis:
+dynamische Namen, Storage, Realtime, SQL-interne Aufrufe und weitere Clients
+benötigen getrennte Prüfungen.
+
+**Architekturentscheidung für die nächste Implementierungsphase:**
+- Die derzeitige TWA bleibt der produktive, funktionierende Client.
+- Eine installierte TWA bzw. ihr User-Agent liefert keinen vertrauenswürdigen
+  Nachweis gegenüber Supabase.
+- Ein ausschließlich im JavaScript eingeblendeter Zugangscode oder ein per
+  Client gesetzter HTTP-Header wird nicht als App-Berechtigung akzeptiert.
+- Vor dem Wechsel der Android-Startaktivität brauchen wir eine testbare native
+  Integritätskomponente, einen verifizierenden Backend-Dienst und eine Strategie
+  für die Verteilung außerhalb des Play Stores.
+- Vorhandene `anon`- und `authenticated`-Berechtigungen werden bis zum
+  getesteten Umschaltpunkt nicht entzogen.
+
 ## Rollout-Status
 
 - [x] Separater Info-/Download-Seitenentwurf unter `/app-info/`; bestehendes Spiel unter `/` unverändert
