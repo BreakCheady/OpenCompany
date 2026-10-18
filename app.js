@@ -5064,7 +5064,7 @@ function productionPlan(unitsOverride = null) {
       averageUnitCost = summary.averageUnitCost;
     }
 
-    const required = Number(r.quantity_per_unit || 0) * outputQty;
+    const required = Math.ceil(Number(r.quantity_per_unit || 0) * outputQty);
     const enough = available + 1e-9 >= required;
     const input = { ...r, name, unit, available, averageUnitCost, required, enough, minQuality };
     const purchase = estimateMissingInputPurchase(input);
@@ -9028,7 +9028,7 @@ window.updateEncyclopediaRecipeCalculator = function(productId, rawValue, result
 
     const name = material?.name || component?.name || 'Unbekannte Komponente';
     const unit = material?.unit || (component ? 'Stück' : '');
-    const required = Number(row.quantity_per_unit || 0) * parsed.units;
+    const required = Math.ceil(Number(row.quantity_per_unit || 0) * parsed.units);
     const procurement = encyclopediaRecipeMarketProcurement(row, required, product);
     procurementResults.push(procurement);
 
