@@ -29,10 +29,7 @@ function managementScore(manager){
 }
 
 function managementTrainingOffer(manager){
-  const score=managementScore(manager);
-  if(score<36) return {cost:10000,hours:8};
-  if(score<76) return {cost:25000,hours:6};
-  return {cost:50000,hours:4};
+  return {cost:10000,hours:8};
 }
 
 function managementPerkValue(manager,cap){
