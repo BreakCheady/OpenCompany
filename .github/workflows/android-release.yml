@@ -8,7 +8,10 @@ on:
       - 'android/**'
       - '.github/workflows/android-release.yml'
 permissions:
-  contents: read
+  contents: write
+concurrency:
+  group: opencompany-android-release
+  cancel-in-progress: false
 jobs:
   release:
     runs-on: ubuntu-latest
@@ -65,3 +68,24 @@ jobs:
             android/app/build/outputs/bundle/release/app-release.aab
           if-no-files-found: error
           retention-days: 7
+
+      - name: Prepare public update metadata
+        if: github.ref == 'refs/heads/main'
+        working-directory: android
+        run: |
+          set -euo pipefail
+          VERSION_CODE="$(sed -n 's/^[[:space:]]*versionCode[[:space:]]*\\([0-9]*\\).*/\\1/p' app/build.gradle | head -1)"
+          VERSION_NAME="$(sed -n "s/^[[:space:]]*versionName[[:space:]]*'\\([^']*\\)'.*/\\1/p" app/build.gradle | head -1)"
+          test -n "$VERSION_CODE" && test -n "$VERSION_NAME"
+          cp app/build/outputs/apk/release/app-release.apk "${RUNNER_TEMP}/OpenCompany.apk"
+          printf '{"versionCode":%s,"versionName":"%s","apkUrl":"https://github.com/BreakCheady/OpenCompany/releases/download/android-latest/OpenCompany.apk"}\\n' "$VERSION_CODE" "$VERSION_NAME" > "${RUNNER_TEMP}/opencompany-update.json"
+      - name: Publish latest Android APK
+        if: github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if ! gh release view android-latest --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+            gh release create android-latest --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --title "OpenCompany Android – aktueller Download" --notes "Automatisch veröffentlichte Android-App. APK herunterladen und die Installation auf Android bestätigen." --latest=false
+          fi
+          gh release upload android-latest "${RUNNER_TEMP}/OpenCompany.apk#OpenCompany.apk" "${RUNNER_TEMP}/opencompany-update.json#opencompany-update.json" --repo "$GITHUB_REPOSITORY" --clobber
