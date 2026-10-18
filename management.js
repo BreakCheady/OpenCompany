@@ -460,7 +460,7 @@ function renderManagementDecisionCenterExtras(){
 function renderFinanceBudgets(){
   const root=document.getElementById('financeBudgets');
   if(!root) return;
-  const budgets=(state.managementOverview&&state.managementOverview.budgets)||[];
+  const budgets=((state.managementOverview&&state.managementOverview.budgets)||[]).filter(function(b){return b.department!=='sales';});
   root.innerHTML=budgets.map(function(b){
     const util=Number(b.utilization||0);
     const tone=managementBudgetTone(util);
