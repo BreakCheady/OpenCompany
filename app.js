@@ -8093,7 +8093,7 @@ function renderStorage() {
   if (storageTotalValue) storageTotalValue.textContent = money(Number(status.storage_value ?? currentStorageValue()));
 
   const capacityText = document.getElementById('storageCapacityText');
-  if (capacityText) capacityText.textContent = `${num(totalQuantity)} / ${num(capacity)} ${translateUiString('Einheiten')}`;
+  if (capacityText) capacityText.textContent = `${num(Math.ceil(totalQuantity))} / ${num(capacity)} ${translateUiString('Einheiten')}`;
 
   const usageText = document.getElementById('storageUsagePercent');
   if (usageText) usageText.textContent = `${num(usage)}%`;
