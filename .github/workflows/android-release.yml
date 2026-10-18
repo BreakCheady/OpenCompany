@@ -48,6 +48,8 @@ jobs:
           gradle --no-daemon :app:assembleRelease :app:bundleRelease :app:lintRelease
           test -s app/build/outputs/apk/release/app-release.apk
           test -s app/build/outputs/bundle/release/app-release.aab
+          "$ANDROID_SDK_ROOT/build-tools/35.0.0/apksigner" verify --verbose --print-certs app/build/outputs/apk/release/app-release.apk | grep -E 'Verifies|certificate SHA-256 digest'
+          "$ANDROID_SDK_ROOT/build-tools/35.0.0/aapt" dump badging app/build/outputs/apk/release/app-release.apk | grep '^package:'
       - name: Upload signed release artifacts
         uses: actions/upload-artifact@v4
         with:
