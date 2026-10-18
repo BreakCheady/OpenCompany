@@ -117,6 +117,23 @@ und weiterhin kein App-Zugriffstoken. Vor dem Einsatz müssen wir
 den Verteilungsweg (einschließlich Play-App-Signing-Schlüssel)
 festlegen und einen unabhängig verifizierenden Backend-Dienst aufbauen.
 
+## Neue isolierte Supabase-Testumgebung (2026-10-18)
+
+- Projektname: **OpenCompany-Security-Test**
+- Projekt-ID: `htykwmeavqhmukgvkuho`
+- Region: `eu-west-1`; bei der Erstellung angezeigter Aufpreis: 0 / Monat.
+- Initialstatus: `ACTIVE_HEALTHY`. Keine öffentlichen Anwendungstabellen angelegt.
+- Edge Function `app-integrity-preview`: Version 1, Status `ACTIVE`, `verify_jwt=true`.
+- Der Endpunkt gibt bei POST nur `503` mit
+  `verified=false` und `gameAccessGranted=false` zurück.
+- Keine Verbindung zu Produktionsdaten oder Spielberechtigungen.
+- Einrichtung und Bereitstellung wurden über die Supabase-Verwaltung verifiziert.
+- **HTTP-End-to-End-Tests mit gültigem JWT sind noch offen.** Ein erfolgreicher Deploy
+  beweist keine vollständige Funktion oder App-Autorisierung.
+- Für die nächsten Schritte: Testbenutzer, isolierte Challenge-Speicherung,
+  echte Plattform-Verifikation, negativer Replay-Test, API/RLS-Autorisierung
+  und vollständige Spielzugriffsprüfung vor einem produktiven Cutover.
+
 ## Rollout-Status
 
 - [x] Separater Info-/Download-Seitenentwurf unter `/app-info/`; bestehendes Spiel unter `/` unverändert
