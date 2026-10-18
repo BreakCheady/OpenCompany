@@ -8237,7 +8237,7 @@ function renderStorage() {
 
   container.innerHTML=renderTable(
     ['Artikel','Typ','Qualität','Menge','Einheit','Ø Kosten'],
-    rows.map(row=>`<tr><td>${translateUiString(row.name)}</td><td>${translateUiString(row.type==='material'?'Rohstoff':'Produkt')}</td><td>Q${row.quality}</td><td>${num(row.quantity)}</td><td>${translateUiString(row.unit)}</td><td>${money(row.averageCost)}</td></tr>`)
+    rows.map(row=>`<tr><td>${translateUiString(row.name)}</td><td>${translateUiString(row.type==='material'?'Rohstoff':'Produkt')}</td><td>Q${row.quality}</td><td>${num(Math.ceil(row.quantity))}</td><td>${translateUiString(row.unit)}</td><td>${money(row.averageCost)}</td></tr>`)
   );
 }
 
