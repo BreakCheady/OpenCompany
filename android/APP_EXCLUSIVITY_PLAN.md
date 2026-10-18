@@ -1,0 +1,53 @@
+# OpenCompany: Website-/App-Trennung – Migrationsplan
+
+Stand: 2026-10-18. **Die Produktivseite und ihre bestehenden Supabase-Rechte bleiben unverändert, bis Ende-zu-Ende-Tests abgeschlossen sind.**
+
+## Ist-Zustand
+
+- `https://opencompanygame.com/` enthält das aktuelle Spiel.
+- Die installierte Android-App (`com.opencompany.game`) ist eine Trusted Web Activity, die genau diese URL im Browser darstellt.
+- Web-Frontend und TWA verwenden dieselbe Supabase-Auth-/Datenbankanbindung. Ein TWA-Start ist serverseitig derzeit **kein** Sicherheitsnachweis.
+- `/app-info/` ist eine neue, rein statische Vorschau der späteren öffentlichen Download-/Infoseite.
+- Signierte APKs werden durch GitHub Actions erstellt und unter `https://github.com/BreakCheady/OpenCompany/releases/download/android-latest/OpenCompany.apk` veröffentlicht.
+
+## Zielbild
+
+1. **Öffentliche Website:** Spielbeschreibung, Neuigkeiten, APK-Download, Kontakt und rechtliche Hinweise; kein Spielbetrieb und keine ungeschützten Spiel-APIs.
+2. **Installierte Android-App:** eigener, von der Website unabhängiger Einstieg. Kein öffentlich zugänglicher Spiel-HTML-Endpunkt als alleiniger Zugangsschutz.
+3. **Backend:** Authentifizierung plus verifizierte und kurzlebige App-Berechtigung auf **allen** Spiel-Endpunkten. App-Identität muss serverseitig nachgewiesen werden.
+
+## Notwendige Implementierungsschritte
+
+### 1. Native App-Shell und Integritätsprüfung
+
+- Zuerst die Lieferstrategie für die Spieloberfläche festlegen (gebündelte Assets im APK/AAB oder abgesicherter eigener Web-Endpunkt). Eine bloße TWA/User-Agent-Erkennung reicht nicht.
+- App-seitige Challenge-Anforderung und kryptografisch gebundene Integritätsattestierung implementieren.
+- Für Google-Play-Veröffentlichungen: Play-Integrity-API und Bereitstellung der zulässigen Paket-/Zertifikatsidentität prüfen. **Vor** Play-Verfügbarkeit gesonderte belastbare Verteilungs-/Attestierungsstrategie festlegen.
+- Backend verifiziert Attestation und einmalige Challenge, meldet ungültige oder wiederholte Nachweise ab und stellt kurzlebige App-Zugriffsberechtigungen aus.
+
+### 2. Supabase-Datenpfade vollständig absichern
+
+- Inventar aller Tabellen, Views, RPCs, Storage-Buckets, Realtime-Abonnements und Edge Functions anlegen.
+- Für jede Operation das App-Berechtigungskonzept serverseitig erzwingen (insbesondere RLS/SQL-RPCs; `SECURITY DEFINER` separat auditieren).
+- Supabase-Auth-Login und öffentliche `anon`- bzw. `authenticated`-Rolle **allein** dürfen dann nicht zu Spielzugriff führen.
+- Ausnahmen für öffentliche Seiten/Informationen ausdrücklich dokumentieren.
+- Kurzlebige Token dürfen nicht einfach durch modifizierbares Client-JavaScript oder HTTP-Header simuliert werden können.
+
+### 3. Tests und Umschalten
+
+- App-Login, längere Spielsessions, Updates, Offline-/Verbindungsfehler und Kontowechsel auf echten Android-Geräten testen.
+- Negativtests: normales Web, direkte Supabase-REST-/RPC-Aufrufe, abgelaufene Tokens, ungültige Signatur, modifizierte APK, fremdes Paket und Replay.
+- Erst nach Abnahme öffentlichen Root-Einstieg `/` auf Informations-/Downloadseite umstellen. Die TWA darf dann **nicht** mehr die öffentliche Root-URL als Spiel-Einstieg benötigen.
+- Notfall-Rollback und Admin-Zugriff vor der Aktivierung definieren.
+
+## Rollout-Status
+
+- [x] Separater Info-/Download-Seitenentwurf unter `/app-info/`; bestehendes Spiel unter `/` unverändert
+- [x] Technische Risiken und Sicherheitsvoraussetzungen dokumentiert
+- [ ] Supabase-Oberflächeninventar, RLS- und SECURITY-DEFINER-Audit
+- [ ] Native sichere Spieleinstiegs- und Attestierungsarchitektur
+- [ ] Testbetrieb mit serverseitiger App-Berechtigung
+- [ ] Web-/API-Negativtests, Release- und Fallbacktests
+- [ ] Öffentliches Root erst nach Freigabe umstellen
+
+**Warnung:** Änderungen an einer öffentlichen Web-URL allein schützen weder Daten noch Spielökonomie. App-Exklusivität erfordert durchgängig serverseitige Autorisierung.
