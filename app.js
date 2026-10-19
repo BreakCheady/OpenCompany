@@ -7919,7 +7919,7 @@ function renderResearch() {
     : 0;
   const patentMin=investmentValue*0.80;
   const patentMax=investmentValue*1.10;
-  valid = valid && !!researchBuilding && Number(state.company?.cash_balance || 0) >= researchOperatingCost;
+  valid = valid && Number(state.company?.cash_balance || 0) >= researchOperatingCost;
 
   document.getElementById('researchUnitsAvailable').textContent=`${num(availableWhole)} ${categoryUnit}`;
   document.getElementById('researchUnitAverageCost').textContent=money(ctx.averageUnitCost);
@@ -7930,7 +7930,7 @@ function renderResearch() {
     <div class="kv"><span>Fortschritt zu Q${quality+1}</span><strong>${num(progress)} / ${num(requirement)}</strong></div>
     <div class="kv"><span>Noch benötigt</span><strong>${num(remaining)} Forschungseinheiten</strong></div>
     <div class="kv"><span>Geplante Investition</span><strong>${num(requested)} Forschungseinheiten</strong></div>
-    <div class="kv"><span>Forschungsgebäude</span><strong>${researchBuilding ? `${researchBuilding.type.name} · Level ${researchBuilding.building.level}` : 'Nicht verfügbar'}</strong></div>
+    <div class="kv"><span>Forschungsgebäude</span><strong>${researchBuilding ? `${researchBuilding.type.name} · Level ${researchBuilding.building.level}` : 'Nicht benötigt (nur zur Produktion)'}</strong></div>
     <div class="kv"><span>${translateUiString('Labor & Betrieb')}</span><strong class="${researchOperatingCost > 0 ? 'production-cost-negative' : 'production-cost-zero'}">${researchOperatingCost > 0 ? '-' : ''}${money(researchOperatingCost)}</strong></div>
     ${requested > remaining ? `<div class="kv"><span>Übertrag in Q${quality+1}</span><strong>${num(requested-remaining)} Forschungseinheiten</strong></div>` : ''}
     <div class="kv"><span>Patentwertsteigerung</span><strong>${requested > 0 ? `${money(patentMin)} – ${money(patentMax)}` : money(0)}</strong></div>` : '';
