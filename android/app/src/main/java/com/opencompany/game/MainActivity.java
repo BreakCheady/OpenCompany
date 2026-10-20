@@ -34,6 +34,7 @@ public class MainActivity extends LauncherActivity {
   private boolean checkRunning = false;
 
   private volatile String pairingCode;
+  private volatile String pairingStatus = "Start";
   private boolean twaLaunched = false;
   @Override protected boolean shouldLaunchImmediately() { return false; }
   @Override protected Uri getLaunchingUrl() {
@@ -43,12 +44,12 @@ public class MainActivity extends LauncherActivity {
   private synchronized void launchOnce() {
     if(twaLaunched)return;
     twaLaunched=true;
-    runOnUiThread(()->{if(!isFinishing()&&!isDestroyed())launchTwa();});
+    runOnUiThread(()->{if(!isFinishing()&&!isDestroyed()){launchTwa();if(!"Registrierung gesendet".equals(pairingStatus))new AlertDialog.Builder(this).setTitle("OpenCompany Push-Diagnose").setMessage(pairingStatus).setPositiveButton("OK",null).show();}});
   }
   private void startPairing() {
-    new Handler(Looper.getMainLooper()).postDelayed(this::launchOnce,6000);
+    new Handler(Looper.getMainLooper()).postDelayed(this::launchOnce,15000);
     FirebaseMessaging.getInstance().getToken().addOnCompleteListener(result->{
-      if(!result.isSuccessful()||result.getResult()==null){launchOnce();return;}
+      if(!result.isSuccessful()||result.getResult()==null){pairingStatus="Firebase-Token nicht verfügbar";launchOnce();return;}
       String token=result.getResult();
       byte[] nonce=new byte[20];new SecureRandom().nextBytes(nonce);
       StringBuilder code=new StringBuilder();
@@ -57,13 +58,15 @@ public class MainActivity extends LauncherActivity {
         try {
           HttpURLConnection conn=(HttpURLConnection)new URL("https://vprlmimcppdurywmgqat.supabase.co/functions/v1/native-push-pair").openConnection();
           conn.setRequestMethod("POST");conn.setDoOutput(true);
-          conn.setConnectTimeout(2500);conn.setReadTimeout(2500);
+          conn.setConnectTimeout(6000);conn.setReadTimeout(6000);
           conn.setRequestProperty("Content-Type","application/json");
           JSONObject payload=new JSONObject().put("action","register").put("code",code.toString()).put("fcm_token",token);
           try(OutputStream out=conn.getOutputStream()){out.write(payload.toString().getBytes(StandardCharsets.UTF_8));}
-          if(conn.getResponseCode()==200)pairingCode=code.toString();
+          int responseCode=conn.getResponseCode();
+          if(responseCode==200){pairingCode=code.toString();pairingStatus="Registrierung gesendet";}
+          else pairingStatus="Supabase antwortet mit HTTP "+responseCode;
           conn.disconnect();
-        }catch(Exception ignored){}
+        }catch(Exception e){pairingStatus="Netzwerkfehler bei Registrierung";}
         launchOnce();
       }).start();
     });
