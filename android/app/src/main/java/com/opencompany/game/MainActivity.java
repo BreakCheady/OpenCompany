@@ -39,7 +39,7 @@ public class MainActivity extends LauncherActivity {
   @Override protected boolean shouldLaunchImmediately() { return false; }
   @Override protected Uri getLaunchingUrl() {
     Uri url=super.getLaunchingUrl();
-    return pairingCode==null ? url : url.buildUpon().fragment("native-push/"+pairingCode).build();
+    return pairingCode==null ? url : url.buildUpon().appendQueryParameter("native_push_pair",pairingCode).build();
   }
   private synchronized void launchOnce() {
     if(twaLaunched)return;
