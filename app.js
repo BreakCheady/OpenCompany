@@ -3516,6 +3516,15 @@ function urlBase64ToUint8Array(base64String) {
 }
 
 function currentNativePushPairCode() {
+  const params = new URLSearchParams(location.search);
+  const queryCode = params.get('native_push_pair');
+  if (queryCode && /^[0-9a-f]{40}$/.test(queryCode)) {
+    sessionStorage.setItem('oc_native_push_pair', queryCode);
+    params.delete('native_push_pair');
+    const remainingQuery = params.toString();
+    history.replaceState(null, '', location.pathname + (remainingQuery ? '?' + remainingQuery : '') + location.hash);
+    return queryCode;
+  }
   const incoming = location.hash.match(/^#native-push\/([0-9a-f]{40})$/);
   if (incoming) {
     sessionStorage.setItem('oc_native_push_pair', incoming[1]);
