@@ -6,8 +6,8 @@ android {
     applicationId 'com.opencompany.game'
     minSdk 24
     targetSdk 35
-    versionCode 12
-    versionName '0.1.11'
+    versionCode 13
+    versionName '0.1.12'
   }
   buildFeatures { buildConfig true }
   // Release signing is enabled only when the operator supplies a permanent key.
