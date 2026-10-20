@@ -208,7 +208,7 @@ function renderManagementManagers(){
       html+='<div class="manager-stat"><span>Erfahrung</span><strong>'+manager.experience+'</strong>'+managerDeltaBadge(manager.experience,previous?.experience,0)+'</div>';
       html+='<div class="manager-stat"><span>Motivation</span><strong>'+manager.motivation+'</strong>'+managerDeltaBadge(manager.motivation,previous?.motivation,0)+'</div></div>';
       if(training){
-        html+='<div class="manager-training-note">Training aktiv · '+managementRemainingText(manager.training_ends_at)+' · Buffs pausiert</div>';
+        html+='<div class="manager-training-note">Training aktiv · Abgebucht: −'+money(managementTrainingOffer(manager).cost)+'<div>Endet am: <strong>'+(manager.training_ends_at?new Date(manager.training_ends_at).toLocaleString(uiLocale(),{dateStyle:'medium',timeStyle:'short'}):'Nicht verfügbar')+'</strong></div><div>Verbleibend: '+managementRemainingText(manager.training_ends_at)+' · Buffs pausiert</div></div>';
       } else {
         html+='<div class="manager-perks"><span>'+meta.primary+': <strong>'+managementNumber(primary,1)+' %</strong>'+managerDeltaBadge(primary,previous?.primary,1)+'</span>';
         html+='<span>'+meta.secondary+': <strong>'+managementNumber(secondary,1)+' %</strong>'+managerDeltaBadge(secondary,previous?.secondary,1)+'</span></div>';
@@ -593,7 +593,10 @@ window.startManagerTraining=async function(id){
   if(!ok) return;
   const result=await sb.rpc('start_manager_training',{p_company_id:state.company.id,p_manager_id:id});
   if(result.error){await gameAlert(result.error.message);return;}
+  const trainingEnd=result.data?new Date(result.data):null;
+  if(state.company) state.company.cash_balance=Number(state.company.cash_balance||0)-offer.cost;
   await refreshManagementOverview();
+  await gameAlert('Training gestartet.\nAbgebucht: −'+money(offer.cost)+'\nEnde: '+(trainingEnd&&Number.isFinite(trainingEnd.getTime())?trainingEnd.toLocaleString(uiLocale(),{dateStyle:'medium',timeStyle:'short'}):'Siehe Managementübersicht'));
 };
 
 window.saveManagementBudget=async function(department){
