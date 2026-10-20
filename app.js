@@ -3515,6 +3515,31 @@ function urlBase64ToUint8Array(base64String) {
   return Uint8Array.from([...rawData].map(char => char.charCodeAt(0)));
 }
 
+const nativePushPairCode = (() => {
+  const matched = location.hash.match(/^#native-push\/([0-9a-f]{40})$/);
+  if (matched) {
+    sessionStorage.setItem('oc_native_push_pair', matched[1]);
+    return matched[1];
+  }
+  const saved = sessionStorage.getItem('oc_native_push_pair');
+  return saved && /^[0-9a-f]{40}$/.test(saved) ? saved : null;
+})();
+
+async function claimNativePushPairing() {
+  if (!nativePushPairCode || !state.session?.access_token) return;
+  try {
+    const response = await fetch('https://vprlmimcppdurywmgqat.supabase.co/functions/v1/native-push-pair', {
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+state.session.access_token},
+      body:JSON.stringify({action:'claim',code:nativePushPairCode})
+    });
+    if (response.ok || response.status===404) sessionStorage.removeItem('oc_native_push_pair');
+    if (!response.ok && response.status!==404) console.warn('Android-Geräteverknüpfung noch nicht abgeschlossen.');
+  } catch (error) {
+    console.warn('Android-Geräteverknüpfung wird beim nächsten Öffnen erneut versucht.');
+  }
+}
+
 function pushSupported() {
   return 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
 }
@@ -3629,6 +3654,7 @@ async function disablePushNotifications() {
 }
 
 async function loadPushSettings() {
+  await claimNativePushPairing();
   const pushToggle = document.getElementById('pushEnabled');
   if (!pushToggle || !state.session?.user?.id) return;
 
