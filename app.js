@@ -5835,7 +5835,7 @@ function renderBuildings() {
         actions = level < 10
           ? `<button type="button" class="building-upgrade-btn" onclick="event.stopPropagation();upgradeBuilding('${building.id}','${bt.id}')">${translateUiString('Ausbauen')}</button>`
           : `<span class="building-card-meta">Maximales Lagerlevel 10 erreicht</span>`;
-          <button type="button" class="building-demolish-btn" onclick="event.stopPropagation();downgradeBuilding('${building.id}','${bt.id}')">${translateUiString(level<=1?'Abreißen':'Abstufen')}</button>
+        actions += `<button type="button" class="building-demolish-btn" onclick="event.stopPropagation();downgradeBuilding('${building.id}','${bt.id}')">${translateUiString(level<=1?'Abreißen':'Abstufen')}</button>
           <button type="button" class="storage-open-building-btn" onclick="event.stopPropagation();openStorageFromBuildingTab()">${translateUiString('Lager öffnen')}</button>`;
       } else {
         actions = `<button type="button" onclick="event.stopPropagation();selectBuildingCard('${building.id}')">${translateUiString(inUse ? 'Auftrag öffnen' : 'Auswählen')}</button>`;
