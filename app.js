@@ -3533,6 +3533,8 @@ function currentNativePushPairCode() {
   const saved = sessionStorage.getItem('oc_native_push_pair');
   return saved && /^[0-9a-f]{40}$/.test(saved) ? saved : null;
 }
+// Preserve the Android pairing proof before login redirects or hash routing can replace the launch URL.
+currentNativePushPairCode();
 window.addEventListener('hashchange', () => {
   if (currentNativePushPairCode() && state.session?.access_token) void claimNativePushPairing();
 });
