@@ -1,6 +1,13 @@
 package com.opencompany.game;
 
 import android.app.AlertDialog;
+import android.Manifest;
+import android.os.Build;
+import android.content.pm.PackageManager;
+import com.google.firebase.messaging.FirebaseMessaging;
+import java.security.SecureRandom;
+import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
 import android.app.DownloadManager;
 import android.content.Context;
 import android.content.SharedPreferences;
@@ -26,9 +33,55 @@ public class MainActivity extends LauncherActivity {
   private static final long CHECK_INTERVAL_MS = 12L * 60L * 60L * 1000L;
   private boolean checkRunning = false;
 
+  private volatile String pairingCode;
+  private boolean twaLaunched = false;
+  @Override protected boolean shouldLaunchImmediately() { return false; }
+  @Override protected Uri getLaunchingUrl() {
+    Uri url=super.getLaunchingUrl();
+    return pairingCode==null ? url : url.buildUpon().fragment("native-push/"+pairingCode).build();
+  }
+  private synchronized void launchOnce() {
+    if(twaLaunched)return;
+    twaLaunched=true;
+    runOnUiThread(()->{if(!isFinishing()&&!isDestroyed())launchTwa();});
+  }
+  private void startPairing() {
+    new Handler(Looper.getMainLooper()).postDelayed(this::launchOnce,6000);
+    FirebaseMessaging.getInstance().getToken().addOnCompleteListener(result->{
+      if(!result.isSuccessful()||result.getResult()==null){launchOnce();return;}
+      String token=result.getResult();
+      byte[] nonce=new byte[20];new SecureRandom().nextBytes(nonce);
+      StringBuilder code=new StringBuilder();
+      for(byte b:nonce)code.append(String.format(java.util.Locale.ROOT,"%02x",b&255));
+      new Thread(()->{
+        try {
+          HttpURLConnection conn=(HttpURLConnection)new URL("https://vprlmimcppdurywmgqat.supabase.co/functions/v1/native-push-pair").openConnection();
+          conn.setRequestMethod("POST");conn.setDoOutput(true);
+          conn.setConnectTimeout(2500);conn.setReadTimeout(2500);
+          conn.setRequestProperty("Content-Type","application/json");
+          JSONObject payload=new JSONObject().put("action","register").put("code",code.toString()).put("fcm_token",token);
+          try(OutputStream out=conn.getOutputStream()){out.write(payload.toString().getBytes(StandardCharsets.UTF_8));}
+          if(conn.getResponseCode()==200)pairingCode=code.toString();
+          conn.disconnect();
+        }catch(Exception ignored){}
+        launchOnce();
+      }).start();
+    });
+  }
+  @Override public void onRequestPermissionsResult(int requestCode,String[] permissions,int[] results) {
+    super.onRequestPermissionsResult(requestCode,permissions,results);
+    if(requestCode==1201){
+      if(results.length>0&&results[0]==PackageManager.PERMISSION_GRANTED)startPairing();
+      else launchOnce();
+    }
+  }
+
+
   @Override protected void onCreate(Bundle savedInstanceState) {
     super.onCreate(savedInstanceState);
     checkForUpdates();
+    if(Build.VERSION.SDK_INT>=33&&checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS)!=PackageManager.PERMISSION_GRANTED)requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS},1201);
+    else startPairing();
   }
 
   @Override protected void onResume() {
