@@ -1,4 +1,4 @@
-plugins { id 'com.android.application' }
+plugins { id 'com.android.application'; id 'com.google.gms.google-services' }
 android {
   namespace 'com.opencompany.game'
   compileSdk 36
@@ -6,8 +6,8 @@ android {
     applicationId 'com.opencompany.game'
     minSdk 24
     targetSdk 35
-    versionCode 9
-    versionName '0.1.8'
+    versionCode 10
+    versionName '0.1.9'
   }
   buildFeatures { buildConfig true }
   // Release signing is enabled only when the operator supplies a permanent key.
@@ -36,4 +36,8 @@ android {
     targetCompatibility JavaVersion.VERSION_17
   }
 }
-dependencies { implementation 'com.google.androidbrowserhelper:androidbrowserhelper:2.6.2' }
+dependencies {
+  implementation 'com.google.androidbrowserhelper:androidbrowserhelper:2.6.2'
+  implementation platform('com.google.firebase:firebase-bom:34.6.0')
+  implementation 'com.google.firebase:firebase-messaging'
+}
