@@ -3515,19 +3515,26 @@ function urlBase64ToUint8Array(base64String) {
   return Uint8Array.from([...rawData].map(char => char.charCodeAt(0)));
 }
 
-const nativePushPairCode = (() => {
-  const matched = location.hash.match(/^#native-push\/([0-9a-f]{40})$/);
-  if (matched) {
-    sessionStorage.setItem('oc_native_push_pair', matched[1]);
-    return matched[1];
+function currentNativePushPairCode() {
+  const incoming = location.hash.match(/^#native-push\/([0-9a-f]{40})$/);
+  if (incoming) {
+    sessionStorage.setItem('oc_native_push_pair', incoming[1]);
+    return incoming[1];
   }
   const saved = sessionStorage.getItem('oc_native_push_pair');
   return saved && /^[0-9a-f]{40}$/.test(saved) ? saved : null;
-})();
+}
+window.addEventListener('hashchange', () => {
+  if (currentNativePushPairCode() && state.session?.access_token) void claimNativePushPairing();
+});
+window.addEventListener('pageshow', () => {
+  if (currentNativePushPairCode() && state.session?.access_token) void claimNativePushPairing();
+});
 
 async function unlinkNativePushDevice() { const id=sessionStorage.getItem('oc_native_push_device_id'); if(!id||!state.session?.user?.id)return; const {error}=await sb.from('push_app_devices').delete().eq('id',id).eq('user_id',state.session.user.id); if(!error)sessionStorage.removeItem('oc_native_push_device_id'); }
 
 async function claimNativePushPairing() {
+  const nativePushPairCode = currentNativePushPairCode();
   if (!nativePushPairCode || !state.session?.access_token) return;
   try {
     const response = await fetch('https://vprlmimcppdurywmgqat.supabase.co/functions/v1/native-push-pair', {
