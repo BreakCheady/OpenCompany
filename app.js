@@ -1542,6 +1542,12 @@ function buildingLevelMultiplier(level) {
   return factor;
 }
 
+function warehouseUpgradeCost(baseCost, nextLevel) {
+  // Mirrors private.building_upgrade_cost and private.building_level_multiplier.
+  const multiplier = level => level <= 1 ? 1 : 1 + 0.25 * (level - 1) * (level + 2);
+  return Math.round(Number(baseCost || 0) * Math.max(0, multiplier(nextLevel) - multiplier(nextLevel - 1)) * 1.75 * 100) / 100;
+}
+
 function buildingUpgradePercent(nextLevel) {
   if (nextLevel === 2) return 100;
   if (nextLevel === 3) return 95;
@@ -5826,7 +5832,9 @@ function renderBuildings() {
         if (!inUse) actions += `<button type="button" class="building-upgrade-btn" onclick="event.stopPropagation();upgradeBuilding('${building.id}','${bt.id}')">${translateUiString('Ausbauen')}</button>
           <button type="button" class="building-demolish-btn" onclick="event.stopPropagation();downgradeBuilding('${building.id}','${bt.id}')">${translateUiString(level<=1?'Abreißen':'Abstufen')}</button>`;
       } else if (isStorage) {
-        actions = `<button type="button" class="building-upgrade-btn" onclick="event.stopPropagation();upgradeBuilding('${building.id}','${bt.id}')">${translateUiString('Ausbauen')}</button>
+        actions = level < 10
+          ? `<button type="button" class="building-upgrade-btn" onclick="event.stopPropagation();upgradeBuilding('${building.id}','${bt.id}')">${translateUiString('Ausbauen')}</button>`
+          : `<span class="building-card-meta">Maximales Lagerlevel 10 erreicht</span>`;
           <button type="button" class="building-demolish-btn" onclick="event.stopPropagation();downgradeBuilding('${building.id}','${bt.id}')">${translateUiString(level<=1?'Abreißen':'Abstufen')}</button>
           <button type="button" class="storage-open-building-btn" onclick="event.stopPropagation();openStorageFromBuildingTab()">${translateUiString('Lager öffnen')}</button>`;
       } else {
@@ -11129,8 +11137,15 @@ window.upgradeBuilding = async function(buildingId, buildingTypeId) {
   const bt = state.buildingTypes.find(b => b.id === buildingTypeId);
   const building = state.buildings.find(b => b.id === buildingId);
   const nextLevel = Number(building?.level || 1) + 1;
+  const isWarehouse = bt?.code === 'storage_warehouse';
+  if (isWarehouse && nextLevel > 10) {
+    gameAlert('Das Lagergebäude ist bereits auf dem maximalen Level 10.');
+    return;
+  }
   const increase = buildingUpgradePercent(nextLevel);
-  const nextCost = Number(bt?.construction_cost || 0) * buildingLevelMultiplier(nextLevel);
+  const nextCost = isWarehouse
+    ? warehouseUpgradeCost(bt?.construction_cost, nextLevel)
+    : Number(bt?.construction_cost || 0) * buildingLevelMultiplier(nextLevel);
 
   const buildHours = buildingConstructionHours(nextLevel);
   const finishText = buildingConstructionFinishText(buildHours);
@@ -11139,7 +11154,9 @@ window.upgradeBuilding = async function(buildingId, buildingTypeId) {
     `${bt?.name || 'Gebäude'} auf Level ${nextLevel} aufstufen? ` +
     `Kosten: ${money(nextCost)}. Bauzeit: ${formatBuildingConstructionTime(buildHours)}. ` +
     `Voraussichtlich fertig am ${finishText}. Während des Ausbaus ist das Gebäude nicht nutzbar. ` +
-    `Mitarbeiter und vorhandene Gebäudekapazität nach Fertigstellung: +${num(increase)}%.`
+    (isWarehouse
+      ? `Lagerkapazität nach Fertigstellung: ${num(2000 + 2000 * nextLevel)} Einheiten.`
+      : `Mitarbeiter und vorhandene Gebäudekapazität nach Fertigstellung: +${num(increase)}%.`)
   )) return;
 
   const { error } = await sb.rpc('upgrade_building', {
