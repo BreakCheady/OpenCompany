@@ -3525,6 +3525,8 @@ const nativePushPairCode = (() => {
   return saved && /^[0-9a-f]{40}$/.test(saved) ? saved : null;
 })();
 
+async function unlinkNativePushDevice() { const id=sessionStorage.getItem('oc_native_push_device_id'); if(!id||!state.session?.user?.id)return; const {error}=await sb.from('push_app_devices').delete().eq('id',id).eq('user_id',state.session.user.id); if(!error)sessionStorage.removeItem('oc_native_push_device_id'); }
+
 async function claimNativePushPairing() {
   if (!nativePushPairCode || !state.session?.access_token) return;
   try {
@@ -3533,7 +3535,7 @@ async function claimNativePushPairing() {
       headers:{'Content-Type':'application/json','Authorization':'Bearer '+state.session.access_token},
       body:JSON.stringify({action:'claim',code:nativePushPairCode})
     });
-    if (response.ok || response.status===404) sessionStorage.removeItem('oc_native_push_pair');
+    if (response.ok) { const result=await response.json(); if(result.device_id)sessionStorage.setItem('oc_native_push_device_id',result.device_id); sessionStorage.removeItem('oc_native_push_pair'); } else if(response.status===404)sessionStorage.removeItem('oc_native_push_pair');
     if (!response.ok && response.status!==404) console.warn('Android-Geräteverknüpfung noch nicht abgeschlossen.');
   } catch (error) {
     console.warn('Android-Geräteverknüpfung wird beim nächsten Öffnen erneut versucht.');
@@ -3782,6 +3784,7 @@ async function logoutForInactivity() {
     stopNpcMarketHeartbeat();
     stopCompanyBalanceWatcher();
     stopInactivityWatcher();
+    await unlinkNativePushDevice();
     await sb.auth.signOut({ scope: 'local' });
     msg(
       document.getElementById('authMessage'),
@@ -10907,7 +10910,8 @@ document.getElementById('deleteCompanyBtn').addEventListener('click', async () =
   history.replaceState(null, '', location.pathname + location.search);
   state.session = null;
   state.company = null;
-  try { await sb.auth.signOut(); } catch (_) {}
+  try { await unlinkNativePushDevice();
+    await sb.auth.signOut(); } catch (_) {}
   window.location.reload();
 });
 
