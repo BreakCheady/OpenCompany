@@ -39,7 +39,7 @@ create policy limit_fill_owner_read on public.market_limit_buy_fills for select 
 grant select on public.market_limit_buy_orders,public.market_limit_buy_fills to authenticated;
 
 create or replace function private.match_limit_buy_orders(p_company_id uuid default null)
-returns void language plpgsql security definer set search_path='' as $$
+returns void language plpgsql security definer set search_path='' as $limitbody$
 declare
  v_buy public.market_limit_buy_orders%rowtype;
  v_sell public.market_orders%rowtype;
@@ -144,13 +144,13 @@ begin
   end loop;
  end loop;
  perform pg_catalog.set_config('app.limit_buy_matching','0',true);
-end $;
+end; $limitbody$;
 revoke all on function private.match_limit_buy_orders(uuid) from public,anon,authenticated;
 
 create or replace function public.place_limit_buy_order(
  p_company_id uuid,p_material_id uuid,p_product_id uuid,p_qualities integer[],
  p_quantity numeric,p_max_price numeric
-) returns uuid language plpgsql security definer set search_path='' as $$
+) returns uuid language plpgsql security definer set search_path='' as $limitbody$
 declare v_id uuid; v_product public.products%rowtype;
 begin
  perform private.assert_company_owner(p_company_id);
@@ -178,7 +178,7 @@ revoke all on function public.place_limit_buy_order(uuid,uuid,uuid,integer[],num
 grant execute on function public.place_limit_buy_order(uuid,uuid,uuid,integer[],numeric,numeric) to authenticated;
 
 create or replace function public.cancel_limit_buy_order(p_order_id uuid) returns void
-language plpgsql security definer set search_path='' as $$
+language plpgsql security definer set search_path='' as $limitbody$
 declare v_order public.market_limit_buy_orders%rowtype;
 begin
  select * into v_order from public.market_limit_buy_orders where id=p_order_id for update;
@@ -191,7 +191,7 @@ revoke all on function public.cancel_limit_buy_order(uuid) from public,anon;
 grant execute on function public.cancel_limit_buy_order(uuid) to authenticated;
 
 create or replace function private.limit_buy_market_wakeup() returns trigger
-language plpgsql security definer set search_path='' as $$
+language plpgsql security definer set search_path='' as $limitbody$
 begin
  if pg_trigger_depth()=1 and current_setting('app.limit_buy_matching',true) is distinct from '1' then perform private.match_limit_buy_orders(); end if;
  return new;
@@ -204,7 +204,7 @@ for each row when (new.order_type='sell' and new.status in ('open','partially_fi
   and (new.remaining_quantity>old.remaining_quantity or new.price_per_unit<>old.price_per_unit))
 execute function private.limit_buy_market_wakeup();
 create or replace function private.limit_buy_funds_wakeup() returns trigger
-language plpgsql security definer set search_path='' as $$
+language plpgsql security definer set search_path='' as $limitbody$
 begin
  if pg_trigger_depth()=1 and current_setting('app.limit_buy_matching',true) is distinct from '1' then perform private.match_limit_buy_orders(new.id); end if;
  return new;
