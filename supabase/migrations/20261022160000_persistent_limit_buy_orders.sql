@@ -80,7 +80,11 @@ begin
    exit when not found;
    v_qty:=least(v_buy.remaining_quantity,v_sell.remaining_quantity);
    v_cost:=round(v_qty*v_sell.price_per_unit,2);
-   -- No reservation: leave the order open until all funds for this fill are available.
+   -- No reservation: never overdraft. Partially fill only as far as cash permits.
+   if v_sell.price_per_unit<=0 then exit; end if;
+   v_qty:=least(v_qty,trunc(v_buyer.cash_balance/v_sell.price_per_unit));
+   exit when v_qty<1;
+   v_cost:=round(v_qty*v_sell.price_per_unit,2);
    exit when v_buyer.cash_balance<v_cost;
    v_target_id:=null;
    if v_sell.material_id is null then
@@ -141,7 +145,8 @@ begin
      from public.companies c where c.id=v_buy.company_id;
   end loop;
  end loop;
-end $$;
+ perform pg_catalog.set_config('app.limit_buy_matching','0',true);
+end $;
 revoke all on function private.match_limit_buy_orders(uuid) from public,anon,authenticated;
 
 create or replace function public.place_limit_buy_order(
