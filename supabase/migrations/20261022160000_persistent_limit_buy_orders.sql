@@ -130,7 +130,7 @@ begin
      where id=v_buy.id returning * into v_buy;
    exit when v_buy.remaining_quantity=0;
   end loop;
-  for v_report in select quality_level,min(id) notification_id,sum(quantity) qty,sum(total_value) total
+  for v_report in select quality_level,(array_agg(id order by created_at,id))[1] notification_id,sum(quantity) qty,sum(total_value) total
      from public.market_limit_buy_fills where batch_id=v_batch and limit_order_id=v_buy.id
      group by quality_level loop
    insert into public.push_notification_queue(user_id,event_type,reference_id,title,body,url,status)
