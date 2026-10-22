@@ -61,7 +61,7 @@ begin
   select * from public.market_limit_buy_orders
   where status='open' and remaining_quantity>0
     and (p_company_id is null or company_id=p_company_id)
-  order by created_at,id for update skip locked
+  order by created_at,id for update
  loop
   v_batch:=gen_random_uuid();
   loop
@@ -76,7 +76,7 @@ begin
       or (v_buy.material_id is null and s.material_id is null
         and p.name=v_buy.product_name and p.category=v_buy.product_category))
    order by s.price_per_unit,s.created_at,s.id
-   limit 1 for update of s skip locked;
+   limit 1 for update of s;
    exit when not found;
    select * into v_buyer from public.companies where id=v_buy.company_id for update;
    exit when not found;
