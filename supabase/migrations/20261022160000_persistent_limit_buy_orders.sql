@@ -54,7 +54,9 @@ declare
  v_name text;
  v_report record;
 begin
- -- Prevent recursive cash-change triggers from rematching the same order.\n perform pg_catalog.set_config('app.limit_buy_matching','1',true);\n -- Only callable from trusted database triggers or an authenticated RPC that verifies ownership.
+ -- Prevent recursive cash-change triggers from rematching the same order.
+ perform pg_catalog.set_config('app.limit_buy_matching','1',true);
+ -- Only callable from trusted database triggers or an authenticated RPC that verifies ownership.
  for v_buy in
   select * from public.market_limit_buy_orders
   where status='open' and remaining_quantity>0
@@ -80,11 +82,7 @@ begin
    exit when not found;
    v_qty:=least(v_buy.remaining_quantity,v_sell.remaining_quantity);
    v_cost:=round(v_qty*v_sell.price_per_unit,2);
-   -- No reservation: never overdraft. Partially fill only as far as cash permits.
-   if v_sell.price_per_unit<=0 then exit; end if;
-   v_qty:=least(v_qty,trunc(v_buyer.cash_balance/v_sell.price_per_unit));
-   exit when v_qty<1;
-   v_cost:=round(v_qty*v_sell.price_per_unit,2);
+   -- Without adequate funds for this fill, do not execute any purchase.
    exit when v_buyer.cash_balance<v_cost;
    v_target_id:=null;
    if v_sell.material_id is null then
