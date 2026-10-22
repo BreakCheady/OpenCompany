@@ -3432,7 +3432,7 @@
               <label class="market-search-field">Ware suchen
                 <input id="marketCatalogSearch" type="search" placeholder="z. B. Prozessor, Stahl oder Transportcontainer" autocomplete="off">
               </label>
-              <button type="button" id="marketCatalogSellOpenBtn" class="sell-order-submit market-catalog-sell-btn">Verkaufsorder erstellen</button>
+              <div class="market-limit-actions"><button type="button" id="marketCatalogSellOpenBtn" class="sell-order-submit market-catalog-sell-btn">Verkaufsorder erstellen</button><button type="button" id="marketCatalogLimitOpenBtn" class="sell-order-submit">Limitauftrag erstellen</button></div>
             </div>
             <div id="marketCatalog" class="market-catalog"></div>
           </section>
@@ -3440,7 +3440,7 @@
           <section id="marketProductView" class="hidden">
             <div class="market-product-topbar">
               <button type="button" id="marketBackBtn" class="ghost market-back-btn">← <span id="marketProductCategory">Warenbörse</span></button>
-              <button type="button" id="marketSellOpenBtn" class="sell-order-submit">Verkaufsorder erstellen</button>
+              <div class="market-limit-actions"><button type="button" id="marketSellOpenBtn" class="sell-order-submit">Verkaufsorder erstellen</button><button type="button" id="marketLimitOpenBtn" class="sell-order-submit">Limitauftrag erstellen</button></div>
             </div>
 
             <div id="marketProductPage" class="market-product-page">
@@ -3485,13 +3485,30 @@
           <div class="panel-head my-market-orders-head">
             <div>
               <h2>Meine Orders</h2>
-              <p class="muted">Nur aktuell offene oder teilweise ausgeführte Verkaufsorders.</p>
+              <p class="muted">Offene Verkaufsorders und dauerhaft aktive Limit-Kaufaufträge.</p>
             </div>
             <strong id="myOpenMarketOrdersCount" class="my-market-orders-count">0 offen</strong>
           </div>
-          <div id="myOpenMarketOrders"></div>
+          <div id="myOpenMarketOrders"></div><div id="myLimitBuyOrders"></div>
         </article>
 
+        <div id="marketLimitModal" class="market-sell-modal hidden" aria-hidden="true">
+ <article class="panel market-sell-dialog" role="dialog" aria-modal="true" aria-labelledby="marketLimitTitle">
+ <div class="panel-head"><div><span class="muted">Automatischer Kauf</span><h2 id="marketLimitTitle">Limitauftrag erstellen</h2></div><button type="button" id="marketLimitCloseBtn" class="ghost">Schließen</button></div>
+ <form id="marketLimitForm" class="market-sell-form">
+ <label>Ware<select id="limitBuyItem" required></select></label>
+ <fieldset><legend>Zulässige Qualitäten (gemeinsame Gesamtmenge)</legend><div class="market-limit-qualities">
+ <label><input type="checkbox" name="limitBuyQuality" value="1"> Q1</label>
+ <label><input type="checkbox" name="limitBuyQuality" value="2"> Q2</label>
+ <label><input type="checkbox" name="limitBuyQuality" value="3"> Q3</label>
+ <label><input type="checkbox" name="limitBuyQuality" value="4" checked> Q4</label>
+ <label><input type="checkbox" name="limitBuyQuality" value="5" checked> Q5</label>
+ </div></fieldset>
+ <label>Gesamtmenge<input id="limitBuyQuantity" type="number" min="1" step="1" value="40000" required></label>
+ <label>Maximalpreis pro Einheit (OC$)<input id="limitBuyMaxPrice" type="number" min="0.01" step="0.01" value="200" required></label>
+ <p class="muted">Keine Guthabenreservierung. Ein Kauf erfolgt nur bei ausreichendem Unternehmenskontostand. Der Auftrag endet durch vollständige Ausführung oder Stornierung.</p>
+ <button type="submit" class="sell-order-submit">Limitauftrag erstellen</button>
+ </form></article></div>
         <div id="marketSellModal" class="market-sell-modal hidden" aria-hidden="true">
           <article class="panel market-sell-dialog" role="dialog" aria-modal="true" aria-labelledby="marketSellItemTitle">
             <div class="panel-head">
