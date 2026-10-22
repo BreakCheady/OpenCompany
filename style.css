@@ -3356,3 +3356,10 @@ body.dashboard-history-open{
 .large-order-group-title{margin-top:28px;margin-bottom:13px;padding-left:12px;border-left:4px solid #3b82f6}
 .large-order-group-title:has(+ .large-orders-list .large-order-card-awarded){border-left-color:#16a34a}
 @media(max-width:640px){.large-order-card .large-order-card-head,.large-order-card .large-order-card-body{padding:12px}.large-orders-list{gap:13px}}
+
+/* Persistent limit buy orders */
+.market-limit-actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.market-limit-qualities{display:flex;flex-wrap:wrap;gap:12px}
+.market-limit-qualities label{display:inline-flex;align-items:center;gap:5px}
+#myLimitBuyOrders{margin-top:20px}
+#marketLimitModal fieldset{border:1px solid var(--border, #555);border-radius:8px;padding:12px}
