@@ -54,7 +54,7 @@ declare
  v_name text;
  v_report record;
 begin
- -- Only callable from trusted database triggers or an authenticated RPC that verifies ownership.
+ -- Prevent recursive cash-change triggers from rematching the same order.\n perform pg_catalog.set_config('app.limit_buy_matching','1',true);\n -- Only callable from trusted database triggers or an authenticated RPC that verifies ownership.
  for v_buy in
   select * from public.market_limit_buy_orders
   where status='open' and remaining_quantity>0
@@ -190,7 +190,7 @@ grant execute on function public.cancel_limit_buy_order(uuid) to authenticated;
 create or replace function private.limit_buy_market_wakeup() returns trigger
 language plpgsql security definer set search_path='' as $$
 begin
- if pg_trigger_depth()=1 then perform private.match_limit_buy_orders(); end if;
+ if pg_trigger_depth()=1 and current_setting('app.limit_buy_matching',true) is distinct from '1' then perform private.match_limit_buy_orders(); end if;
  return new;
 end $$;
 create trigger limit_buy_new_sell after insert on public.market_orders
@@ -203,7 +203,7 @@ execute function private.limit_buy_market_wakeup();
 create or replace function private.limit_buy_funds_wakeup() returns trigger
 language plpgsql security definer set search_path='' as $$
 begin
- if pg_trigger_depth()=1 then perform private.match_limit_buy_orders(new.id); end if;
+ if pg_trigger_depth()=1 and current_setting('app.limit_buy_matching',true) is distinct from '1' then perform private.match_limit_buy_orders(new.id); end if;
  return new;
 end $$;
 create trigger limit_buy_funds_replenished after update of cash_balance on public.companies
