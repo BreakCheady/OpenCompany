@@ -1065,7 +1065,7 @@ const GAME_RULES = Object.freeze({
   fees: Object.freeze({
     marketRate: 0.05,
     retailCancellationRate: 0.20,
-    storageDailyRate: 0.05,
+    storageDailyRate: 0,
     storageOverflowRate: 0.20
   }),
   schedules: Object.freeze({
