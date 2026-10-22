@@ -173,7 +173,7 @@ begin
  returning id into v_id;
  perform private.match_limit_buy_orders(p_company_id);
  return v_id;
-end; $;
+end; $limitbody$;
 revoke all on function public.place_limit_buy_order(uuid,uuid,uuid,integer[],numeric,numeric) from public,anon;
 grant execute on function public.place_limit_buy_order(uuid,uuid,uuid,integer[],numeric,numeric) to authenticated;
 
@@ -186,7 +186,7 @@ begin
  perform private.assert_company_owner(v_order.company_id);
  if v_order.status<>'open' then raise exception 'Auftrag ist bereits abgeschlossen'; end if;
  update public.market_limit_buy_orders set status='cancelled',finished_at=now() where id=p_order_id;
-end; $;
+end; $limitbody$;
 revoke all on function public.cancel_limit_buy_order(uuid) from public,anon;
 grant execute on function public.cancel_limit_buy_order(uuid) to authenticated;
 
@@ -195,7 +195,7 @@ language plpgsql security definer set search_path='' as $limitbody$
 begin
  if pg_trigger_depth()=1 and current_setting('app.limit_buy_matching',true) is distinct from '1' then perform private.match_limit_buy_orders(); end if;
  return new;
-end; $;
+end; $limitbody$;
 create trigger limit_buy_new_sell after insert on public.market_orders
 for each row when (new.order_type='sell' and new.status in ('open','partially_filled'))
 execute function private.limit_buy_market_wakeup();
@@ -208,7 +208,7 @@ language plpgsql security definer set search_path='' as $limitbody$
 begin
  if pg_trigger_depth()=1 and current_setting('app.limit_buy_matching',true) is distinct from '1' then perform private.match_limit_buy_orders(new.id); end if;
  return new;
-end; $;
+end; $limitbody$;
 create trigger limit_buy_funds_replenished after update of cash_balance on public.companies
 for each row when (new.cash_balance>old.cash_balance)
 execute function private.limit_buy_funds_wakeup();
