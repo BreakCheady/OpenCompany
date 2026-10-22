@@ -128,11 +128,11 @@ begin
      where id=v_buy.id returning * into v_buy;
    exit when v_buy.remaining_quantity=0;
   end loop;
-  for v_report in select quality_level,sum(quantity) qty,sum(total_value) total
+  for v_report in select quality_level,min(id) notification_id,sum(quantity) qty,sum(total_value) total
      from public.market_limit_buy_fills where batch_id=v_batch and limit_order_id=v_buy.id
      group by quality_level loop
    insert into public.push_notification_queue(user_id,event_type,reference_id,title,body,url,status)
-     select c.owner_user_id,'market_limit_buy',v_buy.id,'Limitauftrag ausgeführt',
+     select c.owner_user_id,'market_sale',v_report.notification_id,'Limitauftrag ausgeführt',
        format('%s Q%s: %s Einheiten zu Ø %s OC$/Einheit gekauft. Kosten: %s OC$. Verbleibend: %s.',
          coalesce(v_buy.product_name,(select name from public.materials where id=v_buy.material_id)),
          v_report.quality_level,v_report.qty,round(v_report.total/v_report.qty,2),
