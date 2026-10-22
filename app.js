@@ -11844,10 +11844,26 @@ function renderMarketLimitOrders() {
 function openMarketLimitModal(item=marketItemDescriptor()) {
  const select=document.getElementById('limitBuyItem');
  if (!select || !state.company?.id) return;
- const materials=state.materials.map(m=>({id:'material:'+m.id,name:m.name}));
- const products=state.products.filter(p=>p.status==='active').map(p=>({id:'product:'+p.id,name:p.name}));
+ const materials=state.materials.filter(m=>m.status!=='inactive').map(m=>({
+  id:'material:'+m.id,name:m.name,category:marketCatalogCategory({type:'material',name:m.name})
+ }));
+ const products=state.products.filter(p=>p.status==='active').map(p=>({
+  id:'product:'+p.id,name:p.name,category:marketCatalogCategory({type:'product',name:p.name,product:p})
+ }));
  const choices=[...materials,...products];
- select.innerHTML=choices.map(i=>'<option value="'+i.id+'">'+limitBuyEscapeHtml(i.name)+'</option>').join('');
+ const categoryGroups=new Map();
+ for(const choice of choices){
+  const category=choice.category||'Sonstige';
+  if(!categoryGroups.has(category))categoryGroups.set(category,[]);
+  categoryGroups.get(category).push(choice);
+ }
+ const collator=new Intl.Collator(uiLocale(),{sensitivity:'base',numeric:true});
+ select.innerHTML=[...categoryGroups.keys()].sort(collator.compare).map(category=>{
+  const options=categoryGroups.get(category).sort((a,b)=>collator.compare(a.name,b.name)||collator.compare(a.id,b.id));
+  return '<optgroup label="'+limitBuyEscapeHtml(category)+'">'+options.map(i=>
+   '<option value="'+i.id+'">'+limitBuyEscapeHtml(i.name)+'</option>'
+  ).join('')+'</optgroup>';
+ }).join('');
  if (item) {
   let id=item.type==='material'?'material:'+item.id:'product:'+(state.products.find(p=>marketProductIdentity(p)===item.key.replace(/^product:/,''))?.id||'');
   if (choices.some(c=>c.id===id)) select.value=id;
