@@ -4246,8 +4246,9 @@ async function loadGameData() {
   state.materials = materials.data;
   state.materialInventory = materialInventory.data;
   state.recipes = recipes.data || [];
-  state.buildingTypes = buildingTypes.data;
-  state.buildings = buildings.data;
+  state.buildingTypes = (buildingTypes.data || []).filter(bt => bt.code !== 'storage_warehouse');
+  // Historic warehouse records remain in the database for auditing, but are retired from play.
+  state.buildings = (buildings.data || []).filter(b => !buildingTypes.data?.some(bt => bt.id === b.building_type_id && bt.code === 'storage_warehouse'));
   if (state.selectedBuildingId && !state.buildings.some(b => b.id === state.selectedBuildingId)) state.selectedBuildingId = null;
   if (state.selectedRetailBuildingId && !state.buildings.some(b => b.id === state.selectedRetailBuildingId)) state.selectedRetailBuildingId = null;
   state.productionJobs = productionJobs.data;
@@ -5613,7 +5614,7 @@ function renderBuildingCatalog() {
   const noFreeSlot = used >= slots;
 
   const rows = state.buildingTypes
-    .filter(bt => selectedCategory === 'all' || bt.building_category === selectedCategory)
+    .filter(bt => bt.code !== 'storage_warehouse' && (selectedCategory === 'all' || bt.building_category === selectedCategory))
     .map(bt => {
       const cost = Number(bt.construction_cost || 0);
       const maintenance = buildingMaintenanceCost(bt.building_category, 1);
