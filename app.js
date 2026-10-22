@@ -11818,7 +11818,7 @@ function openMarketSellModal(item=marketItemDescriptor()) {
   renderSellOrderPreview();
 }
 
-async function refreshMarketLimitOrders() {
+function limitBuyEscapeHtml(value) { return String(value??'').replace(/[&<>\"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#39;'}[ch])); }\nasync function refreshMarketLimitOrders() {
  if (!sb || !state.company?.id) return;
  const { data,error }=await sb.from('market_limit_buy_orders').select('*').eq('company_id',state.company.id).eq('status','open').order('created_at',{ascending:false});
  if (error) { console.error('Limitaufträge konnten nicht geladen werden',error); return; }
@@ -11831,7 +11831,7 @@ function renderMarketLimitOrders() {
  const orders=state.marketLimitOrders||[];
  root.innerHTML='<h3>Limit-Kaufaufträge</h3>'+(!orders.length?'<p class="muted">Keine aktiven Limitaufträge.</p>':
  '<div class="table-wrap"><table class="market-orderbook"><thead><tr><th>Ware</th><th>Qualitäten</th><th>Restmenge</th><th>Limit</th><th>Aktion</th></tr></thead><tbody>'+
- orders.map(o=>'<tr><td>'+escapeHtml(o.product_name || state.materials.find(m=>m.id===o.material_id)?.name || 'Rohstoff')+
+ orders.map(o=>'<tr><td>'+limitBuyEscapeHtml(o.product_name || state.materials.find(m=>m.id===o.material_id)?.name || 'Rohstoff')+
  '</td><td>'+o.qualities.map(q=>'Q'+q).join(', ')+'</td><td>'+num(o.remaining_quantity)+' / '+num(o.target_quantity)+
  '</td><td>'+money(o.max_unit_price)+'</td><td><button type="button" class="strong-danger-btn limit-buy-cancel" data-id="'+o.id+'">Stornieren</button></td></tr>').join('')+'</tbody></table></div>');
  root.querySelectorAll('.limit-buy-cancel').forEach(button=>button.addEventListener('click',async()=>{
@@ -11846,7 +11846,7 @@ function openMarketLimitModal(item=marketItemDescriptor()) {
  const materials=state.materials.map(m=>({id:'material:'+m.id,name:m.name}));
  const products=state.products.filter(p=>p.status==='active').map(p=>({id:'product:'+p.id,name:p.name}));
  const choices=[...materials,...products];
- select.innerHTML=choices.map(i=>'<option value="'+i.id+'">'+escapeHtml(i.name)+'</option>').join('');
+ select.innerHTML=choices.map(i=>'<option value="'+i.id+'">'+limitBuyEscapeHtml(i.name)+'</option>').join('');
  if (item) {
   let id=item.type==='material'?'material:'+item.id:'product:'+(state.products.find(p=>marketProductIdentity(p)===item.key.replace(/^product:/,''))?.id||'');
   if (choices.some(c=>c.id===id)) select.value=id;
