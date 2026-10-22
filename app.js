@@ -8519,13 +8519,12 @@ const ENCYCLOPEDIA_ARTICLES = [
   {
     id:'storage-costs', category:'Lager', title:'Lagerhaltungskosten',
     keywords:['lagerkosten','haltungskosten','02:00','gebühr'],
-    summary:'Lagerhaltungskosten werden täglich automatisch berechnet.',
+    summary:'Reguläre tägliche Lagerhaltungskosten wurden abgeschafft.',
     body:() => encyclopediaArticleBody({
-      short:`Mit einem Lagergebäude fallen täglich Lagerhaltungskosten an.`,
-      how:`<p>Die reguläre Lagerabrechnung startet täglich um <strong>${ruleTime('storageDaily')} Uhr deutscher Zeit</strong>.</p>
-        <p>Mit Lagergebäude werden <strong>${rulePercent(GAME_RULES.fees.storageDailyRate)} % des Lagerwerts pro Tag</strong> berechnet. Die Abrechnung erfolgt pro Unternehmen höchstens einmal je Kalendertag.</p>`,
-      example:`<p>Bei einem Lagerwert von ${money(20000)} entstehen ${money(20000 * GAME_RULES.fees.storageDailyRate)} Lagerhaltungskosten pro Tag.</p>`,
-      important:`<p>Ohne Lagergebäude fällt diese reguläre Lagerhaltungsgebühr nicht an. Überbestand kann unabhängig davon zusätzliche Kosten verursachen.</p>`
+      short:`Die regulären täglichen Lagerhaltungskosten entfallen.`,
+      how:`<p>Für das Lagern regulärer Bestände werden keine täglichen Lagerhaltungskosten mehr erhoben. Bei Überbestand kann weiterhin die separate Überbestandsgebühr anfallen.</p>`,
+      example:`<p>Für einen Lagerwert von ${money(20000)} betragen die regulären täglichen Lagerhaltungskosten ${money(0)}.</p>`,
+      important:`<p>Das Verwarnungs- und Zwangsversteigerungssystem wurde deaktiviert; die Kapazitätsgrenzen und gesonderte Überbestandsgebühren bleiben bestehen.</p>`
     }),
     related:['storage','storage-value','overflow'], targetView:'storage'
   },
