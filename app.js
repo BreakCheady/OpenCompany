@@ -910,6 +910,7 @@ const state = {
   marketCatalogSummary: [],
   marketCatalogProducts: [],
   marketOwnOrders: [],
+  marketLimitOrders: [],
   marketItemOrders: [],
   marketItemOrdersKey: '',
   marketItemOrdersLoading: false,
@@ -2177,6 +2178,7 @@ async function refreshMarketData() {
 
   state.marketCatalogSummary = summaryResult.data || [];
   state.marketOwnOrders = ownOrdersResult.data || [];
+  refreshMarketLimitOrders();
 
   if (item) {
     state.marketItemOrdersKey = item.key;
@@ -6713,6 +6715,7 @@ function renderMarketProductPage() {
 }
 
 function renderMyOpenMarketOrders() {
+  renderMarketLimitOrders();
   const root=document.getElementById('myOpenMarketOrders');
   const countEl=document.getElementById('myOpenMarketOrdersCount');
   if (!root || !state.company?.id) return;
@@ -11814,6 +11817,64 @@ function openMarketSellModal(item=marketItemDescriptor()) {
   marketSellModal?.setAttribute('aria-hidden','false');
   renderSellOrderPreview();
 }
+
+function limitBuyEscapeHtml(value) { return String(value??'').replace(/[&<>\"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#39;'}[ch])); }
+async function refreshMarketLimitOrders() {
+ if (!sb || !state.company?.id) return;
+ const { data,error }=await sb.from('market_limit_buy_orders').select('*').eq('company_id',state.company.id).eq('status','open').order('created_at',{ascending:false});
+ if (error) { console.error('Limitaufträge konnten nicht geladen werden',error); return; }
+ state.marketLimitOrders=data||[];
+ renderMarketLimitOrders();
+}
+function renderMarketLimitOrders() {
+ const root=document.getElementById('myLimitBuyOrders');
+ if (!root) return;
+ const orders=state.marketLimitOrders||[];
+ root.innerHTML='<h3>Limit-Kaufaufträge</h3>'+(!orders.length?'<p class="muted">Keine aktiven Limitaufträge.</p>':
+ '<div class="table-wrap"><table class="market-orderbook"><thead><tr><th>Ware</th><th>Qualitäten</th><th>Restmenge</th><th>Limit</th><th>Aktion</th></tr></thead><tbody>'+
+ orders.map(o=>'<tr><td>'+limitBuyEscapeHtml(o.product_name || state.materials.find(m=>m.id===o.material_id)?.name || 'Rohstoff')+
+ '</td><td>'+o.qualities.map(q=>'Q'+q).join(', ')+'</td><td>'+num(o.remaining_quantity)+' / '+num(o.target_quantity)+
+ '</td><td>'+money(o.max_unit_price)+'</td><td><button type="button" class="strong-danger-btn limit-buy-cancel" data-id="'+o.id+'">Stornieren</button></td></tr>').join('')+'</tbody></table></div>');
+ root.querySelectorAll('.limit-buy-cancel').forEach(button=>button.addEventListener('click',async()=>{
+  if (!confirm('Limitauftrag stornieren?')) return;
+  const {error}=await sb.rpc('cancel_limit_buy_order',{p_order_id:button.dataset.id});
+  if (error) gameAlert(error.message); else await refreshMarketLimitOrders();
+ }));
+}
+function openMarketLimitModal(item=marketItemDescriptor()) {
+ const select=document.getElementById('limitBuyItem');
+ if (!select || !state.company?.id) return;
+ const materials=state.materials.map(m=>({id:'material:'+m.id,name:m.name}));
+ const products=state.products.filter(p=>p.status==='active').map(p=>({id:'product:'+p.id,name:p.name}));
+ const choices=[...materials,...products];
+ select.innerHTML=choices.map(i=>'<option value="'+i.id+'">'+limitBuyEscapeHtml(i.name)+'</option>').join('');
+ if (item) {
+  let id=item.type==='material'?'material:'+item.id:'product:'+(state.products.find(p=>marketProductIdentity(p)===item.key.replace(/^product:/,''))?.id||'');
+  if (choices.some(c=>c.id===id)) select.value=id;
+ }
+ document.getElementById('marketLimitModal')?.classList.remove('hidden');
+ document.getElementById('marketLimitModal')?.setAttribute('aria-hidden','false');
+}
+function closeMarketLimitModal(){
+ document.getElementById('marketLimitModal')?.classList.add('hidden');
+ document.getElementById('marketLimitModal')?.setAttribute('aria-hidden','true');
+}
+document.getElementById('marketLimitOpenBtn')?.addEventListener('click',()=>openMarketLimitModal(marketItemDescriptor()));
+document.getElementById('marketCatalogLimitOpenBtn')?.addEventListener('click',()=>openMarketLimitModal(null));
+document.getElementById('marketLimitCloseBtn')?.addEventListener('click',closeMarketLimitModal);
+document.getElementById('marketLimitModal')?.addEventListener('click',e=>{if(e.target.id==='marketLimitModal')closeMarketLimitModal();});
+document.getElementById('marketLimitForm')?.addEventListener('submit',async e=>{
+ e.preventDefault();
+ const item=document.getElementById('limitBuyItem').value;
+ const [type,id]=item.split(':');
+ const q=[...document.querySelectorAll('input[name="limitBuyQuality"]:checked')].map(el=>Number(el.value));
+ const qty=Number(document.getElementById('limitBuyQuantity').value);
+ const max=Number(document.getElementById('limitBuyMaxPrice').value);
+ if (!q.length || !Number.isSafeInteger(qty) || qty<=0 || !Number.isFinite(max)||max<=0){gameAlert('Bitte gültige Menge, Preisgrenze und mindestens eine Qualität auswählen.');return;}
+ const {error}=await sb.rpc('place_limit_buy_order',{p_company_id:state.company.id,p_material_id:type==='material'?id:null,p_product_id:type==='product'?id:null,p_qualities:q,p_quantity:qty,p_max_price:max});
+ if(error)gameAlert(error.message);else {closeMarketLimitModal();await refreshMarketLimitOrders();await loadCompany();}
+});
+
 marketSellOpenBtn?.addEventListener('click',()=>openMarketSellModal(marketItemDescriptor()));
 document.getElementById('marketCatalogSellOpenBtn')?.addEventListener('click',()=>openMarketSellModal(null));
 document.getElementById('marketSellCloseBtn')?.addEventListener('click',closeMarketSellModal);
