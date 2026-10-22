@@ -3363,3 +3363,26 @@ body.dashboard-history-open{
 .market-limit-qualities label{display:inline-flex;align-items:center;gap:5px}
 #myLimitBuyOrders{margin-top:20px}
 #marketLimitModal fieldset{border:1px solid var(--border, #555);border-radius:8px;padding:12px}
+
+/* Keep market order actions side by side on narrow screens. */
+.market-catalog-toolbar .market-limit-actions,
+.market-product-topbar .market-limit-actions {
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:8px;
+  width:100%;
+  min-width:0;
+}
+.market-limit-actions > button {
+  box-sizing:border-box;
+  width:100%;
+  min-width:0;
+  max-width:none;
+  margin:0;
+  padding:12px 7px;
+  white-space:normal;
+  overflow-wrap:break-word;
+  text-align:center;
+  font-size:clamp(11px,2.9vw,15px);
+  line-height:1.25;
+}
